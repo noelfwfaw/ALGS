@@ -52,6 +52,7 @@ class GeneratedConfig:
     HazeworldTask_ClaimMonthly = True
 
     # Group `HazeworldPass`
+    HazeworldPass_ClaimTask = True
     HazeworldPass_ClaimAll = True
 
     # Group `HazeworldFriend`
@@ -63,6 +64,10 @@ class GeneratedConfig:
     # Group `HazeworldRoom`
     HazeworldRoom_CollectAll = True
     HazeworldRoom_Expedition = True
+    HazeworldRoom_Team1Task = 'Training'  # None, Training, Defense, Attack, Firepower, Support
+    HazeworldRoom_Team1Hours = 4  # 4, 8, 12
+    HazeworldRoom_Team2Task = 'None'  # None, Training, Defense, Attack, Firepower, Support
+    HazeworldRoom_Team2Hours = 4  # 4, 8, 12
 
     # Group `HazeworldExercise`
     HazeworldExercise_ProxyBattle = True
@@ -71,7 +76,13 @@ class GeneratedConfig:
     HazeworldSupport_ClaimAll = True
 
     # Group `HazeworldCore`
-    HazeworldCore_Core = 'Life'  # Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Monday = 'Life'  # None, Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Tuesday = 'Attack'  # None, Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Wednesday = 'Armor'  # None, Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Thursday = 'Critical'  # None, Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Friday = 'Burst'  # None, Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Saturday = 'None'  # None, Life, Attack, Armor, Critical, Burst
+    HazeworldCore_Sunday = 'None'  # None, Life, Attack, Armor, Critical, Burst
     HazeworldCore_SweepCount = 0
 
     # Group `Storage`

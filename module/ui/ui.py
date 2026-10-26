@@ -24,6 +24,13 @@ class UI(ModuleBase):
 
     def ui_page_appear(self, page, offset=(30, 30), interval=0):
         """
+        Check whether the given page is on screen.
+
+        A page may carry more than one check point, and is on screen if any of
+        them matches. That is for pages whose single obvious check point is a
+        small icon that the game redraws with a badge or a highlight, where one
+        check point fails now and then while another stays still.
+
         Args:
             page (Page):
             offset:
@@ -34,6 +41,13 @@ class UI(ModuleBase):
         """
         if page.check_button is None:
             return False
+
+        if isinstance(page.check_button, (list, tuple)):
+            for button in page.check_button:
+                if self.appear(button, offset=offset, interval=interval):
+                    return True
+            return False
+
         return self.appear(page.check_button, offset=offset, interval=interval)
 
     def is_in_main(self, offset=(30, 30), interval=0):
@@ -290,7 +304,7 @@ class UI(ModuleBase):
         timeout = Timer(timeout).start()
         while not timeout.reached():
             self.device.screenshot()
-            if not self.appear(page.check_button, offset=offset):
+            if not self.ui_page_appear(page, offset=offset):
                 return True
 
         logger.warning(f'Page {page} still on screen, continue anyway')
@@ -327,7 +341,7 @@ class UI(ModuleBase):
             for page in Page.iter_pages():
                 if page.parent is None or page.check_button is None:
                     continue
-                if self.appear(page.check_button, offset=offset, interval=5):
+                if self.ui_page_appear(page, offset=offset, interval=5):
                     self.ui_current = page
                     logger.info(f'Page switch: {page} -> {page.parent}')
                     button = page.links[page.parent]

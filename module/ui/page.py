@@ -54,12 +54,17 @@ class Page:
     @classmethod
     def iter_check_buttons(cls):
         for page in cls.all_pages.values():
-            yield page.check_button
+            if isinstance(page.check_button, (list, tuple)):
+                for button in page.check_button:
+                    yield button
+            else:
+                yield page.check_button
 
     def __init__(self, check_button):
         """
         Args:
-            check_button (Button): A button that only appears on this page.
+            check_button (Button, list[Button]): A button that only appears on
+                this page, or several of them, any of which identifies it.
         """
         self.check_button = check_button
         self.links = {}

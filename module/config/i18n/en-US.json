@@ -40,7 +40,7 @@
     },
     "HazeworldPass": {
       "name": "Battle pass",
-      "help": "Claim battle pass rewards"
+      "help": "Claim battle pass missions and level rewards"
     },
     "HazeworldSupport": {
       "name": "Support character",
@@ -249,9 +249,13 @@
       "name": "Battle pass settings",
       "help": ""
     },
+    "ClaimTask": {
+      "name": "Claim battle pass missions",
+      "help": "Switch to the \"Daily\", \"Weekly\" and \"Period\" tab and press \"Claim all\" on each. The missions grant the points that level the pass up, and a level is what holds a reward"
+    },
     "ClaimAll": {
-      "name": "Claim all battle pass rewards",
-      "help": "Press \"Claim all\" on the battle pass page"
+      "name": "Claim level rewards",
+      "help": "Press \"Claim all\" on the reward view of the battle pass to claim the rewards of every level reached"
     }
   },
   "HazeworldFriend": {
@@ -285,7 +289,41 @@
     },
     "Expedition": {
       "name": "Handle expeditions",
-      "help": "Claim finished expeditions and dispatch them again"
+      "help": "Claim finished expeditions and send the teams out again. An expedition comes back after the hours it was sent for, and the script returns then"
+    },
+    "Team1Task": {
+      "name": "Team 1 expedition",
+      "help": "Which expedition this team runs. \"Do not send\" leaves the team idle",
+      "None": "Do not send",
+      "Training": "Training aid",
+      "Defense": "Training aid - defense",
+      "Attack": "Training aid - attack",
+      "Firepower": "Training aid - firepower",
+      "Support": "Training aid - support"
+    },
+    "Team1Hours": {
+      "name": "Team 1 duration",
+      "help": "How many hours to send them for. The script comes back after the expedition returns",
+      "4": "4 hours",
+      "8": "8 hours",
+      "12": "12 hours"
+    },
+    "Team2Task": {
+      "name": "Team 2 expedition",
+      "help": "Which expedition this team runs. \"Do not send\" leaves the team idle",
+      "None": "Do not send",
+      "Training": "Training aid",
+      "Defense": "Training aid - defense",
+      "Attack": "Training aid - attack",
+      "Firepower": "Training aid - firepower",
+      "Support": "Training aid - support"
+    },
+    "Team2Hours": {
+      "name": "Team 2 duration",
+      "help": "How many hours to send them for. The script comes back after the expedition returns",
+      "4": "4 hours",
+      "8": "8 hours",
+      "12": "12 hours"
     }
   },
   "HazeworldExercise": {
@@ -313,9 +351,70 @@
       "name": "Core material settings",
       "help": ""
     },
-    "Core": {
-      "name": "Core type",
-      "help": "Which core to farm. Only the selected entry has the gold bar on its left edge",
+    "Monday": {
+      "name": "Monday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "Tuesday": {
+      "name": "Tuesday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "Wednesday": {
+      "name": "Wednesday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "Thursday": {
+      "name": "Thursday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "Friday": {
+      "name": "Friday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "Saturday": {
+      "name": "Saturday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "Sunday": {
+      "name": "Sunday",
+      "help": "Which core to farm that day. \"Skip\" leaves the day alone. Only the selected entry has the gold bar on its left edge",
+      "None": "Skip",
       "Life": "Life core",
       "Attack": "Attack core",
       "Armor": "Armor core",

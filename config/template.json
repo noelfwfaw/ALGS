@@ -73,7 +73,11 @@
     },
     "HazeworldRoom": {
       "CollectAll": true,
-      "Expedition": true
+      "Expedition": true,
+      "Team1Task": "Training",
+      "Team1Hours": 4,
+      "Team2Task": "None",
+      "Team2Hours": 4
     },
     "Storage": {
       "Storage": {}
@@ -139,6 +143,7 @@
       "ServerUpdate": "05:00"
     },
     "HazeworldPass": {
+      "ClaimTask": true,
       "ClaimAll": true
     },
     "Storage": {
@@ -171,7 +176,13 @@
       "ServerUpdate": "05:00"
     },
     "HazeworldCore": {
-      "Core": "Life",
+      "Monday": "Life",
+      "Tuesday": "Attack",
+      "Wednesday": "Armor",
+      "Thursday": "Critical",
+      "Friday": "Burst",
+      "Saturday": "None",
+      "Sunday": "None",
       "SweepCount": 0
     },
     "Storage": {

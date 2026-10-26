@@ -1,4 +1,5 @@
 from module.base.timer import Timer
+from module.base.utils import get_color
 from module.exception import GameStuckError
 from module.hazeworld.assets import (BACK_ARROW, BATTLE_CORE_ENTRY,
                                     BATTLE_TAB_RESOURCE, BATTLE_TITLE,
@@ -10,9 +11,10 @@ from module.hazeworld.assets import (BACK_ARROW, BATTLE_CORE_ENTRY,
                                     MAIN_ICON_FRIEND, MAIN_ICON_MAIL,
                                     MAIN_ICON_PASS, MAIN_ICON_ROOM,
                                     MAIN_ICON_TASK, PASS_BTN_RESOURCE,
-                                    PROFILE_MEMBER, REWARD_CHECK,
+                                    PROFILE_MEMBER, REWARD_POPUP,
+                                    ROOM_BTN_COLLECT_ALL,
                                     ROOM_BTN_EXPEDITION,
-                                    ROOM_EXP_PANEL_LABEL, ROOM_TITLE_LABEL,
+                                    ROOM_EXP_PANEL_LABEL,
                                     SUPPORT_CARD, SUPPORT_ENTRY,
                                     SUPPORT_REWARD, SUPPORT_TITLE,
                                     TASK_POINT_LABEL)
@@ -28,18 +30,30 @@ identified by a unique button, and `link()` records "click this -> go there".
 `UI.ui_goto()` then finds the shortest path from wherever the game currently is.
 """
 
-page_main = Page(MAIN_ICON_PASS)
+# The lobby is identified by two check points, because both of the obvious ones
+# fail now and then: the side icons are drawn on the scene, which is animated,
+# and their crop carries a piece of it, while the mail icon gets a badge when
+# there is an unread letter. The "作战" button is opaque and always there.
+page_main = Page([MAIN_BTN_BATTLE, MAIN_ICON_MAIL])
 # The tab bar changes with the selected tab, the "积分点数" label does not.
 page_task = Page(TASK_POINT_LABEL)
 page_pass = Page(PASS_BTN_RESOURCE)
 page_friend = Page(FRIEND_TAB_LIST)
 page_mail = Page(MAIL_BTN_CLAIM_ALL)
-# The command room has no bottom tab bar, only the page title.
-page_room = Page(ROOM_TITLE_LABEL)
 # The expedition panel is a modal, but it behaves like a page: its label stays
 # visible in every state, including under the result popup that covers the
-# panel title.
+# panel title. It is declared before the room page because the two share the
+# screen: the room keeps its title and its bottom bar above and below the
+# panel, so a room check point outside of the covered middle would match while
+# the panel is open and `ui_ensure(page_room)` would report "already there"
+# with the panel still covering the room.
 page_expedition = Page(ROOM_EXP_PANEL_LABEL)
+# The command room has no bottom tab bar, only the page title. The check point
+# is the "collect all" button rather than the title, because the title stays
+# readable above the expedition panel: it is the one element of the room the
+# panel covers, and it is permanent (it stays drawn and keeps its colour after
+# everything has been collected).
+page_room = Page(ROOM_BTN_COLLECT_ALL)
 # The exercise hall is a full page with its own title. The rank change popup
 # covers most of it, but the title stays readable, so this page is matched
 # while that popup is open too and has to be checked after it.
@@ -206,6 +220,16 @@ class HazeworldUI(UI):
         """
         Close the "获得资源" popup, which asks to tap anywhere to exit.
 
+        The popup is drawn the same way everywhere, but what is behind it is
+        not: the room dims the whole page, the mission page draws the popup on
+        a bright band, and the battle pass page has a light patch at the point
+        that used to be compared. A mean colour check therefore fired on the
+        pass page on every screenshot, so the title glyphs are matched instead.
+        Measured: 0.996 to 1.0 with the popup, 0.19 to 0.51 without it.
+
+        The tap lands on the title row. The items are drawn below it, and
+        tapping an item opens its detail panel, which nothing would close.
+
         Pages:
             in: any
             out: any
@@ -213,9 +237,9 @@ class HazeworldUI(UI):
         Returns:
             bool: If handled.
         """
-        if self.appear(REWARD_CHECK, offset=None):
+        if self.appear(REWARD_POPUP, offset=(20, 20), similarity=0.9):
             logger.info('Reward popup, touch to exit')
-            self.device.click(REWARD_CHECK)
+            self.device.click(REWARD_POPUP)
             return True
 
         return False
@@ -224,10 +248,9 @@ class HazeworldUI(UI):
         """
         Close the reward popup of the support character panel.
 
-        It is the same "获得资源" popup as `handle_reward()`, but it is drawn on
-        a bright band instead of dimming the page, so the colour check point of
-        `REWARD_CHECK` never matches. The template does match, and the tap point
-        is the bottom right corner, which is blank on the panel behind it.
+        It is the same "获得资源" popup as `handle_reward()`, but the panel
+        behind it draws a reward of its own at the same place, so it is checked
+        before the generic one and tapped at its own blank corner.
 
         Pages:
             in: any
@@ -254,7 +277,28 @@ class HazeworldUI(UI):
             return True
         return self.handle_reward()
 
-    def claim_all(self, claim, disabled=None, max_click=20, wait=0, skip_first_screenshot=True):
+    def button_saturated(self, button, threshold=40):
+        """
+        Whether a button area is drawn in a strong colour.
+
+        Hazeworld paints the same button in the theme colour of the context: the
+        claim button of the mission page is orange on the daily tab and blue on
+        the weekly one, the buttons of the expedition panel follow the selected
+        expedition. No single colour in an asset covers them, but an active
+        button is always saturated while a disabled one is plain grey.
+
+        Args:
+            button (Button): The button to measure.
+            threshold (int): Colour spread of a saturated fill.
+
+        Returns:
+            bool: If the area is saturated.
+        """
+        color = get_color(self.device.image, button.area)
+        return max(color) - min(color) > threshold
+
+    def claim_all(self, claim, disabled=None, max_click=20, wait=0, available=None,
+                  skip_first_screenshot=True):
         """
         Click the "claim all" button until there is nothing left to claim.
 
@@ -266,6 +310,9 @@ class HazeworldUI(UI):
             wait (int, float): Seconds to keep looking for `claim` before the
                 disabled state is accepted. Needed after a tab switch, see
                 `HazeworldTask`.
+            available (callable): Decides "there is something to claim" instead
+                of `appear(claim)`. Needed when no single colour describes the
+                button, see `HazeworldTask.task_claim_available`.
             skip_first_screenshot (bool):
 
         Returns:
@@ -292,7 +339,12 @@ class HazeworldUI(UI):
                 logger.info('Nothing left to claim')
                 break
 
-            if self.appear(claim, offset=None):
+            if available is not None:
+                clickable = available()
+            else:
+                clickable = self.appear(claim, offset=None)
+
+            if clickable:
                 if count >= max_click:
                     logger.warning(f'Claim all clicked {count} times, stop')
                     break
@@ -304,6 +356,13 @@ class HazeworldUI(UI):
                 settle = None
                 continue
 
+            # Neither the clickable nor the disabled button is on screen. That
+            # is not a verdict while the settle window is open: right after a
+            # tab switch the list is still sliding and both states read as
+            # absent, which used to end the loop after a single frame and skip
+            # the whole tab. Keep looking until the window closes.
+            if settle is not None and not settle.reached():
+                continue
             break
 
         logger.info(f'Claim all finished, clicked {count} times')

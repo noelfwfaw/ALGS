@@ -106,6 +106,7 @@ HazeworldTask:
   ClaimWeekly: true
   ClaimMonthly: true
 HazeworldPass:
+  ClaimTask: true
   ClaimAll: true
 HazeworldFriend:
   LikeAll: true
@@ -114,12 +115,42 @@ HazeworldMail:
 HazeworldRoom:
   CollectAll: true
   Expedition: true
+  Team1Task:
+    value: Training
+    option: [ None, Training, Defense, Attack, Firepower, Support ]
+  Team1Hours:
+    value: 4
+    option: [ 4, 8, 12 ]
+  Team2Task:
+    value: None
+    option: [ None, Training, Defense, Attack, Firepower, Support ]
+  Team2Hours:
+    value: 4
+    option: [ 4, 8, 12 ]
 HazeworldExercise:
   ProxyBattle: true
 HazeworldSupport:
   ClaimAll: true
 HazeworldCore:
-  Core:
+  Monday:
     value: Life
-    option: [ Life, Attack, Armor, Critical, Burst ]
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
+  Tuesday:
+    value: Attack
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
+  Wednesday:
+    value: Armor
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
+  Thursday:
+    value: Critical
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
+  Friday:
+    value: Burst
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
+  Saturday:
+    value: None
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
+  Sunday:
+    value: None
+    option: [ None, Life, Attack, Armor, Critical, Burst ]
   SweepCount: 0

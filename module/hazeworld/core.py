@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.hazeworld.assets import (CORE_BTN_SWEEP, CORE_DIALOG_MAX,
@@ -9,8 +11,8 @@ from module.hazeworld.assets import (CORE_BTN_SWEEP, CORE_DIALOG_MAX,
 from module.hazeworld.hazeworld_ui import HazeworldUI, page_core
 from module.logger import logger
 
-# Config value of HazeworldCore_Core -> sidebar button. Keep in sync with the
-# option list of `Core` in argument.yaml.
+# Config value of HazeworldCore_<weekday> -> sidebar button. Keep in sync with
+# the option list of the day keys in argument.yaml.
 CORE_TYPES = {
     'Life': CORE_TYPE_LIFE,
     'Attack': CORE_TYPE_ATTACK,
@@ -18,6 +20,11 @@ CORE_TYPES = {
     'Critical': CORE_TYPE_CRIT,
     'Burst': CORE_TYPE_BURST,
 }
+
+# `datetime.weekday()` is 0 on Monday, so this is the config key of each day.
+CORE_WEEKDAY_KEYS = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+]
 
 # The sweep dialog ignores taps faster than this, and the plus button needs the
 # count display to catch up before the next tap lands.
@@ -35,11 +42,13 @@ DIALOG_TIMEOUT = 30
 
 class HazeworldCore(HazeworldUI):
     """
-    Spend stamina on a core material stage with the sweep button.
+    Spend stamina on the core material stage of today.
+
+    Which core type can be farmed changes every day, so each weekday has its own
+    setting. A day set to `None` is skipped without touching the game.
 
     The stage inside the core page is not selected here, the game keeps the last
-    one the player picked, which is also what the reference script does. Which
-    core type to farm is configurable.
+    one the player picked, which is also what the reference script does.
 
     Pages:
         in: page_main
@@ -48,8 +57,14 @@ class HazeworldCore(HazeworldUI):
 
     def run(self):
         logger.hr('Core material sweep', level=1)
+        core = self.core_of_today()
+        if core is None:
+            logger.info('No core type set for today, skip')
+            self.config.task_delay(server_update=True)
+            return
+
         self.ui_ensure(page_core)
-        self.core_select_type()
+        self.core_select_type(core)
 
         if self.core_sweep():
             self.ui_goto_main()
@@ -58,18 +73,36 @@ class HazeworldCore(HazeworldUI):
         # day, so there is nothing to gain from running more often.
         self.config.task_delay(server_update=True)
 
-    def core_select_type(self):
+    def core_of_today(self):
         """
-        Switch the left sidebar to the configured core type.
+        The core type button configured for the current game day.
+
+        Returns:
+            Button or None: None when today is set to `None` (skip).
+        """
+        # The game day rolls over at the server update hour, so a run at 04:00
+        # still belongs to the day before.
+        hour = int(str(self.config.Scheduler_ServerUpdate).split(':')[0])
+        day = (datetime.now() - timedelta(hours=hour)).weekday()
+        key = CORE_WEEKDAY_KEYS[day]
+        value = getattr(self.config, f'HazeworldCore_{key}')
+
+        if value not in CORE_TYPES:
+            logger.info(f'Core type of {key} is {value}, nothing to farm')
+            return None
+
+        return CORE_TYPES[value]
+
+    def core_select_type(self, button):
+        """
+        Switch the left sidebar to the given core type.
+
+        Args:
+            button (Button): Sidebar button of the type.
 
         Returns:
             bool: If the type is selected.
         """
-        button = CORE_TYPES.get(self.config.HazeworldCore_Core)
-        if button is None:
-            logger.warning(f'Unknown core type {self.config.HazeworldCore_Core}, use Life')
-            button = CORE_TYPE_LIFE
-
         logger.hr(f'Core type {button.name}', level=2)
         # Switching reloads the stage list and the detail panel. Only the
         # selected block has a gold bar on its left edge, and the bar of the

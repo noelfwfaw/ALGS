@@ -288,6 +288,48 @@
       "Expedition": {
         "type": "checkbox",
         "value": true
+      },
+      "Team1Task": {
+        "type": "select",
+        "value": "Training",
+        "option": [
+          "None",
+          "Training",
+          "Defense",
+          "Attack",
+          "Firepower",
+          "Support"
+        ]
+      },
+      "Team1Hours": {
+        "type": "select",
+        "value": 4,
+        "option": [
+          4,
+          8,
+          12
+        ]
+      },
+      "Team2Task": {
+        "type": "select",
+        "value": "None",
+        "option": [
+          "None",
+          "Training",
+          "Defense",
+          "Attack",
+          "Firepower",
+          "Support"
+        ]
+      },
+      "Team2Hours": {
+        "type": "select",
+        "value": 4,
+        "option": [
+          4,
+          8,
+          12
+        ]
       }
     },
     "Storage": {
@@ -497,6 +539,10 @@
       }
     },
     "HazeworldPass": {
+      "ClaimTask": {
+        "type": "checkbox",
+        "value": true
+      },
       "ClaimAll": {
         "type": "checkbox",
         "value": true
@@ -599,10 +645,83 @@
       }
     },
     "HazeworldCore": {
-      "Core": {
+      "Monday": {
         "type": "select",
         "value": "Life",
         "option": [
+          "None",
+          "Life",
+          "Attack",
+          "Armor",
+          "Critical",
+          "Burst"
+        ]
+      },
+      "Tuesday": {
+        "type": "select",
+        "value": "Attack",
+        "option": [
+          "None",
+          "Life",
+          "Attack",
+          "Armor",
+          "Critical",
+          "Burst"
+        ]
+      },
+      "Wednesday": {
+        "type": "select",
+        "value": "Armor",
+        "option": [
+          "None",
+          "Life",
+          "Attack",
+          "Armor",
+          "Critical",
+          "Burst"
+        ]
+      },
+      "Thursday": {
+        "type": "select",
+        "value": "Critical",
+        "option": [
+          "None",
+          "Life",
+          "Attack",
+          "Armor",
+          "Critical",
+          "Burst"
+        ]
+      },
+      "Friday": {
+        "type": "select",
+        "value": "Burst",
+        "option": [
+          "None",
+          "Life",
+          "Attack",
+          "Armor",
+          "Critical",
+          "Burst"
+        ]
+      },
+      "Saturday": {
+        "type": "select",
+        "value": "None",
+        "option": [
+          "None",
+          "Life",
+          "Attack",
+          "Armor",
+          "Critical",
+          "Burst"
+        ]
+      },
+      "Sunday": {
+        "type": "select",
+        "value": "None",
+        "option": [
+          "None",
           "Life",
           "Attack",
           "Armor",

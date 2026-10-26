@@ -1,13 +1,63 @@
-from module.hazeworld.assets import (BACK_ARROW, ROOM_BTN_COLLECT_ALL,
+from module.base.timer import Timer
+from module.hazeworld.assets import (BACK_ARROW, EXP_BTN_RECOMMEND,
+                                    EXP_BTN_START, EXP_HOURS_12, EXP_HOURS_4,
+                                    EXP_HOURS_8, EXP_TASK_1, EXP_TASK_2,
+                                    EXP_TASK_3, EXP_TASK_4, EXP_TASK_5,
+                                    ROOM_BTN_COLLECT_ALL,
                                     ROOM_EXP_CLAIM, ROOM_EXP_REDISPATCH)
 from module.hazeworld.hazeworld_ui import (HazeworldUI, page_expedition,
                                            page_room)
 from module.logger import logger
 
+# Config value of HazeworldRoom_TeamNTask -> the bar of that expedition in the
+# left column. Keep in sync with the option list in argument.yaml.
+EXPEDITION_TASKS = {
+    'Training': EXP_TASK_1,
+    'Defense': EXP_TASK_2,
+    'Attack': EXP_TASK_3,
+    'Firepower': EXP_TASK_4,
+    'Support': EXP_TASK_5,
+}
+
+EXPEDITION_HOURS = {
+    4: EXP_HOURS_4,
+    8: EXP_HOURS_8,
+    12: EXP_HOURS_12,
+}
+
+# The buttons of the panel are painted in the theme colour of the selected
+# expedition: blue on the training one, orange on the defence one. No single
+# colour covers them, so they are recognised by "the fill is saturated", which
+# every theme has and a greyed out button has not. Measured: drawn 156 to 183,
+# grey 0.
+DISPATCH_SATURATION = 40
+
+# One dispatch is a handful of client side taps, a missing start button after
+# this long means it was refused (no characters meet the requirement).
+DISPATCH_TIMEOUT = 30
+
+# Selecting a tab takes effect on the next frame, but a tap that lands while
+# the panel is still switching is swallowed by the client. The tab is therefore
+# pressed again every screenshot until its fill shows that it is selected.
+SELECT_TIMEOUT = 10
+
+# Come back a little after the expedition should be over, the finish time is
+# rounded up to the second on the server.
+EXPEDITION_MARGIN = 5
+
+# "推荐" is pressed a few times before the start button, because the first press
+# can land on the roster of the previously selected expedition.
+RECOMMEND_TRIES = 3
+# Safety limit of the start button, well below the click guard of the framework.
+START_TRIES = 4
+# Seconds between two taps of the panel. The roster of the team animates in
+# after "推荐", and the start button does nothing until it has.
+CLICK_INTERVAL = 2.5
+
 
 class HazeworldRoom(HazeworldUI):
     """
-    Command room: collect facility output and handle expeditions.
+    Command room: collect facility output and run the expeditions.
 
     Pages:
         in: page_main
@@ -25,13 +75,22 @@ class HazeworldRoom(HazeworldUI):
         if self.config.HazeworldRoom_CollectAll:
             self.room_collect_all()
 
+        hours = 0
         if self.config.HazeworldRoom_Expedition:
-            self.room_expedition()
+            self.ui_ensure(page_expedition)
+            hours = self.room_expedition()
+            self.room_expedition_close()
 
         self.ui_goto_main()
 
-        # Daily task, run again after the game refreshes.
-        self.config.task_delay(server_update=True)
+        if hours:
+            # An expedition is not a daily task: it comes back after the number
+            # of hours it was sent out for, and only then can it be claimed and
+            # sent again. Waiting for the server update would leave the team
+            # idle for the rest of the day.
+            self.config.task_delay(minute=hours * 60 + EXPEDITION_MARGIN)
+        else:
+            self.config.task_delay(server_update=True)
 
     def room_collect_all(self, skip_first_screenshot=True):
         """
@@ -60,59 +119,251 @@ class HazeworldRoom(HazeworldUI):
                 continue
             break
 
-    def room_expedition(self, skip_first_screenshot=True, max_handle=10):
+    def room_expedition(self):
         """
-        Claim finished expeditions and dispatch their team again.
-
-        The panel is entered through the page graph, so a click eaten by the
-        collect animation of the room is simply retried.
+        Claim finished expeditions, then send every configured team out again.
 
         Pages:
-            in: page_room
-            out: page_room
+            in: page_expedition
+            out: page_expedition
+
+        Returns:
+            int: Hours of the shortest dispatched expedition, 0 if none.
         """
         logger.hr('Expedition', level=2)
-        self.ui_ensure(page_expedition)
+        self.expedition_claim_finished()
 
-        count = 0
-        idle = 0
+        hours = []
+        for team in (1, 2):
+            task = getattr(self.config, f'HazeworldRoom_Team{team}Task')
+            button = EXPEDITION_TASKS.get(task)
+            if button is None:
+                logger.info(f'Expedition team {team} is not configured')
+                continue
+
+            length = int(getattr(self.config, f'HazeworldRoom_Team{team}Hours'))
+            if self.expedition_dispatch(button, EXPEDITION_HOURS[length], length):
+                hours.append(length)
+
+        if not hours:
+            return 0
+        return min(hours)
+
+    def expedition_dispatch(self, task, hours, length, skip_first_screenshot=True):
+        """
+        Send one team out on the given expedition for the given duration.
+
+        The team itself is filled by "推荐", which picks characters that meet
+        every requirement of the expedition, so nothing is chosen by hand.
+
+        Args:
+            task (Button): Bar of the expedition in the left column.
+            hours (Button): Duration button.
+            length (int): Duration in hours, used for logging.
+            skip_first_screenshot (bool):
+
+        Pages:
+            in: page_expedition
+            out: page_expedition
+
+        Returns:
+            bool: If the team is out.
+        """
+        logger.hr(f'Dispatch {task.name} for {length}h', level=2)
+        if skip_first_screenshot:
+            skip_first_screenshot = False
+        else:
+            self.device.screenshot()
+
+        # The task has to be selected before the panel is read: the buttons
+        # describe the selected expedition only, so leaving the panel on the
+        # other team's running expedition reads "already running" for a team
+        # that is idle.
+        self.expedition_select(task)
+        if self.expedition_running():
+            logger.info('Expedition is out')
+            return True
+
+        # The duration is a property of the dispatch, not of the expedition, and
+        # it is locked while the team is out, which is why the running check
+        # comes first. It also changes the rewards and the requirements of the
+        # panel, so it is picked before the team is filled.
+        if not self.expedition_select(hours):
+            return False
+
+        return self.expedition_start()
+
+    def expedition_select(self, button, timeout=SELECT_TIMEOUT):
+        """
+        Press a tab of the expedition panel until it is the selected one.
+
+        A tap lands only once the previous selection has been drawn, so the tab
+        is pressed again on every frame until its fill turns saturated. Being
+        selected is the positive condition, pressing an already selected tab
+        changes nothing, so this is a plain state loop.
+
+        Args:
+            button (Button): The tab.
+            timeout (int, float): Give up after this many seconds.
+
+        Returns:
+            bool: If the tab is selected.
+        """
+        logger.info(f'Select {button.name}')
+        timeout = Timer(timeout).start()
+
+        while 1:
+            # End
+            if self.expedition_button_drawn(button):
+                return True
+            if timeout.reached():
+                logger.warning(f'Cannot select {button.name}')
+                return False
+
+            self.device.click(button)
+            self.device.screenshot()
+
+    def expedition_running(self):
+        """
+        Whether the selected expedition has already been sent out.
+
+        A team that is out replaces the start and the recommend button with the
+        countdown and the cancel button, and neither of the two is drawn in a
+        theme colour, so a frame with both missing reads "out". A single such
+        frame can be the panel still switching to the selected expedition, so
+        the state has to hold for a moment before it is believed.
+
+        Returns:
+            bool: If the team is out.
+
+        Pages:
+            in: page_expedition
+            out: page_expedition
+        """
+        timeout = Timer(1.5).start()
+
+        while 1:
+            # End
+            if self.expedition_button_drawn(EXP_BTN_START) \
+                    or self.expedition_button_drawn(EXP_BTN_RECOMMEND):
+                return False
+            if timeout.reached():
+                return True
+
+            self.device.screenshot()
+
+    def expedition_start(self):
+        """
+        Fill the team with "推荐" and send it out with "开始".
+
+        The order is fixed instead of read from the screen: the start button is
+        drawn in the theme colour even with no character picked, and right after
+        the tab switch the panel still shows the previous expedition's roster,
+        so neither the button nor the slots tell the two states apart.
+
+        Pages:
+            in: page_expedition
+            out: page_expedition
+
+        Returns:
+            bool: If the team is out.
+        """
+        timeout = Timer(DISPATCH_TIMEOUT).start()
+        interval = Timer(CLICK_INTERVAL)
+        recommend = 0
+        start = 0
+
         while 1:
             self.device.screenshot()
 
-            if self.handle_reward():
-                idle = 0
+            # End
+            if not self.expedition_button_drawn(EXP_BTN_START) \
+                    and not self.expedition_button_drawn(EXP_BTN_RECOMMEND):
+                logger.info('Expedition is out')
+                return True
+
+            if timeout.reached():
+                logger.warning('Expedition did not start, the requirements are not met?')
+                return False
+
+            if not interval.reached():
+                continue
+            interval.reset()
+
+            if recommend < RECOMMEND_TRIES:
+                recommend += 1
+                logger.info(f'Fill the team ({recommend})')
+                self.device.click(EXP_BTN_RECOMMEND)
                 continue
 
-            if count >= max_handle:
-                logger.warning(f'Expedition handled {count} times, stop')
-                break
+            start += 1
+            if start > START_TRIES:
+                logger.warning('Expedition did not start, the requirements are not met?')
+                return False
+            logger.info('Start the expedition')
+            self.device.click(EXP_BTN_START)
 
-            # Result popup of a finished expedition: send the team out again.
+    def expedition_button_drawn(self, button):
+        """
+        Whether a button of the expedition panel is drawn in its theme colour.
+
+        Args:
+            button (Button): The button.
+
+        Returns:
+            bool: If the pixel area of the button is saturated.
+        """
+        return self.button_saturated(button, DISPATCH_SATURATION)
+
+    def expedition_claim_finished(self, skip_first_screenshot=True):
+        """
+        Claim every expedition that has come back.
+
+        A finished expedition opens a result popup offering to send the same
+        team out again, and its bar shows a claim button when the popup was
+        dismissed. Both are handled here.
+
+        Pages:
+            in: page_expedition
+            out: page_expedition
+
+        Returns:
+            bool: If anything was handled.
+        """
+        count = 0
+        while 1:
+            if skip_first_screenshot:
+                skip_first_screenshot = False
+            else:
+                self.device.screenshot()
+
+            if self.handle_reward():
+                continue
+
             if self.appear(ROOM_EXP_REDISPATCH, offset=(20, 20)):
-                logger.info(f'Expedition finished, dispatch again ({count + 1})')
+                logger.info('Expedition finished, send the team out again')
                 self.device.click(ROOM_EXP_REDISPATCH)
                 count += 1
-                idle = 0
                 continue
 
-            # Mission detail of a finished expedition that is not claimed yet.
             if self.appear(ROOM_EXP_CLAIM, offset=(20, 20)):
-                logger.info(f'Expedition finished, claim ({count + 1})')
+                logger.info('Expedition finished, claim it')
                 self.device.click(ROOM_EXP_CLAIM)
                 count += 1
-                idle = 0
                 continue
 
-            # One frame without an action button can be the panel still sliding
-            # in, only trust a second one.
-            idle += 1
-            if idle >= 2:
-                logger.info(f'Expedition finished, handled {count} time(s)')
-                break
+            break
 
-        # Claiming closes the panel on its own, so only close it if it is still
-        # open. The collect button of the room page is the check here, it does
-        # not match while the modal dims the room.
+        return count > 0
+
+    def room_expedition_close(self):
+        """
+        Leave the panel, claiming closes it on its own in some cases.
+
+        Pages:
+            in: page_expedition
+            out: page_room
+        """
         self.ui_click(
             BACK_ARROW,
             check_button=ROOM_BTN_COLLECT_ALL,

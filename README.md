@@ -13,19 +13,27 @@
 | 任务 | 做什么 |
 |---|---|
 | `HazeworldMail` | 邮件「领取全部」 |
-| `HazeworldRoom` | 指挥室：全部收集 + 远征（领取 / 再次派遣） |
+| `HazeworldRoom` | 指挥室：全部收集 + 远征（2 支队伍各自选任务与时长，到期领取并再次派遣） |
 | `HazeworldExercise` | 演习：用当天演习券打完竞技场（默认代理作战，可切手动观战） |
 | `HazeworldFriend` | 好友「一键点赞」 |
-| `HazeworldTask` | 每日 / 每周 / 每月任务「一键领取」 |
-| `HazeworldPass` | 通行证「一键领取」 |
+| `HazeworldTask` | 每日 / 每周 / 每月任务：任务奖励 + 积分条宝箱 |
+| `HazeworldPass` | 通行证：领取任务拿经验升级，再领等级奖励 |
 | `HazeworldSupport` | 支援角色：领取每个支援角色的友情币（绿币，每日上限 50000） |
-| `HazeworldCore` | 核心制造：扫荡核心材料（可选生命/攻击/护甲/暴击/爆发，默认把体力一次花完） |
+| `HazeworldCore` | 核心制造：扫荡当天开放的关卡（周一到周日分别配类型与场数） |
 
 任务顺序由 `module/config/config_manual.py` 的 `SCHEDULER_PRIORITY` 决定（重启 > 收菜 > 日活 > 出击）。每个任务成功返回后自己调 `task_delay()` 排下一次运行，日常任务的默认排期是 `Scheduler.ServerUpdate`（05:00）。
 
 **演习不是日常任务**：演习券每小时恢复 1 张、上限 15 张，只按日刷新跑一次会让计数器在后半天一直满着（每天 24 张只花掉 15 张）。所以它排的是"最多等 12 小时，同时向 05:00 对齐"——`task_delay(server_update=True, minute=720)` 取两者中较近的那个，最终稳定在 **05:00 与 17:00** 各跑一次：24 张全部花完，且 05:00 那次和日任务共用一次启动。
 
+**远征按小时排期**：派遣到期要再进一次游戏领取并重新派出，所以 `HazeworldRoom` 的延迟不是日刷新，而是 `task_delay(minute=小时数 × 60 + 5)`——选 4 小时就 4 小时后回来。两队各自配置，`Team1Task` / `Team1Hours` 与 `Team2Task` / `Team2Hours` 独立：任务有 5 个（训练 / 防卫 / 攻击 / 火力 / 支援），时长有 4 / 8 / 12 小时。队伍已派出时脚本只领取、不重置时长（面板上时长是锁住的）。
+
+**任务积分条要单独领**：每日 / 每周 / 每月三个页签下方各有一条积分进度条，攒满后还能再点一次开宝箱，三页的积分条互相独立。`HazeworldTask` 会先领列表里的任务奖励，再点积分条上的宝箱，最后确认奖励弹窗。
+
+**通行证先做任务再领奖**：通行证升级靠任务给的经验，只领等级奖励不会升级。所以 `HazeworldPass` 的顺序固定为「任务页 → 领取任务 → 奖励页 → 一键领取」，`ClaimTask` / `ClaimAll` 可分别关闭。
+
 **刷核心不带关卡参数**：核心制造的关卡由游戏记住"你上次选的那一关"，脚本只负责选类型（左侧五个色条）和把体力一次花完（`SweepCount=0` 时点 `MAX`）。这样游戏出了新关卡也不用改脚本；不想刷满就把 `SweepCount` 填成具体场数。一场 10 点体力，体力不足时 `MAX` 自动退到可打的场数。
+
+**每天开放的类型不同**：周一到周日各配一组 `类型 + 场数`（`HazeworldCore.Monday` … `Sunday`），脚本按服务器时间取当天的那一组，没配的那天就跳过不跑。刷新点是 05:00，所以 05:00 之前仍算前一天。
 
 新增任务时要连带补 `module/config/i18n/{zh-CN,zh-TW,en-US,ja-JP}.json` 的 `name` / `help`，否则 GUI 里显示的是 `Group.Key.name` 这种占位符。
 
@@ -65,9 +73,9 @@ toolkit\python.exe gui.py --host 127.0.0.1 -p 22267
 ## 加一个游戏
 
 1. `module/config/server.py`：游戏名加入 `VALID_SERVER`，包名登记进 `VALID_PACKAGE`。
-2. `assets/<game>/<module>/*.png`：1280×720 截图，PS 里选中识别区、反选填充黑色，存盘。
-3. 跑 `toolkit\python.exe -m dev_tools.button_extract` 生成 `assets.py`。
-4. 写 `module/<game>/<game>_ui.py`：`Page(check_button)` + `link()` 建界面图，UI 子类指定 `page_main`。
+2. `assets/<game>/<module>/*.png`：1280×720 截图，PS 里选中识别区、反选填充黑色，存盘。涂黑的会变成 `Button`（点它），整屏保留的会变成 `Template`（`TEMPLATE_` 前缀，只作比对）。
+3. 跑 `toolkit\python.exe -m dev_tools.button_extract` 生成 `assets.py`。生成后必须人工核对坐标，缺图时会静默回落。
+4. 写 `module/<game>/<game>_ui.py`：`Page(check_button)` + `link()` 建界面图，UI 子类指定 `page_main`。一个 `Page` 可以收多个检测点（传列表，任一命中即为本页）——侧边图标盖在动画场景上、或者带角标时会抖，两个检测点互为备份更稳。子页面要先声明，父页面的 `link()` 才能引用。
 5. `argument.yaml` / `task.yaml` 加选项组与任务（任务必须含 `Scheduler` 组）。
 6. 跑 `toolkit\python.exe -m module.config.config_updater` 重新生成配置与 GUI。
 7. `algs.py` 里加同名方法（任务名的蛇形命名法）。
