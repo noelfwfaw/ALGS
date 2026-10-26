@@ -259,3 +259,6 @@ console.bat
 pyrightconfig.json
 # WorkBuddy local workspace data (never commit)
 .workbuddy/
+
+# Asset maker export list: handwritten labels, rewritten on every export
+assets/*/*/manifest.json
