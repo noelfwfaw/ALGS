@@ -1,6 +1,6 @@
 from module.base.timer import Timer
 from module.exception import GameStuckError
-from module.hazeworld.assets import (BACK_ARROW, EX_TITLE_LABEL,
+from module.hazeworld.assets import (BACK_ARROW, EXIT_CONFIRM, EX_TITLE_LABEL,
                                     FRIEND_TAB_LIST, LOGIN_ANNOUNCE,
                                     LOGIN_TOUCH_START, MAIL_BTN_CLAIM_ALL,
                                     MAIN_BTN_EXERCISE, MAIN_ICON_FRIEND,
@@ -95,6 +95,12 @@ class HazeworldUI(UI):
         announcement that has to be dismissed, then the title screen waiting for
         a tap. Loading alone takes about 30 seconds, so the timeout is generous.
 
+        The announcement only closes on the back key, but the back key on the
+        title screen opens the "确认退出?" dialog, which logs the account out on
+        the next launch when it is confirmed. So the key is sent at most once
+        every two seconds and only while the announcement is on screen, and the
+        dialog is cancelled the moment it shows up.
+
         Pages:
             in: any
             out: page_main
@@ -107,6 +113,7 @@ class HazeworldUI(UI):
         """
         logger.hr('App boot', level=2)
         timeout = Timer(240, count=3).start()
+        back = Timer(2)
 
         while 1:
             if skip_first_screenshot:
@@ -121,11 +128,17 @@ class HazeworldUI(UI):
                 logger.info('Game is at page_main')
                 return True
 
+            # Must come before the title screen check, the title stays readable
+            # behind this dialog.
+            if self.handle_exit_confirm():
+                continue
+
             # Announcement is a modal over the title screen, back dismisses it.
             # Only pressed on the positive condition, never on the main page.
             if self.appear(LOGIN_ANNOUNCE, offset=(20, 20)):
-                logger.info('Announcement popup, dismiss it')
-                self.device.adb_shell(['input', 'keyevent', '4'])
+                if back.reached_and_reset():
+                    logger.info('Announcement popup, dismiss it')
+                    self.device.adb_shell(['input', 'keyevent', '4'])
                 continue
 
             if self.appear_then_click(LOGIN_TOUCH_START, offset=(20, 20), interval=3):
@@ -135,6 +148,27 @@ class HazeworldUI(UI):
             if timeout.reached():
                 logger.warning('Wait game boot timeout')
                 raise GameStuckError('Game did not reach page_main after launch')
+
+    def handle_exit_confirm(self):
+        """
+        Cancel the "确认退出?" dialog, which the back key opens.
+
+        Confirming it quits the game and the next launch asks for the account
+        again, so only "取消" is ever clicked.
+
+        Pages:
+            in: any
+            out: any
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(EXIT_CONFIRM, offset=(20, 20)):
+            logger.info('Exit confirm dialog, cancel it')
+            self.device.click(EXIT_CONFIRM)
+            return True
+
+        return False
 
     def handle_reward(self):
         """
@@ -161,9 +195,11 @@ class HazeworldUI(UI):
         Returns:
             bool: If handled.
         """
+        if self.handle_exit_confirm():
+            return True
         return self.handle_reward()
 
-    def claim_all(self, claim, disabled=None, max_click=20, skip_first_screenshot=True):
+    def claim_all(self, claim, disabled=None, max_click=20, wait=0, skip_first_screenshot=True):
         """
         Click the "claim all" button until there is nothing left to claim.
 
@@ -172,12 +208,20 @@ class HazeworldUI(UI):
             disabled (Button): The same button in disabled state, used as the
                 positive exit condition. None to exit when `claim` disappears.
             max_click (int): Safety limit, to avoid clicking forever.
+            wait (int, float): Seconds to keep looking for `claim` before the
+                disabled state is accepted. Needed after a tab switch, see
+                `HazeworldTask`.
             skip_first_screenshot (bool):
 
         Returns:
             int: Times clicked.
         """
         count = 0
+        # Just after a tab switch the button still shows the previous tab, so a
+        # disabled button is only believed after `wait` seconds without the
+        # clickable one showing up. Zero keeps the plain behaviour.
+        settle = Timer(wait).start() if wait else None
+
         while 1:
             if skip_first_screenshot:
                 skip_first_screenshot = False
@@ -188,6 +232,8 @@ class HazeworldUI(UI):
                 continue
 
             if disabled is not None and self.appear(disabled, offset=None):
+                if settle is not None and not settle.reached():
+                    continue
                 logger.info('Nothing left to claim')
                 break
 
@@ -198,6 +244,9 @@ class HazeworldUI(UI):
                 logger.info(f'Claim all ({count + 1})')
                 self.device.click(claim)
                 count += 1
+                # The page is obviously the right one now, no need to wait for
+                # the disabled state any more.
+                settle = None
                 continue
 
             break

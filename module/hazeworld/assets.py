@@ -5,6 +5,7 @@ from module.base.template import Template
 # Don't modify it manually.
 
 BACK_ARROW = Button(area={'hazeworld': (12, 18, 40, 52)}, color={'hazeworld': (48, 49, 47)}, button={'hazeworld': (12, 18, 40, 52)}, file={'hazeworld': './assets/hazeworld/hazeworld/BACK_ARROW.png'})
+EXIT_CONFIRM = Button(area={'hazeworld': (585, 292, 695, 325)}, color={'hazeworld': (227, 227, 227)}, button={'hazeworld': (478, 373, 637, 432)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXIT_CONFIRM.png'})
 EX_BTN_BATTLE_DONE = Button(area={'hazeworld': (980, 649, 1073, 669)}, color={'hazeworld': (123, 69, 26)}, button={'hazeworld': (814, 634, 1240, 684)}, file={'hazeworld': './assets/hazeworld/hazeworld/EX_BTN_BATTLE_DONE.png'})
 EX_BTN_BATTLE_READY = Button(area={'hazeworld': (1030, 649, 1123, 670)}, color={'hazeworld': (127, 72, 22)}, button={'hazeworld': (993, 634, 1251, 684)}, file={'hazeworld': './assets/hazeworld/hazeworld/EX_BTN_BATTLE_READY.png'})
 EX_BTN_PROXY = Button(area={'hazeworld': (839, 649, 928, 668)}, color={'hazeworld': (129, 130, 128)}, button={'hazeworld': (820, 638, 950, 680)}, file={'hazeworld': './assets/hazeworld/hazeworld/EX_BTN_PROXY.png'})
@@ -20,7 +21,7 @@ EX_TITLE_LABEL = Button(area={'hazeworld': (229, 14, 382, 53)}, color={'hazeworl
 FRIEND_LIKE_ALL = Button(area={'hazeworld': (68, 620, 217, 667)}, color={'hazeworld': (50, 52, 46)}, button={'hazeworld': (68, 620, 217, 667)}, file={'hazeworld': './assets/hazeworld/hazeworld/FRIEND_LIKE_ALL.png'})
 FRIEND_TAB_LIST = Button(area={'hazeworld': (61, 130, 274, 193)}, color={'hazeworld': (54, 56, 52)}, button={'hazeworld': (61, 130, 274, 193)}, file={'hazeworld': './assets/hazeworld/hazeworld/FRIEND_TAB_LIST.png'})
 LOGIN_ANNOUNCE = Button(area={'hazeworld': (100, 55, 350, 100)}, color={'hazeworld': (44, 46, 42)}, button={'hazeworld': (100, 55, 350, 100)}, file={'hazeworld': './assets/hazeworld/hazeworld/LOGIN_ANNOUNCE.png'})
-LOGIN_TOUCH_START = Button(area={'hazeworld': (525, 588, 775, 612)}, color={'hazeworld': (93, 90, 89)}, button={'hazeworld': (470, 462, 820, 496)}, file={'hazeworld': './assets/hazeworld/hazeworld/LOGIN_TOUCH_START.png'})
+LOGIN_TOUCH_START = Button(area={'hazeworld': (525, 588, 775, 612)}, color={'hazeworld': (93, 90, 89)}, button={'hazeworld': (530, 592, 760, 628)}, file={'hazeworld': './assets/hazeworld/hazeworld/LOGIN_TOUCH_START.png'})
 MAIL_BTN_CLAIM = Button(area={'hazeworld': (1023, 628, 1177, 670)}, color={'hazeworld': (203, 118, 44)}, button={'hazeworld': (1023, 628, 1177, 670)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIL_BTN_CLAIM.png'})
 MAIL_BTN_CLAIM_ALL = Button(area={'hazeworld': (294, 645, 382, 670)}, color={'hazeworld': (93, 94, 91)}, button={'hazeworld': (294, 645, 382, 670)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIL_BTN_CLAIM_ALL.png'})
 MAIN_BTN_EXERCISE = Button(area={'hazeworld': (1022, 566, 1175, 613)}, color={'hazeworld': (117, 151, 225)}, button={'hazeworld': (1022, 563, 1263, 613)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_BTN_EXERCISE.png'})
