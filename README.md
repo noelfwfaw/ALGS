@@ -19,7 +19,9 @@
 | `HazeworldTask` | 每日 / 每周 / 每月任务「一键领取」 |
 | `HazeworldPass` | 通行证「一键领取」 |
 
-任务顺序由 `module/config/config_manual.py` 的 `SCHEDULER_PRIORITY` 决定（重启 > 收菜 > 日活 > 出击）。每个任务成功返回后自己调 `task_delay()` 排下一次运行，默认排到 `Scheduler.ServerUpdate`（05:00）。
+任务顺序由 `module/config/config_manual.py` 的 `SCHEDULER_PRIORITY` 决定（重启 > 收菜 > 日活 > 出击）。每个任务成功返回后自己调 `task_delay()` 排下一次运行，日常任务的默认排期是 `Scheduler.ServerUpdate`（05:00）。
+
+**演习不是日常任务**：演习券每小时恢复 1 张、上限 15 张，只按日刷新跑一次会让计数器在后半天一直满着（每天 24 张只花掉 15 张）。所以它排的是"最多等 12 小时，同时向 05:00 对齐"——`task_delay(server_update=True, minute=720)` 取两者中较近的那个，最终稳定在 **05:00 与 17:00** 各跑一次：24 张全部花完，且 05:00 那次和日任务共用一次启动。
 
 新增任务时要连带补 `module/config/i18n/{zh-CN,zh-TW,en-US,ja-JP}.json` 的 `name` / `help`，否则 GUI 里显示的是 `Group.Key.name` 这种占位符。
 

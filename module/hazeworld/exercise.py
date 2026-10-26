@@ -27,6 +27,13 @@ EXERCISE_TICKET = DigitCounter(
 PROXY_BATTLE_TIME = 15
 PROXY_TIMEOUT = 600
 
+# Exercise tickets recover one per hour and cap at 15, so running only at the
+# server update would leave the counter full for the last third of the day and
+# waste the recovery. Any interval below 15 hours never overflows the cap;
+# 12 hours spends all 24 tickets a day while keeping 3 hours of margin for a
+# run the scheduler delays behind other tasks.
+EXERCISE_INTERVAL = 12 * 60
+
 
 class HazeworldExercise(HazeworldUI):
     """
@@ -38,6 +45,9 @@ class HazeworldExercise(HazeworldUI):
       ticket on its own -> "代理完成" -> "确认". Fast, no battle animation.
     - manual: "作战准备" per fight, then "战斗胜利" -> "确认", sometimes with
       a rank change popup in between. Slower, but the fight is visible.
+
+    Tickets recover one per hour up to 15, so the next run is at most 12 hours
+    away and pulled towards the server update, see `EXERCISE_INTERVAL`.
 
     Pages:
         in: page_main
@@ -55,8 +65,10 @@ class HazeworldExercise(HazeworldUI):
 
         self.ui_goto_main()
 
-        # Daily task, run again after the game refreshes.
-        self.config.task_delay(server_update=True)
+        # Not a daily task: tickets keep recovering after the server update,
+        # see EXERCISE_INTERVAL. `task_delay()` picks whichever comes first, so
+        # the pair settles on 05:00 (shared with the daily tasks) and 17:00.
+        self.config.task_delay(server_update=True, minute=EXERCISE_INTERVAL)
 
     def exercise_ticket_left(self, retry=2):
         """
