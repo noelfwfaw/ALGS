@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from module.base.button import Button
 from module.base.timer import Timer
 from module.hazeworld.assets import (BACK_ARROW, EXP_BTN_RECOMMEND,
                                     EXP_BTN_START, EXP_HOURS_12, EXP_HOURS_4,
@@ -9,6 +12,7 @@ from module.hazeworld.assets import (BACK_ARROW, EXP_BTN_RECOMMEND,
 from module.hazeworld.hazeworld_ui import (HazeworldUI, page_expedition,
                                            page_room)
 from module.logger import logger
+from module.ocr.ocr import Duration
 
 # Config value of HazeworldRoom_TeamNTask -> the bar of that expedition in the
 # left column. Keep in sync with the option list in argument.yaml.
@@ -25,6 +29,26 @@ EXPEDITION_HOURS = {
     8: EXP_HOURS_8,
     12: EXP_HOURS_12,
 }
+
+# "剩余时间 01:36:26" under the roster of a team that is out. Only the panel of
+# the selected expedition carries it, so it is read after the bar is selected,
+# and it is the only honest answer to "when does this team come back": the
+# duration in the settings describes the dispatch the script makes, not the one
+# that is already running.
+#
+# The digits are dark on the white panel, and a crop that hugs them loses one
+# now and then, so a few pixels of the panel are kept on every side.
+EXP_REMAIN = Duration(
+    Button(area=(888, 596, 978, 618), color=(), button=(888, 596, 978, 618),
+           name='EXP_REMAIN'),
+    letter=(30, 30, 30),
+    threshold=128,
+)
+
+# No expedition lasts longer than the longest duration on offer, so a countdown
+# beyond that is a misread rather than a team that is out for a year.
+EXPEDITION_MAX = max(EXPEDITION_HOURS)
+REMAIN_READS = 3
 
 # The buttons of the panel are painted in the theme colour of the selected
 # expedition: blue on the training one, orange on the defence one. No single
@@ -93,20 +117,27 @@ class HazeworldRoom(HazeworldUI):
         if self.config.HazeworldRoom_CollectAll:
             self.room_collect_all()
 
-        hours = 0
+        delay = None
         if self.config.HazeworldRoom_Expedition:
             self.ui_ensure(page_expedition)
-            hours = self.room_expedition()
+            delay = self.room_expedition()
             self.room_expedition_close()
 
         self.ui_goto_main()
 
-        if hours:
+        if delay is not None:
             # An expedition is not a daily task: it comes back after the number
             # of hours it was sent out for, and only then can it be claimed and
             # sent again. Waiting for the server update would leave the team
             # idle for the rest of the day.
-            self.config.task_delay(minute=hours * 60 + EXPEDITION_MARGIN)
+            #
+            # With two teams the next run is the one that comes back first, and
+            # a team that is already out contributes what is left of its
+            # countdown. Its configured duration says nothing about that: a team
+            # sent out an hour ago for eight hours is back in seven, not eight,
+            # and scheduling it from the settings is how a team ends up waiting
+            # for a run that happens hours after it landed.
+            self.config.task_delay(minute=delay.total_seconds() / 60 + EXPEDITION_MARGIN)
         else:
             self.config.task_delay(server_update=True)
 
@@ -146,12 +177,13 @@ class HazeworldRoom(HazeworldUI):
             out: page_expedition
 
         Returns:
-            int: Hours of the shortest dispatched expedition, 0 if none.
+            datetime.timedelta or None: Time until the first team is back,
+                None when no team is out.
         """
         logger.hr('Expedition', level=2)
         self.expedition_claim_finished()
 
-        hours = []
+        delays = []
         for team in (1, 2):
             task = getattr(self.config, f'HazeworldRoom_Team{team}Task')
             button = EXPEDITION_TASKS.get(task)
@@ -160,12 +192,13 @@ class HazeworldRoom(HazeworldUI):
                 continue
 
             length = int(getattr(self.config, f'HazeworldRoom_Team{team}Hours'))
-            if self.expedition_dispatch(button, EXPEDITION_HOURS[length], length):
-                hours.append(length)
+            delay = self.expedition_dispatch(button, EXPEDITION_HOURS[length], length)
+            if delay is not None:
+                delays.append(delay)
 
-        if not hours:
-            return 0
-        return min(hours)
+        if not delays:
+            return None
+        return min(delays)
 
     def expedition_dispatch(self, task, hours, length, skip_first_screenshot=True):
         """
@@ -185,7 +218,8 @@ class HazeworldRoom(HazeworldUI):
             out: page_expedition
 
         Returns:
-            bool: If the team is out.
+            datetime.timedelta or None: Time until the team is back, None when
+                the team could not be sent out.
         """
         logger.hr(f'Dispatch {task.name} for {length}h', level=2)
         if skip_first_screenshot:
@@ -199,19 +233,51 @@ class HazeworldRoom(HazeworldUI):
         # that is idle. A panel that does not switch at all is reported instead
         # of being read, the buttons below would belong to another expedition.
         if not self.expedition_select(task):
-            return False
+            return None
         if self.expedition_running():
             logger.info('Expedition is out')
-            return True
+            return self.expedition_remaining(length)
 
         # The duration is a property of the dispatch, not of the expedition, and
         # it is locked while the team is out, which is why the running check
         # comes first. It also changes the rewards and the requirements of the
         # panel, so it is picked before the team is filled.
         if not self.expedition_select(hours):
-            return False
+            return None
 
-        return self.expedition_start()
+        if not self.expedition_start():
+            return None
+        return timedelta(hours=length)
+
+    def expedition_remaining(self, length):
+        """
+        Read how long the selected expedition is still out for.
+
+        The panel redraws its countdown only when an expedition is selected,
+        and the game is not drawn while it sits in the background, so the text
+        is read here rather than when the page is opened.
+
+        A dropped digit yields a shorter countdown that still looks valid, so a
+        reading is only accepted within the time an expedition can last. When
+        none of the reads is acceptable the configured duration is used: that
+        wakes up late, but a countdown that cannot be read at all would
+        otherwise decide the whole schedule.
+
+        Args:
+            length (int): Hours the team was sent out for, from the settings.
+
+        Returns:
+            datetime.timedelta: Time until the team is back.
+        """
+        for _ in range(REMAIN_READS):
+            remain = EXP_REMAIN.ocr(self.device.image)
+            if timedelta() < remain <= timedelta(hours=EXPEDITION_MAX):
+                logger.info(f'Expedition is back in {remain}')
+                return remain
+            self.device.screenshot()
+
+        logger.warning(f'Cannot read the countdown of the {length}h expedition, delay by the settings')
+        return timedelta(hours=length)
 
     def expedition_select(self, button, timeout=SELECT_TIMEOUT):
         """
