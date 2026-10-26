@@ -3,7 +3,7 @@ from module.hazeworld.assets import (TASK_CLAIM_ALL,
                                      TASK_CLAIM_ALL_DISABLED, TASK_POINT_LABEL,
                                      TASK_TAB_DAILY, TASK_TAB_MONTHLY,
                                      TASK_TAB_WEEKLY, TEMPLATE_TASK_MILESTONE)
-from module.hazeworld.hazeworld_ui import HazeworldUI, page_task
+from module.hazeworld.hazeworld_ui import CLAIM_TIMES, HazeworldUI, page_task
 from module.logger import logger
 
 # The tab switch is client side, but the claim button and the mission list keep
@@ -62,8 +62,10 @@ class HazeworldTask(HazeworldUI):
 
         self.ui_goto_main()
 
-        # Daily task, run again after the game refreshes.
-        self.config.task_delay(server_update=True)
+        # Missions are finished during the day, not at the daily reset, and
+        # they only count as claimed once the button is pressed, so the task
+        # comes back on the four openings of the player rather than once a day.
+        self.config.task_delay(server_update=CLAIM_TIMES)
 
     def task_claim_available(self):
         """

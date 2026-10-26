@@ -3,7 +3,7 @@ from module.base.utils import get_color
 from module.hazeworld.assets import (PASS_CLAIM_ALL, PASS_TAB_DAILY,
                                     PASS_TAB_PERIOD, PASS_TAB_WEEKLY,
                                     PASS_VIEW_REWARD, PASS_VIEW_TASK)
-from module.hazeworld.hazeworld_ui import HazeworldUI, page_pass
+from module.hazeworld.hazeworld_ui import CLAIM_TIMES, HazeworldUI, page_pass
 from module.logger import logger
 
 # The pass page holds two views behind one toggle at the bottom centre: the
@@ -67,8 +67,10 @@ class HazeworldPass(HazeworldUI):
 
         self.ui_goto_main()
 
-        # Daily task, run again after the game refreshes.
-        self.config.task_delay(server_update=True)
+        # A pass task is only counted after it is claimed, and experience of a
+        # claimed task is what levels the pass up, so this one follows the same
+        # four openings as the mission page instead of the daily reset.
+        self.config.task_delay(server_update=CLAIM_TIMES)
 
     def pass_claim_task(self):
         """

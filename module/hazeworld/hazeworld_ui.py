@@ -99,6 +99,18 @@ page_support.link(button=BACK_ARROW, destination=page_profile)
 page_core.link(button=BACK_ARROW, destination=page_battle_resource)
 
 
+# The mission page and the battle pass do not only refresh at the daily reset:
+# they hand out new missions while the player is in game, and a finished mission
+# stays on the list until it is claimed. Checking once at the server update
+# would leave a whole day of missions unclaimed, so both tasks go in on these
+# four openings instead of on the daily one.
+#
+# The format is the one `Scheduler.ServerUpdate` uses, which makes
+# `task_delay(server_update=CLAIM_TIMES)` pick the nearest of the four, roll
+# over to the next day on its own and apply the server timezone.
+CLAIM_TIMES = ['05:00', '12:00', '18:00', '23:00']
+
+
 class HazeworldUI(UI):
     """
     Shared UI base of every Hazeworld task.

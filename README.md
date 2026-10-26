@@ -23,6 +23,8 @@
 
 任务顺序由 `module/config/config_manual.py` 的 `SCHEDULER_PRIORITY` 决定（重启 > 收菜 > 日活 > 出击）。每个任务成功返回后自己调 `task_delay()` 排下一次运行，日常任务的默认排期是 `Scheduler.ServerUpdate`（05:00）。
 
+**领任务和通行证一天进四次**：这两个页面的内容不是只在 05:00 刷新——任务在玩家在线期间陆续完成，什么时候领完全由玩家决定，只按日刷新跑一次会让一整天攒下的任务堆到第二天早上。所以它们排的是固定的四个上线时间 **05:00 / 12:00 / 18:00 / 23:00**：`module/hazeworld/hazeworld_ui.py` 的 `CLAIM_TIMES` 与 `Scheduler.ServerUpdate` 同格式，`task_delay(server_update=CLAIM_TIMES)` 取其中最近的一个，跨天和服务器时区由框架自己处理。两个任务共用这四个时间点，`SCHEDULER_PRIORITY` 里 `HazeworldTask` 排在 `HazeworldPass` 前面，所以每个时段只启动一次游戏、连着跑完两个任务。
+
 **演习不是日常任务**：演习券每小时恢复 1 张、上限 15 张，只按日刷新跑一次会让计数器在后半天一直满着（每天 24 张只花掉 15 张）。所以它排的是"最多等 12 小时，同时向 05:00 对齐"——`task_delay(server_update=True, minute=720)` 取两者中较近的那个，最终稳定在 **05:00 与 17:00** 各跑一次：24 张全部花完，且 05:00 那次和日任务共用一次启动。
 
 **远征按小时排期**：派遣到期要再进一次游戏领取并重新派出，所以 `HazeworldRoom` 的延迟不是日刷新，而是 `task_delay(minute=小时数 × 60 + 5)`——选 4 小时就 4 小时后回来。两队各自配置，`Team1Task` / `Team1Hours` 与 `Team2Task` / `Team2Hours` 独立：任务有 5 个（训练 / 防卫 / 攻击 / 火力 / 支援），时长有 4 / 8 / 12 小时。队伍已派出时脚本只领取、不重置时长（面板上时长是锁住的）。
