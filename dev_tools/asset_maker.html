@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AlGS Asset Maker - 截图标注与素材导出</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e3e6eb; --text:#1f2329; --sub:#6b7280;
+    --base:#3b82f6; --button:#f97316; --area:#a855f7; --color:#10b981; --template:#eab308;
+    --accent:#2563eb;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font:13px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    color:var(--text); background:var(--bg); display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; padding:8px 14px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex:none;
+  }
+  header h1{font-size:14px; margin:0; font-weight:600}
+  header .hint{color:var(--sub); font-size:12px}
+  header .spacer{flex:1}
+  input,select,textarea,button{font:inherit; color:inherit}
+  input[type=text],select,textarea{
+    border:1px solid var(--line); border-radius:5px; padding:3px 6px; background:#fff; outline:none;
+  }
+  input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  button{
+    border:1px solid var(--line); background:#fff; border-radius:5px; padding:4px 10px; cursor:pointer;
+  }
+  button:hover{background:#f0f2f5}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  button.primary:hover{background:#1d4ed8}
+  button.mini{padding:1px 6px; font-size:12px}
+
+  .app{flex:1; display:grid; grid-template-columns:210px 1fr 320px; min-height:0}
+
+  aside{background:var(--panel); overflow:auto; min-height:0}
+  aside.left{border-right:1px solid var(--line); padding:8px}
+  aside.right{border-left:1px solid var(--line); padding:8px; display:flex; flex-direction:column; gap:8px}
+
+  .sect-title{font-size:11px; letter-spacing:.08em; color:var(--sub); text-transform:uppercase; margin:2px 0 6px}
+
+  .thumb{display:flex; gap:6px; align-items:center; padding:4px; border:1px solid transparent; border-radius:6px; cursor:pointer; margin-bottom:4px}
+  .thumb:hover{background:#f4f6f9}
+  .thumb.active{border-color:var(--accent); background:#eef4ff}
+  .thumb img{width:74px; height:42px; object-fit:cover; border-radius:3px; background:#000}
+  .thumb .meta{min-width:0; flex:1}
+  .thumb .meta b{display:block; font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .thumb .meta span{font-size:11px; color:var(--sub)}
+
+  main{display:flex; flex-direction:column; min-width:0; min-height:0}
+  .toolbar{display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line); background:var(--panel); flex:none; flex-wrap:wrap}
+  .toolbar .sep{width:1px; height:16px; background:var(--line)}
+  .stage{flex:1; overflow:auto; padding:12px; background:#2b2f36; display:flex; align-items:flex-start; justify-content:center}
+  #cv{background:#000; box-shadow:0 2px 14px rgba(0,0,0,.4); cursor:crosshair; display:block}
+  .empty{color:#9aa4b2; font-size:13px; text-align:center; margin:auto; line-height:2}
+
+  .field{display:flex; flex-direction:column; gap:3px}
+  .field label{font-size:11px; color:var(--sub)}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+
+  .boxes{flex:1; overflow:auto; min-height:80px}
+  .boxcard{border:1px solid var(--line); border-radius:6px; padding:6px; margin-bottom:6px; background:#fff}
+  .boxcard.sel{border-color:var(--accent); box-shadow:0 0 0 2px #dbeafe}
+  .boxcard .top{display:flex; gap:6px; align-items:center}
+  .boxcard .top input{flex:1; font-weight:600}
+  .boxcard .mid{display:flex; gap:6px; align-items:center; margin-top:5px; font-size:11px; color:var(--sub)}
+  .boxcard .mid select{font-size:11px; padding:1px 4px}
+  .boxcard .note{margin-top:5px; width:100%; height:38px; resize:vertical; font-size:12px}
+  .swatch{display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px}
+  .warn{color:#b45309; font-size:11px; margin-top:4px}
+
+  #report{
+    flex:none; max-height:34vh; overflow:auto; background:var(--panel);
+    border-top:1px solid var(--line); padding:8px 14px; font-size:12px; display:none;
+  }
+  #report table{border-collapse:collapse}
+  #report td,#report th{border-bottom:1px solid var(--line); padding:2px 8px 2px 0; text-align:left; font-weight:400}
+  #report .ok{color:#059669}
+  #report .err{color:#dc2626}
+  #report .warnline{color:#b45309}
+  kbd{background:#f1f3f5; border:1px solid var(--line); border-bottom-width:2px; border-radius:3px; padding:0 4px; font-size:11px; font-family:inherit}
+</style>
+</head>
+<body>
+<header>
+  <h1>AlGS Asset Maker</h1>
+  <span class="hint">Ctrl+V 贴截图 · 拖框标注 · 名字随便写（中文随意，改名由 AI 做）</span>
+  <span class="spacer"></span>
+  <label class="hint">命名空间</label>
+  <input type="text" id="ns" size="10" placeholder="hazeworld">
+  <label class="hint">模块</label>
+  <input type="text" id="mod" size="10" placeholder="hazeworld">
+  <label class="hint" title="把原始截图一起写到 screenshots/&lt;命名空间&gt;/，AI 可以离线跑 asset_check 核对"><input type="checkbox" id="dumpShots" checked> 附带截图</label>
+  <button id="btnPickDir" class="mini" title="选一次仓库根目录，之后素材和截图都按命名空间/模块自动分目录写">导出到…</button>
+  <span class="hint" id="dirLabel" title="当前导出目标">未选目录</span>
+  <button id="btnExport" class="primary">导出素材</button>
+</header>
+
+<div class="app">
+  <aside class="left">
+    <div class="sect-title">截图（每张 = 一个页面/状态）</div>
+    <div id="shotlist"></div>
+    <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px">
+      <button id="btnImport">导入 png…</button>
+      <button id="btnClear" class="mini">清空全部</button>
+    </div>
+    <input type="file" id="file" accept="image/png,image/*" multiple hidden>
+    <div class="sect-title" style="margin-top:14px">快捷键</div>
+    <div style="font-size:11px; color:var(--sub); line-height:1.9">
+      <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴截图<br>
+      空白处拖动 = 新建框<br>
+      框内拖动 = 移动<br>
+      <kbd>←↑↓→</kbd> 微调 1px（<kbd>Shift</kbd> 10px）<br>
+      <kbd>Delete</kbd> 删除选中框
+    </div>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <label class="hint">缩放</label>
+      <select id="zoom">
+        <option value="fit">适应</option>
+        <option value="1">100%</option>
+        <option value="2">200%</option>
+        <option value="3">300%</option>
+      </select>
+      <span class="sep"></span>
+      <label class="hint">差异对比</label>
+      <select id="diff"><option value="">关</option></select>
+      <span class="sep"></span>
+      <label class="hint"><input type="checkbox" id="showgrid"> 10px 网格</label>
+      <span class="spacer"></span>
+      <span class="hint" id="cursor">—</span>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="cv" width="1280" height="720"></canvas>
+      <div class="empty" id="empty">
+        Ctrl+V 粘贴模拟器截图，或点左侧「导入 png」<br>
+        <span style="font-size:12px">截图必须是 1280×720</span>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right">
+    <div class="field">
+      <label>页面名（如 page_room）</label>
+      <input type="text" id="pagename" placeholder="page_xxx">
+    </div>
+    <div class="field">
+      <label>页面备注（怎么进来 / 能做什么 / 有哪些状态）</label>
+      <textarea id="pagenote" rows="3" placeholder="从 page_main 点 MAIN_ICON_ROOM 进入；点 EXP_TASK_1 选中队伍；面板有 无队伍/派遣中/可领取 三态"></textarea>
+    </div>
+    <div class="sect-title" style="margin-top:2px">元素（<span id="boxcount">0</span>）</div>
+    <div class="boxes" id="boxes"></div>
+  </aside>
+</div>
+
+<div id="report"></div>
+
+<script>
+"use strict";
+const W = 1280, H = 720;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d', { willReadFrequently: true });
+const stage = document.getElementById('stage');
+
+const KINDS = {
+  base:     { label: '识别区 NAME.png',      color: '#3b82f6', suffix: '' },
+  button:   { label: '点击区 NAME.BUTTON',   color: '#f97316', suffix: '.BUTTON' },
+  area:     { label: '区域 NAME.AREA',       color: '#a855f7', suffix: '.AREA' },
+  color:    { label: '颜色 NAME.COLOR',      color: '#10b981', suffix: '.COLOR' },
+  template: { label: '模板 TEMPLATE_NAME',   color: '#eab308', suffix: '', prefix: 'TEMPLATE_' },
+};
+
+const state = {
+  shots: [],       // {id, name, note, img, pixels, boxes:[]}
+  activeId: null,
+  selId: null,
+  diffId: '',
+  uid: 1,
+  zoom: 'fit',
+  showgrid: false,
+  dispScale: 1,
+};
+
+/* ---------------- data ---------------- */
+function active() { return state.shots.find(s => s.id === state.activeId) || null; }
+function shotById(id) { return state.shots.find(s => s.id === id) || null; }
+
+function addShot(img, filename) {
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const cc = c.getContext('2d', { willReadFrequently: true });
+  cc.drawImage(img, 0, 0, W, H);
+  let pixels = null;
+  try { pixels = cc.getImageData(0, 0, W, H).data; } catch (e) { pixels = null; }
+
+  const n = state.shots.length + 1;
+  const shot = {
+    id: state.uid++,
+    name: 'page_' + n,
+    note: '',
+    filename: filename || ('shot' + n + '.png'),
+    img: img,
+    pixels: pixels,
+    boxes: [],
+  };
+  state.shots.push(shot);
+  state.activeId = shot.id;
+  state.selId = null;
+  refreshAll();
+  if (img.naturalWidth !== W || img.naturalHeight !== H) {
+    noteReport(`尺寸 ${img.naturalWidth}×${img.naturalHeight} 不是 1280×720，坐标不可用：${shot.filename}`, 'warn');
+  }
+}
+
+function loadFile(file) {
+  return new Promise(res => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => res(img);
+    img.src = url;
+  });
+}
+
+/* ---------------- render ---------------- */
+function computeDispScale() {
+  if (state.zoom === 'fit') {
+    const avail = stage.clientWidth - 26;
+    return Math.min(1, Math.max(0.3, avail / W));
+  }
+  return Number(state.zoom);
+}
+
+function render() {
+  const s = computeDispScale();
+  state.dispScale = s;
+  cv.style.width = (W * s) + 'px';
+  cv.style.height = (H * s) + 'px';
+
+  const shot = active();
+  ctx.imageSmoothingEnabled = s < 1;
+  ctx.clearRect(0, 0, W, H);
+  if (!shot) return;
+
+  ctx.drawImage(shot.img, 0, 0, W, H);
+
+  if (state.diffId) drawDiff(shot, shotById(Number(state.diffId)));
+  if (state.showgrid) drawGrid();
+
+  for (const b of shot.boxes) drawBox(b, b.id === state.selId);
+}
+
+function drawGrid() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1 / state.dispScale;
+  for (let x = 0; x <= W; x += 10) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 10) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.restore();
+}
+
+// Paint pixels that differ between the active shot and a reference shot.
+// Use it to find regions that stay identical across two states: that area is
+// safe to use as a page/panel check point.
+function drawDiff(a, b) {
+  if (!a || !b || !a.pixels || !b.pixels) return;
+  const pa = a.pixels, pb = b.pixels;
+  const out = ctx.getImageData(0, 0, W, H);
+  const d = out.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const dr = Math.abs(pa[i] - pb[i]);
+    const dg = Math.abs(pa[i + 1] - pb[i + 1]);
+    const db = Math.abs(pa[i + 2] - pb[i + 2]);
+    if (dr > 12 || dg > 12 || db > 12) {
+      d[i] = 255; d[i + 1] = 0; d[i + 2] = 90; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+}
+
+function drawBox(b, sel) {
+  const k = KINDS[b.kind].color;
+  const lw = 2 / state.dispScale;
+  ctx.save();
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = sel ? '#ffffff' : k;
+  if (sel) { ctx.strokeStyle = k; ctx.lineWidth = lw * 1.6; }
+  ctx.strokeRect(b.x, b.y, b.w, b.h);
+  // label
+  const fs = Math.max(10, 13 / state.dispScale);
+  ctx.font = `${fs}px -apple-system,"Segoe UI","Microsoft YaHei",sans-serif`;
+  const label = (b.name || '未命名') + '  ' + b.w + '×' + b.h;
+  const tw = ctx.measureText(label).width;
+  const ty = b.y - fs - 3 < 2 ? b.y + fs + 4 : b.y - 3;
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(b.x, ty - fs, tw + 6, fs + 3);
+  ctx.fillStyle = k;
+  ctx.fillText(label, b.x + 3, ty);
+  // resize handle
+  if (sel) {
+    const hs = 8 / state.dispScale;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(b.x + b.w - hs, b.y + b.h - hs, hs, hs);
+    ctx.strokeStyle = k;
+    ctx.strokeRect(b.x + b.w - hs, b.y + b.h - hs, hs, hs);
+  }
+  ctx.restore();
+}
+
+/* ---------------- geometry ---------------- */
+function toImg(e) {
+  const r = cv.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(W - 1, Math.round((e.clientX - r.left) * W / r.width))),
+    y: Math.max(0, Math.min(H - 1, Math.round((e.clientY - r.top) * H / r.height))),
+  };
+}
+function inside(b, p) { return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h; }
+function hitHandle(b, p, tol) {
+  return Math.abs(p.x - (b.x + b.w)) <= tol && Math.abs(p.y - (b.y + b.h)) <= tol;
+}
+function normalize(b) {
+  if (b.w < 0) { b.x += b.w; b.w = -b.w; }
+  if (b.h < 0) { b.y += b.h; b.h = -b.h; }
+  b.x = Math.max(0, Math.min(W - 4, Math.round(b.x)));
+  b.y = Math.max(0, Math.min(H - 4, Math.round(b.y)));
+  b.w = Math.max(1, Math.min(W - b.x, Math.round(b.w)));
+  b.h = Math.max(1, Math.min(H - b.y, Math.round(b.h)));
+}
+
+/* ---------------- interaction ---------------- */
+let drag = null;
+
+cv.addEventListener('pointerdown', e => {
+  const shot = active();
+  if (!shot) return;
+  cv.setPointerCapture(e.pointerId);
+  const p = toImg(e);
+  const tol = 6 / state.dispScale;
+
+  // topmost box under cursor
+  let hit = null;
+  for (let i = shot.boxes.length - 1; i >= 0; i--) {
+    if (inside(shot.boxes[i], p)) { hit = shot.boxes[i]; break; }
+  }
+  if (hit) {
+    state.selId = hit.id;
+    normalize(hit);
+    const isHandle = hitHandle(hit, p, tol);
+    drag = isHandle
+      ? { type: 'resize', box: hit, orig: { x: hit.x, y: hit.y, w: hit.w, h: hit.h } }
+      : { type: 'move', box: hit, orig: { x: hit.x, y: hit.y }, p0: p };
+  } else {
+    const nb = { id: state.uid++, name: '', kind: 'base', x: p.x, y: p.y, w: 0, h: 0, note: '' };
+    shot.boxes.push(nb);
+    state.selId = nb.id;
+    drag = { type: 'new', box: nb, p0: p };
+  }
+  render(); renderBoxes();
+});
+
+window.addEventListener('pointermove', e => {
+  const shot = active();
+  const p = toImg(e);
+  document.getElementById('cursor').textContent = shot ? `x=${p.x}  y=${p.y}` : '—';
+  if (!drag || !shot) return;
+
+  if (drag.type === 'new') {
+    const b = drag.box;
+    b.x = Math.min(drag.p0.x, p.x); b.y = Math.min(drag.p0.y, p.y);
+    b.w = Math.abs(p.x - drag.p0.x); b.h = Math.abs(p.y - drag.p0.y);
+  } else if (drag.type === 'move') {
+    const b = drag.box;
+    b.x = drag.orig.x + (p.x - drag.p0.x);
+    b.y = drag.orig.y + (p.y - drag.p0.y);
+    b.x = Math.max(0, Math.min(W - b.w, b.x));
+    b.y = Math.max(0, Math.min(H - b.h, b.y));
+  } else if (drag.type === 'resize') {
+    const b = drag.box;
+    b.w = Math.max(1, p.x - b.x);
+    b.h = Math.max(1, p.y - b.y);
+    normalize(b);
+  }
+  render(); updateCoords(drag.box);
+});
+
+window.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const shot = active();
+  const b = drag.box;
+  const wasNew = drag.type === 'new';
+  if (wasNew && (b.w < 3 || b.h < 3)) {
+    shot.boxes = shot.boxes.filter(x => x.id !== b.id);
+    state.selId = null;
+  } else {
+    normalize(b);
+  }
+  drag = null;
+  render(); renderBoxes();
+  if (wasNew && state.selId) {
+    const el = document.querySelector(`.boxcard[data-id="${state.selId}"] input.name`);
+    if (el) el.focus();
+  }
+});
+
+// Ctrl+V paste
+document.addEventListener('paste', async ev => {
+  const items = (ev.clipboardData || {}).items || [];
+  let added = 0;
+  for (const it of items) {
+    if (it.kind === 'file' && it.type.startsWith('image/')) {
+      const f = it.getAsFile();
+      const img = await loadFile(f);
+      addShot(img, 'paste');
+      added++;
+    }
+  }
+  if (added) ev.preventDefault();
+});
+
+// drag & drop
+['dragover', 'drop'].forEach(t => document.addEventListener(t, e => e.preventDefault()));
+document.addEventListener('drop', async e => {
+  const files = [...(e.dataTransfer.files || [])].filter(f => f.type.startsWith('image/'));
+  for (const f of files) addShot(await loadFile(f), f.name);
+});
+
+document.getElementById('file').addEventListener('change', async e => {
+  for (const f of e.target.files) addShot(await loadFile(f), f.name);
+  e.target.value = '';
+});
+
+document.getElementById('btnImport').onclick = () => document.getElementById('file').click();
+document.getElementById('btnClear').onclick = () => {
+  if (!confirm('清空所有截图和标注？')) return;
+  state.shots = []; state.activeId = null; state.selId = null; state.diffId = '';
+  refreshAll();
+};
+
+document.getElementById('zoom').onchange = e => { state.zoom = e.target.value; render(); };
+document.getElementById('showgrid').onchange = e => { state.showgrid = e.target.checked; render(); };
+document.getElementById('diff').onchange = e => { state.diffId = e.target.value; render(); };
+
+document.getElementById('pagename').oninput = e => {
+  const s = active(); if (!s) return;
+  s.name = e.target.value;
+  renderShots();
+};
+document.getElementById('pagenote').oninput = e => {
+  const s = active(); if (!s) return;
+  s.note = e.target.value;
+};
+
+// keyboard nudge / delete
+document.addEventListener('keydown', e => {
+  const tag = (document.activeElement.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  const shot = active();
+  if (!shot) return;
+  const b = shot.boxes.find(x => x.id === state.selId);
+  if (!b) return;
+  const step = e.shiftKey ? 10 : 1;
+  let used = true;
+  if (e.key === 'ArrowLeft') b.x -= step;
+  else if (e.key === 'ArrowRight') b.x += step;
+  else if (e.key === 'ArrowUp') b.y -= step;
+  else if (e.key === 'ArrowDown') b.y += step;
+  else if (e.key === 'Delete' || e.key === 'Backspace') {
+    shot.boxes = shot.boxes.filter(x => x.id !== b.id);
+    state.selId = null;
+  } else used = false;
+  if (used) { e.preventDefault(); normalize(b); render(); renderBoxes(); }
+});
+
+/* ---------------- panels ---------------- */
+function renderShots() {
+  const list = document.getElementById('shotlist');
+  list.innerHTML = '';
+  for (const s of state.shots) {
+    const d = document.createElement('div');
+    d.className = 'thumb' + (s.id === state.activeId ? ' active' : '');
+    const im = document.createElement('img');
+    im.src = s.img.src;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = `<b>${escapeHtml(s.name || '(未命名)')}</b><span>${s.boxes.length} 个元素</span>`;
+    d.append(im, meta);
+    d.onclick = () => {
+      state.activeId = s.id; state.selId = null;
+      document.getElementById('pagename').value = s.name;
+      document.getElementById('pagenote').value = s.note;
+      refreshAll();
+    };
+    list.appendChild(d);
+  }
+  // diff dropdown
+  const dd = document.getElementById('diff');
+  dd.innerHTML = '<option value="">关</option>';
+  for (const s of state.shots) {
+    if (s.id === state.activeId) continue;
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = '对比：' + s.name;
+    dd.appendChild(o);
+  }
+  // A shot cannot be compared with itself
+  if (String(state.diffId) === String(state.activeId)) state.diffId = '';
+  dd.value = state.diffId;
+}
+
+function renderBoxes(withPanel = true) {  const shot = active();
+  const box = document.getElementById('boxes');
+  box.innerHTML = '';
+  document.getElementById('boxcount').textContent = shot ? shot.boxes.length : 0;
+  if (!shot) return;
+
+  for (const b of shot.boxes) {
+    const card = document.createElement('div');
+    card.className = 'boxcard' + (b.id === state.selId ? ' sel' : '');
+    card.dataset.id = b.id;
+
+    const top = document.createElement('div');
+    top.className = 'top';
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = KINDS[b.kind].color;
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'name';
+    nameInput.placeholder = '邮件领取';
+    nameInput.value = b.name;
+    // Chinese is fine here: the name is only a label until the rename step.
+    // Rewriting the value while typing would break the IME, so the raw text is
+    // kept and only sanitized when the file is written.
+    nameInput.oninput = () => {
+      b.name = nameInput.value;
+      measure(card, b, shot);
+    };
+    const del = document.createElement('button');
+    del.className = 'mini';
+    del.textContent = '×';
+    del.onclick = () => {
+      shot.boxes = shot.boxes.filter(x => x.id !== b.id);
+      if (state.selId === b.id) state.selId = null;
+      render(); renderBoxes();
+    };
+    const dup = document.createElement('button');
+    dup.className = 'mini';
+    dup.textContent = '复制';
+    dup.title = '复制一个同位置框（常用于「识别区」+「点击区」成对）';
+    dup.onclick = () => {
+      const nb = { ...b, id: state.uid++, name: b.name, note: b.note };
+      shot.boxes.push(nb);
+      state.selId = nb.id;
+      render(); renderBoxes();
+    };
+    top.append(sw, nameInput, dup, del);
+
+    const mid = document.createElement('div');
+    mid.className = 'mid';
+    const sel = document.createElement('select');
+    for (const [k, v] of Object.entries(KINDS)) {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = v.label;
+      sel.appendChild(o);
+    }
+    sel.value = b.kind;
+    sel.onchange = () => { b.kind = sel.value; render(); renderBoxes(); };
+    const coord = document.createElement('span');
+    coord.className = 'coords';
+    mid.append(sel, coord);
+
+    const note = document.createElement('textarea');
+    note.className = 'note';
+    note.placeholder = '备注：这个元素是什么意思 / 什么状态才出现';
+    note.value = b.note;
+    note.oninput = () => { b.note = note.value; };
+
+    const info = document.createElement('div');
+    info.className = 'warn';
+    info.dataset.role = 'info';
+
+    card.append(top, mid, note, info);
+    card.onclick = ev => {
+      if (ev.target.closest('input,select,textarea,button')) return;
+      state.selId = b.id; render(); renderBoxes();
+    };
+    box.appendChild(card);
+    measure(card, b, shot);
+  }
+}
+
+// Show the area / color that button_extract will actually generate, so a
+// mistake is visible before the asset ever reaches the repo.
+function measure(card, b, shot) {
+  const coord = card.querySelector('.coords');
+  const info = card.querySelector('[data-role=info]');
+  const drawn = [b.x, b.y, b.x + b.w, b.y + b.h];
+  coord.textContent = `(${b.x}, ${b.y}, ${b.w}×${b.h})`;
+  info.textContent = '';
+
+  const parts = [];
+  const file = fileNameOf(b);
+  if (file) parts.push(`文件 ${file}`);
+  if (b.name && /[^\x00-\x7f]/.test(b.name)) parts.push('中文名导出后由 AI 改名');
+
+  if (!shot.pixels) { info.textContent = parts.join(' · '); return; }
+
+  const box = contentBBox(shot, b);
+  if (!box) { parts.push('⚠ 区域全黑，生成器会失败'); info.textContent = parts.join(' · '); return; }
+
+  const same = box[0] === drawn[0] && box[1] === drawn[1] && box[2] === drawn[2] && box[3] === drawn[3];
+  const col = meanColor(shot, box);
+  const spread = Math.max(...col) - Math.min(...col);
+
+  if (!same) parts.push(`⚠ 边缘含纯黑像素，实际 area = (${box.join(', ')})`);
+  if (b.kind === 'base' || b.kind === 'color') parts.push(`色 (${col.join(', ')}) 极差 ${spread}`);
+  info.textContent = parts.join(' · ');
+}
+
+// Filename that will be written for this box. Chinese is kept as-is; only
+// characters that are illegal on Windows (and whitespace) get replaced.
+function fileNameOf(b) {
+  if (!b.name) return '';
+  const base = sanitizeName(b.name);
+  if (!base) return '';
+  if (b.kind === 'template') return `TEMPLATE_${base.replace(/^TEMPLATE_/i, '')}.png`;
+  return base + KINDS[b.kind].suffix + '.png';
+}
+
+function sanitizeName(s) {
+  return String(s == null ? '' : s)
+    .trim()
+    .replace(/[\\/:*?"<>|\s]+/g, '_')
+    .replace(/^[._]+/, '');
+}
+
+function shotFile(shot) {
+  return sanitizeName(shot.name || shot.filename || 'shot') + '.png';
+}
+
+function contentBBox(shot, b) {
+  const px = shot.pixels;
+  let minx = 1e9, miny = 1e9, maxx = -1, maxy = -1;
+  for (let y = b.y; y < b.y + b.h; y++) {
+    for (let x = b.x; x < b.x + b.w; x++) {
+      const i = (y * W + x) * 4;
+      const gray = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+      if (gray > 0.5) {
+        if (x < minx) minx = x;
+        if (x > maxx) maxx = x;
+        if (y < miny) miny = y;
+        if (y > maxy) maxy = y;
+      }
+    }
+  }
+  if (maxx < 0) return null;
+  return [minx, miny, maxx + 1, maxy + 1];
+}
+
+function meanColor(shot, box) {
+  const px = shot.pixels;
+  let r = 0, g = 0, b2 = 0, n = 0;
+  for (let y = box[1]; y < box[3]; y++) {
+    for (let x = box[0]; x < box[2]; x++) {
+      const i = (y * W + x) * 4;
+      r += px[i]; g += px[i + 1]; b2 += px[i + 2]; n++;
+    }
+  }
+  if (!n) return [0, 0, 0];
+  return [Math.round(r / n), Math.round(g / n), Math.round(b2 / n)];
+}
+
+function refreshAll() {
+  const shot = active();
+  document.getElementById('empty').style.display = shot ? 'none' : 'block';
+  if (shot) {
+    document.getElementById('pagename').value = shot.name;
+    document.getElementById('pagenote').value = shot.note;
+  }
+  renderShots();
+  render();
+  renderBoxes();
+}
+
+window.addEventListener('resize', render);
+
+/* ---------------- export ---------------- */
+function buildFiles() {
+  const ns = (document.getElementById('ns').value || '').trim();
+  const mod = (document.getElementById('mod').value || '').trim();
+  const files = [];
+  const issues = [];
+  const manifest = { namespace: ns, module: mod, exported_at: new Date().toISOString(), shots: [] };
+
+  for (const shot of state.shots) {
+    const shotEntry = {
+      screenshot: shotFile(shot), page: shot.name, note: shot.note, boxes: [],
+    };
+    for (const b of shot.boxes) {
+      if (!b.name) { issues.push({ level: 'err', text: `${shot.name}: 有一个框没写名字，已跳过` }); continue; }
+      const filename = fileNameOf(b);
+      if (!filename) { issues.push({ level: 'err', text: `${shot.name}: 名字全是非法字符，已跳过` }); continue; }
+
+      let canvas;
+      if (b.kind === 'template') {
+        // Template files are used as-is: plain crop, no black canvas.
+        canvas = document.createElement('canvas');
+        canvas.width = b.w; canvas.height = b.h;
+        canvas.getContext('2d').drawImage(shot.img, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+      } else {
+        canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const c = canvas.getContext('2d');
+        c.fillStyle = '#000';
+        c.fillRect(0, 0, W, H);
+        c.drawImage(shot.img, b.x, b.y, b.w, b.h, b.x, b.y, b.w, b.h);
+      }
+      files.push({ name: filename, canvas });
+      // Record the area the generator will actually write, which is the
+      // bounding box of non-black pixels inside the drawn rect.
+      const generated = (b.kind === 'template' ? null : contentBBox(shot, b)) ||
+        [b.x, b.y, b.x + b.w, b.y + b.h];
+      shotEntry.boxes.push({
+        // label: 用户写的中文；name: 当前导出名（由 AI 改名后会更新）
+        label: b.name, name: sanitizeName(b.name), kind: b.kind, file: filename,
+        area: generated, note: b.note,
+      });
+    }
+    manifest.shots.push(shotEntry);
+  }
+
+  // consistency checks that match how dev_tools/button_extract.py reads the folder
+  const byName = {};
+  for (const f of manifest.shots.flatMap(s => s.boxes)) {
+    (byName[f.name] = byName[f.name] || []).push(f.kind);
+  }
+  for (const [name, kinds] of Object.entries(byName)) {
+    if (!kinds.includes('base') && !kinds.includes('template')) {
+      issues.push({ level: 'err', text: `${name}: 只有 ${kinds.join('/')}，没有识别区，button_extract 会直接忽略它` });
+    }
+    if (kinds.filter(x => x === 'base').length > 1) {
+      issues.push({ level: 'err', text: `${name}: 多个识别区（同名 base），后写的会覆盖先写的` });
+    }
+    const dupKind = kinds.filter((x, i) => kinds.indexOf(x) !== i);
+    if (dupKind.length) {
+      issues.push({ level: 'err', text: `${name}: 类型 ${[...new Set(dupKind)].join('/')} 重复` });
+    }
+  }
+  if (!ns) issues.push({ level: 'warn', text: '没填命名空间，导出路径需要你自己放到 assets/<namespace>/<module>/' });
+  if (!state.shots.length) issues.push({ level: 'err', text: '没有截图' });
+
+  return { files, manifest, issues, ns, mod };
+}
+
+async function exportAll() {
+  const { files, manifest, issues, ns, mod } = buildFiles();
+  const dumpShots = document.getElementById('dumpShots').checked;
+
+  if (!ns || !mod) {
+    if (!confirm('命名空间或模块为空。素材仍会导出，但你需要手动放进 assets/<namespace>/<module>/。继续？')) return;
+  }
+
+  const dirName = ns && mod ? `assets/${ns}/${mod}` : '';
+  const fileList = files.map(f => f.name);
+
+  // Report first: the user must see the problems while the folder is still open.
+  const rep = document.getElementById('report');
+  rep.style.display = 'block';
+  let html = '';
+  if (issues.length) {
+    html += '<div style="margin-bottom:6px"><b>检查结果</b></div>';
+    for (const i of issues) {
+      html += `<div class="${i.level === 'err' ? 'err' : 'warnline'}">${i.level === 'err' ? '✕' : '!'} ${escapeHtml(i.text)}</div>`;
+    }
+  } else {
+    html += '<div class="ok">✓ 检查通过</div>';
+  }
+  const where = DIR.root ? `${DIR.root.name}/` : '';
+  html += `<div style="margin-top:8px"><b>将导出 ${fileList.length} 个素材文件</b>${dirName ? ' → <code>' + where + dirName + '/</code>' : ' → <code>' + where + '</code>'}`;
+  if (dumpShots) html += `　+ <b>${manifest.shots.length} 张原始截图</b> → <code>${where}screenshots/${ns || '<命名空间>'}/</code>（用于离线核对匹配）`;
+  html += '</div>';
+  html += '<table>';
+  for (const s of manifest.shots) {
+    html += `<tr><th colspan="3">${escapeHtml(s.page || s.screenshot)} <span style="color:#6b7280;font-weight:400">${escapeHtml(s.screenshot)}</span></th></tr>`;
+    for (const b of s.boxes) {
+      html += `<tr><td><code>${escapeHtml(b.file)}</code></td><td>(${b.area.join(', ')})</td><td style="color:#6b7280">${escapeHtml(b.label || '')}</td></tr>`;
+    }
+  }
+  html += '</table>';
+  rep.innerHTML = html;
+
+  const blobOf = c => new Promise(r => c.toBlob(r, 'image/png'));
+  const manBlob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+
+  // Raw screenshots: the AI can then run dev_tools/asset_check offline instead
+  // of booting the emulator, so verification costs seconds instead of minutes.
+  const shotFiles = [];
+  if (dumpShots) {
+    for (const shot of state.shots) {
+      const c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      c.getContext('2d').drawImage(shot.img, 0, 0, W, H);
+      shotFiles.push({ name: shotFile(shot), canvas: c });
+    }
+  }
+
+  if (window.showDirectoryPicker) {
+    let root;
+    try {
+      root = await ensureRoot();
+    } catch (e) {
+      if (e.name === 'AbortError' || e.message === 'AbortError') {
+        rep.insertAdjacentHTML('afterbegin', '<div class="warnline">未选择目录，已取消导出</div>');
+        return;
+      }
+      rep.insertAdjacentHTML('afterbegin', `<div class="warnline">目录不可用（${escapeHtml(e.message)}），改用逐个下载</div>`);
+      root = null;
+    }
+
+    if (root) {
+      try {
+        const assetsDir = (ns && mod) ? await subDir(root, ['assets', ns, mod]) : root;
+        for (const f of files) {
+          await writeFile(assetsDir, f.name, await blobOf(f.canvas));
+        }
+        await writeFile(assetsDir, 'manifest.json', manBlob);
+
+        let shotMsg = '';
+        if (shotFiles.length && ns) {
+          const shotsDir = await subDir(root, ['screenshots', ns]);
+          for (const f of shotFiles) {
+            await writeFile(shotsDir, f.name, await blobOf(f.canvas));
+          }
+          shotMsg = `，截图 ${shotFiles.length} 张 → screenshots/${ns}/`;
+        } else if (shotFiles.length) {
+          shotMsg = '，截图未写入（命名空间为空）';
+        }
+
+        const where = (ns && mod) ? `assets/${ns}/${mod}/` : '根目录';
+        rep.insertAdjacentHTML('afterbegin', `<div class="ok" style="margin-bottom:6px">✓ 已写入 ${escapeHtml(root.name)}/${where}：${files.length + 1} 个文件（含 manifest.json）${escapeHtml(shotMsg)}</div>`);
+        return;
+      } catch (e) {
+        rep.insertAdjacentHTML('afterbegin', `<div class="warnline">写入失败（${escapeHtml(e.message)}），改用逐个下载</div>`);
+      }
+    }
+  }
+
+  // Fallback: sequential downloads
+  for (const f of files.concat(shotFiles)) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await blobOf(f.canvas));
+    a.download = f.name;
+    a.click();
+    await new Promise(r => setTimeout(r, 120));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(manBlob);
+  a.download = 'manifest.json';
+  a.click();
+}
+
+// ==================== Export target directory ====================
+// A page opened straight from disk (file://) is an opaque origin: Chrome keeps
+// neither the FileSystemDirectoryHandle nor an IndexedDB entry, so the folder
+// dialog came back on every export (twice: assets + screenshots). Serving the
+// page over http (see dev_tools/serve_asset_maker.bat) makes the handle
+// persist. Either way the folder is asked for **once**: we take the repository
+// root and derive every path from it, exactly like the generator expects.
+//   <root>/assets/<namespace>/<module>/*.png  + manifest.json
+//   <root>/screenshots/<namespace>/*.png
+const DIR = { root: null, restored: false, db: null };
+
+function openIDB() {
+  if (DIR.db) return Promise.resolve(DIR.db);
+  return new Promise((resolve, reject) => {
+    let req;
+    try {
+      req = indexedDB.open('algs-asset-maker', 1);
+    } catch (e) {
+      reject(e);
+      return;
+    }
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains('handles')) req.result.createObjectStore('handles');
+    };
+    req.onsuccess = () => {
+      DIR.db = req.result;
+      resolve(DIR.db);
+    };
+    req.onerror = () => reject(req.error || new Error('indexedDB unavailable'));
+  });
+}
+
+async function idbSet(key, value) {
+  const db = await openIDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGet(key) {
+  const db = await openIDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('handles', 'readonly');
+    const req = tx.objectStore('handles').get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dirPermission(handle, ask) {
+  if (!handle || !handle.queryPermission) return false;
+  const opt = { mode: 'readwrite' };
+  if (await handle.queryPermission(opt) === 'granted') return true;
+  if (!ask || !handle.requestPermission) return false;
+  return await handle.requestPermission(opt) === 'granted';
+}
+
+function updateDirLabel(text) {
+  const el = document.getElementById('dirLabel');
+  if (text) {
+    el.textContent = text;
+    return;
+  }
+  el.textContent = DIR.root ? DIR.root.name : '未选目录（点「导出到…」）';
+}
+
+async function looksLikeRepoRoot(handle) {
+  try {
+    await handle.getDirectoryHandle('dev_tools');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function pickRoot() {
+  const handle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'algs-root' });
+  if (!await looksLikeRepoRoot(handle)) {
+    const go = confirm(`「${handle.name}」里没有 dev_tools/，看起来不是 AlGS 仓库根目录。\n\n`
+      + '素材会写到它下面的 assets/<命名空间>/<模块>/，截图写到 screenshots/<命名空间>/。\n确定用它吗？');
+    if (!go) throw new Error('AbortError');
+  }
+  DIR.root = handle;
+  DIR.restored = true;
+  updateDirLabel();
+  // Persisting only works on a real origin. On file:// it throws and the dialog
+  // returns next session — nothing else the browser allows.
+  try {
+    await idbSet('root', handle);
+  } catch (e) { /* storage blocked, keep it for this session only */ }
+  return handle;
+}
+
+async function restoreRoot() {
+  if (DIR.restored) return DIR.root;
+  DIR.restored = true;
+  try {
+    const handle = await idbGet('root');
+    if (handle) {
+      DIR.root = handle;
+      updateDirLabel();
+    }
+  } catch (e) { /* file:// or blocked storage */ }
+  return DIR.root;
+}
+
+async function ensureRoot() {
+  await restoreRoot();
+  if (DIR.root && await dirPermission(DIR.root, true)) return DIR.root;
+  return await pickRoot();
+}
+
+async function subDir(root, parts) {
+  let dir = root;
+  for (const part of parts) {
+    dir = await dir.getDirectoryHandle(part, { create: true });
+  }
+  return dir;
+}
+
+async function writeFile(dir, name, blob) {
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(blob);
+  await w.close();
+}
+
+document.getElementById('btnPickDir').onclick = async () => {
+  try {
+    await pickRoot();
+  } catch (e) {
+    if (e.name !== 'AbortError' && e.message !== 'AbortError') updateDirLabel('选择失败：' + e.message);
+  }
+};
+
+restoreRoot().then(() => {
+  if (!DIR.root) updateDirLabel();
+  if (location.protocol === 'file:') {
+    document.getElementById('dirLabel').title =
+      '当前是 file:// 打开，目录不会被记住。用 dev_tools/serve_asset_maker.bat 启动即可记住。';
+  }
+});
+
+document.getElementById('btnExport').onclick = exportAll;
+
+// Cheap live update while dragging: only touch the coordinate line, never
+// rebuild the panel (a rebuild would steal focus and cost a full relayout).
+function updateCoords(b) {
+  const card = document.querySelector(`.boxcard[data-id="${b.id}"]`);
+  if (!card) return;
+  const c = card.querySelector('.coords');
+  if (c) c.textContent = `(${b.x}, ${b.y}, ${b.w}×${b.h})`;
+}
+
+function noteReport(text, level) {
+  const rep = document.getElementById('report');
+  rep.style.display = 'block';
+  const d = document.createElement('div');
+  d.className = level === 'err' ? 'err' : 'warnline';
+  d.textContent = (level === 'err' ? '✕ ' : '! ') + text;
+  rep.appendChild(d);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------------- init ---------------- */
+document.getElementById('ns').value = localStorage.getItem('algs.ns') || 'hazeworld';
+document.getElementById('mod').value = localStorage.getItem('algs.mod') || 'hazeworld';
+document.getElementById('ns').oninput = e => localStorage.setItem('algs.ns', e.target.value);
+document.getElementById('mod').oninput = e => localStorage.setItem('algs.mod', e.target.value);
+refreshAll();
+</script>
+</body>
+</html>

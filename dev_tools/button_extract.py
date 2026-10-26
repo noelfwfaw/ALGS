@@ -96,6 +96,15 @@ class ImageExtractor:
             self.file[server] = file
         else:
             # Fall back to any namespace that has this asset, prefer 'cn'.
+            # [AlGS PATCH] A namespace without a folder for this module is a
+            # different game, not a missing translation of the same one, and it
+            # must not inherit another game's coordinates: the button would
+            # resolve to a wrong area silently instead of raising. Only fall
+            # back between namespaces that do have this module folder, which is
+            # what the cn/jp/en layout of upstream does.
+            if not os.path.isdir(os.path.join(AlasConfig.ASSETS_FOLDER, server, self.module)):
+                logger.attr(server, f'{self.name} not found, no {self.module} folder, skipped')
+                return
             if 'cn' in self.area:
                 fallback = 'cn'
             elif self.area:
@@ -178,6 +187,12 @@ class ModuleExtractor:
     def expression(self):
         exp = []
         for file in os.listdir(self.folder):
+            # [AlGS PATCH] Only images are assets. A stray manifest.json /
+            # Thumbs.db / .DS_Store in the folder used to be treated as a base
+            # image, which wrote `manifest.json = Button(area={}, ...)` into
+            # assets.py and broke the whole module at import time.
+            if os.path.splitext(file)[1].lower() not in ('.png', '.gif'):
+                continue
             if file[0].isdigit():
                 continue
             if file.startswith('TEMPLATE_'):
