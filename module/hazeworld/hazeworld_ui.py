@@ -1,13 +1,17 @@
 from module.base.timer import Timer
 from module.exception import GameStuckError
-from module.hazeworld.assets import (BACK_ARROW, EXIT_CONFIRM, EX_TITLE_LABEL,
+from module.hazeworld.assets import (BACK_ARROW, BATTLE_CORE_ENTRY,
+                                    BATTLE_TAB_RESOURCE, BATTLE_TITLE,
+                                    CORE_BTN_HOME, CORE_BTN_SWEEP,
+                                    EXIT_CONFIRM, EX_TITLE_LABEL,
                                     FRIEND_TAB_LIST, LOGIN_ANNOUNCE,
                                     LOGIN_TOUCH_START, MAIL_BTN_CLAIM_ALL,
-                                    MAIN_BTN_EXERCISE, MAIN_ICON_FRIEND,
-                                    MAIN_ICON_MAIL, MAIN_ICON_PASS,
-                                    MAIN_ICON_ROOM, MAIN_ICON_TASK,
-                                    PASS_BTN_RESOURCE, PROFILE_MEMBER,
-                                    REWARD_CHECK, ROOM_BTN_EXPEDITION,
+                                    MAIN_BTN_BATTLE, MAIN_BTN_EXERCISE,
+                                    MAIN_ICON_FRIEND, MAIN_ICON_MAIL,
+                                    MAIN_ICON_PASS, MAIN_ICON_ROOM,
+                                    MAIN_ICON_TASK, PASS_BTN_RESOURCE,
+                                    PROFILE_MEMBER, REWARD_CHECK,
+                                    ROOM_BTN_EXPEDITION,
                                     ROOM_EXP_PANEL_LABEL, ROOM_TITLE_LABEL,
                                     SUPPORT_CARD, SUPPORT_ENTRY,
                                     SUPPORT_REWARD, SUPPORT_TITLE,
@@ -45,6 +49,15 @@ page_profile = Page(PROFILE_MEMBER)
 # The support character panel of the profile, opened by tapping a character
 # card. It covers the profile, so the profile check button is not visible here.
 page_support = Page(SUPPORT_TITLE)
+# The battle dungeon page. Its title is shared by every tab, so this page is
+# only matched while the resource tab is closed. Pages are checked in
+# declaration order, so page_battle_resource must come first: with that tab
+# open both check buttons match and the more specific one has to win.
+page_battle_resource = Page(BATTLE_CORE_ENTRY)
+page_battle = Page(BATTLE_TITLE)
+# The core material stage page of a single core type. The page title changes
+# with the selected type, so the sweep button is the check button instead.
+page_core = Page(CORE_BTN_SWEEP)
 
 page_main.link(button=MAIN_ICON_TASK, destination=page_task)
 page_main.link(button=MAIN_ICON_PASS, destination=page_pass)
@@ -53,14 +66,23 @@ page_main.link(button=MAIN_ICON_MAIL, destination=page_mail)
 page_main.link(button=MAIN_ICON_ROOM, destination=page_room)
 page_main.link(button=MAIN_BTN_EXERCISE, destination=page_exercise)
 page_main.link(button=SUPPORT_ENTRY, destination=page_profile)
+page_main.link(button=MAIN_BTN_BATTLE, destination=page_battle)
 page_room.link(button=ROOM_BTN_EXPEDITION, destination=page_expedition)
 page_profile.link(button=SUPPORT_CARD, destination=page_support)
+page_battle.link(button=BATTLE_TAB_RESOURCE, destination=page_battle_resource)
+page_battle_resource.link(button=BATTLE_CORE_ENTRY, destination=page_core)
+# The house icon on the core pages jumps straight to the home page, while the
+# back arrow only climbs one level. Going home in one hop keeps the walk short,
+# and a short walk is what keeps the page graph stable: every extra hop is a
+# chance to fire the next tap on a screen that is still fading.
+page_core.link(button=CORE_BTN_HOME, destination=page_main)
 
 for _page in [page_task, page_pass, page_friend, page_mail, page_room,
-              page_exercise, page_profile]:
+              page_exercise, page_profile, page_battle, page_battle_resource]:
     _page.link(button=BACK_ARROW, destination=page_main)
 page_expedition.link(button=BACK_ARROW, destination=page_room)
 page_support.link(button=BACK_ARROW, destination=page_profile)
+page_core.link(button=BACK_ARROW, destination=page_battle_resource)
 
 
 class HazeworldUI(UI):

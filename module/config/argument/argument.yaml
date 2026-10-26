@@ -118,3 +118,8 @@ HazeworldExercise:
   ProxyBattle: true
 HazeworldSupport:
   ClaimAll: true
+HazeworldCore:
+  Core:
+    value: Life
+    option: [ Life, Attack, Armor, Critical, Burst ]
+  SweepCount: 0

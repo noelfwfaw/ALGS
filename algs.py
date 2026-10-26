@@ -76,6 +76,10 @@ class AlGS(GameScheduler):
         from module.hazeworld.support import HazeworldSupport
         HazeworldSupport(config=self.config, device=self.device).run()
 
+    def hazeworld_core(self):
+        from module.hazeworld.core import HazeworldCore
+        HazeworldCore(config=self.config, device=self.device).run()
+
 
 if __name__ == '__main__':
     logger.hr('AlGS', level=0)

@@ -45,6 +45,10 @@
     "HazeworldSupport": {
       "name": "Support character",
       "help": "Claim the friendship coins of support characters"
+    },
+    "HazeworldCore": {
+      "name": "Core material",
+      "help": "Sweep core material stages in the resource dungeon, spends stamina"
     }
   },
   "Scheduler": {
@@ -302,6 +306,25 @@
     "ClaimAll": {
       "name": "Claim friendship coins",
       "help": "Open \"支援角色\" in the player profile and claim every support character, 50000 per day at most"
+    }
+  },
+  "HazeworldCore": {
+    "_info": {
+      "name": "Core material settings",
+      "help": ""
+    },
+    "Core": {
+      "name": "Core type",
+      "help": "Which core to farm. Only the selected entry has the gold bar on its left edge",
+      "Life": "Life core",
+      "Attack": "Attack core",
+      "Armor": "Armor core",
+      "Critical": "Critical core",
+      "Burst": "Burst core"
+    },
+    "SweepCount": {
+      "name": "Sweep count",
+      "help": "0 presses \"MAX\" and spends every bit of stamina, a positive number sweeps exactly that many runs.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it"
     }
   },
   "Storage": {

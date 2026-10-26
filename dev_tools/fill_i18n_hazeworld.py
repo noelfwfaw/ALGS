@@ -26,6 +26,8 @@ TRANSLATIONS = {
             'HazeworldPass': {'name': '通行证', 'help': '领取通行证奖励'},
             'HazeworldSupport': {'name': '支援角色',
                                  'help': '领取支援角色的友情币（绿币）'},
+            'HazeworldCore': {'name': '核心制造',
+                              'help': '在资源副本「核心制造」里扫荡核心材料，消耗体力'},
         },
         'HazeworldMail': {
             '_info': {'name': '邮件设置', 'help': ''},
@@ -68,6 +70,16 @@ TRANSLATIONS = {
             'ClaimAll': {'name': '领取友情币',
                          'help': '在玩家档案里打开「支援角色」，逐个领取每个支援角色的友情币（绿币），每日上限 50000'},
         },
+        'HazeworldCore': {
+            '_info': {'name': '核心制造设置', 'help': ''},
+            'Core': {'name': '核心种类',
+                     'help': '要刷哪一类核心。只有选中的那一条左侧有金色高亮',
+                     'Life': '生命核心', 'Attack': '攻击核心',
+                     'Armor': '装甲核心', 'Critical': '暴击核心',
+                     'Burst': '爆发核心'},
+            'SweepCount': {'name': '扫荡次数',
+                           'help': '0 表示点「MAX」把体力一次花完；填正数则只扫荡这么多次。\n关卡用游戏内当前选中的那一关，请先在游戏里选好（脚本不切关卡）'},
+        },
     },
     'zh-TW': {
         'Menu': {
@@ -82,6 +94,8 @@ TRANSLATIONS = {
             'HazeworldPass': {'name': '通行證', 'help': '領取通行證獎勵'},
             'HazeworldSupport': {'name': '支援角色',
                                  'help': '領取支援角色的友情幣（綠幣）'},
+            'HazeworldCore': {'name': '核心製造',
+                              'help': '在資源副本「核心製造」裡掃蕩核心材料，消耗體力'},
         },
         'HazeworldMail': {
             '_info': {'name': '郵件設定', 'help': ''},
@@ -124,6 +138,16 @@ TRANSLATIONS = {
             'ClaimAll': {'name': '領取友情幣',
                          'help': '在玩家檔案裡打開「支援角色」，逐個領取每個支援角色的友情幣（綠幣），每日上限 50000'},
         },
+        'HazeworldCore': {
+            '_info': {'name': '核心製造設定', 'help': ''},
+            'Core': {'name': '核心種類',
+                     'help': '要刷哪一類核心。只有選中的那一條左側有金色高亮',
+                     'Life': '生命核心', 'Attack': '攻擊核心',
+                     'Armor': '裝甲核心', 'Critical': '暴擊核心',
+                     'Burst': '爆發核心'},
+            'SweepCount': {'name': '掃蕩次數',
+                           'help': '0 表示點「MAX」把體力一次花完；填正數則只掃蕩這麼多次。\n關卡用遊戲內當前選中的那一關，請先在遊戲裡選好（腳本不切關卡）'},
+        },
     },
     'en-US': {
         'Menu': {
@@ -141,6 +165,8 @@ TRANSLATIONS = {
             'HazeworldPass': {'name': 'Battle pass', 'help': 'Claim battle pass rewards'},
             'HazeworldSupport': {'name': 'Support character',
                                  'help': 'Claim the friendship coins of support characters'},
+            'HazeworldCore': {'name': 'Core material',
+                              'help': 'Sweep core material stages in the resource dungeon, spends stamina'},
         },
         'HazeworldMail': {
             '_info': {'name': 'Mail settings', 'help': ''},
@@ -183,6 +209,16 @@ TRANSLATIONS = {
             'ClaimAll': {'name': 'Claim friendship coins',
                          'help': 'Open "支援角色" in the player profile and claim every support character, 50000 per day at most'},
         },
+        'HazeworldCore': {
+            '_info': {'name': 'Core material settings', 'help': ''},
+            'Core': {'name': 'Core type',
+                     'help': 'Which core to farm. Only the selected entry has the gold bar on its left edge',
+                     'Life': 'Life core', 'Attack': 'Attack core',
+                     'Armor': 'Armor core', 'Critical': 'Critical core',
+                     'Burst': 'Burst core'},
+            'SweepCount': {'name': 'Sweep count',
+                           'help': '0 presses "MAX" and spends every bit of stamina, a positive number sweeps exactly that many runs.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it'},
+        },
     },
     'ja-JP': {
         'Menu': {
@@ -198,6 +234,8 @@ TRANSLATIONS = {
             'HazeworldPass': {'name': 'パス', 'help': 'パス報酬を受け取る'},
             'HazeworldSupport': {'name': '支援キャラ',
                                  'help': '支援キャラの友情コイン（緑コイン）を受け取る'},
+            'HazeworldCore': {'name': 'コア製造',
+                              'help': '資源ダンジョンの「コア製造」でコア素材を掃討する（スタミナ消費）'},
         },
         'HazeworldMail': {
             '_info': {'name': 'メール設定', 'help': ''},
@@ -239,6 +277,16 @@ TRANSLATIONS = {
             '_info': {'name': '支援キャラ設定', 'help': ''},
             'ClaimAll': {'name': '友情コインを受け取る',
                          'help': 'プレイヤープロフィールの「支援キャラ」を開き、各支援キャラの友情コインを受け取る（1日の上限は 50000）'},
+        },
+        'HazeworldCore': {
+            '_info': {'name': 'コア製造設定', 'help': ''},
+            'Core': {'name': 'コアの種類',
+                     'help': 'どのコアを周回するか。選択中の項目だけ左端が金色に光る',
+                     'Life': '生命コア', 'Attack': '攻撃コア',
+                     'Armor': '装甲コア', 'Critical': '会心コア',
+                     'Burst': '爆発コア'},
+            'SweepCount': {'name': '掃討回数',
+                           'help': '0 は「MAX」を押してスタミナを使い切る。正の数ならその回数だけ掃討する。\nステージはゲーム内で選択中のものを使う（スクリプトは切り替えない）'},
         },
     },
 }

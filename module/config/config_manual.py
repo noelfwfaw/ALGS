@@ -18,7 +18,7 @@ class ManualConfig:
     # Keep one task per game block so that games run one after another.
     SCHEDULER_PRIORITY = """
     Restart
-    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldTask > HazeworldPass
+    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldTask > HazeworldPass > HazeworldCore
     """
 
     """

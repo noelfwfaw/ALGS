@@ -269,6 +269,33 @@ class UI(ModuleBase):
         logger.critical("Please switch to a supported page before starting")
         raise GamePageUnknownError
 
+    def ui_wait_page_leave(self, page, offset=(30, 30), timeout=3):
+        """
+        Wait until the check button of `page` is off screen.
+
+        Page switches animate. The page that was just left keeps matching while
+        it fades out, and a route with more than one hop then fires the second
+        hop at a frame that is still showing the first page: three back taps in
+        a row leave the game three pages back, the last one landing on whatever
+        the home page has at the position of the back arrow.
+
+        Args:
+            page (Page): The page just left.
+            offset: Template match offset.
+            timeout (int, float): Give up after this many seconds.
+
+        Returns:
+            bool: If the page left.
+        """
+        timeout = Timer(timeout).start()
+        while not timeout.reached():
+            self.device.screenshot()
+            if not self.appear(page.check_button, offset=offset):
+                return True
+
+        logger.warning(f'Page {page} still on screen, continue anyway')
+        return False
+
     def ui_goto(self, destination, offset=(30, 30), skip_first_screenshot=True):
         """
         Walk the shortest path to the destination page.
@@ -309,6 +336,7 @@ class UI(ModuleBase):
                     clicked = True
                     break
             if clicked:
+                self.ui_wait_page_leave(page, offset=offset)
                 continue
 
             # Additional

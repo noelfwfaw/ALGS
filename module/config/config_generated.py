@@ -70,5 +70,9 @@ class GeneratedConfig:
     # Group `HazeworldSupport`
     HazeworldSupport_ClaimAll = True
 
+    # Group `HazeworldCore`
+    HazeworldCore_Core = 'Life'  # Life, Attack, Armor, Critical, Burst
+    HazeworldCore_SweepCount = 0
+
     # Group `Storage`
     Storage_Storage = {}

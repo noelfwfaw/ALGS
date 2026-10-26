@@ -17,7 +17,8 @@
       "HazeworldFriend",
       "HazeworldTask",
       "HazeworldPass",
-      "HazeworldSupport"
+      "HazeworldSupport",
+      "HazeworldCore"
     ]
   }
 }

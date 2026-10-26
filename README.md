@@ -19,10 +19,13 @@
 | `HazeworldTask` | 每日 / 每周 / 每月任务「一键领取」 |
 | `HazeworldPass` | 通行证「一键领取」 |
 | `HazeworldSupport` | 支援角色：领取每个支援角色的友情币（绿币，每日上限 50000） |
+| `HazeworldCore` | 核心制造：扫荡核心材料（可选生命/攻击/护甲/暴击/爆发，默认把体力一次花完） |
 
 任务顺序由 `module/config/config_manual.py` 的 `SCHEDULER_PRIORITY` 决定（重启 > 收菜 > 日活 > 出击）。每个任务成功返回后自己调 `task_delay()` 排下一次运行，日常任务的默认排期是 `Scheduler.ServerUpdate`（05:00）。
 
 **演习不是日常任务**：演习券每小时恢复 1 张、上限 15 张，只按日刷新跑一次会让计数器在后半天一直满着（每天 24 张只花掉 15 张）。所以它排的是"最多等 12 小时，同时向 05:00 对齐"——`task_delay(server_update=True, minute=720)` 取两者中较近的那个，最终稳定在 **05:00 与 17:00** 各跑一次：24 张全部花完，且 05:00 那次和日任务共用一次启动。
+
+**刷核心不带关卡参数**：核心制造的关卡由游戏记住"你上次选的那一关"，脚本只负责选类型（左侧五个色条）和把体力一次花完（`SweepCount=0` 时点 `MAX`）。这样游戏出了新关卡也不用改脚本；不想刷满就把 `SweepCount` 填成具体场数。一场 10 点体力，体力不足时 `MAX` 自动退到可打的场数。
 
 新增任务时要连带补 `module/config/i18n/{zh-CN,zh-TW,en-US,ja-JP}.json` 的 `name` / `help`，否则 GUI 里显示的是 `Group.Key.name` 这种占位符。
 

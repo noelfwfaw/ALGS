@@ -160,5 +160,22 @@
     "Storage": {
       "Storage": {}
     }
+  },
+  "HazeworldCore": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldCore",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldCore": {
+      "Core": "Life",
+      "SweepCount": 0
+    },
+    "Storage": {
+      "Storage": {}
+    }
   }
 }
