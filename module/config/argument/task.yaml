@@ -29,6 +29,9 @@ Hazeworld:
     HazeworldRoom:
       - Scheduler
       - HazeworldRoom
+    HazeworldExercise:
+      - Scheduler
+      - HazeworldExercise
     HazeworldFriend:
       - Scheduler
       - HazeworldFriend

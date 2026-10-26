@@ -79,6 +79,22 @@
       "Storage": {}
     }
   },
+  "HazeworldExercise": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldExercise",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldExercise": {
+      "ProxyBattle": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "HazeworldFriend": {
     "Scheduler": {
       "Enable": false,

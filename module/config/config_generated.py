@@ -64,5 +64,8 @@ class GeneratedConfig:
     HazeworldRoom_CollectAll = True
     HazeworldRoom_Expedition = True
 
+    # Group `HazeworldExercise`
+    HazeworldExercise_ProxyBattle = True
+
     # Group `Storage`
     Storage_Storage = {}

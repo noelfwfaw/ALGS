@@ -14,6 +14,7 @@
 |---|---|
 | `HazeworldMail` | 邮件「领取全部」 |
 | `HazeworldRoom` | 指挥室：全部收集 + 远征（领取 / 再次派遣） |
+| `HazeworldExercise` | 演习：用当天演习券打完竞技场（默认代理作战，可切手动观战） |
 | `HazeworldFriend` | 好友「一键点赞」 |
 | `HazeworldTask` | 每日 / 每周 / 每月任务「一键领取」 |
 | `HazeworldPass` | 通行证「一键领取」 |

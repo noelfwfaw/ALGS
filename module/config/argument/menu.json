@@ -13,6 +13,7 @@
     "tasks": [
       "HazeworldMail",
       "HazeworldRoom",
+      "HazeworldExercise",
       "HazeworldFriend",
       "HazeworldTask",
       "HazeworldPass"

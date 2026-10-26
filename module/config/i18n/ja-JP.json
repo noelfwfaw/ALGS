@@ -26,6 +26,10 @@
       "name": "司令室",
       "help": "司令室の資源回収と遠征"
     },
+    "HazeworldExercise": {
+      "name": "演習",
+      "help": "毎日の演習券でアリーナを消化する"
+    },
     "HazeworldFriend": {
       "name": "フレンド",
       "help": "フレンド全員にいいね"
@@ -274,6 +278,16 @@
     "Expedition": {
       "name": "遠征を処理",
       "help": "完了した遠征の報酬を受け取り、再派遣する"
+    }
+  },
+  "HazeworldExercise": {
+    "_info": {
+      "name": "演習設定",
+      "help": ""
+    },
+    "ProxyBattle": {
+      "name": "代理作戦を使う",
+      "help": "「代理作戦」でその日の演習券をまとめて消化する。オフにすると 1 戦ずつ手動で戦い、戦闘を見られる"
     }
   },
   "Storage": {

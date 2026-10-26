@@ -1,8 +1,9 @@
 from module.base.timer import Timer
 from module.exception import GameStuckError
-from module.hazeworld.assets import (BACK_ARROW, FRIEND_TAB_LIST,
-                                    LOGIN_ANNOUNCE, LOGIN_TOUCH_START,
-                                    MAIL_BTN_CLAIM_ALL, MAIN_ICON_FRIEND,
+from module.hazeworld.assets import (BACK_ARROW, EX_TITLE_LABEL,
+                                    FRIEND_TAB_LIST, LOGIN_ANNOUNCE,
+                                    LOGIN_TOUCH_START, MAIL_BTN_CLAIM_ALL,
+                                    MAIN_BTN_EXERCISE, MAIN_ICON_FRIEND,
                                     MAIN_ICON_MAIL, MAIN_ICON_PASS,
                                     MAIN_ICON_ROOM, MAIN_ICON_TASK,
                                     PASS_BTN_RESOURCE, REWARD_CHECK,
@@ -33,15 +34,21 @@ page_room = Page(ROOM_TITLE_LABEL)
 # visible in every state, including under the result popup that covers the
 # panel title.
 page_expedition = Page(ROOM_EXP_PANEL_LABEL)
+# The exercise hall is a full page with its own title. The rank change popup
+# covers most of it, but the title stays readable, so this page is matched
+# while that popup is open too and has to be checked after it.
+page_exercise = Page(EX_TITLE_LABEL)
 
 page_main.link(button=MAIN_ICON_TASK, destination=page_task)
 page_main.link(button=MAIN_ICON_PASS, destination=page_pass)
 page_main.link(button=MAIN_ICON_FRIEND, destination=page_friend)
 page_main.link(button=MAIN_ICON_MAIL, destination=page_mail)
 page_main.link(button=MAIN_ICON_ROOM, destination=page_room)
+page_main.link(button=MAIN_BTN_EXERCISE, destination=page_exercise)
 page_room.link(button=ROOM_BTN_EXPEDITION, destination=page_expedition)
 
-for _page in [page_task, page_pass, page_friend, page_mail, page_room]:
+for _page in [page_task, page_pass, page_friend, page_mail, page_room,
+              page_exercise]:
     _page.link(button=BACK_ARROW, destination=page_main)
 page_expedition.link(button=BACK_ARROW, destination=page_room)
 

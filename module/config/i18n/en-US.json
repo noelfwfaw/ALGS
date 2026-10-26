@@ -26,6 +26,10 @@
       "name": "Command room",
       "help": "Collect resources and handle expeditions"
     },
+    "HazeworldExercise": {
+      "name": "Exercise",
+      "help": "Spend the daily exercise tickets in the arena"
+    },
     "HazeworldFriend": {
       "name": "Friend",
       "help": "Like all friends"
@@ -274,6 +278,16 @@
     "Expedition": {
       "name": "Handle expeditions",
       "help": "Claim finished expeditions and dispatch them again"
+    }
+  },
+  "HazeworldExercise": {
+    "_info": {
+      "name": "Exercise settings",
+      "help": ""
+    },
+    "ProxyBattle": {
+      "name": "Use proxy battle",
+      "help": "Sweep every ticket of the day with \"代理作战\"; turn it off to fight one by one and watch the fights"
     }
   },
   "Storage": {

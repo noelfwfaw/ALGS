@@ -114,3 +114,5 @@ HazeworldMail:
 HazeworldRoom:
   CollectAll: true
   Expedition: true
+HazeworldExercise:
+  ProxyBattle: true

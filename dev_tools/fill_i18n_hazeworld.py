@@ -20,6 +20,7 @@ TRANSLATIONS = {
         'Task': {
             'HazeworldMail': {'name': '邮件', 'help': '领取邮箱里的附件'},
             'HazeworldRoom': {'name': '指挥室', 'help': '收取指挥室资源，并处理远征'},
+            'HazeworldExercise': {'name': '演习', 'help': '用每天的演习券打完竞技场'},
             'HazeworldFriend': {'name': '好友', 'help': '给所有好友点赞'},
             'HazeworldTask': {'name': '任务', 'help': '领取每日/每周/每月任务奖励'},
             'HazeworldPass': {'name': '通行证', 'help': '领取通行证奖励'},
@@ -35,6 +36,11 @@ TRANSLATIONS = {
                            'help': '在指挥室点击「全部收集」，收取已经产出的资源'},
             'Expedition': {'name': '处理远征',
                            'help': '领取已经完成的远征奖励，并再次派遣'},
+        },
+        'HazeworldExercise': {
+            '_info': {'name': '演习设置', 'help': ''},
+            'ProxyBattle': {'name': '使用代理作战',
+                            'help': '用「代理作战」一次扫荡完当天所有演习券；关闭后一场场手动开战，可以看到战斗过程'},
         },
         'HazeworldFriend': {
             '_info': {'name': '好友设置', 'help': ''},
@@ -63,6 +69,7 @@ TRANSLATIONS = {
         'Task': {
             'HazeworldMail': {'name': '郵件', 'help': '領取信箱裡的附件'},
             'HazeworldRoom': {'name': '指揮室', 'help': '收取指揮室資源，並處理遠征'},
+            'HazeworldExercise': {'name': '演習', 'help': '用每天的演習券打完競技場'},
             'HazeworldFriend': {'name': '好友', 'help': '給所有好友按讚'},
             'HazeworldTask': {'name': '任務', 'help': '領取每日/每週/每月任務獎勵'},
             'HazeworldPass': {'name': '通行證', 'help': '領取通行證獎勵'},
@@ -78,6 +85,11 @@ TRANSLATIONS = {
                            'help': '在指揮室點擊「全部收集」，收取已經產出的資源'},
             'Expedition': {'name': '處理遠征',
                            'help': '領取已經完成的遠征獎勵，並再次派遣'},
+        },
+        'HazeworldExercise': {
+            '_info': {'name': '演習設定', 'help': ''},
+            'ProxyBattle': {'name': '使用代理作戰',
+                            'help': '用「代理作戰」一次掃蕩完當天所有演習券；關閉後一場場手動開戰，可以看到戰鬥過程'},
         },
         'HazeworldFriend': {
             '_info': {'name': '好友設定', 'help': ''},
@@ -107,6 +119,8 @@ TRANSLATIONS = {
             'HazeworldMail': {'name': 'Mail', 'help': 'Claim mail attachments'},
             'HazeworldRoom': {'name': 'Command room',
                               'help': 'Collect resources and handle expeditions'},
+            'HazeworldExercise': {'name': 'Exercise',
+                                  'help': 'Spend the daily exercise tickets in the arena'},
             'HazeworldFriend': {'name': 'Friend', 'help': 'Like all friends'},
             'HazeworldTask': {'name': 'Mission',
                               'help': 'Claim daily, weekly and monthly mission rewards'},
@@ -123,6 +137,11 @@ TRANSLATIONS = {
                            'help': 'Press "Collect all" in the command room'},
             'Expedition': {'name': 'Handle expeditions',
                            'help': 'Claim finished expeditions and dispatch them again'},
+        },
+        'HazeworldExercise': {
+            '_info': {'name': 'Exercise settings', 'help': ''},
+            'ProxyBattle': {'name': 'Use proxy battle',
+                            'help': 'Sweep every ticket of the day with "代理作战"; turn it off to fight one by one and watch the fights'},
         },
         'HazeworldFriend': {
             '_info': {'name': 'Friend settings', 'help': ''},
@@ -151,6 +170,7 @@ TRANSLATIONS = {
         'Task': {
             'HazeworldMail': {'name': 'メール', 'help': 'メールの添付を受け取る'},
             'HazeworldRoom': {'name': '司令室', 'help': '司令室の資源回収と遠征'},
+            'HazeworldExercise': {'name': '演習', 'help': '毎日の演習券でアリーナを消化する'},
             'HazeworldFriend': {'name': 'フレンド', 'help': 'フレンド全員にいいね'},
             'HazeworldTask': {'name': 'ミッション',
                               'help': 'デイリー・ウィークリー・マンスリーミッションの報酬を受け取る'},
@@ -167,6 +187,11 @@ TRANSLATIONS = {
                            'help': '司令室で「すべて回収」を押す'},
             'Expedition': {'name': '遠征を処理',
                            'help': '完了した遠征の報酬を受け取り、再派遣する'},
+        },
+        'HazeworldExercise': {
+            '_info': {'name': '演習設定', 'help': ''},
+            'ProxyBattle': {'name': '代理作戦を使う',
+                            'help': '「代理作戦」でその日の演習券をまとめて消化する。オフにすると 1 戦ずつ手動で戦い、戦闘を見られる'},
         },
         'HazeworldFriend': {
             '_info': {'name': 'フレンド設定', 'help': ''},

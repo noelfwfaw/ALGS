@@ -26,6 +26,10 @@
       "name": "指挥室",
       "help": "收取指挥室资源，并处理远征"
     },
+    "HazeworldExercise": {
+      "name": "演习",
+      "help": "用每天的演习券打完竞技场"
+    },
     "HazeworldFriend": {
       "name": "好友",
       "help": "给所有好友点赞"
@@ -274,6 +278,16 @@
     "Expedition": {
       "name": "处理远征",
       "help": "领取已经完成的远征奖励，并再次派遣"
+    }
+  },
+  "HazeworldExercise": {
+    "_info": {
+      "name": "演习设置",
+      "help": ""
+    },
+    "ProxyBattle": {
+      "name": "使用代理作战",
+      "help": "用「代理作战」一次扫荡完当天所有演习券；关闭后一场场手动开战，可以看到战斗过程"
     }
   },
   "Storage": {

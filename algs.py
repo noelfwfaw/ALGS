@@ -56,6 +56,10 @@ class AlGS(GameScheduler):
         from module.hazeworld.room import HazeworldRoom
         HazeworldRoom(config=self.config, device=self.device).run()
 
+    def hazeworld_exercise(self):
+        from module.hazeworld.exercise import HazeworldExercise
+        HazeworldExercise(config=self.config, device=self.device).run()
+
     def hazeworld_friend(self):
         from module.hazeworld.friend import HazeworldFriend
         HazeworldFriend(config=self.config, device=self.device).run()

@@ -26,6 +26,10 @@
       "name": "指揮室",
       "help": "收取指揮室資源，並處理遠征"
     },
+    "HazeworldExercise": {
+      "name": "演習",
+      "help": "用每天的演習券打完競技場"
+    },
     "HazeworldFriend": {
       "name": "好友",
       "help": "給所有好友按讚"
@@ -274,6 +278,16 @@
     "Expedition": {
       "name": "處理遠征",
       "help": "領取已經完成的遠征獎勵，並再次派遣"
+    }
+  },
+  "HazeworldExercise": {
+    "_info": {
+      "name": "演習設定",
+      "help": ""
+    },
+    "ProxyBattle": {
+      "name": "使用代理作戰",
+      "help": "用「代理作戰」一次掃蕩完當天所有演習券；關閉後一場場手動開戰，可以看到戰鬥過程"
     }
   },
   "Storage": {
