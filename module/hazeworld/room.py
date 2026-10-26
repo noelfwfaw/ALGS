@@ -4,7 +4,8 @@ from module.hazeworld.assets import (BACK_ARROW, EXP_BTN_RECOMMEND,
                                     EXP_HOURS_8, EXP_TASK_1, EXP_TASK_2,
                                     EXP_TASK_3, EXP_TASK_4, EXP_TASK_5,
                                     ROOM_BTN_COLLECT_ALL,
-                                    ROOM_EXP_CLAIM, ROOM_EXP_REDISPATCH)
+                                    ROOM_EXP_CLAIM,
+                                    ROOM_EXP_RESULT_CANCEL)
 from module.hazeworld.hazeworld_ui import (HazeworldUI, page_expedition,
                                            page_room)
 from module.logger import logger
@@ -38,8 +39,25 @@ DISPATCH_TIMEOUT = 30
 
 # Selecting a tab takes effect on the next frame, but a tap that lands while
 # the panel is still switching is swallowed by the client. The tab is therefore
-# pressed again every screenshot until its fill shows that it is selected.
+# pressed again until its fill shows that it is selected.
+#
+# The presses are spaced out: a panel that is not reacting (a popup on top of
+# it, a team that cannot be changed) would otherwise be hit on every frame,
+# which is 12 taps in 3 seconds and trips the click guard of the framework.
 SELECT_TIMEOUT = 10
+SELECT_INTERVAL = 1.5
+SELECT_TRIES = 4
+
+# Claiming a finished expedition opens the "远征探索" result popup instead of
+# returning to the panel, and the popup fades in: on the frame right after the
+# claim neither of its buttons is drawn yet. What is on screen right after a
+# press is therefore not a verdict, the popup is looked for this long.
+RESULT_SETTLE = 4
+
+# Every press restarts `RESULT_SETTLE`, so a panel that keeps offering a claim
+# would keep the loop below alive forever. There are two teams, four presses is
+# a claim and a close for each of them.
+CLAIM_MAX = 8
 
 # Come back a little after the expedition should be over, the finish time is
 # rounded up to the second on the server.
@@ -178,8 +196,10 @@ class HazeworldRoom(HazeworldUI):
         # The task has to be selected before the panel is read: the buttons
         # describe the selected expedition only, so leaving the panel on the
         # other team's running expedition reads "already running" for a team
-        # that is idle.
-        self.expedition_select(task)
+        # that is idle. A panel that does not switch at all is reported instead
+        # of being read, the buttons below would belong to another expedition.
+        if not self.expedition_select(task):
+            return False
         if self.expedition_running():
             logger.info('Expedition is out')
             return True
@@ -198,9 +218,15 @@ class HazeworldRoom(HazeworldUI):
         Press a tab of the expedition panel until it is the selected one.
 
         A tap lands only once the previous selection has been drawn, so the tab
-        is pressed again on every frame until its fill turns saturated. Being
-        selected is the positive condition, pressing an already selected tab
-        changes nothing, so this is a plain state loop.
+        is pressed again until its fill turns saturated. Being selected is the
+        positive condition, pressing an already selected tab changes nothing,
+        so this is a plain state loop.
+
+        The presses are spaced by `SELECT_INTERVAL` and limited to `SELECT_TRIES`
+        instead of being sent on every frame: a panel that never reacts, such as
+        one with a popup on top of it, would otherwise be tapped a dozen times
+        in three seconds, which is what the click guard of the framework treats
+        as a stuck game.
 
         Args:
             button (Button): The tab.
@@ -211,16 +237,21 @@ class HazeworldRoom(HazeworldUI):
         """
         logger.info(f'Select {button.name}')
         timeout = Timer(timeout).start()
+        interval = Timer(SELECT_INTERVAL)
+        tries = 0
 
         while 1:
             # End
             if self.expedition_button_drawn(button):
                 return True
-            if timeout.reached():
+            if timeout.reached() or tries >= SELECT_TRIES:
                 logger.warning(f'Cannot select {button.name}')
                 return False
 
-            self.device.click(button)
+            if interval.reached():
+                self.device.click(button)
+                tries += 1
+                interval.reset()
             self.device.screenshot()
 
     def expedition_running(self):
@@ -317,11 +348,24 @@ class HazeworldRoom(HazeworldUI):
 
     def expedition_claim_finished(self, skip_first_screenshot=True):
         """
-        Claim every expedition that has come back.
+        Claim every expedition that has come back, and close its result popup.
 
-        A finished expedition opens a result popup offering to send the same
-        team out again, and its bar shows a claim button when the popup was
-        dismissed. Both are handled here.
+        A bar whose expedition is over turns the big button of the panel into
+        "点击领取". Pressing it does not return to the panel: the game opens the
+        "远征探索" popup with the rewards and two buttons, 取消 and 再次派遣.
+
+        The popup is closed with 取消 and the team is sent out again by the
+        dispatch code below, with the expedition and the duration of the
+        settings. 再次派遣 would start a new expedition with the duration of the
+        previous one, which after a settings change makes the schedule and the
+        game disagree about when the team is back.
+
+        The popup must not be left on screen: it covers the panel, every tap of
+        the dispatch lands on the popup instead, and the run ends in
+        `GameTooManyClickError`. It fades in, so the frames right after a press
+        show neither of its buttons, which is why the loop keeps looking for
+        `RESULT_SETTLE` seconds after the last press instead of ending on the
+        first frame that has nothing on it.
 
         Pages:
             in: page_expedition
@@ -331,6 +375,10 @@ class HazeworldRoom(HazeworldUI):
             bool: If anything was handled.
         """
         count = 0
+        # Not started, so `reached()` is true until the first press: an empty
+        # panel ends the loop on its first frame.
+        settle = Timer(RESULT_SETTLE)
+
         while 1:
             if skip_first_screenshot:
                 skip_first_screenshot = False
@@ -338,21 +386,29 @@ class HazeworldRoom(HazeworldUI):
                 self.device.screenshot()
 
             if self.handle_reward():
+                settle.reset()
                 continue
 
-            if self.appear(ROOM_EXP_REDISPATCH, offset=(20, 20)):
-                logger.info('Expedition finished, send the team out again')
-                self.device.click(ROOM_EXP_REDISPATCH)
+            if count >= CLAIM_MAX:
+                logger.warning(f'Claimed {count} times, the panel keeps offering more')
+                break
+
+            if self.appear(ROOM_EXP_RESULT_CANCEL, offset=(20, 20)):
+                logger.info('Expedition result popup, close it')
+                self.device.click(ROOM_EXP_RESULT_CANCEL)
                 count += 1
+                settle.reset()
                 continue
 
             if self.appear(ROOM_EXP_CLAIM, offset=(20, 20)):
                 logger.info('Expedition finished, claim it')
                 self.device.click(ROOM_EXP_CLAIM)
                 count += 1
+                settle.reset()
                 continue
 
-            break
+            if settle.reached():
+                break
 
         return count > 0
 
