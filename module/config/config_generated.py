@@ -19,8 +19,8 @@ class GeneratedConfig:
 
     # Group `Emulator`
     Emulator_Serial = 'auto'
-    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili
-    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0
+    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl
+    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0
     Emulator_ScreenshotMethod = 'auto'  # auto, ADB, ADB_nc, uiautomator2, aScreenCap, aScreenCap_nc, DroidCast, DroidCast_raw, nemu_ipc, ldopengl
     Emulator_ControlMethod = 'MaaTouch'  # ADB, uiautomator2, minitouch, Hermit, MaaTouch
     Emulator_ScreenshotDedithering = False
@@ -84,6 +84,13 @@ class GeneratedConfig:
     HazeworldCore_Saturday = 'None'  # None, Life, Attack, Armor, Critical, Burst
     HazeworldCore_Sunday = 'None'  # None, Life, Attack, Armor, Critical, Burst
     HazeworldCore_SweepCount = 0
+
+    # Group `LostswordTreasure`
+    LostswordTreasure_Claim = True
+    LostswordTreasure_Quick = True
+
+    # Group `LostswordTask`
+    LostswordTask_Claim = True
 
     # Group `Storage`
     Storage_Storage = {}

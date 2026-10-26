@@ -25,6 +25,7 @@ class AlGS(GameScheduler):
     # Namespace -> (module, class name) of the game UI class.
     games = {
         'hazeworld': ('module.hazeworld.hazeworld_ui', 'HazeworldUI'),
+        'lostsword': ('module.lostsword.lostsword_ui', 'LostswordUI'),
     }
 
     @property
@@ -79,6 +80,24 @@ class AlGS(GameScheduler):
     def hazeworld_core(self):
         from module.hazeworld.core import HazeworldCore
         HazeworldCore(config=self.config, device=self.device).run()
+
+    # ==================== Lost Sword (失落之剑) ====================
+
+    def lostsword_mail(self):
+        from module.lostsword.mail import LostswordMail
+        LostswordMail(config=self.config, device=self.device).run()
+
+    def lostsword_shop(self):
+        from module.lostsword.shop import LostswordShop
+        LostswordShop(config=self.config, device=self.device).run()
+
+    def lostsword_treasure(self):
+        from module.lostsword.treasure import LostswordTreasure
+        LostswordTreasure(config=self.config, device=self.device).run()
+
+    def lostsword_task(self):
+        from module.lostsword.task import LostswordTask
+        LostswordTask(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

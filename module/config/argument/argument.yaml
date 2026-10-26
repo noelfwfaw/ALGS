@@ -154,3 +154,12 @@ HazeworldCore:
     value: None
     option: [ None, Life, Attack, Armor, Critical, Burst ]
   SweepCount: 0
+
+# ==================== Lost Sword ====================
+
+LostswordTreasure:
+  Claim: true
+  Quick: true
+
+LostswordTask:
+  Claim: true

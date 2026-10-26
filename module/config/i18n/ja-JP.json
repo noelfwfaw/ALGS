@@ -7,6 +7,10 @@
     "Hazeworld": {
       "name": "ヘイズワールド",
       "help": "ヘイズワールドの日課"
+    },
+    "Lostsword": {
+      "name": "ロストソード",
+      "help": "ロストソードのデイリータスク"
     }
   },
   "Task": {
@@ -49,6 +53,22 @@
     "HazeworldCore": {
       "name": "コア製造",
       "help": "資源ダンジョンの「コア製造」でコア素材を掃討する（スタミナ消費）"
+    },
+    "LostswordMail": {
+      "name": "メール",
+      "help": "メールの添付を受け取る"
+    },
+    "LostswordShop": {
+      "name": "ショップ",
+      "help": "デイリー・ウィークリー・マンスリーの無料ギフトを受け取る"
+    },
+    "LostswordTreasure": {
+      "name": "トレジャー",
+      "help": "放置報酬を受け取り、毎日の無料高速探索を使う"
+    },
+    "LostswordTask": {
+      "name": "任務報酬",
+      "help": "デイリー・ウィークリー・エピック任務の報酬をすべて受け取る"
     }
   },
   "Scheduler": {
@@ -96,13 +116,15 @@
       "name": "Emulator.PackageName.name",
       "help": "Emulator.PackageName.help",
       "auto": "auto",
-      "com.feimo.hazeworld.bilibili": "HAZEWORLD"
+      "com.feimo.hazeworld.bilibili": "HAZEWORLD",
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
       "help": "Emulator.ServerName.help",
       "disabled": "disabled",
-      "hazeworld-0": "[HAZEWORLD] default"
+      "hazeworld-0": "[HAZEWORLD] default",
+      "lostsword-0": "[LOSTSWORD] default"
     },
     "ScreenshotMethod": {
       "name": "Emulator.ScreenshotMethod.name",
@@ -424,6 +446,30 @@
     "SweepCount": {
       "name": "掃討回数",
       "help": "0 は「MAX」を押してスタミナを使い切る。正の数ならその回数だけ掃討する。スタミナが足りない分は払える回数まで減らし、1回分も足りなければ今回は行わない。\nステージはゲーム内で選択中のものを使う（スクリプトは切り替えない）"
+    }
+  },
+  "LostswordTreasure": {
+    "_info": {
+      "name": "宝物探索設定",
+      "help": ""
+    },
+    "Claim": {
+      "name": "宝物を受け取る",
+      "help": "放置で貯まった宝物を受け取る"
+    },
+    "Quick": {
+      "name": "毎日1回の無料高速探索",
+      "help": "その日の無料高速探索を使う。ダイヤが必要なときは押さない"
+    }
+  },
+  "LostswordTask": {
+    "_info": {
+      "name": "任務設定",
+      "help": ""
+    },
+    "Claim": {
+      "name": "ゲーム起動ごとに1回受け取る",
+      "help": "オフにすると受け取りませんが、任務自体のスケジュールは残ります"
     }
   },
   "Storage": {

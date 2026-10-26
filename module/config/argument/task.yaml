@@ -47,3 +47,20 @@ Hazeworld:
     HazeworldCore:
       - Scheduler
       - HazeworldCore
+
+# ==================== Lost Sword ====================
+
+Lostsword:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    LostswordMail:
+      - Scheduler
+    LostswordShop:
+      - Scheduler
+    LostswordTreasure:
+      - Scheduler
+      - LostswordTreasure
+    LostswordTask:
+      - Scheduler
+      - LostswordTask

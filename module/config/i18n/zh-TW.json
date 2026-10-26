@@ -7,6 +7,10 @@
     "Hazeworld": {
       "name": "蒼霧世界",
       "help": "蒼霧世界的日常任務"
+    },
+    "Lostsword": {
+      "name": "失落之劍",
+      "help": "失落之劍的日常任務"
     }
   },
   "Task": {
@@ -49,6 +53,22 @@
     "HazeworldCore": {
       "name": "核心製造",
       "help": "在資源副本「核心製造」裡掃蕩核心材料，消耗體力"
+    },
+    "LostswordMail": {
+      "name": "信箱",
+      "help": "領取信箱裡的附件"
+    },
+    "LostswordShop": {
+      "name": "商店",
+      "help": "領取每日、每週、每月的免費禮包"
+    },
+    "LostswordTreasure": {
+      "name": "寶藏探索",
+      "help": "領取掛機收益，並用掉每日免費的快速探查"
+    },
+    "LostswordTask": {
+      "name": "任務獎勵",
+      "help": "領取每日、每週、史詩任務的全部獎勵"
     }
   },
   "Scheduler": {
@@ -96,13 +116,15 @@
       "name": "遊戲伺服器",
       "help": "模擬器上裝有多個遊戲客戶端時，需要手動選擇伺服器",
       "auto": "自動檢測",
-      "com.feimo.hazeworld.bilibili": "HAZEWORLD"
+      "com.feimo.hazeworld.bilibili": "HAZEWORLD",
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
       "help": "Emulator.ServerName.help",
       "disabled": "不使用檢測",
-      "hazeworld-0": "[HAZEWORLD] default"
+      "hazeworld-0": "[HAZEWORLD] default",
+      "lostsword-0": "[LOSTSWORD] default"
     },
     "ScreenshotMethod": {
       "name": "模擬器截圖方案",
@@ -424,6 +446,30 @@
     "SweepCount": {
       "name": "掃蕩次數",
       "help": "0 表示點「MAX」把體力一次花完；填正數則只掃蕩這麼多次，體力不夠時自動降到能打的場數，一點體力都沒有就跳過本次。\n關卡用遊戲內當前選中的那一關，請先在遊戲裡選好（腳本不切關卡）"
+    }
+  },
+  "LostswordTreasure": {
+    "_info": {
+      "name": "寶藏探索設定",
+      "help": ""
+    },
+    "Claim": {
+      "name": "領取寶藏",
+      "help": "領取掛機累積的寶藏收益"
+    },
+    "Quick": {
+      "name": "每日一次免費快速探查",
+      "help": "用掉當天免費的快速探查，需要鑽石時不點"
+    }
+  },
+  "LostswordTask": {
+    "_info": {
+      "name": "任務設定",
+      "help": ""
+    },
+    "Claim": {
+      "name": "每次進入遊戲都領取一次",
+      "help": "關閉後不領取，但任務本身仍然排期"
     }
   },
   "Storage": {

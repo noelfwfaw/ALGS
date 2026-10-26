@@ -7,6 +7,10 @@
     "Hazeworld": {
       "name": "Hazeworld",
       "help": "Daily routines of Hazeworld"
+    },
+    "Lostsword": {
+      "name": "Lost Sword",
+      "help": "Daily routines of Lost Sword"
     }
   },
   "Task": {
@@ -49,6 +53,22 @@
     "HazeworldCore": {
       "name": "Core material",
       "help": "Sweep core material stages in the resource dungeon, spends stamina"
+    },
+    "LostswordMail": {
+      "name": "Mailbox",
+      "help": "Claim the attachments in the mailbox"
+    },
+    "LostswordShop": {
+      "name": "Shop",
+      "help": "Claim the daily, weekly and monthly free gifts"
+    },
+    "LostswordTreasure": {
+      "name": "Treasure",
+      "help": "Claim the idle rewards and use the free quick explore"
+    },
+    "LostswordTask": {
+      "name": "Task rewards",
+      "help": "Claim all daily, weekly and epic task rewards"
     }
   },
   "Scheduler": {
@@ -96,13 +116,15 @@
       "name": "Game Server",
       "help": "Manual select is required if multiple game clients are installed on emulator",
       "auto": "Auto-detect",
-      "com.feimo.hazeworld.bilibili": "HAZEWORLD"
+      "com.feimo.hazeworld.bilibili": "HAZEWORLD",
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
     },
     "ServerName": {
       "name": "Server in Game Client",
       "help": "Select the server where you are in the game to enable server status detection\nScript will hang up when server is being maintained or network is broken",
       "disabled": "disabled",
-      "hazeworld-0": "[HAZEWORLD] default"
+      "hazeworld-0": "[HAZEWORLD] default",
+      "lostsword-0": "[LOSTSWORD] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",
@@ -424,6 +446,30 @@
     "SweepCount": {
       "name": "Sweep count",
       "help": "0 presses \"MAX\" and spends every bit of stamina, a positive number sweeps exactly that many runs. A count the stamina cannot pay for is reduced to what it pays for, and a run without a single run worth of stamina is skipped.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it"
+    }
+  },
+  "LostswordTreasure": {
+    "_info": {
+      "name": "Treasure settings",
+      "help": ""
+    },
+    "Claim": {
+      "name": "Claim treasure",
+      "help": "Claim the treasure accumulated while idle"
+    },
+    "Quick": {
+      "name": "Daily free quick explore",
+      "help": "Use the free quick explore of the day; skip it when diamonds are required"
+    }
+  },
+  "LostswordTask": {
+    "_info": {
+      "name": "Mission settings",
+      "help": ""
+    },
+    "Claim": {
+      "name": "Claim once per game session",
+      "help": "When off nothing is claimed, but the task keeps its own schedule"
     }
   },
   "Storage": {

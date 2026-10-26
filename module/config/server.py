@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld']
+VALID_SERVER = ['hazeworld', 'lostsword']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -23,6 +23,8 @@ server = VALID_SERVER[0]
 #   'com.example.mygame': 'mygame'
 VALID_PACKAGE = {
     'com.feimo.hazeworld.bilibili': 'hazeworld',
+    # 失落之剑 (Lost Sword), Wemade Connect
+    'com.wemadeconnect.aos.lostdgl': 'lostsword',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -31,6 +33,7 @@ VALID_CHANNEL_PACKAGE = {}
 # Namespace -> list of server/region names, only used to build the GUI dropdown.
 VALID_SERVER_LIST = {
     'hazeworld': ['default'],
+    'lostsword': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

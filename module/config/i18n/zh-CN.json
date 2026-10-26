@@ -7,6 +7,10 @@
     "Hazeworld": {
       "name": "苍雾世界",
       "help": "苍雾世界的日常任务"
+    },
+    "Lostsword": {
+      "name": "失落之剑",
+      "help": "失落之剑的日常任务"
     }
   },
   "Task": {
@@ -49,6 +53,22 @@
     "HazeworldCore": {
       "name": "核心制造",
       "help": "在资源副本「核心制造」里扫荡核心材料，消耗体力"
+    },
+    "LostswordMail": {
+      "name": "邮箱",
+      "help": "领取邮箱里的附件"
+    },
+    "LostswordShop": {
+      "name": "商店",
+      "help": "领取每日、每周、每月的免费礼包"
+    },
+    "LostswordTreasure": {
+      "name": "宝藏探索",
+      "help": "领取挂机收益，并用掉每日免费的快速探查"
+    },
+    "LostswordTask": {
+      "name": "任务奖励",
+      "help": "领取每日、每周、史诗任务的全部奖励"
     }
   },
   "Scheduler": {
@@ -96,13 +116,15 @@
       "name": "游戏服务器",
       "help": "模拟器上装有多个游戏客户端时，需要手动选择服务器",
       "auto": "自动检测",
-      "com.feimo.hazeworld.bilibili": "HAZEWORLD"
+      "com.feimo.hazeworld.bilibili": "HAZEWORLD",
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
     },
     "ServerName": {
       "name": "游戏内服务器",
       "help": "选择游戏内所在的服务器以启用服务器状态检测\n当服务器维护或网络不可用时挂起直到恢复",
       "disabled": "不使用检测",
-      "hazeworld-0": "[HAZEWORLD] default"
+      "hazeworld-0": "[HAZEWORLD] default",
+      "lostsword-0": "[LOSTSWORD] default"
     },
     "ScreenshotMethod": {
       "name": "模拟器截图方案",
@@ -424,6 +446,30 @@
     "SweepCount": {
       "name": "扫荡次数",
       "help": "0 表示点「MAX」把体力一次花完；填正数则只扫荡这么多次，体力不够时自动降到能打的场数，一点体力都没有就跳过本次。\n关卡用游戏内当前选中的那一关，请先在游戏里选好（脚本不切关卡）"
+    }
+  },
+  "LostswordTreasure": {
+    "_info": {
+      "name": "宝藏探索设置",
+      "help": ""
+    },
+    "Claim": {
+      "name": "领取宝藏",
+      "help": "领取挂机累积的宝藏收益"
+    },
+    "Quick": {
+      "name": "每日一次免费快速探查",
+      "help": "用掉当天免费的快速探查，需要钻石时不点"
+    }
+  },
+  "LostswordTask": {
+    "_info": {
+      "name": "任务设置",
+      "help": ""
+    },
+    "Claim": {
+      "name": "每次进入游戏都领取一次",
+      "help": "关闭后不领取，但任务本身仍然排期"
     }
   },
   "Storage": {

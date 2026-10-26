@@ -16,3 +16,21 @@ Restart:
     # Daily reset of the game, the restart runs at this time.
     # Change it when you add a game with a different reset hour.
     ServerUpdate: 05:00
+
+# ==================== Lost Sword (失落之剑) ====================
+
+# The game day turns over at 00:00, so every daily task of this game runs on a
+# 00:00 clock instead of the framework default of 05:00. Hazeworld keeps 05:00:
+# the hour belongs to the game, not to the script.
+LostswordMail:
+  Scheduler:
+    ServerUpdate: 00:00
+LostswordShop:
+  Scheduler:
+    ServerUpdate: 00:00
+LostswordTreasure:
+  Scheduler:
+    ServerUpdate: 00:00
+LostswordTask:
+  Scheduler:
+    ServerUpdate: 00:00

@@ -16,9 +16,14 @@ class ManualConfig:
     # Task priority, tasks on the left run first.
     # Ordering rule: restart > collect > daily collect > daily sortie > sortie > filler.
     # Keep one task per game block so that games run one after another.
+    # The task-reward claim of each game sits at the end of its own block: it is
+    # the least important task of the game, and running it last keeps the game
+    # from being closed between two tasks of the same game. Missing a task here
+    # drops it from the schedule entirely, so every task must be listed.
     SCHEDULER_PRIORITY = """
     Restart
-    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldTask > HazeworldPass > HazeworldCore
+    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldPass > HazeworldCore > HazeworldTask
+    > LostswordMail > LostswordShop > LostswordTreasure > LostswordTask
     """
 
     """

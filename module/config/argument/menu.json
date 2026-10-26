@@ -20,5 +20,15 @@
       "HazeworldSupport",
       "HazeworldCore"
     ]
+  },
+  "Lostsword": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "LostswordMail",
+      "LostswordShop",
+      "LostswordTreasure",
+      "LostswordTask"
+    ]
   }
 }
