@@ -1,0 +1,405 @@
+{
+  "Menu": {
+    "Alas": {
+      "name": "Alas",
+      "help": ""
+    },
+    "Hazeworld": {
+      "name": "ヘイズワールド",
+      "help": "ヘイズワールドの日課"
+    }
+  },
+  "Task": {
+    "Alas": {
+      "name": "Alas設定",
+      "help": ""
+    },
+    "Restart": {
+      "name": "再起動設定",
+      "help": ""
+    },
+    "HazeworldMail": {
+      "name": "メール",
+      "help": "メールの添付を受け取る"
+    },
+    "HazeworldRoom": {
+      "name": "司令室",
+      "help": "司令室の資源回収と遠征"
+    },
+    "HazeworldFriend": {
+      "name": "フレンド",
+      "help": "フレンド全員にいいね"
+    },
+    "HazeworldTask": {
+      "name": "ミッション",
+      "help": "デイリー・ウィークリー・マンスリーミッションの報酬を受け取る"
+    },
+    "HazeworldPass": {
+      "name": "パス",
+      "help": "パス報酬を受け取る"
+    }
+  },
+  "Scheduler": {
+    "_info": {
+      "name": "Scheduler._info.name",
+      "help": "Scheduler._info.help"
+    },
+    "Enable": {
+      "name": "Scheduler.Enable.name",
+      "help": "Scheduler.Enable.help",
+      "True": "True",
+      "False": "False"
+    },
+    "NextRun": {
+      "name": "Scheduler.NextRun.name",
+      "help": "Scheduler.NextRun.help"
+    },
+    "Command": {
+      "name": "Scheduler.Command.name",
+      "help": "Scheduler.Command.help"
+    },
+    "SuccessInterval": {
+      "name": "Scheduler.SuccessInterval.name",
+      "help": "Scheduler.SuccessInterval.help"
+    },
+    "FailureInterval": {
+      "name": "Scheduler.FailureInterval.name",
+      "help": "Scheduler.FailureInterval.help"
+    },
+    "ServerUpdate": {
+      "name": "Scheduler.ServerUpdate.name",
+      "help": "Scheduler.ServerUpdate.help"
+    }
+  },
+  "Emulator": {
+    "_info": {
+      "name": "Emulator._info.name",
+      "help": "Emulator._info.help"
+    },
+    "Serial": {
+      "name": "Emulator.Serial.name",
+      "help": "Emulator.Serial.help"
+    },
+    "PackageName": {
+      "name": "Emulator.PackageName.name",
+      "help": "Emulator.PackageName.help",
+      "auto": "auto",
+      "com.feimo.hazeworld.bilibili": "HAZEWORLD"
+    },
+    "ServerName": {
+      "name": "Emulator.ServerName.name",
+      "help": "Emulator.ServerName.help",
+      "disabled": "disabled",
+      "hazeworld-0": "[HAZEWORLD] default"
+    },
+    "ScreenshotMethod": {
+      "name": "Emulator.ScreenshotMethod.name",
+      "help": "Emulator.ScreenshotMethod.help",
+      "auto": "auto",
+      "ADB": "ADB",
+      "ADB_nc": "ADB_nc",
+      "uiautomator2": "uiautomator2",
+      "aScreenCap": "aScreenCap",
+      "aScreenCap_nc": "aScreenCap_nc",
+      "DroidCast": "DroidCast",
+      "DroidCast_raw": "DroidCast_raw",
+      "nemu_ipc": "nemu_ipc",
+      "ldopengl": "ldopengl"
+    },
+    "ControlMethod": {
+      "name": "Emulator.ControlMethod.name",
+      "help": "Emulator.ControlMethod.help",
+      "ADB": "ADB",
+      "uiautomator2": "uiautomator2",
+      "minitouch": "minitouch",
+      "Hermit": "Hermit",
+      "MaaTouch": "MaaTouch"
+    },
+    "ScreenshotDedithering": {
+      "name": "Emulator.ScreenshotDedithering.name",
+      "help": "Emulator.ScreenshotDedithering.help"
+    },
+    "AdbRestart": {
+      "name": "Emulator.AdbRestart.name",
+      "help": "Emulator.AdbRestart.help"
+    }
+  },
+  "EmulatorInfo": {
+    "_info": {
+      "name": "EmulatorInfo._info.name",
+      "help": "EmulatorInfo._info.help"
+    },
+    "Emulator": {
+      "name": "EmulatorInfo.Emulator.name",
+      "help": "EmulatorInfo.Emulator.help",
+      "auto": "auto",
+      "NoxPlayer": "NoxPlayer",
+      "NoxPlayer64": "NoxPlayer64",
+      "BlueStacks4": "BlueStacks4",
+      "BlueStacks5": "BlueStacks5",
+      "BlueStacks4HyperV": "BlueStacks4HyperV",
+      "BlueStacks5HyperV": "BlueStacks5HyperV",
+      "LDPlayer3": "LDPlayer3",
+      "LDPlayer4": "LDPlayer4",
+      "LDPlayer9": "LDPlayer9",
+      "LDPlayer14": "LDPlayer14",
+      "MuMuPlayer": "MuMuPlayer",
+      "MuMuPlayerX": "MuMuPlayerX",
+      "MuMuPlayer12": "MuMuPlayer12",
+      "MEmuPlayer": "MEmuPlayer"
+    },
+    "name": {
+      "name": "EmulatorInfo.name.name",
+      "help": "EmulatorInfo.name.help"
+    },
+    "path": {
+      "name": "EmulatorInfo.path.name",
+      "help": "EmulatorInfo.path.help"
+    }
+  },
+  "Error": {
+    "_info": {
+      "name": "Error._info.name",
+      "help": "Error._info.help"
+    },
+    "HandleError": {
+      "name": "Error.HandleError.name",
+      "help": "Error.HandleError.help"
+    },
+    "SaveError": {
+      "name": "Error.SaveError.name",
+      "help": "Error.SaveError.help"
+    },
+    "OnePushConfig": {
+      "name": "Error.OnePushConfig.name",
+      "help": "Error.OnePushConfig.help"
+    },
+    "ScreenshotLength": {
+      "name": "Error.ScreenshotLength.name",
+      "help": "Error.ScreenshotLength.help"
+    }
+  },
+  "Optimization": {
+    "_info": {
+      "name": "Optimization._info.name",
+      "help": "Optimization._info.help"
+    },
+    "ScreenshotInterval": {
+      "name": "Optimization.ScreenshotInterval.name",
+      "help": "Optimization.ScreenshotInterval.help"
+    },
+    "CombatScreenshotInterval": {
+      "name": "Optimization.CombatScreenshotInterval.name",
+      "help": "Optimization.CombatScreenshotInterval.help"
+    },
+    "TaskHoardingDuration": {
+      "name": "Optimization.TaskHoardingDuration.name",
+      "help": "Optimization.TaskHoardingDuration.help"
+    },
+    "WhenTaskQueueEmpty": {
+      "name": "Optimization.WhenTaskQueueEmpty.name",
+      "help": "Optimization.WhenTaskQueueEmpty.help",
+      "stay_there": "stay_there",
+      "goto_main": "goto_main",
+      "close_game": "close_game"
+    }
+  },
+  "DropRecord": {
+    "_info": {
+      "name": "DropRecord._info.name",
+      "help": "DropRecord._info.help"
+    },
+    "SaveFolder": {
+      "name": "DropRecord.SaveFolder.name",
+      "help": "DropRecord.SaveFolder.help"
+    }
+  },
+  "HazeworldTask": {
+    "_info": {
+      "name": "ミッション設定",
+      "help": ""
+    },
+    "ClaimDaily": {
+      "name": "デイリーミッション報酬を受け取る",
+      "help": "「デイリー」タブに切り替えて「すべて受け取る」を押す"
+    },
+    "ClaimWeekly": {
+      "name": "ウィークリーミッション報酬を受け取る",
+      "help": "「ウィークリー」タブに切り替えて「すべて受け取る」を押す"
+    },
+    "ClaimMonthly": {
+      "name": "マンスリーミッション報酬を受け取る",
+      "help": "「マンスリー」タブに切り替えて「すべて受け取る」を押す"
+    }
+  },
+  "HazeworldPass": {
+    "_info": {
+      "name": "パス設定",
+      "help": ""
+    },
+    "ClaimAll": {
+      "name": "パス報酬をすべて受け取る",
+      "help": "パス画面で「すべて受け取る」を押す"
+    }
+  },
+  "HazeworldFriend": {
+    "_info": {
+      "name": "フレンド設定",
+      "help": ""
+    },
+    "LikeAll": {
+      "name": "一括いいね",
+      "help": "フレンド一覧で「一括いいね」を押す"
+    }
+  },
+  "HazeworldMail": {
+    "_info": {
+      "name": "メール設定",
+      "help": ""
+    },
+    "ClaimAll": {
+      "name": "メールをすべて受け取る",
+      "help": "メール画面で「すべて受け取る」を押す"
+    }
+  },
+  "HazeworldRoom": {
+    "_info": {
+      "name": "司令室設定",
+      "help": ""
+    },
+    "CollectAll": {
+      "name": "資源をすべて回収",
+      "help": "司令室で「すべて回収」を押す"
+    },
+    "Expedition": {
+      "name": "遠征を処理",
+      "help": "完了した遠征の報酬を受け取り、再派遣する"
+    }
+  },
+  "Storage": {
+    "_info": {
+      "name": "Storage._info.name",
+      "help": "Storage._info.help"
+    },
+    "Storage": {
+      "name": "Storage.Storage.name",
+      "help": "Storage.Storage.help"
+    }
+  },
+  "Gui": {
+    "Aside": {
+      "Install": "インストール",
+      "Home": "Gui.Aside.Home",
+      "Develop": "開発",
+      "Performance": "機能",
+      "Setting": "設定",
+      "AddAlas": "追加"
+    },
+    "Button": {
+      "Start": "実行",
+      "Stop": "中止",
+      "ScrollON": "自動スクロール ON",
+      "ScrollOFF": "自動スクロール OFF",
+      "ClearLog": "ログクリーニング",
+      "Setting": "設定",
+      "CheckUpdate": "アップデータチェック",
+      "ClickToUpdate": "アップデータ実行",
+      "RetryUpdate": "アップデータ再試行",
+      "CancelUpdate": "アップデータ中止"
+    },
+    "Toast": {
+      "DisableTranslateMode": "クリックして翻訳モードを中止します",
+      "ConfigSaved": "コンフィグ設定は保存されました",
+      "AlasIsRunning": "スケジューラーはもう実行しています",
+      "ClickToUpdate": "新しいアップデータがあります。クリックしてアップデータ"
+    },
+    "Status": {
+      "Running": "実行中",
+      "Inactive": "実行中止",
+      "Warning": "エラー発生",
+      "Updating": "アップデータを待っています"
+    },
+    "MenuAlas": {
+      "Overview": "概要",
+      "Log": "実行ログ"
+    },
+    "MenuDevelop": {
+      "HomePage": "ホームページ",
+      "Translate": "翻訳",
+      "Update": "アップデータ",
+      "Remote": "遠隔操作",
+      "Utils": "ツール"
+    },
+    "Overview": {
+      "Scheduler": "スケジューラー",
+      "Log": "ログ",
+      "Running": "実行中",
+      "Pending": "隊列中",
+      "Waiting": "Waiting",
+      "NoTask": "No Task"
+    },
+    "AddAlas": {
+      "PopupTitle": "新しいコンフィグを追加",
+      "NewName": "コンフィグ名",
+      "CopyFrom": "既存コンフィグからコピー",
+      "Confirm": "追加",
+      "FileExist": "既存コンフィグと同じネーミングとなっていますから別名前を入力してください",
+      "InvalidChar": "コンフィグ名には下記の文字を含めることはできません：.\\/:*?\"<>|",
+      "InvalidPrefixTemplate": "設定ファイル名は temlpate で始めることはできません",
+      "Manage": "管理"
+    },
+    "AppManage": {
+      "PageTitle": "コンフィグ管理",
+      "TitleNew": "コンフィグを追加",
+      "NewName": "コンフィグ名",
+      "CopyFrom": "既存コンフィグからコピー",
+      "NameExist": "コンフィグ名が既に存在しています",
+      "InvalidChar": "コンフィグ名には下記の文字を含めることはできません：.\\/:*?\"<>|",
+      "InvalidPrefixTemplate": "設定ファイル名は temlpate で始めることはできません",
+      "Back": "戻る",
+      "New": "追加",
+      "Import": "インポート",
+      "Export": "エクスポート",
+      "Delete": "削除",
+      "OverrideWarning": "This will override the current config!",
+      "ImportSuccess": "インポート成功",
+      "NewSuccess": "追加成功",
+      "Name": "コンフィグ名",
+      "Mod": "モジュール",
+      "Actions": "操作"
+    },
+    "Update": {
+      "UpToDate": "今Alasは最新バージョンです",
+      "HaveUpdate": "新しいアップデータがあります",
+      "UpdateStart": "アップデータ開始",
+      "UpdateWait": "全てのプロセスの完了を待っています",
+      "UpdateRun": "アップデータ中",
+      "UpdateSuccess": "アップデータ完了、再起動しています",
+      "UpdateFailed": "アップデータ失敗、./log/*_gui.txtでログをチェックしてください",
+      "UpdateChecking": "アップデータチェック中",
+      "UpdateCancel": "アップデータ中止、再起動しています",
+      "UpdateFinish": "アップデータ完了、再起動してください",
+      "Local": "ロケール",
+      "Upstream": "オンライン",
+      "Author": "提出者",
+      "Time": "提出時間",
+      "Message": "提出内容",
+      "DisabledWarn": "アップデータモジュールは稼働されませんのでAlasを再起動してください",
+      "DetailedHistory": "詳しい提出履歴"
+    },
+    "Remote": {
+      "Running": "実行中",
+      "NotRunning": "サーバーとの接続が中断したため、実行していない",
+      "NotEnable": "未启用，在 deploy.yaml 中设置 webui 密码并启用远程控制",
+      "EntryPoint": "远程访问 url 地址:",
+      "ConfigureHint": "配置教程：",
+      "SSHNotInstall": "システムでsshツールが探さない、sshツールをインストールしてください"
+    },
+    "Text": {
+      "InvalidFeedBack": "フォーマットエラー。 例：{0}",
+      "Clear": "消除",
+      "EnterPassword": "パスワードを入力してください",
+      "ChooseFile": "ファイルを選択してください"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "Alas": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "Alas",
+      "Restart"
+    ]
+  },
+  "Hazeworld": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "HazeworldMail",
+      "HazeworldRoom",
+      "HazeworldFriend",
+      "HazeworldTask",
+      "HazeworldPass"
+    ]
+  }
+}

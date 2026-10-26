@@ -1,0 +1,116 @@
+# --------------------
+# Define arguments.
+# --------------------
+
+# ==================== Framework ====================
+
+Scheduler:
+  Enable:
+    type: checkbox
+    value: false
+    option: [ true, false ]
+  NextRun: 2020-01-01 00:00:00
+  Command: Alas
+  SuccessInterval:
+    value: 0
+    display: hide
+  FailureInterval:
+    value: 120
+    display: hide
+  ServerUpdate:
+    value: 05:00
+    display: hide
+Emulator:
+  Serial:
+    value: auto
+    valuetype: str
+  PackageName:
+    value: auto
+    option: [ auto, ]
+  ServerName:
+    value: disabled
+    option: [ disabled, ]
+  ScreenshotMethod:
+    value: auto
+    option: [
+      auto,
+      ADB,
+      ADB_nc,
+      uiautomator2,
+      aScreenCap,
+      aScreenCap_nc,
+      DroidCast,
+      DroidCast_raw,
+      nemu_ipc,
+      ldopengl,
+    ]
+  ControlMethod:
+    value: MaaTouch
+    option: [
+      ADB,
+      uiautomator2,
+      minitouch,
+      Hermit,
+      MaaTouch,
+    ]
+  ScreenshotDedithering: false
+  AdbRestart: false
+EmulatorInfo:
+  Emulator:
+    value: auto
+    option: [
+      auto,
+      NoxPlayer,
+      NoxPlayer64,
+      BlueStacks4,
+      BlueStacks5,
+      BlueStacks4HyperV,
+      BlueStacks5HyperV,
+      LDPlayer3,
+      LDPlayer4,
+      LDPlayer9,
+      LDPlayer14,
+      MuMuPlayer,
+      MuMuPlayerX,
+      MuMuPlayer12,
+      MEmuPlayer,
+    ]
+  name:
+    value: null
+    type: textarea
+  path:
+    value: null
+    type: textarea
+Error:
+  HandleError: true
+  SaveError: true
+  OnePushConfig:
+    type: textarea
+    mode: yaml
+    value: 'provider: null'
+  ScreenshotLength: 1
+Optimization:
+  ScreenshotInterval: 0.3
+  CombatScreenshotInterval: 1.0
+  TaskHoardingDuration: 0
+  WhenTaskQueueEmpty:
+    value: close_game
+    option: [ stay_there, goto_main, close_game ]
+DropRecord:
+  SaveFolder: ./screenshots
+
+# ==================== Hazeworld ====================
+
+HazeworldTask:
+  ClaimDaily: true
+  ClaimWeekly: true
+  ClaimMonthly: true
+HazeworldPass:
+  ClaimAll: true
+HazeworldFriend:
+  LikeAll: true
+HazeworldMail:
+  ClaimAll: true
+HazeworldRoom:
+  CollectAll: true
+  Expedition: true

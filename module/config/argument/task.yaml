@@ -1,0 +1,40 @@
+# --------------------
+# Define argument group of tasks.
+# --------------------------------
+
+# ==================== Framework ====================
+
+Alas:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    Alas:
+      - Emulator
+      - EmulatorInfo
+      - Error
+      - Optimization
+      - DropRecord
+    Restart:
+      - Scheduler
+
+# ==================== Hazeworld ====================
+
+Hazeworld:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    HazeworldMail:
+      - Scheduler
+      - HazeworldMail
+    HazeworldRoom:
+      - Scheduler
+      - HazeworldRoom
+    HazeworldFriend:
+      - Scheduler
+      - HazeworldFriend
+    HazeworldTask:
+      - Scheduler
+      - HazeworldTask
+    HazeworldPass:
+      - Scheduler
+      - HazeworldPass

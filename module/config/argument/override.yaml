@@ -1,0 +1,18 @@
+# --------------------
+# Define non-modifiable values
+# --------------------
+
+# ==================== Framework ====================
+
+Restart:
+  Scheduler:
+    Enable:
+      type: state
+      value: true
+      option: [ true, ]
+      option_bold: [ true, ]
+    SuccessInterval: 0
+    FailureInterval: 0
+    # Daily reset of the game, the restart runs at this time.
+    # Change it when you add a game with a different reset hour.
+    ServerUpdate: 05:00

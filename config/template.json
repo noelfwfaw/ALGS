@@ -1,0 +1,132 @@
+{
+  "Alas": {
+    "Emulator": {
+      "Serial": "auto",
+      "PackageName": "auto",
+      "ServerName": "disabled",
+      "ScreenshotMethod": "auto",
+      "ControlMethod": "MaaTouch",
+      "ScreenshotDedithering": false,
+      "AdbRestart": false
+    },
+    "EmulatorInfo": {
+      "Emulator": "auto",
+      "name": null,
+      "path": null
+    },
+    "Error": {
+      "HandleError": true,
+      "SaveError": true,
+      "OnePushConfig": "provider: null",
+      "ScreenshotLength": 1
+    },
+    "Optimization": {
+      "ScreenshotInterval": 0.3,
+      "CombatScreenshotInterval": 1.0,
+      "TaskHoardingDuration": 0,
+      "WhenTaskQueueEmpty": "close_game"
+    },
+    "DropRecord": {
+      "SaveFolder": "./screenshots"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "Restart": {
+    "Scheduler": {
+      "Enable": true,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "Restart",
+      "SuccessInterval": 0,
+      "FailureInterval": 0,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "HazeworldMail": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldMail",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldMail": {
+      "ClaimAll": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "HazeworldRoom": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldRoom",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldRoom": {
+      "CollectAll": true,
+      "Expedition": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "HazeworldFriend": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldFriend",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldFriend": {
+      "LikeAll": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "HazeworldTask": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldTask",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldTask": {
+      "ClaimDaily": true,
+      "ClaimWeekly": true,
+      "ClaimMonthly": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "HazeworldPass": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldPass",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldPass": {
+      "ClaimAll": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  }
+}

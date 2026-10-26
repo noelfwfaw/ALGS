@@ -1,0 +1,463 @@
+{
+  "Alas": {
+    "Emulator": {
+      "Serial": {
+        "type": "input",
+        "value": "auto",
+        "valuetype": "str"
+      },
+      "PackageName": {
+        "type": "select",
+        "value": "auto",
+        "option": [
+          "auto",
+          "com.feimo.hazeworld.bilibili"
+        ]
+      },
+      "ServerName": {
+        "type": "select",
+        "value": "disabled",
+        "option": [
+          "disabled",
+          "hazeworld-0"
+        ]
+      },
+      "ScreenshotMethod": {
+        "type": "select",
+        "value": "auto",
+        "option": [
+          "auto",
+          "ADB",
+          "ADB_nc",
+          "uiautomator2",
+          "aScreenCap",
+          "aScreenCap_nc",
+          "DroidCast",
+          "DroidCast_raw",
+          "nemu_ipc",
+          "ldopengl"
+        ]
+      },
+      "ControlMethod": {
+        "type": "select",
+        "value": "MaaTouch",
+        "option": [
+          "ADB",
+          "uiautomator2",
+          "minitouch",
+          "Hermit",
+          "MaaTouch"
+        ]
+      },
+      "ScreenshotDedithering": {
+        "type": "checkbox",
+        "value": false
+      },
+      "AdbRestart": {
+        "type": "checkbox",
+        "value": false
+      }
+    },
+    "EmulatorInfo": {
+      "Emulator": {
+        "type": "select",
+        "value": "auto",
+        "option": [
+          "auto",
+          "NoxPlayer",
+          "NoxPlayer64",
+          "BlueStacks4",
+          "BlueStacks5",
+          "BlueStacks4HyperV",
+          "BlueStacks5HyperV",
+          "LDPlayer3",
+          "LDPlayer4",
+          "LDPlayer9",
+          "LDPlayer14",
+          "MuMuPlayer",
+          "MuMuPlayerX",
+          "MuMuPlayer12",
+          "MEmuPlayer"
+        ]
+      },
+      "name": {
+        "type": "textarea",
+        "value": null
+      },
+      "path": {
+        "type": "textarea",
+        "value": null
+      }
+    },
+    "Error": {
+      "HandleError": {
+        "type": "checkbox",
+        "value": true
+      },
+      "SaveError": {
+        "type": "checkbox",
+        "value": true
+      },
+      "OnePushConfig": {
+        "type": "textarea",
+        "value": "provider: null",
+        "mode": "yaml"
+      },
+      "ScreenshotLength": {
+        "type": "input",
+        "value": 1
+      }
+    },
+    "Optimization": {
+      "ScreenshotInterval": {
+        "type": "input",
+        "value": 0.3
+      },
+      "CombatScreenshotInterval": {
+        "type": "input",
+        "value": 1.0
+      },
+      "TaskHoardingDuration": {
+        "type": "input",
+        "value": 0
+      },
+      "WhenTaskQueueEmpty": {
+        "type": "select",
+        "value": "close_game",
+        "option": [
+          "stay_there",
+          "goto_main",
+          "close_game"
+        ]
+      }
+    },
+    "DropRecord": {
+      "SaveFolder": {
+        "type": "input",
+        "value": "./screenshots"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "Restart": {
+    "Scheduler": {
+      "Enable": {
+        "type": "state",
+        "value": true,
+        "option": [
+          true
+        ],
+        "option_bold": [
+          true
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "Restart",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "HazeworldMail": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "HazeworldMail",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "HazeworldMail": {
+      "ClaimAll": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "HazeworldRoom": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "HazeworldRoom",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "HazeworldRoom": {
+      "CollectAll": {
+        "type": "checkbox",
+        "value": true
+      },
+      "Expedition": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "HazeworldFriend": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "HazeworldFriend",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "HazeworldFriend": {
+      "LikeAll": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "HazeworldTask": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "HazeworldTask",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "HazeworldTask": {
+      "ClaimDaily": {
+        "type": "checkbox",
+        "value": true
+      },
+      "ClaimWeekly": {
+        "type": "checkbox",
+        "value": true
+      },
+      "ClaimMonthly": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "HazeworldPass": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "HazeworldPass",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "HazeworldPass": {
+      "ClaimAll": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  }
+}
