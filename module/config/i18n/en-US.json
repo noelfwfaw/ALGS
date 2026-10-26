@@ -423,7 +423,7 @@
     },
     "SweepCount": {
       "name": "Sweep count",
-      "help": "0 presses \"MAX\" and spends every bit of stamina, a positive number sweeps exactly that many runs.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it"
+      "help": "0 presses \"MAX\" and spends every bit of stamina, a positive number sweeps exactly that many runs. A count the stamina cannot pay for is reduced to what it pays for, and a run without a single run worth of stamina is skipped.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it"
     }
   },
   "Storage": {

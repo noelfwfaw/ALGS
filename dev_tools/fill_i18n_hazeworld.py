@@ -152,7 +152,7 @@ TRANSLATIONS = {
                          'Burst': '爆发核心'},
             ),
             'SweepCount': {'name': '扫荡次数',
-                           'help': '0 表示点「MAX」把体力一次花完；填正数则只扫荡这么多次。\n关卡用游戏内当前选中的那一关，请先在游戏里选好（脚本不切关卡）'},
+                           'help': '0 表示点「MAX」把体力一次花完；填正数则只扫荡这么多次，体力不够时自动降到能打的场数，一点体力都没有就跳过本次。\n关卡用游戏内当前选中的那一关，请先在游戏里选好（脚本不切关卡）'},
         },
     },
     'zh-TW': {
@@ -235,7 +235,7 @@ TRANSLATIONS = {
                          'Burst': '爆發核心'},
             ),
             'SweepCount': {'name': '掃蕩次數',
-                           'help': '0 表示點「MAX」把體力一次花完；填正數則只掃蕩這麼多次。\n關卡用遊戲內當前選中的那一關，請先在遊戲裡選好（腳本不切關卡）'},
+                           'help': '0 表示點「MAX」把體力一次花完；填正數則只掃蕩這麼多次，體力不夠時自動降到能打的場數，一點體力都沒有就跳過本次。\n關卡用遊戲內當前選中的那一關，請先在遊戲裡選好（腳本不切關卡）'},
         },
     },
     'en-US': {
@@ -322,7 +322,7 @@ TRANSLATIONS = {
                          'Burst': 'Burst core'},
             ),
             'SweepCount': {'name': 'Sweep count',
-                           'help': '0 presses "MAX" and spends every bit of stamina, a positive number sweeps exactly that many runs.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it'},
+                           'help': '0 presses "MAX" and spends every bit of stamina, a positive number sweeps exactly that many runs. A count the stamina cannot pay for is reduced to what it pays for, and a run without a single run worth of stamina is skipped.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it'},
         },
     },
     'ja-JP': {
@@ -406,7 +406,7 @@ TRANSLATIONS = {
                          'Burst': '爆発コア'},
             ),
             'SweepCount': {'name': '掃討回数',
-                           'help': '0 は「MAX」を押してスタミナを使い切る。正の数ならその回数だけ掃討する。\nステージはゲーム内で選択中のものを使う（スクリプトは切り替えない）'},
+                           'help': '0 は「MAX」を押してスタミナを使い切る。正の数ならその回数だけ掃討する。スタミナが足りない分は払える回数まで減らし、1回分も足りなければ今回は行わない。\nステージはゲーム内で選択中のものを使う（スクリプトは切り替えない）'},
         },
     },
 }
