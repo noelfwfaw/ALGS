@@ -41,6 +41,10 @@
     "HazeworldPass": {
       "name": "通行证",
       "help": "领取通行证奖励"
+    },
+    "HazeworldSupport": {
+      "name": "支援角色",
+      "help": "领取支援角色的友情币（绿币）"
     }
   },
   "Scheduler": {
@@ -288,6 +292,16 @@
     "ProxyBattle": {
       "name": "使用代理作战",
       "help": "用「代理作战」一次扫荡完当天所有演习券；关闭后一场场手动开战，可以看到战斗过程"
+    }
+  },
+  "HazeworldSupport": {
+    "_info": {
+      "name": "支援角色设置",
+      "help": ""
+    },
+    "ClaimAll": {
+      "name": "领取友情币",
+      "help": "在玩家档案里打开「支援角色」，逐个领取每个支援角色的友情币（绿币），每日上限 50000"
     }
   },
   "Storage": {

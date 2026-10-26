@@ -116,3 +116,5 @@ HazeworldRoom:
   Expedition: true
 HazeworldExercise:
   ProxyBattle: true
+HazeworldSupport:
+  ClaimAll: true

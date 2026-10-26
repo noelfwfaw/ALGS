@@ -41,6 +41,10 @@
     "HazeworldPass": {
       "name": "通行證",
       "help": "領取通行證獎勵"
+    },
+    "HazeworldSupport": {
+      "name": "支援角色",
+      "help": "領取支援角色的友情幣（綠幣）"
     }
   },
   "Scheduler": {
@@ -288,6 +292,16 @@
     "ProxyBattle": {
       "name": "使用代理作戰",
       "help": "用「代理作戰」一次掃蕩完當天所有演習券；關閉後一場場手動開戰，可以看到戰鬥過程"
+    }
+  },
+  "HazeworldSupport": {
+    "_info": {
+      "name": "支援角色設定",
+      "help": ""
+    },
+    "ClaimAll": {
+      "name": "領取友情幣",
+      "help": "在玩家檔案裡打開「支援角色」，逐個領取每個支援角色的友情幣（綠幣），每日上限 50000"
     }
   },
   "Storage": {

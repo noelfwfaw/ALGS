@@ -41,3 +41,6 @@ Hazeworld:
     HazeworldPass:
       - Scheduler
       - HazeworldPass
+    HazeworldSupport:
+      - Scheduler
+      - HazeworldSupport

@@ -24,6 +24,8 @@ TRANSLATIONS = {
             'HazeworldFriend': {'name': '好友', 'help': '给所有好友点赞'},
             'HazeworldTask': {'name': '任务', 'help': '领取每日/每周/每月任务奖励'},
             'HazeworldPass': {'name': '通行证', 'help': '领取通行证奖励'},
+            'HazeworldSupport': {'name': '支援角色',
+                                 'help': '领取支援角色的友情币（绿币）'},
         },
         'HazeworldMail': {
             '_info': {'name': '邮件设置', 'help': ''},
@@ -61,6 +63,11 @@ TRANSLATIONS = {
             'ClaimAll': {'name': '领取全部通行证奖励',
                          'help': '在通行证页点击「一键领取」'},
         },
+        'HazeworldSupport': {
+            '_info': {'name': '支援角色设置', 'help': ''},
+            'ClaimAll': {'name': '领取友情币',
+                         'help': '在玩家档案里打开「支援角色」，逐个领取每个支援角色的友情币（绿币），每日上限 50000'},
+        },
     },
     'zh-TW': {
         'Menu': {
@@ -73,6 +80,8 @@ TRANSLATIONS = {
             'HazeworldFriend': {'name': '好友', 'help': '給所有好友按讚'},
             'HazeworldTask': {'name': '任務', 'help': '領取每日/每週/每月任務獎勵'},
             'HazeworldPass': {'name': '通行證', 'help': '領取通行證獎勵'},
+            'HazeworldSupport': {'name': '支援角色',
+                                 'help': '領取支援角色的友情幣（綠幣）'},
         },
         'HazeworldMail': {
             '_info': {'name': '郵件設定', 'help': ''},
@@ -110,6 +119,11 @@ TRANSLATIONS = {
             'ClaimAll': {'name': '領取全部通行證獎勵',
                          'help': '在通行證頁點擊「一鍵領取」'},
         },
+        'HazeworldSupport': {
+            '_info': {'name': '支援角色設定', 'help': ''},
+            'ClaimAll': {'name': '領取友情幣',
+                         'help': '在玩家檔案裡打開「支援角色」，逐個領取每個支援角色的友情幣（綠幣），每日上限 50000'},
+        },
     },
     'en-US': {
         'Menu': {
@@ -125,6 +139,8 @@ TRANSLATIONS = {
             'HazeworldTask': {'name': 'Mission',
                               'help': 'Claim daily, weekly and monthly mission rewards'},
             'HazeworldPass': {'name': 'Battle pass', 'help': 'Claim battle pass rewards'},
+            'HazeworldSupport': {'name': 'Support character',
+                                 'help': 'Claim the friendship coins of support characters'},
         },
         'HazeworldMail': {
             '_info': {'name': 'Mail settings', 'help': ''},
@@ -162,6 +178,11 @@ TRANSLATIONS = {
             'ClaimAll': {'name': 'Claim all battle pass rewards',
                          'help': 'Press "Claim all" on the battle pass page'},
         },
+        'HazeworldSupport': {
+            '_info': {'name': 'Support character settings', 'help': ''},
+            'ClaimAll': {'name': 'Claim friendship coins',
+                         'help': 'Open "支援角色" in the player profile and claim every support character, 50000 per day at most'},
+        },
     },
     'ja-JP': {
         'Menu': {
@@ -175,6 +196,8 @@ TRANSLATIONS = {
             'HazeworldTask': {'name': 'ミッション',
                               'help': 'デイリー・ウィークリー・マンスリーミッションの報酬を受け取る'},
             'HazeworldPass': {'name': 'パス', 'help': 'パス報酬を受け取る'},
+            'HazeworldSupport': {'name': '支援キャラ',
+                                 'help': '支援キャラの友情コイン（緑コイン）を受け取る'},
         },
         'HazeworldMail': {
             '_info': {'name': 'メール設定', 'help': ''},
@@ -211,6 +234,11 @@ TRANSLATIONS = {
             '_info': {'name': 'パス設定', 'help': ''},
             'ClaimAll': {'name': 'パス報酬をすべて受け取る',
                          'help': 'パス画面で「すべて受け取る」を押す'},
+        },
+        'HazeworldSupport': {
+            '_info': {'name': '支援キャラ設定', 'help': ''},
+            'ClaimAll': {'name': '友情コインを受け取る',
+                         'help': 'プレイヤープロフィールの「支援キャラ」を開き、各支援キャラの友情コインを受け取る（1日の上限は 50000）'},
         },
     },
 }

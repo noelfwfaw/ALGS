@@ -18,6 +18,7 @@
 | `HazeworldFriend` | 好友「一键点赞」 |
 | `HazeworldTask` | 每日 / 每周 / 每月任务「一键领取」 |
 | `HazeworldPass` | 通行证「一键领取」 |
+| `HazeworldSupport` | 支援角色：领取每个支援角色的友情币（绿币，每日上限 50000） |
 
 任务顺序由 `module/config/config_manual.py` 的 `SCHEDULER_PRIORITY` 决定（重启 > 收菜 > 日活 > 出击）。每个任务成功返回后自己调 `task_delay()` 排下一次运行，日常任务的默认排期是 `Scheduler.ServerUpdate`（05:00）。
 

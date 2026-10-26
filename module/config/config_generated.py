@@ -67,5 +67,8 @@ class GeneratedConfig:
     # Group `HazeworldExercise`
     HazeworldExercise_ProxyBattle = True
 
+    # Group `HazeworldSupport`
+    HazeworldSupport_ClaimAll = True
+
     # Group `Storage`
     Storage_Storage = {}

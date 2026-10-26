@@ -144,5 +144,21 @@
     "Storage": {
       "Storage": {}
     }
+  },
+  "HazeworldSupport": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldSupport",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldSupport": {
+      "ClaimAll": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
   }
 }

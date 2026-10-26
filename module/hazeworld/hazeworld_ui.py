@@ -6,9 +6,11 @@ from module.hazeworld.assets import (BACK_ARROW, EXIT_CONFIRM, EX_TITLE_LABEL,
                                     MAIN_BTN_EXERCISE, MAIN_ICON_FRIEND,
                                     MAIN_ICON_MAIL, MAIN_ICON_PASS,
                                     MAIN_ICON_ROOM, MAIN_ICON_TASK,
-                                    PASS_BTN_RESOURCE, REWARD_CHECK,
-                                    ROOM_BTN_EXPEDITION,
+                                    PASS_BTN_RESOURCE, PROFILE_MEMBER,
+                                    REWARD_CHECK, ROOM_BTN_EXPEDITION,
                                     ROOM_EXP_PANEL_LABEL, ROOM_TITLE_LABEL,
+                                    SUPPORT_CARD, SUPPORT_ENTRY,
+                                    SUPPORT_REWARD, SUPPORT_TITLE,
                                     TASK_POINT_LABEL)
 from module.logger import logger
 from module.ui.page import Page
@@ -38,6 +40,11 @@ page_expedition = Page(ROOM_EXP_PANEL_LABEL)
 # covers most of it, but the title stays readable, so this page is matched
 # while that popup is open too and has to be checked after it.
 page_exercise = Page(EX_TITLE_LABEL)
+# The player profile opened by tapping the name plate on page_main.
+page_profile = Page(PROFILE_MEMBER)
+# The support character panel of the profile, opened by tapping a character
+# card. It covers the profile, so the profile check button is not visible here.
+page_support = Page(SUPPORT_TITLE)
 
 page_main.link(button=MAIN_ICON_TASK, destination=page_task)
 page_main.link(button=MAIN_ICON_PASS, destination=page_pass)
@@ -45,12 +52,15 @@ page_main.link(button=MAIN_ICON_FRIEND, destination=page_friend)
 page_main.link(button=MAIN_ICON_MAIL, destination=page_mail)
 page_main.link(button=MAIN_ICON_ROOM, destination=page_room)
 page_main.link(button=MAIN_BTN_EXERCISE, destination=page_exercise)
+page_main.link(button=SUPPORT_ENTRY, destination=page_profile)
 page_room.link(button=ROOM_BTN_EXPEDITION, destination=page_expedition)
+page_profile.link(button=SUPPORT_CARD, destination=page_support)
 
 for _page in [page_task, page_pass, page_friend, page_mail, page_room,
-              page_exercise]:
+              page_exercise, page_profile]:
     _page.link(button=BACK_ARROW, destination=page_main)
 page_expedition.link(button=BACK_ARROW, destination=page_room)
+page_support.link(button=BACK_ARROW, destination=page_profile)
 
 
 class HazeworldUI(UI):
@@ -184,6 +194,29 @@ class HazeworldUI(UI):
         if self.appear(REWARD_CHECK, offset=None):
             logger.info('Reward popup, touch to exit')
             self.device.click(REWARD_CHECK)
+            return True
+
+        return False
+
+    def handle_support_reward(self):
+        """
+        Close the reward popup of the support character panel.
+
+        It is the same "获得资源" popup as `handle_reward()`, but it is drawn on
+        a bright band instead of dimming the page, so the colour check point of
+        `REWARD_CHECK` never matches. The template does match, and the tap point
+        is the bottom right corner, which is blank on the panel behind it.
+
+        Pages:
+            in: any
+            out: any
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(SUPPORT_REWARD, offset=(20, 20)):
+            logger.info('Support reward popup, touch to exit')
+            self.device.click(SUPPORT_REWARD)
             return True
 
         return False

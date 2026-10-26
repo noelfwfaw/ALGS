@@ -41,6 +41,10 @@
     "HazeworldPass": {
       "name": "Battle pass",
       "help": "Claim battle pass rewards"
+    },
+    "HazeworldSupport": {
+      "name": "Support character",
+      "help": "Claim the friendship coins of support characters"
     }
   },
   "Scheduler": {
@@ -288,6 +292,16 @@
     "ProxyBattle": {
       "name": "Use proxy battle",
       "help": "Sweep every ticket of the day with \"代理作战\"; turn it off to fight one by one and watch the fights"
+    }
+  },
+  "HazeworldSupport": {
+    "_info": {
+      "name": "Support character settings",
+      "help": ""
+    },
+    "ClaimAll": {
+      "name": "Claim friendship coins",
+      "help": "Open \"支援角色\" in the player profile and claim every support character, 50000 per day at most"
     }
   },
   "Storage": {
