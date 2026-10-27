@@ -24,11 +24,11 @@ dot, which is why the same tab can legitimately be reached twice in one run.
 
 # Clickable areas of the three tabs. The panel layout is fixed, so plain
 # coordinates are enough; a miss lands on the empty header of the panel.
-TASK_TAB_DAILY = Button(area=(78, 72, 152, 122), color=(0, 0, 0),
+TASK_TAB_DAILY = Button(area=(78, 72, 152, 122), color=(0, 0, 0),  # alas-lint: allow - a disabled-state variant of a generated asset
                         button=(78, 72, 152, 122), name='TASK_TAB_DAILY')
-TASK_TAB_WEEKLY = Button(area=(318, 72, 392, 122), color=(0, 0, 0),
+TASK_TAB_WEEKLY = Button(area=(318, 72, 392, 122), color=(0, 0, 0),  # alas-lint: allow - a disabled-state variant of a generated asset
                          button=(318, 72, 392, 122), name='TASK_TAB_WEEKLY')
-TASK_TAB_MONTHLY = Button(area=(548, 72, 622, 122), color=(0, 0, 0),
+TASK_TAB_MONTHLY = Button(area=(548, 72, 622, 122), color=(0, 0, 0),  # alas-lint: allow - a disabled-state variant of a generated asset
                           button=(548, 72, 622, 122), name='TASK_TAB_MONTHLY')
 
 TASK_TABS = (
@@ -52,6 +52,11 @@ class LostswordTask(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Daily task rewards', level=1)
         if self.config.LostswordTask_Claim:
             self.task_claim()
@@ -77,9 +82,13 @@ class LostswordTask(LostswordUI):
             # 否则页签的点击会落在大厅上（那个位置是角色头像）。
             self.ui_ensure(page_task)
             logger.info(f'Claim {name} task rewards')
-            self.device.click(tab)
-            # 切页签只是客户端内换列表，没有转场可等，等一帧列表重绘即可。
-            self.device.sleep(0.8)
+            # The tab row is on screen whatever is selected, so this is only
+            # about the press.
+            if self.appear(tab, offset=(20, 20)):
+                self.device.click(tab)
+            # Switching tabs repaints the list in place, there is no transition
+            # to wait for, only the claim button repainting to its new state.
+            self.wait_until_still(TASK_BTN_CLAIM_ALL.area, timeout=2)
             claimed += self.task_claim_tab()
 
         self.ui_goto_main()
@@ -100,7 +109,8 @@ class LostswordTask(LostswordUI):
         for _ in range(3):
             if not self.task_claimable():
                 break
-            self.device.click(TASK_BTN_CLAIM_ALL)
+            if self.appear(TASK_BTN_CLAIM_ALL, offset=(20, 20)):
+                self.device.click(TASK_BTN_CLAIM_ALL)
             if not self.wait_overlay(REWARD_POPUP_TITLE, timeout=4):
                 # 按钮显示可领但没出弹窗：多半是这一帧恰好在重绘，不要再点。
                 break

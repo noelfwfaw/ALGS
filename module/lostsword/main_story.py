@@ -15,10 +15,10 @@ team cannot pass, and the difficulty is done.
 
 from module.base.timer import Timer
 from module.logger import logger
-from module.lostsword.affection import read_text
+from module.lostsword.utils import read_text
 from module.lostsword.assets import (MAIN_BTN_SELECT, MAIN_BTN_SKIP,
                                      MAIN_BTN_START, MAIN_DEFEAT)
-from module.lostsword.event import match
+from module.lostsword.utils import match
 from module.lostsword.lostsword_ui import (MAIN_DEFEAT_BACK, LostswordUI,
                                           page_main)
 
@@ -45,6 +45,11 @@ MAIN_DEFEAT_REGION = (480, 110, 800, 215)
 
 class LostswordMain(LostswordUI):
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Main story', level=1)
         # A previous run may have left a battle going; it has to end before the
         # lobby is reachable. A game that is not even running is a launch
@@ -82,19 +87,31 @@ class LostswordMain(LostswordUI):
             return False
 
         timeout = Timer(timeout).start()
-        while 1:
+        # The story of a chapter is skipped by one button, but the button stays
+        # drawn while the scene advances, so pressing it every frame would skip
+        # several pages at once. One press per two seconds is the same cadence
+        # the scene needs, without the sleep.
+        skip = Timer(2).start()
+
+        for _ in self.loop():
+            # A battle and a story scene are live scenes that barely change for
+            # minutes, which reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
+
+            # End - one of the two pages this task starts from.
             if self.on_stage_page() or self.on_lobby():
                 return True
+
+            # Click - chapter story, the stage page only comes back once it ends.
             if match(self.device.image, MAIN_BTN_SKIP, MAIN_SKIP_REGION) > 0.85:
-                self.tap_point(*MAIN_SKIP_POINT)
-                self.device.sleep(2)
+                if skip.reached():
+                    skip.reset()
+                    self.tap_point(*MAIN_SKIP_POINT)
                 continue
+
             if timeout.reached():
                 logger.warning('The game did not come back from the fight')
                 return False
-            self.device.sleep(3)
 
     def on_lobby(self):
         """
@@ -127,23 +144,26 @@ class LostswordMain(LostswordUI):
         """
         # Every difficulty starts from the lobby. After a defeat the game walks
         # back there by itself, but the walk goes through a loading screen and a
-        # press sent too early is lost, so the entry is retried instead of
-        # trusting one tap.
-        for _ in range(2):
-            self.ui_ensure(page_main)
-            # The lobby keeps fading in for a moment after `ui_ensure` returns
-            # (it comes back from the defeat page through a loading screen), and
-            # a press sent in that moment is swallowed.
-            self.device.sleep(1.2)
-            self.tap_point(*MAIN_ADV_POINT)
-            if self.wait_stage_page(timeout=timeout):
+        # press sent too early is lost, so the entry is pressed again on a timer
+        # until the map answers instead of trusting one tap.
+        self.ui_ensure(page_main)
+        retry = Timer(2).start()
+
+        for _ in self.loop(timeout=timeout):
+            # End - the map is up.
+            if self.on_stage_page():
                 break
-            logger.info('The adventure map did not open, press again')
+
+            # Click - the entry is in a fixed corner of the lobby, the page check
+            # above is what decides whether the press landed.
+            if retry.reached():
+                retry.reset()
+                self.tap_point(*MAIN_ADV_POINT)
         else:
+            logger.warning('The adventure map did not open')
             return False
 
         self.tap_point(*difficulty_point)
-        self.device.sleep(1.5)
         return self.wait_stage_page(timeout=8)
 
     def wait_stage_page(self, timeout=10):
@@ -157,14 +177,13 @@ class LostswordMain(LostswordUI):
             bool: If it showed up.
         """
         timeout = Timer(timeout).start()
-        while 1:
+
+        for _ in self.loop(timeout=timeout):
             self.device.stuck_record_clear()
-            self.device.screenshot()
             if self.on_stage_page():
                 return True
-            if timeout.reached():
-                return False
-            self.device.sleep(0.8)
+        else:
+            return False
 
     def on_stage_page(self):
         """
@@ -201,11 +220,9 @@ class LostswordMain(LostswordUI):
                 break
             last = stage
 
-            self.tap_point(*MAIN_SELECT_POINT)
-            if not self.wait_sortie_page(timeout=10):
+            if not self.main_sortie(timeout=10):
                 logger.warning(f'{name}: the sortie page did not open')
                 break
-            self.tap_point(*MAIN_START_POINT)
             if not self.main_wait_fight_end():
                 logger.info(f'{name}: defeated here, next difficulty')
                 break
@@ -213,26 +230,51 @@ class LostswordMain(LostswordUI):
             logger.info(f'{name}: stage {cleared} done')
         return cleared
 
-    def wait_sortie_page(self, timeout=10):
+    def on_sortie_page(self):
         """
-        Wait until the sortie page of a stage is on screen.
+        Whether the sortie page of a stage is on screen.
+
+        Returns:
+            bool: If 「出发」 is in its corner.
+        """
+        return match(self.device.image, MAIN_BTN_START,
+                     (950, 610, 1150, 700)) > 0.85
+
+    def main_sortie(self, timeout=10):
+        """
+        Get to the sortie page, pressing 「选择」 until it shows.
+
+        The stage page repaints its right half when the next stage loads, and a
+        press that lands during that repaint is lost - the run then sits on the
+        stage page until the caller gives up. Repeating the press on a timer
+        makes that a matter of the next frame instead of a lost stage.
+
+        Pages:
+            in: page_main_difficulty
+            out: sortie page
 
         Args:
             timeout (int, float): Seconds.
 
         Returns:
-            bool: If it showed up.
+            bool: If the sortie page is open.
         """
         timeout = Timer(timeout).start()
-        while 1:
+        retry = Timer(2).start()
+
+        for _ in self.loop(timeout=timeout):
             self.device.stuck_record_clear()
-            self.device.screenshot()
-            if match(self.device.image, MAIN_BTN_START,
-                     (950, 610, 1150, 700)) > 0.85:
+
+            # End - the sortie page answered.
+            if self.on_sortie_page():
                 return True
-            if timeout.reached():
-                return False
-            self.device.sleep(0.6)
+
+            # Click - 「选择」 sits in the bottom right corner of the stage page.
+            if retry.reached():
+                retry.reset()
+                self.tap_point(*MAIN_SELECT_POINT)
+        else:
+            return False
 
     def main_defeat_appear(self):
         """
@@ -260,26 +302,46 @@ class LostswordMain(LostswordUI):
             bool: If the stage was cleared. False means the team lost.
         """
         timeout = Timer(timeout).start()
-        while 1:
+        skip = Timer(2).start()
+        start = Timer(5).start()
+
+        for _ in self.loop():
+            # A battle is a live scene that barely changes for minutes, which
+            # reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
+
+            # End - back on the stage list: the stage was cleared and the game
+            # moved on to the next one by itself.
             if self.on_stage_page():
-                self.device.sleep(1)
-                self.device.screenshot()
                 return True
-            if match(self.device.image, MAIN_BTN_SKIP,
-                     MAIN_SKIP_REGION) > 0.85:
-                logger.info('Chapter story, skip it')
-                self.tap_point(*MAIN_SKIP_POINT)
-                self.device.sleep(2)
-                continue
+
+            # End - the team lost.
             if self.main_defeat_appear():
                 logger.info('The team lost this stage')
                 self.main_defeat_leave()
                 return False
+
+            # Click - the story of a chapter end, which the stage page only comes
+            # back from once it is over. One press per two seconds, otherwise the
+            # scene advances several pages at once.
+            if match(self.device.image, MAIN_BTN_SKIP, MAIN_SKIP_REGION) > 0.85:
+                if skip.reached():
+                    skip.reset()
+                    logger.info('Chapter story, skip it')
+                    self.tap_point(*MAIN_SKIP_POINT)
+                continue
+
+            # Click - the sortie page is still up, 「出发」 was swallowed by the
+            # page sliding in. Slow retry: the loading screen follows the press,
+            # and a burst of taps would queue several battles.
+            if self.on_sortie_page():
+                if start.reached():
+                    start.reset()
+                    self.tap_point(*MAIN_START_POINT)
+                continue
+
             if timeout.reached():
                 return False
-            self.device.sleep(2)
 
     def main_defeat_leave(self, timeout=20):
         """
@@ -293,25 +355,26 @@ class LostswordMain(LostswordUI):
         Returns:
             bool: If the page is gone.
         """
-        self.device.sleep(1.5)
         timeout = Timer(timeout).start()
-        while 1:
+        retry = Timer(1.5).start()
+
+        for _ in self.loop():
+            # The defeat artwork is a still scene, which reads as a frozen game
+            # to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
+
+            # End - the page is gone.
             if not self.main_defeat_appear():
                 return True
+
+            # Click - 「返回」 is the only way out, and the page fades in eating
+            # the taps aimed at it, so the press is repeated until the artwork
+            # is off screen.
+            if retry.reached():
+                retry.reset()
+                if self.appear(MAIN_DEFEAT, offset=30):
+                    self.device.click(MAIN_DEFEAT_BACK)
+
             if timeout.reached():
                 logger.warning('The defeat page does not close')
                 return False
-            self.device.click(MAIN_DEFEAT_BACK)
-            self.device.sleep(1.5)
-
-    def tap_point(self, x, y):
-        """
-        Press a point of this page with an adb tap.
-
-        Args:
-            x (int): Pixel x.
-            y (int): Pixel y.
-        """
-        self.device.adb_shell(['input', 'tap', str(int(x)), str(int(y))])

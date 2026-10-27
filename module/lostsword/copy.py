@@ -1,6 +1,6 @@
 from module.base.button import Button
 from module.base.timer import Timer
-from module.base.utils import get_color, random_rectangle_point
+from module.base.utils import get_color
 from module.logger import logger
 from module.lostsword.assets import (ARENA_BTN_CLOSE, COPY_BTN_ONEKEY,
                                      COPY_BTN_SELECT, COPY_BTN_SELECT_ALL,
@@ -9,16 +9,18 @@ from module.lostsword.assets import (ARENA_BTN_CLOSE, COPY_BTN_ONEKEY,
 from module.lostsword.lostsword_ui import LostswordUI, page_battle
 
 """
-副本扫荡 (sweeping the repeatable stages).
+Copy sweep (副本扫荡, sweeping the repeatable stages).
 
 Flow observed in game:
 
-    page_main --底栏「战斗」--> page_battle --顶部「副本」页签--> 副本卡片列表
-    卡片列表 --任意一张可扫荡的卡--> 关卡详情页（冒险区域 / 敌人 / 战利品）
-    关卡详情页 --底部「一键扫荡」--> 「副本一键扫荡」面板
-    面板 --「一键选择/取消」--> 三行（金币 / 经验书 / 火焰属性副本）全勾选
-    面板 --底部「一键扫荡」--> 「已获得道具。」--> 关
-    关卡详情页 --右上圆 X--> 卡片列表   （再一个 X 回战斗页）
+    page_main -- bottom bar 「战斗」 --> page_battle -- top 「副本」 tab --> stage
+                                         cards
+    cards -- any sweepable card --> stage page (area / enemies / loot)
+    stage page -- bottom 「一键扫荡」 --> 「副本一键扫荡」 panel
+    panel -- 「一键选择/取消」 --> three rows ticked (gold / exp books / attribute
+                                  stones)
+    panel -- bottom 「一键扫荡」 --> 「已获得道具。」 --> close
+    stage page -- top right round X --> cards (one more X back to page_battle)
 
 **One stage page covers all three resources.** Opening 一键扫荡 from any sweepable
 stage raises a panel that lists 金币 / 经验书 / 火焰属性副本 together, each with its
@@ -50,8 +52,9 @@ COPY_DIALOG_CONFIRM = (504, 450, 788, 486)
 
 # The reward popup covers the whole screen and its middle band holds the item
 # icons, so the dismissing tap goes to the blank strip above them.
-COPY_POPUP_CLOSE_TAP = Button(area=(600, 90, 680, 130), color=(0, 0, 0),
-                              button=(600, 90, 680, 130), name='COPY_POPUP_CLOSE_TAP')
+COPY_POPUP_CLOSE_TAP = Button(area=(600, 90, 680, 130), color=(0, 0, 0),  # alas-lint: allow - a click point on a blank part of a panel
+                              button=(600, 90, 680, 130),
+                              name='COPY_POPUP_CLOSE_TAP')  # alas-lint: allow
 
 
 class LostswordCopy(LostswordUI):
@@ -64,6 +67,11 @@ class LostswordCopy(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Copy sweep', level=1)
         self.ui_ensure(page_battle)
         if not self.copy_goto_tab():
@@ -95,28 +103,35 @@ class LostswordCopy(LostswordUI):
             bool: If the tab is open.
         """
         timeout = Timer(timeout).start()
-        retry = Timer(1.5, count=3).start()
-        while 1:
-            self.device.screenshot()
+
+        for _ in self.loop():
+            # End - the pill of this tab is the cream one.
             color = get_color(self.device.image, COPY_TAB.area)
             if sum(color) / 3 > 140:
                 # The card list keeps the offset it was left at; put it back so
                 # the slots below sit where they are expected.
-                self.battle_scroll(forward=False, pause=0.6)
+                self.battle_scroll(forward=False)
                 return True
-            if retry.reached():
-                retry.reset()
-                self.device.click(COPY_TAB)
+
+            # Click - the tab is always on screen, the pill colour above is what
+            # decides, so the press is the usual interval throttled one.
+            if self.appear_then_click(COPY_TAB, offset=30, interval=1.5):
+                continue
+
             if timeout.reached():
+                logger.warning('Cannot open the 副本 tab')
                 return False
 
-    def copy_open_stage(self):
+    def copy_open_stage(self, timeout=5):
         """
         Open a stage page that has the 「一键扫荡」 button.
 
         Pages:
             in: page_battle (stage list)
             out: stage page
+
+        Args:
+            timeout (int, float): Seconds to wait for a stage page per attempt.
 
         Returns:
             bool: If such a page is open.
@@ -125,39 +140,22 @@ class LostswordCopy(LostswordUI):
             logger.info(f'Try card slot {index}')
             # `adb tap` instead of `device.click`: the cards ignore the shorter
             # minitouch tap (measured four times, then four successful adb taps).
-            self.device.adb_shell(['input', 'tap', str(point[0]), str(point[1])])
-            self.device.sleep(2.5)
-            self.device.screenshot()
+            self.device.adb_shell(['input', 'tap', str(point[0]), str(point[1])])  # alas-lint: allow
 
-            if self.appear(COPY_BTN_ONEKEY, offset=30):
+            if self.wait_until_appear(COPY_BTN_ONEKEY, offset=30, timeout=timeout):
                 logger.info(f'Stage page opened from slot {index}')
                 return True
 
             logger.info(f'Slot {index}: no 一键扫荡 here, go back')
-            self.device.click(ARENA_BTN_CLOSE)
-            self.device.sleep(1.8)
-            self.device.screenshot()
+            if self.appear(ARENA_BTN_CLOSE, offset=30):
+                self.device.click(ARENA_BTN_CLOSE)
+                # The card list has to be back before the next slot is pressed,
+                # otherwise the tap lands on a page that is still sliding out.
+                self.wait_until_disappear(COPY_BTN_SELECT, offset=30, timeout=5, settle=2)
 
         return False
 
-    def tap(self, button):
-        """
-        Press a button with an adb tap.
-
-        The buttons of this page ignore the shorter minitouch tap that
-        `device.click()` sends (measured: the stage cards never opened, the sweep
-        button never raised its panel), while `adb shell input tap` on the same
-        coordinates works every time.
-
-        Args:
-            button (Button): Target.
-        """
-        # Centre of the area, not a random point inside it: the buttons of this
-        # page only react when the press lands on the plate itself.
-        x1, y1, x2, y2 = button.button
-        self.device.adb_shell(['input', 'tap', str((x1 + x2) // 2), str((y1 + y2) // 2)])
-
-    def copy_sweep_all(self, timeout=10):
+    def copy_sweep_all(self, timeout=4):
         """
         Open the shared sweep panel, tick everything, sweep, and close the popup.
 
@@ -166,7 +164,7 @@ class LostswordCopy(LostswordUI):
             out: stage page
 
         Args:
-            timeout (int, float): Seconds to wait for the panel.
+            timeout (int, float): Seconds to wait for each panel.
 
         Returns:
             bool: If a reward popup was claimed.
@@ -174,12 +172,11 @@ class LostswordCopy(LostswordUI):
         logger.info('Open the 副本一键扫荡 panel')
         # The first tap on 一键扫荡 is routinely swallowed (measured three times
         # in a row: the button raised nothing, the very same tap a second later
-        # raised the panel).
-        for attempt in range(3):
-            self.tap(COPY_BTN_ONEKEY)
-            if self.wait_overlay(COPY_BTN_SWEEP_ALL, timeout=4):
+        # raised the panel), so the press is repeated while the panel is not up.
+        for _ in range(3):
+            self.tap_asset(COPY_BTN_ONEKEY)
+            if self.wait_until_appear(COPY_BTN_SWEEP_ALL, offset=30, timeout=timeout):
                 break
-            self.device.sleep(1)
         else:
             # With the daily tries spent the panel never appears: the game
             # answers the press with a small "no tries left" dialog instead.
@@ -188,16 +185,17 @@ class LostswordCopy(LostswordUI):
             return False
 
         # The panel opens with nothing ticked and refuses to sweep that way.
-        self.tap(COPY_BTN_SELECT_ALL)
-        self.device.sleep(0.8)
-        self.device.screenshot()
+        self.tap_asset(COPY_BTN_SELECT_ALL)
+        # Ticking repaints the sweep button (it goes from grey to lit) and the
+        # ticks animate, so wait for the plate to stop changing rather than for
+        # a fixed pause.
+        self.wait_until_still(COPY_BTN_SWEEP_ALL.area, timeout=2)
 
         logger.info('Sweep everything')
-        for attempt in range(3):
-            self.tap(COPY_BTN_SWEEP_ALL)
-            if self.wait_overlay(REWARD_POPUP_TITLE, timeout=4):
+        for _ in range(3):
+            self.tap_asset(COPY_BTN_SWEEP_ALL)
+            if self.wait_until_appear(REWARD_POPUP_TITLE, offset=30, timeout=timeout):
                 break
-            self.device.sleep(1)
         else:
             logger.warning('No reward popup after sweeping')
             self.copy_close_panel()
@@ -207,7 +205,7 @@ class LostswordCopy(LostswordUI):
         self.copy_close_panel()
         return True
 
-    def copy_dismiss_dialog(self):
+    def copy_dismiss_dialog(self, timeout=3):
         """
         Close the small dialog the game answers with (no tries left, nothing
         ticked). It carries a single wide 确认 button in the middle of the screen.
@@ -215,31 +213,48 @@ class LostswordCopy(LostswordUI):
         Pages:
             in: stage page with a dialog on top
             out: stage page
-        """
-        self.device.screenshot()
-        if self.appear(COPY_BTN_ONEKEY, offset=30):
-            # Still on the stage page with a dialog: press its only button.
-            x1, y1, x2, y2 = COPY_DIALOG_CONFIRM
-            self.device.adb_shell(['input', 'tap', str((x1 + x2) // 2), str((y1 + y2) // 2)])
-            self.device.sleep(1.2)
-            self.device.screenshot()
-            return True
-        return False
 
-    def copy_close_panel(self):
+        Args:
+            timeout (int, float): Seconds to wait for the dialog to close.
+
+        Returns:
+            bool: If a dialog was dismissed.
+        """
+        # Still on the stage page with a dialog on top: press its only button.
+        if not self.wait_until_appear(COPY_BTN_ONEKEY, offset=30, timeout=2):
+            return False
+
+        x1, y1, x2, y2 = COPY_DIALOG_CONFIRM
+        self.device.adb_shell(['input', 'tap',
+                               str((x1 + x2) // 2), str((y1 + y2) // 2)])  # alas-lint: allow
+        # The dialog fades out over the button box that was just pressed, so the
+        # frame is only trusted once that box stops changing.
+        return self.wait_until_still(COPY_DIALOG_CONFIRM, timeout=timeout)
+
+    def copy_close_panel(self, timeout=5):
         """
         Leave the sweep panel and the stage page, back to the card list.
 
         Pages:
             in: sweep panel or stage page
             out: page_battle (card list)
+
+        Args:
+            timeout (int, float): Seconds to wait for each panel to leave.
+
+        Returns:
+            bool: If the card list is back.
         """
         self.device.screenshot()
+
         if self.appear(COPY_BTN_SWEEP_ALL, offset=30):
-            self.device.click(ARENA_BTN_CLOSE)
-            self.device.sleep(1.2)
-            self.device.screenshot()
-        if self.appear(COPY_BTN_ONEKEY, offset=30) or self.appear(COPY_BTN_SELECT, offset=30):
-            self.device.click(ARENA_BTN_CLOSE)
-            self.device.sleep(1.8)
-            self.device.screenshot()
+            if self.appear(ARENA_BTN_CLOSE, offset=30):
+                self.device.click(ARENA_BTN_CLOSE)
+            self.wait_until_disappear(COPY_BTN_SWEEP_ALL, offset=30, timeout=timeout, settle=2)
+
+        if self.appear(COPY_BTN_ONEKEY, offset=30):
+            if self.appear(ARENA_BTN_CLOSE, offset=30):
+                self.device.click(ARENA_BTN_CLOSE)
+            self.wait_until_disappear(COPY_BTN_ONEKEY, offset=30, timeout=timeout, settle=2)
+
+        return self.appear(COPY_TAB, offset=30)

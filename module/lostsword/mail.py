@@ -42,6 +42,11 @@ class LostswordMail(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Mail claim', level=1)
         self.ui_ensure(page_mail)
 

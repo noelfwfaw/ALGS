@@ -13,6 +13,11 @@ class HazeworldMail(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Mail claim', level=1)
         self.ui_ensure(page_mail)
 
@@ -38,7 +43,7 @@ class HazeworldMail(HazeworldUI):
         # The mail page fades in, and ui_ensure() returns on that half drawn
         # frame. Settle it first, otherwise the color check point below reads
         # "no claim button" and the mailbox is silently skipped.
-        if not self.appear_settled(MAIL_BTN_CLAIM_ALL, timeout=3, skip_first_screenshot=skip_first_screenshot):
+        if not self.wait_until_settled(MAIL_BTN_CLAIM_ALL, timeout=3, skip_first_screenshot=skip_first_screenshot):
             logger.warning('Claim all button not found, mailbox skipped')
             return 0
         return self.claim_all(MAIL_BTN_CLAIM_ALL, disabled=None, max_click=3)

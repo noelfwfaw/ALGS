@@ -30,6 +30,11 @@ class HazeworldSupport(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Support coin claim', level=1)
         self.ui_ensure(page_support)
 
@@ -61,7 +66,7 @@ class HazeworldSupport(HazeworldUI):
         # The panel fades in and ui_ensure() returns on that half drawn frame.
         # Settle it first, otherwise the claim buttons read as absent and the
         # whole panel is skipped.
-        if not self.appear_settled(SUPPORT_CLAIM_1, timeout=5, skip_first_screenshot=skip_first_screenshot):
+        if not self.wait_until_settled(SUPPORT_CLAIM_1, timeout=5, skip_first_screenshot=skip_first_screenshot):
             logger.warning('No support character found, green coin skipped')
             return 0
 

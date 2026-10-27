@@ -11,15 +11,17 @@ from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
                                           page_battle, page_boss)
 
 """
-领主突袭 (boss raid).
+Boss raid (领主突袭).
 
 Flow observed in game:
 
-    page_main  --底栏「战斗」-->  page_battle（普通页签，领主突袭是四张卡的第一张）
-    page_battle  --领主突袭卡-->  page_boss（阿格尼丝 / 单人突袭）
-    page_boss  --「进入」-->  加载页 -> 战斗（自动打）-> VICTORY -> 点屏幕 -> page_boss
-    page_boss  --「扫荡」-->  「是否进行扫荡?」--> 「确认」--> 已获得道具。弹窗
-    page_boss  --右上圆 X-->  page_battle  --右上圆 X-->  page_main
+    page_main  -- bottom bar 「战斗」 -->  page_battle (普通 tab, the raid card is
+                                             the first of the row)
+    page_battle  -- raid card -->  page_boss (阿格尼丝 / solo raid)
+    page_boss  -- 「进入」 -->  loading page -> battle (auto played) -> VICTORY
+                                -> tap -> loading page -> page_boss
+    page_boss  -- 「扫荡」 -->  「是否进行扫荡?」 --> 「确认」 --> 已获得道具。 popup
+    page_boss  -- top right round X -->  page_battle  -- round X -->  page_main
 
 The mode gives three tries a day, and 进入 and 扫荡 draw from the same pool:
 the counter on both buttons drops by one per run. The intended daily routine is
@@ -37,10 +39,6 @@ ticket count moves to the left of the label), which drops the match of
 it also means the task never spends the paid tickets.
 """
 
-# A sweep dialog swallows the first taps while it fades in: measured 0.2s after
-# the dialog opened the tap on 「确认」 was lost, so wait it out (the same 2s as
-# the sweep dialog of 苍雾世界).
-BOSS_DIALOG_SETTLE = 2.0
 # A battle takes 80~270 seconds on top of the client loading page (two runs of
 # the same day measured 78s and over 240s), so the wait is generous.
 BOSS_BATTLE_TIMEOUT = 600
@@ -58,6 +56,11 @@ class LostswordBoss(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Boss raid', level=1)
         self.ui_ensure(page_battle)
         self.battle_goto_normal()
@@ -90,16 +93,13 @@ class LostswordBoss(LostswordUI):
         of the day and stays afterwards. The page is still sliding in when
         `ui_ensure` returns, and on that frame the row has not been drawn yet
         (measured: absent 10ms after the page arrived, present a second later),
-        so a missing row is confirmed once more before it is believed.
+        so the absence is only believed after a bounded wait instead of on the
+        first frame.
 
         Returns:
             bool: If the battle was already fought.
         """
-        if self.appear(BOSS_BEST_SCORE, offset=30):
-            return True
-        self.device.sleep(1)
-        self.device.screenshot()
-        return self.appear(BOSS_BEST_SCORE, offset=30)
+        return self.wait_until_appear(BOSS_BEST_SCORE, offset=30, timeout=2)
 
     def boss_battle(self, timeout=BOSS_BATTLE_TIMEOUT):
         """
@@ -123,49 +123,48 @@ class LostswordBoss(LostswordUI):
         # Guard against a misread of the "最高分数" row: with no free try left the
         # button is repainted as the ticket layout (match 0.40) and pressing it
         # would spend a Boss Raid Ticket of the user.
-        if not self.appear(BOSS_BTN_ENTER, offset=30):
+        # A previous run may have left this button cooling down, and
+        # `appear_then_click` is False both for "not there" and for "throttled".
+        self.interval_clear(BOSS_BTN_ENTER)
+        entered = self.appear_then_click(BOSS_BTN_ENTER, offset=30, interval=3)
+        if not entered:
             logger.info('No free try left, skip the battle')
             return
 
-        self.device.click(BOSS_BTN_ENTER)
+        # The client loading page and the battle itself both cover the
+        # 「队伍编排」 button, so the page going away is the start of the battle.
+        if not self.wait_until_disappear(BOSS_BTN_TEAM, offset=30, timeout=60, settle=2):
+            logger.warning('Boss battle did not start')
+            raise GameStuckError('Boss battle did not start in time')
+        logger.info('Battle started')
+
         timeout = Timer(timeout).start()
         report = Timer(30).start()
-
-        # The client loading page and the battle itself both cover the
-        # 「队伍编排」 button, so the page leaving is the start of the battle.
-        while 1:
+        for _ in self.loop():
+            # A battle screen is a live 3D scene that barely changes for
+            # minutes, which reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
-            if not self.appear(BOSS_BTN_TEAM, offset=30):
-                logger.info('Battle started')
-                break
-            if timeout.reached():
-                logger.warning('Boss battle did not start')
-                raise GameStuckError('Boss battle did not start in time')
-            self.device.sleep(1)
 
-        while 1:
-            self.device.stuck_record_clear()
-            self.device.screenshot()
-            if self.appear(BOSS_VICTORY, offset=30):
-                logger.info('Battle won')
-                # 胜利页要点击才走，点完是客户端加载页，再回到详情页。
-                self.device.click(BOSS_RESULT_TAP)
-                if not self.wait_overlay(BOSS_BTN_TEAM, timeout=60):
-                    logger.warning('Did not return to the boss raid page')
-                return
-            # A run that ends without the victory page (defeat, or a victory
-            # screen that was tapped away by something else) lands back here.
+            # End - the raid page is back, either after the victory page or
+            # after a run that ended without one (defeat).
             if self.appear(BOSS_BTN_TEAM, offset=30):
                 logger.info('Battle finished, back at the boss raid page')
                 return
-            if report.reached():
-                report.reset()
-                logger.info(f'Still fighting, {int(timeout.current_time())}s elapsed')
             if timeout.reached():
                 logger.warning('Boss battle did not reach the victory page')
                 raise GameStuckError('Boss battle did not end in time')
-            self.device.sleep(2)
+
+            # Click - the victory page leaves on a tap and plays a client
+            # loading page right after it, so it is tapped until the raid page
+            # is back rather than once.
+            if self.appear(BOSS_VICTORY, offset=30, interval=2):
+                logger.info('Battle won, tap through the victory page')
+                self.device.click(BOSS_RESULT_TAP)
+                continue
+
+            if report.reached():
+                report.reset()
+                logger.info(f'Still fighting, {int(timeout.current_time())}s elapsed')
 
     def boss_sweep_all(self):
         """
@@ -179,13 +178,13 @@ class LostswordBoss(LostswordUI):
             int: How many sweeps ran.
         """
         swept = 0
-        while swept < BOSS_SWEEP_TRIES:
+        for _ in range(BOSS_SWEEP_TRIES):
             self.ui_ensure(page_boss)
             self.boss_dismiss_dialogs()
             # The button keeps its look while there are free tries and switches
-            # to the ticket layout once there are none, so a lost match is the
-            # end of the loop.
-            if not self.appear(BOSS_BTN_SWEEP, offset=30):
+            # to the ticket layout once there are none, so a bounded wait that
+            # comes back empty is the end of the loop.
+            if not self.wait_until_appear(BOSS_BTN_SWEEP, offset=30, timeout=2):
                 logger.info('No free sweep left')
                 break
             if not self.boss_sweep_once():
@@ -193,7 +192,7 @@ class LostswordBoss(LostswordUI):
             swept += 1
         return swept
 
-    def boss_dismiss_dialogs(self):
+    def boss_dismiss_dialogs(self, timeout=5):
         """
         Close any dialog left open on the boss page.
 
@@ -206,6 +205,9 @@ class LostswordBoss(LostswordUI):
             in: page_boss
             out: page_boss
 
+        Args:
+            timeout (int, float): Seconds to wait for a dialog to fade out.
+
         Returns:
             bool: If a dialog was closed.
         """
@@ -216,7 +218,7 @@ class LostswordBoss(LostswordUI):
             if self.appear(title, offset=30):
                 logger.info(f'{title.name} is open, close it')
                 self.device.click(close)
-                self.wait_overlay_gone(title, timeout=5)
+                self.wait_overlay_gone(title, timeout=timeout)
                 closed = True
         return closed
 
@@ -234,23 +236,27 @@ class LostswordBoss(LostswordUI):
         # Only touch the button while it is the free-try one. With no try left it
         # is repainted as "ticket count + 扫荡", pressing it opens the 「一键扫荡」
         # dialog, and one more tap there spends the user's Boss Raid Tickets.
-        if not self.appear(BOSS_BTN_SWEEP, offset=30):
+        self.interval_clear(BOSS_BTN_SWEEP)
+        sweeping = self.appear_then_click(BOSS_BTN_SWEEP, offset=30, interval=3)
+        if not sweeping:
             logger.info('No free sweep left')
             return False
 
         logger.info('Sweep the boss raid')
-        self.device.click(BOSS_BTN_SWEEP)
-        if not self.wait_overlay(BOSS_DIALOG_TITLE, timeout=6):
+        # The dialog is matched from its first fading frame and a tap during the
+        # fade in is lost, so the confirm button is only pressed once the panel
+        # is fully drawn.
+        if not self.wait_overlay_settle(BOSS_DIALOG_TITLE, timeout=6):
             logger.warning('Sweep dialog did not open')
             return False
+        self.interval_clear(BOSS_BTN_SWEEP_CONFIRM)
+        confirmed = self.appear_then_click(BOSS_BTN_SWEEP_CONFIRM, offset=30, interval=3)
+        if not confirmed:
+            logger.warning('Sweep confirm button not found')
+            self.boss_close_dialog()
+            return False
 
-        # The dialog is matched from its first fading frame and a tap during the
-        # fade in is lost, so the confirm button is pressed only once it is drawn.
-        self.device.sleep(BOSS_DIALOG_SETTLE)
-        self.device.screenshot()
-        self.device.click(BOSS_BTN_SWEEP_CONFIRM)
-
-        if self.wait_overlay(REWARD_POPUP_TITLE, timeout=10):
+        if self.wait_until_appear(REWARD_POPUP_TITLE, offset=30, timeout=10):
             # The popup is dismissed on the blank part of its own panel: the
             # shared close point sits on the 扫荡 button of this page, and the
             # tap would be taken by it as well.
@@ -263,7 +269,7 @@ class LostswordBoss(LostswordUI):
         self.boss_close_dialog()
         return False
 
-    def boss_close_dialog(self):
+    def boss_close_dialog(self, timeout=5):
         """
         Close the "是否进行扫荡?" dialog without sweeping.
 
@@ -271,11 +277,12 @@ class LostswordBoss(LostswordUI):
             in: page_boss_dialog
             out: page_boss
 
+        Args:
+            timeout (int, float): Seconds to wait for the dialog to fade out.
+
         Returns:
             bool: If the dialog left.
         """
-        self.device.screenshot()
-        if self.appear(BOSS_DIALOG_TITLE, offset=30):
-            self.device.click(BOSS_DIALOG_CLOSE)
-            return self.wait_overlay_gone(BOSS_DIALOG_TITLE, timeout=5)
+        if self.appear_then_click(BOSS_DIALOG_CLOSE, offset=30, interval=3):
+            return self.wait_overlay_gone(BOSS_DIALOG_TITLE, timeout=timeout)
         return False

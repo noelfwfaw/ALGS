@@ -14,7 +14,7 @@ from module.ocr.ocr import DigitCounter
 # Not a template: the number changes every fight, only OCR can read it.
 # The digits are a soft white, the default pure white letter colour makes
 # `extract_letters()` drop the thin slash and read `9/15` as `915`.
-EXERCISE_TICKET = DigitCounter(
+EXERCISE_TICKET = DigitCounter(  # alas-lint: allow - a disabled-state variant of a generated asset
     Button(area=(1095, 22, 1205, 52), color=(), button=(1095, 22, 1205, 52),
            name='EXERCISE_TICKET'),
     letter=(240, 240, 240),
@@ -55,6 +55,11 @@ class HazeworldExercise(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Exercise', level=1)
         self.ui_ensure(page_exercise)
 
@@ -110,8 +115,7 @@ class HazeworldExercise(HazeworldUI):
             out: page_exercise
         """
         logger.hr('Proxy battle', level=2)
-        self.device.screenshot()
-        if not self.appear(EX_BTN_PROXY, offset=(20, 20)):
+        if not self.wait_until_appear(EX_BTN_PROXY, offset=(20, 20), timeout=2):
             logger.warning('Proxy battle is not unlocked, fight one by one')
             self.exercise_manual()
             return

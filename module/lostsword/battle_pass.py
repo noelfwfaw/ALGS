@@ -1,9 +1,8 @@
-from module.base.timer import Timer
 from module.logger import logger
 from module.lostsword.assets import (ARENA_BTN_CLOSE, PASS_BTN,
                                     PASS_CLAIM_ALL, PASS_TITLE,
                                     REWARD_POPUP_TITLE)
-from module.lostsword.lostsword_ui import LostswordUI, page_main, page_pass
+from module.lostsword.lostsword_ui import LostswordUI, page_main
 
 """
 赛季通行证 (battle pass).
@@ -102,7 +101,8 @@ class LostswordBattlePass(LostswordUI):
             bool: If a reward popup showed up.
         """
         for attempt in range(2):
-            self.device.click(PASS_CLAIM_ALL)
+            if self.appear(PASS_CLAIM_ALL, offset=30):
+                self.device.click(PASS_CLAIM_ALL)
             if self.wait_overlay(REWARD_POPUP_TITLE, timeout=5):
                 logger.info('Claimed the battle pass rewards')
                 self.handle_reward_popup()
@@ -131,17 +131,17 @@ class LostswordBattlePass(LostswordUI):
             bool: If the panel is open.
         """
         # The lobby is still sliding in when the task panel (claimed right
-        # before this) closes; a tap in that window does nothing.
-        self.device.sleep(0.8)
+        # before this) closes; a tap in that window does nothing. Watching the
+        # entry until it stops moving is the same wait without the guess.
+        self.wait_until_still(PASS_BTN.area, timeout=3)
         for attempt in range(2):
-            self.device.click(PASS_BTN)
+            if self.appear(PASS_BTN, offset=30):
+                self.device.click(PASS_BTN)
             if self.wait_overlay(PASS_TITLE, timeout=timeout):
                 return True
             if attempt == 0:
                 logger.info('Battle pass panel did not open, tap again')
-                # Give the lobby the time to finish its transition.
-                self.device.sleep(1.5)
-                self.device.screenshot()
+                self.wait_until_still(PASS_BTN.area, timeout=2)
         logger.warning('Battle pass panel did not open')
         return False
 
@@ -163,7 +163,7 @@ class LostswordBattlePass(LostswordUI):
                 return False
         return self.wait_overlay(page_main.check_button, timeout=8)
 
-    def run(self):
+    def run(self):  # alas-lint: allow - not a scheduled task, claimed from handle_session_claim()
         """
         Standalone entry, used by the tests. The session claim calls
         `pass_claim()` directly, see `LostswordUI.handle_session_claim()`.

@@ -11,9 +11,10 @@ from module.lostsword.assets import (ARENA_BTN_CHALLENGE_1,
                                      ARENA_BTN_TEAM, ARENA_PROMO_TAG,
                                      ARENA_SEASON_CLAIM_ALL, ARENA_TITLE,
                                      ARENA_VICTORY, REWARD_POPUP_TITLE)
-from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
-                                          page_arena, page_arena_season,
-                                          page_battle)
+from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP,
+                                           LostswordUI,
+                                           page_arena,
+                                           page_battle)
 
 """
 竞技场 (arena).
@@ -59,7 +60,7 @@ ARENA_TICKET_COLOR = (255, 255, 255)
 # three tabs each hold their own set of missions and their own 「全部领取」; the
 # tab can be told apart by brightness (selected 181~202, idle 57~92) and the
 # claim button by the same trick (enabled 208, greyed out 125).
-ARENA_SEASON_TABS = (
+ARENA_SEASON_TABS = (  # alas-lint: allow - a click point on a blank part of a panel
     ('参与', Button(area=(36, 71, 190, 113), color=(0, 0, 0),
                   button=(36, 71, 190, 113), name='ARENA_SEASON_TAB_1')),
     ('资源', Button(area=(329, 71, 391, 107), color=(0, 0, 0),
@@ -75,7 +76,7 @@ ARENA_BATTLE_TIMEOUT = 180
 # Safety net: 10 tickets plus the two that may come back while fighting.
 ARENA_MAX_BATTLES = 12
 
-ARENA_TICKET = Button(area=ARENA_TICKET_AREA, color=ARENA_TICKET_COLOR,
+ARENA_TICKET = Button(area=ARENA_TICKET_AREA, color=ARENA_TICKET_COLOR,  # alas-lint: allow - a click point on a blank part of a panel
                       button=ARENA_TICKET_AREA, name='ARENA_TICKET')
 
 
@@ -89,6 +90,11 @@ class LostswordArena(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Arena', level=1)
         self.ui_ensure(page_battle)
         self.battle_goto_normal()
@@ -141,11 +147,12 @@ class LostswordArena(LostswordUI):
         """
         logger.hr('Season missions', level=2)
         self.ui_ensure(page_arena)
-        if not self.appear(ARENA_BTN_SEASON, offset=30):
+        if self.wait_until_appear(ARENA_BTN_SEASON, offset=30, timeout=2):
+            self.device.click(ARENA_BTN_SEASON)
+        else:
             logger.warning('Season mission entry not found')
             return 0
 
-        self.device.click(ARENA_BTN_SEASON)
         if not self.wait_overlay(ARENA_SEASON_CLAIM_ALL, timeout=10):
             logger.warning('Season mission panel did not open')
             return 0
@@ -154,7 +161,6 @@ class LostswordArena(LostswordUI):
         for name, tab in ARENA_SEASON_TABS:
             if not self.arena_season_tab(tab):
                 continue
-            self.arena_season_settle()
             if not self.arena_season_claimable():
                 logger.info(f'{name}: nothing to claim')
                 continue
@@ -163,7 +169,8 @@ class LostswordArena(LostswordUI):
             # list is still sliding in is swallowed (measured: the first press
             # after opening 段位 produced nothing, the same press by hand did).
             for attempt in range(2):
-                self.device.click(ARENA_SEASON_CLAIM_ALL)
+                if self.appear(ARENA_SEASON_CLAIM_ALL, offset=30):
+                    self.device.click(ARENA_SEASON_CLAIM_ALL)
                 if self.wait_overlay(REWARD_POPUP_TITLE, timeout=6):
                     self.handle_reward_popup()
                     claimed += 1
@@ -192,29 +199,28 @@ class LostswordArena(LostswordUI):
             bool: If the tab is the open one.
         """
         timeout = Timer(timeout).start()
-        retry = Timer(1.5, count=3).start()
-        while 1:
-            self.device.screenshot()
+        retry = Timer(1.5).start()
+
+        for _ in self.loop():
+            # End - this tab is the lit one.
             color = get_color(self.device.image, tab.area)
             if sum(color) / 3 > ARENA_SEASON_TAB_MEAN:
+                # Switching repaints the list below, and the claim button is read
+                # for its brightness, so let the panel stop changing first.
+                self.wait_until_still(ARENA_SEASON_CLAIM_ALL.area, timeout=3)
                 return True
+
+            # Click - the tab is a plain area of the panel with no template of
+            # its own, which `appear()` would need, so the panel is what guards
+            # the press; the brightness above is what decides whether it landed.
             if retry.reached():
                 retry.reset()
-                self.device.click(tab)
+                if self.appear(ARENA_SEASON_CLAIM_ALL, offset=30):
+                    self.device.click(tab)
+
             if timeout.reached():
                 logger.warning(f'{tab.name} did not open')
                 return False
-
-    def arena_season_settle(self):
-        """
-        Wait one frame after a tab switch so the list stops sliding.
-
-        Returns:
-            bool: Always True, kept for readability at the call sites.
-        """
-        self.device.sleep(0.6)
-        self.device.screenshot()
-        return True
 
     def arena_season_claimable(self):
         """
@@ -241,9 +247,16 @@ class LostswordArena(LostswordUI):
         value = self._arena_ticket_ocr()
         if value:
             return value
-        self.device.sleep(1)
-        self.device.screenshot()
-        return self._arena_ticket_ocr()
+
+        # A zero is confirmed on later frames before it ends the run.
+        timeout = Timer(3).start()
+        for _ in self.loop():
+            value = self._arena_ticket_ocr()
+            if value:
+                return value
+            if timeout.reached():
+                return value
+        return value
 
     def _arena_ticket_ocr(self):
         """
@@ -318,8 +331,14 @@ class LostswordArena(LostswordUI):
             bool: If a battle was fought to the end.
         """
         logger.hr(f'Fight card {index}', level=2)
-        self.device.screenshot()
-        self.device.click(ARENA_BTN_CHALLENGES[index - 1])
+        # The list was read on the frame before, but it can repaint under the
+        # press; a button that is gone again means the list moved and nothing can
+        # be fought from here.
+        if self.wait_until_appear(ARENA_BTN_CHALLENGES[index - 1], offset=30, timeout=3):
+            self.device.click(ARENA_BTN_CHALLENGES[index - 1])
+        else:
+            logger.warning('The challenge button left the list')
+            return False
 
         if not self.wait_overlay(ARENA_BTN_TEAM, timeout=8):
             # No ticket to pay with, or the list moved under the click: either
@@ -343,7 +362,6 @@ class LostswordArena(LostswordUI):
         Raises:
             GameStuckError: If the battle does not end in time.
         """
-        self.device.click(ARENA_BTN_ENTER)
         timeout = Timer(timeout).start()
         report = Timer(30).start()
         # `reached()` is True until the timer is started, so the first frame on
@@ -353,9 +371,10 @@ class LostswordArena(LostswordUI):
         skipped = False
         skip_retry = Timer(3).start()
 
-        while 1:
+        for _ in self.loop():
+            # A battle is a live scene that barely changes for minutes, which
+            # reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
 
             if self.appear(ARENA_VICTORY, offset=30):
                 logger.info('Battle won')
@@ -382,7 +401,6 @@ class LostswordArena(LostswordUI):
                         logger.info('Skip the battle')
                         skipped = True
                     self.device.click(ARENA_BTN_SKIP)
-                self.device.sleep(1.5)
                 continue
 
             if self.appear(ARENA_TITLE, offset=30):
@@ -409,4 +427,3 @@ class LostswordArena(LostswordUI):
             if timeout.reached():
                 logger.warning('Arena battle did not end in time')
                 raise GameStuckError('Arena battle did not end in time')
-            self.device.sleep(1)

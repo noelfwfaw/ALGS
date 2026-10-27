@@ -78,6 +78,11 @@ class LostswordShop(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Shop free gifts', level=1)
         self.ui_ensure(page_shop)
         if not self.shop_goto_goods():
@@ -135,18 +140,20 @@ class LostswordShop(LostswordUI):
         Returns:
             bool: If the tab is open.
         """
-        self.device.click(SHOP_TAB_GOODS)
         timeout = Timer(timeout).start()
-        retry = Timer(1.5, count=3).start()
-        while 1:
-            self.device.screenshot()
+
+        for _ in self.loop():
+            # End - the pill under the tab is the cream one.
             if self.shop_tab_selected(SHOP_TAB_GOODS):
                 return True
-            # A click can be eaten by the panel sliding in, and the tab bar does
-            # not lock input afterwards, so a plain retry is safe.
-            if retry.reached():
-                retry.reset()
-                self.device.click(SHOP_TAB_GOODS)
+
+            # Click - a press that lands while the panel slides in is eaten, and
+            # the tab bar locks no input afterwards, so a throttled retry is
+            # safe. The template matches in both states, the brightness above is
+            # what tells them apart.
+            if self.appear_then_click(SHOP_TAB_GOODS, offset=30, interval=1.5):
+                continue
+
             if timeout.reached():
                 logger.warning('Cannot open the goods tab')
                 return False
@@ -166,16 +173,18 @@ class LostswordShop(LostswordUI):
         Returns:
             bool: If the tab is open.
         """
-        self.device.click(tab)
         timeout = Timer(timeout).start()
-        retry = Timer(1.5, count=3).start()
-        while 1:
-            self.device.screenshot()
+
+        for _ in self.loop():
+            # End - this row is the lit one.
             if self.shop_tab_selected(tab):
                 return True
-            if retry.reached():
-                retry.reset()
-                self.device.click(tab)
+
+            # Click - same reason as above: the row is always on screen, the
+            # brightness decides, and the press is throttled.
+            if self.appear_then_click(tab, offset=30, interval=1.5):
+                continue
+
             if timeout.reached():
                 logger.warning(f'{tab.name} did not open')
                 return False
@@ -226,17 +235,30 @@ class LostswordShop(LostswordUI):
         Returns:
             int: 1 if a reward popup was claimed, else 0.
         """
-        self.device.click(card)
         # The dialog is identified by its title, not by its confirm button: the
         # button is the one thing that changes when the purchase limit is used
         # up (it turns into 「已购买过该商品。」), and that is exactly the state
         # this routine has to be able to leave again.
-        if not self.wait_overlay(SHOP_DIALOG_TITLE, timeout=timeout):
-            logger.warning('Purchase dialog did not open')
-            return 0
+        timeout = Timer(timeout).start()
 
-        if self.wait_overlay_settle(SHOP_DIALOG_TITLE) and \
-                self.appear(SHOP_BTN_CLAIM_FREE, offset=30):
+        for _ in self.loop():
+            # End - the dialog is up and drawn, so the button below the title can
+            # be read without catching a fade-in frame.
+            if self.appear(SHOP_DIALOG_TITLE, offset=30):
+                if self.wait_overlay_settle(SHOP_DIALOG_TITLE):
+                    break
+                continue
+
+            # Click - the card sits under a tab that may still be repainting, so
+            # the press is repeated instead of trusted to the first frame.
+            if self.appear_then_click(card, offset=30, interval=2):
+                continue
+
+            if timeout.reached():
+                logger.warning('Purchase dialog did not open')
+                return 0
+
+        if self.appear(SHOP_BTN_CLAIM_FREE, offset=30):
             for attempt in range(SHOP_CLAIM_TRIES):
                 self.device.click(SHOP_BTN_CLAIM_FREE)
                 if self.wait_overlay(REWARD_POPUP_TITLE, timeout=SHOP_CLAIM_WAIT):

@@ -2,10 +2,14 @@ from module.base.timer import Timer
 from module.base.utils import get_color
 from module.exception import GameStuckError
 from module.logger import logger
-from module.lostsword.assets import (ARENA_BTN_CLOSE, BOSS_VICTORY,
-                                     DUNGEON_CLEAR, STAR_BTN_CHALLENGE,
-                                     STAR_BTN_ENTER, STAR_CARD, STAR_TAB_1,
-                                     STAR_TAB_2, STAR_TAB_3)
+from module.lostsword.assets import (ARENA_BTN_CLOSE,
+                                     BOSS_VICTORY,
+                                     DUNGEON_CLEAR,
+                                     STAR_BTN_CHALLENGE,
+                                     STAR_BTN_ENTER,
+                                     STAR_TAB_1,
+                                     STAR_TAB_2,
+                                     STAR_TAB_3)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
                                           page_battle, page_star)
 
@@ -61,6 +65,11 @@ class LostswordStar(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Star cycle', level=1)
         self.ui_ensure(page_battle)
         self.battle_goto_normal()
@@ -102,22 +111,22 @@ class LostswordStar(LostswordUI):
         # The right half (enemy, rewards, score) repaints after the switch, and a
         # tap that lands while it does is swallowed - measured: switching to
         # 星辰痕迹 and pressing 挑战 200ms later did nothing, twice in a row.
-        self.device.sleep(1.2)
-        self.device.screenshot()
+        # Watching the 挑战 plate until it stops changing is the same wait
+        # without guessing how long the repaint takes.
+        self.wait_until_still(STAR_BTN_CHALLENGE.area, timeout=3)
 
-        for attempt in range(2):
-            self.device.click(STAR_BTN_CHALLENGE)
+        for _ in range(2):
+            if self.appear(STAR_BTN_CHALLENGE, offset=30):
+                self.device.click(STAR_BTN_CHALLENGE)
             if self.wait_overlay(STAR_BTN_ENTER, timeout=8):
                 break
-            if attempt == 0:
-                logger.info(f'{name}: versus page did not open, press 挑战 again')
-                self.device.sleep(1)
-
+            logger.info(f'{name}: versus page did not open, press 挑战 again')
         else:
             logger.warning(f'{name}: versus page did not open')
             return False
 
-        self.device.click(STAR_BTN_ENTER)
+        if self.appear(STAR_BTN_ENTER, offset=30):
+            self.device.click(STAR_BTN_ENTER)
         return self.star_battle(name)
 
     def star_select_tab(self, name, tab, strip, timeout=6):
@@ -134,15 +143,18 @@ class LostswordStar(LostswordUI):
             bool: If the area is open.
         """
         timeout = Timer(timeout).start()
-        retry = Timer(1.5, count=3).start()
-        while 1:
-            self.device.screenshot()
+
+        for _ in self.loop():
+            # End - the strip behind this entry is the lit one.
             color = get_color(self.device.image, strip)
             if sum(color) / 3 > STAR_TAB_MEAN:
                 return True
-            if retry.reached():
-                retry.reset()
-                self.device.click(tab)
+
+            # Click - the entry is always on screen, the strip colour above is
+            # what decides, so the press is the interval throttled one.
+            if self.appear_then_click(tab, offset=30, interval=1.5):
+                continue
+
             if timeout.reached():
                 logger.warning(f'{name} did not open')
                 return False
@@ -169,9 +181,10 @@ class LostswordStar(LostswordUI):
         report = Timer(30).start()
         waves = 0
 
-        while 1:
+        for _ in self.loop():
+            # A battle is a live scene that barely changes for minutes, which
+            # reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
 
             if self.appear(page_star.check_button, offset=30):
                 logger.info(f'{name}: back at the panel, {waves} wave(s)')
@@ -181,7 +194,6 @@ class LostswordStar(LostswordUI):
                 waves += 1
                 logger.info(f'{name}: wave {waves} cleared')
                 self.device.click(BOSS_RESULT_TAP)
-                self.device.sleep(2)
                 continue
 
             if report.reached():
@@ -190,7 +202,6 @@ class LostswordStar(LostswordUI):
             if timeout.reached():
                 logger.warning(f'{name}: battle did not end in time')
                 raise GameStuckError('Star cycle battle did not end in time')
-            self.device.sleep(2)
 
     def star_close(self):
         """

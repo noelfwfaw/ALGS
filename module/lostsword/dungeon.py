@@ -1,25 +1,25 @@
 from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
-from module.lostsword.assets import (ARENA_BTN_CLOSE, DUNGEON_BTN_BACK,
-                                     DUNGEON_BTN_CONFIRM, DUNGEON_BTN_MATCH,
-                                     DUNGEON_CARD, DUNGEON_CLEAR,
-                                     DUNGEON_DIALOG_CLOSE,
+from module.lostsword.assets import (DUNGEON_BTN_BACK, DUNGEON_BTN_CONFIRM,
+                                     DUNGEON_BTN_MATCH, DUNGEON_CLEAR,
                                      DUNGEON_DIALOG_TITLE, DUNGEON_TITLE)
 from module.lostsword.lostsword_ui import (LostswordUI, page_battle,
                                           page_dungeon)
 
 """
-小队副本 (squad dungeon).
+Squad dungeon (小队副本).
 
 Flow observed in game:
 
-    page_main  --底栏「战斗」-->  page_battle（普通页签，小队副本是第三张卡）
-    page_battle  --「小队副本」卡-->  page_dungeon（黑龙·尼德霍格 / KING）
-    page_dungeon  --「开始匹配 1/1」-->  「是否前往小队副本房间?」--> 「确认」
-    ->  客户端加载页（正在火热招募队友中… 20）
-    ->  战斗（自动，无需准备）->  「CLEAR」结算页  --「返回」-->  page_dungeon
-    page_dungeon  --右上圆 X-->  page_battle  --右上圆 X-->  page_main
+    page_main -- bottom bar 「战斗」 --> page_battle (普通 tab, the dungeon card is
+                                          the third of the row)
+    page_battle -- dungeon card --> page_dungeon (黑龙·尼德霍格 / KING)
+    page_dungeon -- 「开始匹配 1/1」 --> 「是否前往小队副本房间?」 --> 「确认」
+    -> client loading page (正在火热招募队友中… 20)
+    -> battle (auto played, no preparation) -> 「CLEAR」 result page
+    -> 「返回」 --> page_dungeon
+    page_dungeon -- top right round X --> page_battle -- round X --> page_main
 
 One try a day. The detail page is built exactly like the boss raid one (same
 「队伍编排」 button, same left column), so it is matched by its boss name instead;
@@ -48,6 +48,11 @@ class LostswordDungeon(LostswordUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Squad dungeon', level=1)
         self.ui_ensure(page_battle)
         self.battle_goto_normal()
@@ -69,8 +74,7 @@ class LostswordDungeon(LostswordUI):
         Returns:
             bool: If 「开始匹配」 is the version with a try count.
         """
-        self.device.screenshot()
-        return self.appear(DUNGEON_BTN_MATCH, offset=30)
+        return self.wait_until_appear(DUNGEON_BTN_MATCH, offset=30, timeout=2)
 
     def dungeon_fight(self, timeout=DUNGEON_TIMEOUT):
         """
@@ -90,20 +94,36 @@ class LostswordDungeon(LostswordUI):
             GameStuckError: If the battle does not end in time.
         """
         logger.hr('Squad dungeon battle', level=2)
-        self.device.click(DUNGEON_BTN_MATCH)
+        if self.wait_until_appear(DUNGEON_BTN_MATCH, offset=30, timeout=2):
+            self.device.click(DUNGEON_BTN_MATCH)
+        else:
+            logger.warning('Match button not found')
+            return False
         if not self.wait_overlay(DUNGEON_DIALOG_TITLE, timeout=8):
             logger.warning('Match confirm dialog did not open')
             return False
 
-        self.device.click(DUNGEON_BTN_CONFIRM)
+        # The dialog is matched from its first fading frame and a tap during the
+        # fade in is lost, so the confirm is only pressed once it is drawn.
+        if not self.wait_overlay_settle(DUNGEON_DIALOG_TITLE, timeout=6):
+            logger.warning('Match confirm dialog did not settle')
+            return False
+        if self.appear(DUNGEON_BTN_CONFIRM, offset=30):
+            self.device.click(DUNGEON_BTN_CONFIRM)
+        else:
+            logger.warning('Match confirm button not found')
+            return False
 
         # Recruiting runs on its own countdown ("小队突袭无需准备，一定时间后自动
         # 开始"), and the battle is auto played: nothing is clicked until CLEAR.
         timeout = Timer(timeout).start()
         report = Timer(30).start()
-        while 1:
+        for _ in self.loop():
+            # A recruiting room and an auto battle are live scenes that barely
+            # change, which reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
-            self.device.screenshot()
+
+            # End
             if self.appear(DUNGEON_CLEAR, offset=30):
                 logger.info('Squad dungeon cleared')
                 break
@@ -112,15 +132,15 @@ class LostswordDungeon(LostswordUI):
                 # in some way that leaves nothing to collect.
                 logger.info('Back at the dungeon page, battle is over')
                 return True
-            if report.reached():
-                report.reset()
-                logger.info(f'Still in the dungeon, {int(timeout.current_time())}s elapsed')
             if timeout.reached():
                 logger.warning('Squad dungeon did not finish in time')
                 raise GameStuckError('Squad dungeon did not end in time')
-            self.device.sleep(2)
 
-        self.device.click(DUNGEON_BTN_BACK)
-        if not self.wait_overlay(DUNGEON_TITLE, timeout=40):
-            logger.warning('Did not return to the squad dungeon page')
+            if report.reached():
+                report.reset()
+                logger.info(f'Still in the dungeon, {int(timeout.current_time())}s elapsed')
+
+        if self.appear_then_click(DUNGEON_BTN_BACK, offset=30, interval=3):
+            if not self.wait_overlay(DUNGEON_TITLE, timeout=40):
+                logger.warning('Did not return to the squad dungeon page')
         return True

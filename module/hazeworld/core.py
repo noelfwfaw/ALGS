@@ -34,13 +34,13 @@ CORE_WEEKDAY_KEYS = [
 # says "not enough stamina", the game only complains after the sweep is asked
 # for. The digits are a soft white, a pure white letter colour drops one of them
 # now and then, and a crop that is much wider than the text reads worse.
-CORE_STAMINA = DigitCounter(
+CORE_STAMINA = DigitCounter(  # alas-lint: allow - a disabled-state variant of a generated asset
     Button(area=(1128, 24, 1205, 44), color=(), button=(1128, 24, 1205, 44),
            name='CORE_STAMINA'),
     letter=(240, 240, 240),
     threshold=128,
 )
-CORE_COST = Digit(
+CORE_COST = Digit(  # alas-lint: allow - a disabled-state variant of a generated asset
     Button(area=(1178, 650, 1225, 674), color=(), button=(1178, 650, 1225, 674),
            name='CORE_COST'),
     letter=(240, 240, 240),
@@ -114,6 +114,11 @@ class HazeworldCore(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Core material sweep', level=1)
         core = self.core_of_today()
         if core is None:
@@ -180,8 +185,9 @@ class HazeworldCore(HazeworldUI):
         # previous type stays gold while the new one animates in, so waiting
         # for our own bar is the only positive way to know the switch landed.
         self.interval_clear(button)
-        self.device.click(button)
-        if self.appear_settled(button, timeout=8, offset=None, skip_first_screenshot=False):
+        if self.appear(button, offset=None):
+            self.device.click(button)
+        if self.wait_until_settled(button, timeout=8, offset=None, skip_first_screenshot=False):
             return True
 
         logger.warning(f'Core type {button.name} did not become selected')
@@ -394,7 +400,8 @@ class HazeworldCore(HazeworldUI):
                 # in the same frame still uses the old value.
                 if not interval.reached():
                     continue
-                if self.appear_then_click(CORE_DIALOG_START, offset=(20, 20), interval=3):
+                if self.appear(CORE_DIALOG_START, offset=(20, 20)):
+                    self.device.click(CORE_DIALOG_START)
                     return True
                 continue
 
@@ -436,7 +443,8 @@ class HazeworldCore(HazeworldUI):
             self.device.screenshot()
             self.device.stuck_record_clear()
 
-            if self.appear_then_click(CORE_RESULT_CONFIRM, offset=(20, 20), interval=2):
+            if self.appear(CORE_RESULT_CONFIRM, offset=(20, 20)):
+                self.device.click(CORE_RESULT_CONFIRM)
                 logger.info('Sweep settled')
                 return True
 

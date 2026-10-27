@@ -57,6 +57,11 @@ class HazeworldPass(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Battle pass claim', level=1)
         self.pass_claim()
         # A pass task is only counted after it is claimed, and experience of a
@@ -236,7 +241,8 @@ class HazeworldPass(HazeworldUI):
                 return False
 
             if retry.reached():
-                self.device.click(tab)
+                if self.appear(tab, offset=(20, 20)):
+                    self.device.click(tab)
                 retry.reset()
             self.device.screenshot()
 

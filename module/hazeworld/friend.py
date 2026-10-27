@@ -13,6 +13,11 @@ class HazeworldFriend(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Friend like', level=1)
         self.ui_ensure(page_friend)
 
@@ -40,7 +45,7 @@ class HazeworldFriend(HazeworldUI):
         logger.hr('Friend like all', level=2)
         # The friend page fades in, and ui_ensure() returns on that half drawn
         # frame, so wait for a settled screenshot before deciding anything.
-        if self.appear_settled(FRIEND_LIKE_ALL, timeout=3, skip_first_screenshot=skip_first_screenshot):
+        if self.wait_until_settled(FRIEND_LIKE_ALL, timeout=3, skip_first_screenshot=skip_first_screenshot):
             logger.info('Like all friends')
             self.device.click(FRIEND_LIKE_ALL)
 

@@ -79,6 +79,11 @@ class HazeworldTask(HazeworldUI):
     """
 
     def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
         logger.hr('Task claim', level=1)
         self.task_claim()
         # Missions are finished during the day, not at the daily reset, and
@@ -109,7 +114,7 @@ class HazeworldTask(HazeworldUI):
         # The task page fades in, and ui_ensure() returns on that half drawn
         # frame. Settle it before clicking a tab, or the click may be handled by
         # a page that is not drawn yet and the wrong tab gets claimed.
-        self.appear_settled(TASK_POINT_LABEL, timeout=5)
+        self.wait_until_settled(TASK_POINT_LABEL, timeout=5)
 
         count = 0
         for key, tab in (('ClaimDaily', TASK_TAB_DAILY),
@@ -175,7 +180,10 @@ class HazeworldTask(HazeworldUI):
             # claim" (the weekly and monthly rewards were skipped this way).
             # Tapping an open tab does nothing, so the tap is simply repeated.
             self.interval_clear(tab)
-            self.device.click(tab)
+            # The tab is always on screen whatever is selected, so this is only
+            # about the press, not about a match.
+            if self.appear(tab, offset=(20, 20)):
+                self.device.click(tab)
             count = self.claim_all(
                 TASK_CLAIM_ALL,
                 disabled=TASK_CLAIM_ALL_DISABLED,
@@ -211,22 +219,27 @@ class HazeworldTask(HazeworldUI):
             bool: If a popup was closed.
         """
         timeout = Timer(timeout).start()
-        while 1:
-            self.device.stuck_record_clear()
-            self.device.screenshot()
 
+        for _ in self.loop():
+            # The sheet covers the point bar behind it, so the claim is only
+            # confirmed once the sheet is gone.
+            self.device.stuck_record_clear()
+
+            # Click - one action per frame.
             if self.handle_reward():
-                return True
+                continue
             if self.appear(POPUP_TOUCH_EXIT, offset=(20, 20),
                            similarity=MILESTONE_POPUP_SIMILARITY):
                 self.device.click(POPUP_TOUCH_EXIT)
-                self.device.sleep(0.8)
+                # A sheet that is still fading in eats the tap, and the caller
+                # must read an uncovered bar, so wait until it is really gone.
+                self.wait_until_disappear(POPUP_TOUCH_EXIT, offset=(20, 20), timeout=3,
+                                          settle=self.SETTLE_FRAMES)
                 return True
             if timeout.reached():
                 # Some milestones pay out without the sheet; the bar is simply
                 # redrawn. Nothing to close then.
                 return False
-            self.device.sleep(0.5)
 
     def task_claim_milestone(self, skip_first_screenshot=True):
         """
@@ -253,12 +266,7 @@ class HazeworldTask(HazeworldUI):
         count = 0
         popups = 0
 
-        while 1:
-            if skip_first_screenshot:
-                skip_first_screenshot = False
-            else:
-                self.device.screenshot()
-
+        for _ in self.loop(skip_first=skip_first_screenshot):
             if self.handle_reward():
                 continue
 
@@ -273,7 +281,8 @@ class HazeworldTask(HazeworldUI):
                     break
                 logger.info('Milestone reward popup, touch to exit')
                 self.device.click(POPUP_TOUCH_EXIT)
-                self.device.sleep(0.8)
+                self.wait_until_disappear(POPUP_TOUCH_EXIT, offset=(20, 20), timeout=3,
+                                          settle=self.SETTLE_FRAMES)
                 continue
 
             similarity, button = TEMPLATE_TASK_MILESTONE.match_result(self.device.image)
@@ -288,7 +297,7 @@ class HazeworldTask(HazeworldUI):
             x = left - MILESTONE_BOX_X
             y = (top + bottom) // 2 + MILESTONE_BOX_Y
             logger.info(f'Milestone reward ({count + 1})')
-            self.device.click(Button(
+            self.device.click(Button(  # alas-lint: allow - guarded by the tag match above
                 area=(x - 12, y - 12, x + 12, y + 12),
                 color=(),
                 button=(x - 12, y - 12, x + 12, y + 12),
