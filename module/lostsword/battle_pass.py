@@ -1,5 +1,4 @@
 from module.base.timer import Timer
-from module.base.utils import get_color
 from module.logger import logger
 from module.lostsword.assets import (ARENA_BTN_CLOSE, PASS_BTN,
                                     PASS_CLAIM_ALL, PASS_TITLE,
@@ -22,17 +21,26 @@ task does not have to know which one that is: enter, claim, leave, enter again.
 When the panel comes up with 「全部领取」 greyed out there is nothing left in any
 of them and the loop ends.
 
-The button is drawn in both states, only the background colour changes (enabled
-~208, greyed out ~103), so the "is there anything to claim" decision is a colour
-read and never a template match.
+The "is there anything to claim" decision is **not** a colour read any more.
+This button has been repainted at least once: it used to be cream when enabled
+(~208) and grey when not (~103), and a threshold of 150 was written around that.
+After a later patch the enabled button is the *dark* one (mean 103) and the
+disabled one is darker still (mean 62), so that threshold read every enabled
+button as "nothing to claim" and the task walked in and straight back out - the
+pass never got claimed again (reported 2026-10-27).
+
+What is stable across themes is the only thing that matters anyway: pressing the
+button pays out and raises the reward popup, pressing it when there is nothing
+leaves the screen unchanged. So the loop presses and watches for the popup, and
+stops after two presses in a row that pay nothing.
 """
 
-# Greyed out 103~125 measured; the enabled button is the same cream as every
-# other 全部领取 of this game (~208). 150 sits between them with room on both
-# sides, which matters because a wrong "grey" here means never claiming again.
-PASS_CLAIM_MEAN = 150
 # Seven passes are listed in the left column; eight entries cover a full round.
 PASS_TRIES = 8
+# Consecutive rounds (open -> press -> close) that may pay nothing before the
+# whole thing is called done. Two, because a press that lands while the panel is
+# still sliding in is swallowed and looks exactly like an empty pass.
+PASS_EMPTY_ROUNDS = 2
 
 
 class LostswordBattlePass(LostswordUI):
@@ -57,34 +65,51 @@ class LostswordBattlePass(LostswordUI):
         """
         logger.hr('Battle pass', level=2)
         claimed = 0
+        empty = 0
 
         for _ in range(PASS_TRIES):
             self.ui_ensure(page_main)
             if not self.pass_open():
                 break
 
-            if not self.pass_claimable():
-                logger.info('No battle pass reward left')
-                self.pass_close()
-                break
-
-            logger.info('Claim the battle pass rewards')
-            for attempt in range(2):
-                self.device.click(PASS_CLAIM_ALL)
-                if self.wait_overlay(REWARD_POPUP_TITLE, timeout=6):
-                    self.handle_reward_popup()
-                    claimed += 1
-                    break
-                if attempt == 0:
-                    # The panel has just faded in; a tap that lands during the
-                    # fade is swallowed, so press once more before giving up.
-                    logger.info('No popup, press 全部领取 again')
+            if self.pass_claim_once():
+                claimed += 1
+                empty = 0
             else:
-                logger.warning('No reward popup after 全部领取')
+                empty += 1
+                if empty >= PASS_EMPTY_ROUNDS:
+                    logger.info('No battle pass reward left')
+                    self.pass_close()
+                    break
 
             self.pass_close()
 
         return claimed
+
+    def pass_claim_once(self):
+        """
+        Press 「全部领取」 once and dismiss what it pays out.
+
+        The press is repeated once: the panel has just faded in and a tap that
+        lands during the fade is swallowed, which is indistinguishable from an
+        empty pass.
+
+        Pages:
+            in: page_pass
+            out: page_pass
+
+        Returns:
+            bool: If a reward popup showed up.
+        """
+        for attempt in range(2):
+            self.device.click(PASS_CLAIM_ALL)
+            if self.wait_overlay(REWARD_POPUP_TITLE, timeout=5):
+                logger.info('Claimed the battle pass rewards')
+                self.handle_reward_popup()
+                return True
+            if attempt == 0:
+                logger.info('No popup, press 全部领取 again')
+        return False
 
     def pass_open(self, timeout=8):
         """
@@ -119,16 +144,6 @@ class LostswordBattlePass(LostswordUI):
                 self.device.screenshot()
         logger.warning('Battle pass panel did not open')
         return False
-
-    def pass_claimable(self):
-        """
-        Whether 「全部领取」 is the enabled one.
-
-        Returns:
-            bool: If the button is drawn on the cream background.
-        """
-        color = get_color(self.device.image, PASS_CLAIM_ALL.area)
-        return sum(color) / 3 > PASS_CLAIM_MEAN
 
     def pass_close(self):
         """

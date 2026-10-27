@@ -189,11 +189,28 @@
       "Storage": {}
     }
   },
-  "LostswordMail": {
+  "LostswordTreasure": {
     "Scheduler": {
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
-      "Command": "LostswordMail",
+      "Command": "LostswordTreasure",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "00:00"
+    },
+    "LostswordTreasure": {
+      "Claim": true,
+      "Quick": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "LostswordShop": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "LostswordShop",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "00:00"
@@ -202,11 +219,11 @@
       "Storage": {}
     }
   },
-  "LostswordMain": {
+  "LostswordMail": {
     "Scheduler": {
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
-      "Command": "LostswordMain",
+      "Command": "LostswordMail",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "00:00"
@@ -244,37 +261,11 @@
       "Storage": {}
     }
   },
-  "LostswordStar": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "LostswordStar",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "00:00"
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
   "LostswordCopy": {
     "Scheduler": {
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
       "Command": "LostswordCopy",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "00:00"
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "LostswordMaze": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "LostswordMaze",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "00:00"
@@ -296,11 +287,50 @@
       "Storage": {}
     }
   },
+  "LostswordStar": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "LostswordStar",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "00:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "LostswordArena": {
     "Scheduler": {
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
       "Command": "LostswordArena",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "00:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "LostswordMaze": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "LostswordMaze",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "00:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "LostswordMain": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "LostswordMain",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "00:00"
@@ -338,36 +368,6 @@
       "Name4": null,
       "Name5": null,
       "Name6": null
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "LostswordShop": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "LostswordShop",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "00:00"
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "LostswordTreasure": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "LostswordTreasure",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "00:00"
-    },
-    "LostswordTreasure": {
-      "Claim": true,
-      "Quick": true
     },
     "Storage": {
       "Storage": {}

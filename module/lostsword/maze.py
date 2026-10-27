@@ -25,7 +25,7 @@ from module.lostsword.assets import (AFFECTION_TAP, ARENA_BTN_CLOSE,
                                      REWARD_POPUP_TITLE)
 from module.lostsword.event import match
 from module.lostsword.lostsword_ui import (LostswordUI, page_battle,
-                                           page_maze)
+                                           page_main, page_maze)
 
 # The 「自动进行迷宫」 panel: its own 「自动进行」 button sits in the middle.
 MAZE_PANEL_POINT = (640, 600)
@@ -55,7 +55,6 @@ MAZE_PRIO_SCAN = (200, 380)
 # differ (the camera pans), a finished one is the same image.
 MAZE_STILL_FRAMES = 3
 MAZE_STILL_DIFF = 1.0
-MAZE_STILL_INTERVAL = 3
 
 # The auto run is not fully automatic: every few rooms the game stops and asks a
 # question. 「女神的祝福」 shows three cards and a 「选择」 bar at the bottom; the
@@ -89,6 +88,13 @@ MAZE_BOSS_NODE = (1064, 384)
 MAZE_BOSS_START = (996, 664)
 # The maze card once the list is dragged to its end.
 MAZE_LAST_CARD = (1096, 416)
+# The card art of that slot, used as a position check only (see
+# `maze_at_list_end()`): 0.74 when the card is there, 0.04 when it is not.
+MAZE_CARD_SIMILARITY = 0.5
+# How much of the screen has to differ before a press counts as done. Opening a
+# panel dims the whole page, which is worth far more than this; a press that was
+# eaten leaves the frame unchanged to the last pixel.
+MAZE_CHANGE_DIFF = 2.0
 # Its result page: 「VICTORY」 over the loot, 「点击屏幕」 at the bottom.
 MAZE_VICTORY_REGION = (0, 0, 1280, 300)
 # When the boss room is down the map shows 「完成」 over the head of the maze: the
@@ -100,18 +106,34 @@ MAZE_VICTORY_TAP = (640, 400)
 class LostswordMaze(LostswordUI):
     def run(self):
         logger.hr('Maze', level=1)
+        # Starting on the map of a cleared maze: the week is spent, there is
+        # nothing to open and nothing to press.
+        self.device.screenshot()
+        if self.maze_finished():
+            logger.info('The maze is already complete')
+            self.maze_exit()
+            self.ui_goto_main()
+            self.maze_delay()
+            return
+
         if not self.maze_settle():
             logger.warning('The game is on a screen the maze task cannot leave')
             self.maze_delay()
             return
         self.ui_ensure(page_battle)
         self.battle_goto_normal()
-        # Let the tab finish sliding before the list is dragged: a swipe that
-        # lands during the transition is dropped, and the last card is then out
-        # of reach.
-        self.device.sleep(1.5)
         if not self.maze_enter():
             logger.warning('Could not open the maze')
+            self.ui_goto_main()
+            self.maze_delay()
+            return
+
+        if self.maze_finished():
+            # The card says 探险完成, so the map opens without a run left: it
+            # shows 「完成」 over the head of the maze and no 「自动进行」 button.
+            # Everything below would be guessing at buttons that are not there.
+            logger.info('The maze is already complete, nothing to do this week')
+            self.maze_exit()
             self.ui_goto_main()
             self.maze_delay()
             return
@@ -141,44 +163,81 @@ class LostswordMaze(LostswordUI):
         logger.attr('Maze next reset', str(target))
         self.config.task_delay(target=target)
 
-    def maze_enter(self, timeout=25):
+    def maze_enter(self, timeout=15):
         """
         Open the maze from the battle tab.
 
-        The maze card is the last one of the list, so the list is scrolled to its
-        end first.
+        Two phases on purpose. The list is dragged to its end and checked
+        first, and once the maze card is in the last slot the list is not
+        touched again: the press opens the map through a six second loading
+        screen, and dragging during that screen does nothing but fill the click
+        record until "too many click for a button" kills the task (measured
+        2026-10-27, the map was already open and the task kept swiping).
 
         Pages:
             in: page_battle
             out: page_maze
 
         Args:
-            timeout (int, float): Seconds to wait for the map.
+            timeout (int, float): Seconds to wait for the map after one press.
 
         Returns:
             bool: If the map opened.
         """
-        # The maze card is the last one of the list, so the list is dragged to
-        # its end and the rightmost card is pressed. Its caption is not used as
-        # a check point: the game writes 可进入 / 探险完成 / ... under it, and
-        # every state renders it differently (0.74 against the 可进入 asset).
-        self.battle_scroll(forward=True)
-        self.device.sleep(1.5)
-        self.tap_point(*MAZE_LAST_CARD)
+        if not self.maze_goto_last_card():
+            logger.warning('The maze card never reached the last slot')
+            return False
 
-        timeout = Timer(timeout).start()
-        while 1:
-            self.device.stuck_record_clear()
-            self.device.screenshot()
-            # A cleared maze has no 「自动进行」 button any more, only 「完成」 over
-            # the map, so both count as "the maze opened".
-            if self.maze_on_map() or self.maze_finished():
-                logger.info('Maze map opened')
+        for attempt in range(2):
+            self.tap_point(*MAZE_LAST_CARD)
+            timer = Timer(timeout).start()
+            while 1:
+                self.device.stuck_record_clear()
+                self.device.screenshot()
+                # A cleared maze has no 「自动进行」 button any more, only 「完成」
+                # over the map, so both count as "the maze opened".
+                if self.maze_on_map() or self.maze_finished():
+                    logger.info('Maze map opened')
+                    return True
+                if timer.reached():
+                    break
+            logger.info(f'The press did not open the maze, press again '
+                        f'({attempt + 1}/2)')
+        return False
+
+    def maze_goto_last_card(self, tries=3):
+        """
+        Drag the card list to its end and check that the maze is in the last
+        slot.
+
+        Args:
+            tries (int): How many rounds of drags may be spent.
+
+        Returns:
+            bool: If the maze card is in the last slot.
+        """
+        for _ in range(tries):
+            self.battle_scroll(forward=True)
+            if self.maze_at_list_end():
                 return True
-            if timeout.reached():
-                logger.warning('The maze did not open, the card was wrong?')
-                return False
-            self.device.sleep(0.8)
+            logger.info('The maze card is not in the last slot yet')
+        return False
+
+    def maze_at_list_end(self):
+        """
+        Whether the card list sits at its end, i.e. the maze card is in the last
+        slot.
+
+        The card art is a position check only, never a state check: the game
+        writes 可进入 / 探险完成 under it and neither is part of the template.
+        Measured 0.74 with the list at its end and 0.04 anywhere else, so the
+        threshold sits between them with room on both sides.
+
+        Returns:
+            bool: If the last slot holds the maze.
+        """
+        return match(self.device.image, MAZE_CARD,
+                     (1040, 545, 1145, 640)) > MAZE_CARD_SIMILARITY
 
     def maze_on_map(self):
         """
@@ -190,13 +249,14 @@ class LostswordMaze(LostswordUI):
         return match(self.device.image, MAZE_BTN_AUTO,
                      (100, 600, 320, 700)) > 0.85
 
-    def maze_auto_start(self, timeout=8):
+    def maze_auto_start(self, timeout=12):
         """
         Press 「自动进行」 and confirm the panel it raises.
 
-        The button looks the same when the daily run is spent, so the panel is
+        The button looks the same when the weekly run is spent, so the panel is
         what tells: it comes up when a run can be started, and nothing happens
-        when it cannot.
+        when it cannot. The press is repeated until the panel shows - pressing
+        it twice is harmless, it only raises the same panel.
 
         Pages:
             in: page_maze
@@ -209,55 +269,38 @@ class LostswordMaze(LostswordUI):
             bool: If a run was started.
         """
         x1, y1, x2, y2 = MAZE_BTN_AUTO.button
-        self.device.adb_shell(['input', 'tap',
-                               str((x1 + x2) // 2), str((y1 + y2) // 2)])
+        button = ((x1 + x2) // 2, (y1 + y2) // 2)
 
         timeout = Timer(timeout).start()
+        retry = Timer(2, count=2).start()
         while 1:
             self.device.stuck_record_clear()
             self.device.screenshot()
-            if self.maze_finished():
-                logger.info('The maze is complete')
-                return True
-
-            if self.maze_victory_appear():
-                logger.info('The last room is won')
-                self.tap_point(*MAZE_VICTORY_TAP)
-                previous = None
-                still = 0
-                self.device.sleep(1.5)
-                continue
-
-            if self.maze_talk_appear():
-                self.tap_point(*MAZE_TALK_TAP)
-                previous = None
-                still = 0
-                self.device.sleep(1.2)
-                continue
-
-            if self.maze_choice_appear():
-                self.maze_choose()
-                previous = None
-                still = 0
-                continue
-
             if self.maze_panel_appear():
                 break
+            if retry.reached():
+                retry.reset()
+                self.device.adb_shell(['input', 'tap',
+                                       str(button[0]), str(button[1])])
             if timeout.reached():
+                logger.info('The auto run panel did not show, nothing to start')
                 return False
-            self.device.sleep(0.6)
 
         self.maze_set_priorities()
 
         logger.info('Confirm the auto run')
-        for _ in range(2):
-            self.tap_point(*MAZE_PANEL_POINT)
-            self.device.sleep(1.5)
+        timeout = Timer(10).start()
+        retry = Timer(2, count=2).start()
+        while 1:
             self.device.screenshot()
             if not self.maze_panel_appear():
                 return True
-        logger.warning('The panel did not go away')
-        return False
+            if retry.reached():
+                retry.reset()
+                self.tap_point(*MAZE_PANEL_POINT)
+            if timeout.reached():
+                logger.warning('The panel did not go away')
+                return False
 
     def maze_set_priorities(self):
         """
@@ -289,8 +332,8 @@ class LostswordMaze(LostswordUI):
         Open one dropdown and pick a level.
 
         The press that opens a dropdown is eaten now and then (measured: the
-        same cell needs two or three presses), so it is retried until the
-        option list is readable.
+        same cell needs two or three presses), so it is repeated until the
+        option list is readable, and the pick is confirmed by the list closing.
 
         Args:
             x (int): Centre x of the dropdown.
@@ -302,17 +345,30 @@ class LostswordMaze(LostswordUI):
         """
         for attempt in range(4):
             self.tap_point(x, y)
-            self.device.sleep(1.2)
-            self.device.screenshot()
-            lines = self.maze_priority_lines(x, y)
-            if len(lines) >= 6:
-                target = lines[:6][level - 1]
-                self.tap_point(x, target)
-                self.device.sleep(0.9)
+            # Wait for the list to be readable instead of sleeping a fixed time:
+            # it renders in well under a second and the scan is cheap.
+            timeout = Timer(3).start()
+            while 1:
                 self.device.screenshot()
-                logger.info(f'Cell ({x}, {y}) -> 优先级{level} at y={target}')
-                return True
-            self.device.sleep(0.4)
+                lines = self.maze_priority_lines(x, y)
+                if len(lines) >= 6:
+                    break
+                if timeout.reached():
+                    break
+            if len(lines) < 6:
+                continue
+
+            target = lines[:6][level - 1]
+            self.tap_point(x, target)
+            timeout = Timer(3).start()
+            while 1:
+                self.device.screenshot()
+                if len(self.maze_priority_lines(x, y)) < 6:
+                    logger.info(f'Cell ({x}, {y}) -> 优先级{level} at y={target}')
+                    return True
+                if timeout.reached():
+                    logger.warning(f'Cell ({x}, {y}): the list did not close')
+                    break
         logger.warning(f'Cell ({x}, {y}): the option list did not open')
         return False
 
@@ -354,6 +410,11 @@ class LostswordMaze(LostswordUI):
         the known ones, so they are answered here - tapping the story arrow or
         picking a card - until the map is back.
 
+        A normal page ends the wait immediately: most runs start on the lobby or
+        on the battle tab, and none of the overlays below can be there. Without
+        that check a bright page used to read as a choice screen and the loop
+        pressed a 「选择」 that did not exist until it was killed (2026-10-27).
+
         Args:
             timeout (int, float): Seconds.
 
@@ -361,21 +422,28 @@ class LostswordMaze(LostswordUI):
             bool: If a known page is reachable afterwards.
         """
         timeout = Timer(timeout).start()
+        choice_gave_up = False
         while 1:
             self.device.stuck_record_clear()
             self.device.screenshot()
             if self.maze_on_map() or self.maze_panel_appear() or self.maze_finished():
                 return True
+            # A plain page of this game is nothing to settle: the maze has not
+            # been entered yet, so the task can go on with its own flow.
+            if self.ui_page_appear(page_main) or self.ui_page_appear(page_battle):
+                return True
             if self.maze_victory_appear():
                 self.tap_point(*MAZE_VICTORY_TAP)
-                self.device.sleep(1.5)
                 continue
             if self.maze_talk_appear():
                 self.tap_point(*MAZE_TALK_TAP)
-                self.device.sleep(1.2)
                 continue
-            if self.maze_choice_appear():
-                self.maze_choose()
+            if not choice_gave_up and self.maze_choice_appear():
+                if not self.maze_choose():
+                    # Answering it failed three times; hammering it further
+                    # only keeps the task on a screen it cannot read.
+                    logger.warning('The choice screen does not answer, give up')
+                    choice_gave_up = True
                 continue
             if self.reward_appear():
                 self.handle_reward_popup()
@@ -387,7 +455,6 @@ class LostswordMaze(LostswordUI):
                 pass
             if timeout.reached():
                 return False
-            self.device.sleep(1.2)
 
     def reward_appear(self):
         """
@@ -432,53 +499,93 @@ class LostswordMaze(LostswordUI):
         Try to start the last room of the maze.
 
         Called when the map has stopped moving. The round button at the bottom
-        right opens a 「体力状态」 panel, and its 「确认」 starts the fight; both
-        presses are harmless when the run has simply ended (they land on the
-        map). The fight itself cannot be skipped, so it is left to run.
+        right opens a 「体力状态」 panel, its 「确认」 goes back to the map, the
+        boss node asks 「是否移动?」 and the sortie page starts the fight. The
+        fight itself cannot be skipped, so it is left to the wait loop.
+
+        The sequence is only worth walking while every press is confirmed: the
+        map freezes for a second or two between two steps, and a press that
+        lands in such a gap is dropped, which would send the rest of the chain
+        onto the wrong page. So every step waits for its own screen change and
+        the chain aborts at the first step that does not move.
 
         Returns:
-            bool: If something happened - a fight started or a result page came up.
+            bool: If the fight was started.
         """
-        before = np.array(self.device.image).astype(np.int16)
-        self.tap_point(*MAZE_BOSS_NEXT)
-        self.device.sleep(2)
-        self.device.screenshot()
-        if float(np.abs(np.array(self.device.image).astype(np.int16) - before).mean()) < 2:
+        # The round button only exists while the run has something left; on a
+        # finished map the press changes nothing, which ends the chain at once.
+        if not self.maze_tap_change(MAZE_BOSS_NEXT, 'party check'):
             return False
 
         logger.hr('Start the last room', level=2)
-        self.tap_point(*MAZE_BOSS_CONFIRM)
-        self.device.sleep(1.5)
-        self.tap_point(*MAZE_BOSS_NODE)
-        self.device.sleep(2)
-        # 「是否移动?」 - tick the box so the question stays away, then confirm.
+        if not self.maze_tap_change(MAZE_BOSS_CONFIRM, 'stamina panel'):
+            return False
+        if not self.maze_tap_change(MAZE_BOSS_NODE, 'boss room'):
+            return False
+        # 「是否移动?」 - the box only silences the question for the rest of the
+        # session, so it is pressed without a check; the confirm next to it is
+        # what moves the party and is verified like the rest.
         self.tap_point(*MAZE_MOVE_CHECKBOX)
-        self.device.sleep(0.5)
-        self.tap_point(*MAZE_MOVE_CONFIRM)
-        self.device.sleep(3)
-        self.device.screenshot()
-        # The sortie page of the boss room; its 「出发」 starts a fight that
-        # cannot be skipped, so the wait loop takes over again from here.
-        self.tap_point(*MAZE_BOSS_START)
-        self.device.sleep(3)
-        self.device.screenshot()
+        if not self.maze_tap_change(MAZE_MOVE_CONFIRM, 'move confirm'):
+            return False
+        if not self.maze_tap_change(MAZE_BOSS_START, 'sortie'):
+            return False
         logger.info('The last room is running')
         return True
+
+    def maze_tap_change(self, point, name, timeout=8, tries=2):
+        """
+        Press a point and wait until the screen really changed.
+
+        Args:
+            point (tuple): (x, y) to press.
+            name (str): What the press is for, for the log.
+            timeout (int, float): Seconds to wait after one press.
+            tries (int): How many presses may be spent.
+
+        Returns:
+            bool: If the screen changed.
+        """
+        for attempt in range(tries):
+            before = np.array(self.device.image).astype(np.int16)
+            self.tap_point(*point)
+            timer = Timer(timeout).start()
+            while 1:
+                self.device.stuck_record_clear()
+                self.device.screenshot()
+                after = np.array(self.device.image).astype(np.int16)
+                if float(np.abs(after - before).mean()) > MAZE_CHANGE_DIFF:
+                    logger.info(f'Press {name}: the screen moved')
+                    return True
+                if timer.reached():
+                    break
+            logger.info(f'Press {name} did nothing, press again ({attempt + 1}/{tries})')
+        return False
 
     def maze_choice_appear(self):
         """
         Whether the game stopped the run to ask something.
 
-        The 「选择」 bar of the choice screen is cream over a bright card area,
-        while the map is dark in that spot.
+        The screen shows three cards and each one carries its kind above the art
+        (增益型 / 消耗型 / 恢复型), so the labels are read. The brightness of the
+        「选择」 bar was the check before and it matched any bright page: on a
+        shop dialog it read as a choice, the settle loop answered a choice that
+        did not exist and ran until it was killed (measured 2026-10-27).
 
         Returns:
             bool: If a choice screen is up.
         """
         from module.base.utils import get_color
 
+        # Cheap gate first: the map is dark in the bar area, only a choice
+        # screen draws the cream bar there.
         color = get_color(self.device.image, MAZE_CHOICE_BAR)
-        return sum(color) / 3 > MAZE_CHOICE_MEAN
+        if sum(color) / 3 <= MAZE_CHOICE_MEAN:
+            return False
+        for area in MAZE_CHOICE_LABELS:
+            if '型' in read_text(self.device.image, area):
+                return True
+        return False
 
     def maze_choose(self):
         """
@@ -493,6 +600,9 @@ class LostswordMaze(LostswordUI):
         Pages:
             in: choice screen
             out: page_maze
+
+        Returns:
+            bool: If the screen went away.
         """
         logger.hr('Answer the choice', level=2)
         pick = 1
@@ -507,18 +617,35 @@ class LostswordMaze(LostswordUI):
         # if either is missed, so the pair is repeated until it goes away.
         for attempt in range(3):
             self.tap_point(MAZE_CHOICE_CARDS[pick], MAZE_CHOICE_CARD_Y)
-            self.device.sleep(1.2)
-            self.tap_point(*MAZE_CHOICE_CONFIRM)
-            self.device.sleep(2.0)
-            self.device.screenshot()
+            timeout = Timer(3).start()
+            while 1:
+                self.device.screenshot()
+                if self.reward_appear() or not self.maze_choice_appear():
+                    break
+                if timeout.reached():
+                    break
             if self.reward_appear():
                 self.handle_reward_popup()
                 logger.info('Reward popup dismissed')
-                return
+                return True
             if not self.maze_choice_appear():
-                return
+                return True
+            # The card is selected but not confirmed: the 「选择」 bar is the
+            # second half of the press and only works once a card is picked.
+            self.tap_point(*MAZE_CHOICE_CONFIRM)
+            timeout = Timer(3).start()
+            while 1:
+                self.device.screenshot()
+                if self.reward_appear():
+                    self.handle_reward_popup()
+                    return True
+                if not self.maze_choice_appear():
+                    return True
+                if timeout.reached():
+                    break
             logger.info('The choice screen is still up, press again')
         logger.warning('The choice screen did not go away')
+        return False
 
     def maze_panel_appear(self):
         """
@@ -548,15 +675,47 @@ class LostswordMaze(LostswordUI):
         timeout = Timer(timeout).start()
         still = 0
         previous = None
+        boss_tried = False
+        choice_gave_up = False
         while 1:
             self.device.stuck_record_clear()
             self.device.screenshot()
             image = np.array(self.device.image).astype(np.int16)
 
+            if self.maze_finished():
+                # 「完成」 over the head of the maze: the last room is down and
+                # the week is spent, there is nothing left to wait for.
+                logger.info('The maze is complete')
+                return True
+
             if self.maze_panel_appear():
                 logger.info('The panel is back, confirm it again')
                 self.tap_point(*MAZE_PANEL_POINT)
-                self.device.sleep(1.5)
+                previous = None
+                still = 0
+                continue
+
+            if self.maze_victory_appear():
+                logger.info('The last room is won')
+                self.tap_point(*MAZE_VICTORY_TAP)
+                previous = None
+                still = 0
+                continue
+
+            if self.maze_talk_appear():
+                self.tap_point(*MAZE_TALK_TAP)
+                previous = None
+                still = 0
+                continue
+
+            if not choice_gave_up and self.maze_choice_appear():
+                # The run stopped on a question, which freezes the map exactly
+                # like the end of a run does: answer it before anything is
+                # read as "the map has stopped". A screen that does not answer
+                # is dropped after three tries instead of being pressed forever.
+                if not self.maze_choose():
+                    logger.warning('The choice screen does not answer, give up')
+                    choice_gave_up = True
                 previous = None
                 still = 0
                 continue
@@ -571,38 +730,49 @@ class LostswordMaze(LostswordUI):
 
             if still >= MAZE_STILL_FRAMES:
                 # The map also freezes when it stops in front of the last room,
-                # which the auto run does not enter by itself. The round button
-                # at the bottom right opens the party check; if nothing happens
-                # the run really is over.
-                if self.maze_fight_boss():
-                    previous = None
-                    still = 0
-                    continue
+                # which the auto run does not enter by itself. One attempt is
+                # enough: a press chain that does not move on the first try
+                # means the run really is over.
+                if not boss_tried:
+                    boss_tried = True
+                    if self.maze_fight_boss():
+                        previous = None
+                        still = 0
+                        continue
                 logger.info('The map has stopped, the run is over')
                 return True
             if timeout.reached():
                 logger.warning('The auto run did not stop in time')
                 return False
 
-            self.device.sleep(MAZE_STILL_INTERVAL)
-
-    def maze_exit(self):
+    def maze_exit(self, timeout=15):
         """
-        Close the map and go back to the battle tab.
+        Close the map and go back to whatever is behind it.
+
+        The X of the map leads to the lobby through a loading screen (measured),
+        which is why the wait below only asks for the map to be gone: the page
+        behind it is found by `ui_goto_main()` anyway.
 
         Pages:
             in: page_maze
-            out: page_battle
+            out: page_main
+
+        Returns:
+            bool: If the map left.
         """
-        for _ in range(3):
+        timeout = Timer(timeout).start()
+        retry = Timer(2, count=2).start()
+        while 1:
             self.device.stuck_record_clear()
             self.device.screenshot()
             if not (self.maze_on_map() or self.maze_finished()):
-                break
-            self.tap_point(1237, 38)
-            self.device.sleep(2)
-        self.device.sleep(1)
-        self.device.screenshot()
+                return True
+            if retry.reached():
+                retry.reset()
+                self.device.click(ARENA_BTN_CLOSE)
+            if timeout.reached():
+                logger.warning('The maze map did not close')
+                return False
 
     def tap_point(self, x, y):
         """

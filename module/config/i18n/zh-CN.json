@@ -54,13 +54,17 @@
       "name": "核心制造",
       "help": "在资源副本「核心制造」里扫荡核心材料，消耗体力"
     },
+    "LostswordTreasure": {
+      "name": "宝藏探索",
+      "help": "领取挂机收益，并用掉每日免费的快速探查"
+    },
+    "LostswordShop": {
+      "name": "商店",
+      "help": "领取每日、每周、每月的免费礼包"
+    },
     "LostswordMail": {
       "name": "邮箱",
       "help": "领取邮箱里的附件"
-    },
-    "LostswordMain": {
-      "name": "推主线",
-      "help": "冒险里按普通→困难→地狱依次往死里推，打不过就换下一个难度"
     },
     "LostswordBoss": {
       "name": "领主突袭",
@@ -70,25 +74,29 @@
       "name": "小队副本",
       "help": "每天消耗一次副本次数，进房间匹配后等战斗结束"
     },
-    "LostswordStar": {
-      "name": "星辰轮回",
-      "help": "三个冒险区域各挑战一次，打完退出"
-    },
     "LostswordCopy": {
       "name": "副本扫荡",
       "help": "进任意可扫荡副本，用一键扫荡把金币/经验书/属性石一起扫掉"
-    },
-    "LostswordMaze": {
-      "name": "迷宫",
-      "help": "进迷宫点「自动进行」，让它自己走到今天走不动为止"
     },
     "LostswordEvent": {
       "name": "活动",
       "help": "开荒新活动并扫荡已通关的关卡；探险完成的活动自动跳过"
     },
+    "LostswordStar": {
+      "name": "星辰轮回",
+      "help": "三个冒险区域各挑战一次，打完退出"
+    },
     "LostswordArena": {
       "name": "竞技场",
       "help": "消耗竞技场票券挑战对手，晋级赛优先；票券攒着一天打一次，打完领赛季任务"
+    },
+    "LostswordMaze": {
+      "name": "迷宫",
+      "help": "进迷宫点「自动进行」，让它自己走到今天走不动为止"
+    },
+    "LostswordMain": {
+      "name": "推主线",
+      "help": "冒险里按普通→困难→地狱依次往死里推，打不过就换下一个难度"
     },
     "LostswordRound": {
       "name": "圆桌升级",
@@ -97,14 +105,6 @@
     "LostswordAffection": {
       "name": "好感对话",
       "help": "按配置的 6 个角色逐个进行好感对话，用完当天次数为止"
-    },
-    "LostswordShop": {
-      "name": "商店",
-      "help": "领取每日、每周、每月的免费礼包"
-    },
-    "LostswordTreasure": {
-      "name": "宝藏探索",
-      "help": "领取挂机收益，并用掉每日免费的快速探查"
     },
     "LostswordTask": {
       "name": "任务奖励",

@@ -20,10 +20,17 @@ class ManualConfig:
     # the least important task of the game, and running it last keeps the game
     # from being closed between two tasks of the same game. Missing a task here
     # drops it from the schedule entirely, so every task must be listed.
+    #
+    # The Lostsword block was reordered by the user (2026-10-27): the free gifts
+    # and the mailbox come first because they are one click each, the timed
+    # modes (boss / dungeon / copy / event / star / arena) follow, and the three
+    # long ones (maze, main story, round table) close the block. 好感 sits next
+    # to them: it is a slow walk through a deep character list, worth nothing
+    # compared to a mode that expires.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
-    > LostswordMail > LostswordMain > LostswordBoss > LostswordDungeon > LostswordStar > LostswordCopy > LostswordMaze > LostswordEvent > LostswordArena > LostswordRound > LostswordAffection > LostswordShop > LostswordTreasure > LostswordTask
+    > LostswordTreasure > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask
     """
 
     """

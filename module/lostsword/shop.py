@@ -58,6 +58,15 @@ SHOP_BADGE_PIXELS = 100
 # dark panel (mean 47~90). Any value in between is a transition frame.
 SHOP_TAB_SELECTED_MEAN = 150
 
+# Claiming the gift is press-verify-repeat: the 「免费」 button sits under a panel
+# that has just faded in, and a press that lands during the animation is
+# swallowed without any feedback (measured 2026-10-27: the daily gift was
+# reported as claimed for a whole day while it was never taken).
+SHOP_CLAIM_TRIES = 3
+# Seconds to wait for the reward popup after one press. The popup itself is
+# instant, so a short wait keeps a lost press from costing six seconds.
+SHOP_CLAIM_WAIT = 3
+
 
 class LostswordShop(LostswordUI):
     """
@@ -226,11 +235,18 @@ class LostswordShop(LostswordUI):
             logger.warning('Purchase dialog did not open')
             return 0
 
-        if self.appear(SHOP_BTN_CLAIM_FREE, offset=30):
-            self.device.click(SHOP_BTN_CLAIM_FREE)
-            if self.wait_overlay(REWARD_POPUP_TITLE, timeout=timeout):
-                self.handle_reward_popup()
-                return 1
+        if self.wait_overlay_settle(SHOP_DIALOG_TITLE) and \
+                self.appear(SHOP_BTN_CLAIM_FREE, offset=30):
+            for attempt in range(SHOP_CLAIM_TRIES):
+                self.device.click(SHOP_BTN_CLAIM_FREE)
+                if self.wait_overlay(REWARD_POPUP_TITLE, timeout=SHOP_CLAIM_WAIT):
+                    self.handle_reward_popup()
+                    return 1
+                # The press is verified instead of trusted: it lands on a panel
+                # that has just faded in often enough to lose it, and the gift
+                # then stays unclaimed until the next day.
+                logger.info(f'No reward popup, press the free button again '
+                            f'({attempt + 1}/{SHOP_CLAIM_TRIES})')
             logger.warning('No reward popup after confirming')
             self.shop_close_dialog()
             return 0

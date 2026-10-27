@@ -54,13 +54,17 @@
       "name": "コア製造",
       "help": "資源ダンジョンの「コア製造」でコア素材を掃討する（スタミナ消費）"
     },
+    "LostswordTreasure": {
+      "name": "トレジャー",
+      "help": "放置報酬を受け取り、毎日の無料高速探索を使う"
+    },
+    "LostswordShop": {
+      "name": "ショップ",
+      "help": "デイリー・ウィークリー・マンスリーの無料ギフトを受け取る"
+    },
     "LostswordMail": {
       "name": "メール",
       "help": "メールの添付を受け取る"
-    },
-    "LostswordMain": {
-      "name": "メイン進行",
-      "help": "冒険を普通→困難→地獄の順に、勝てなくなるまで進める"
     },
     "LostswordBoss": {
       "name": "ボスレイド",
@@ -70,25 +74,29 @@
       "name": "小隊ダンジョン",
       "help": "毎日1回挑戦し、マッチング後に戦闘終了まで待つ"
     },
-    "LostswordStar": {
-      "name": "星辰輪廻",
-      "help": "3つの冒険エリアを1回ずつ挑戦する"
-    },
     "LostswordCopy": {
       "name": "ステージ掃討",
       "help": "掃討可能なステージから一括掃討で金貨・EXP・属性石をまとめて回収"
-    },
-    "LostswordMaze": {
-      "name": "迷宮",
-      "help": "迷宮に入って「自動進行」。1日の限界まで自動で進む"
     },
     "LostswordEvent": {
       "name": "イベント",
       "help": "新しいイベントを開拓し、クリア済みステージを掃討。探険完了はスキップ"
     },
+    "LostswordStar": {
+      "name": "星辰輪廻",
+      "help": "3つの冒険エリアを1回ずつ挑戦する"
+    },
     "LostswordArena": {
       "name": "アリーナ",
       "help": "アリーナチケットで対戦、昇格戦を優先。チケットは溜めて1日1回使い、最後にシーズン任務を受け取る"
+    },
+    "LostswordMaze": {
+      "name": "迷宮",
+      "help": "迷宮に入って「自動進行」。1日の限界まで自動で進む"
+    },
+    "LostswordMain": {
+      "name": "メイン進行",
+      "help": "冒険を普通→困難→地獄の順に、勝てなくなるまで進める"
     },
     "LostswordRound": {
       "name": "円卓強化",
@@ -97,14 +105,6 @@
     "LostswordAffection": {
       "name": "好感会話",
       "help": "設定した6キャラと好感会話を行う。1日の回数を使い切るまで"
-    },
-    "LostswordShop": {
-      "name": "ショップ",
-      "help": "デイリー・ウィークリー・マンスリーの無料ギフトを受け取る"
-    },
-    "LostswordTreasure": {
-      "name": "トレジャー",
-      "help": "放置報酬を受け取り、毎日の無料高速探索を使う"
     },
     "LostswordTask": {
       "name": "任務報酬",

@@ -531,6 +531,10 @@ class LostswordUI(UI):
             self.device.swipe(p1=p1, p2=p2)
             self.device.sleep(pause)
         self.device.screenshot()
+        # Every drag here is deliberate and its result is checked by the caller;
+        # counting them towards "too many click for a button" only means a task
+        # that scrolls twice dies halfway (measured 2026-10-27 in the maze).
+        self.device.click_record_clear()
 
     def wait_overlay(self, button, timeout=5):
         """
@@ -549,6 +553,41 @@ class LostswordUI(UI):
             if self.appear(button, offset=30):
                 return True
             if timeout.reached():
+                return False
+
+    def wait_overlay_settle(self, button, frames=None, timeout=8):
+        """
+        Wait until an overlay is fully drawn, not just matching.
+
+        `wait_overlay()` returns on the first frame the check point matches,
+        which is the first frame of the fade-in: the panel is still sliding in
+        and eats clicks for a moment after that. The 「免费」 button of the shop
+        dialog lost exactly one press that way (measured 2026-10-27: pressed
+        0.2 s after the title matched, no reward popup, the daily gift stayed
+        unclaimed until the next day). Requiring the match to hold for a few
+        frames is the cheapest way to know the animation is over.
+
+        Args:
+            button (Button): Check point of the overlay.
+            frames (int): Consecutive frames with a match needed.
+            timeout (int, float): Seconds.
+
+        Returns:
+            bool: If the overlay settled.
+        """
+        frames = frames or self.SETTLE_FRAMES
+        timeout = Timer(timeout).start()
+        present = 0
+        while 1:
+            self.device.screenshot()
+            if self.appear(button, offset=30):
+                present += 1
+                if present >= frames:
+                    return True
+            else:
+                present = 0
+            if timeout.reached():
+                logger.warning(f'{button.name} did not settle')
                 return False
 
     def wait_overlay_gone(self, button, frames=None, timeout=8):

@@ -25,19 +25,19 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
+      "LostswordTreasure",
+      "LostswordShop",
       "LostswordMail",
-      "LostswordMain",
       "LostswordBoss",
       "LostswordDungeon",
-      "LostswordStar",
       "LostswordCopy",
-      "LostswordMaze",
       "LostswordEvent",
+      "LostswordStar",
       "LostswordArena",
+      "LostswordMaze",
+      "LostswordMain",
       "LostswordRound",
       "LostswordAffection",
-      "LostswordShop",
-      "LostswordTreasure",
       "LostswordTask"
     ]
   }

@@ -54,35 +54,35 @@ Lostsword:
   menu: 'collapse'
   page: 'setting'
   tasks:
-    LostswordMail:
+    LostswordTreasure:
       - Scheduler
-    LostswordMain:
+      - LostswordTreasure
+    LostswordShop:
+      - Scheduler
+    LostswordMail:
       - Scheduler
     LostswordBoss:
       - Scheduler
       - LostswordBoss
     LostswordDungeon:
       - Scheduler
-    LostswordStar:
-      - Scheduler
     LostswordCopy:
-      - Scheduler
-    LostswordMaze:
       - Scheduler
     LostswordEvent:
       - Scheduler
+    LostswordStar:
+      - Scheduler
     LostswordArena:
+      - Scheduler
+    LostswordMaze:
+      - Scheduler
+    LostswordMain:
       - Scheduler
     LostswordRound:
       - Scheduler
     LostswordAffection:
       - Scheduler
       - LostswordAffection
-    LostswordShop:
-      - Scheduler
-    LostswordTreasure:
-      - Scheduler
-      - LostswordTreasure
     LostswordTask:
       - Scheduler
       - LostswordTask

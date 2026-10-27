@@ -54,13 +54,17 @@
       "name": "Core material",
       "help": "Sweep core material stages in the resource dungeon, spends stamina"
     },
+    "LostswordTreasure": {
+      "name": "Treasure",
+      "help": "Claim the idle rewards and use the free quick explore"
+    },
+    "LostswordShop": {
+      "name": "Shop",
+      "help": "Claim the daily, weekly and monthly free gifts"
+    },
     "LostswordMail": {
       "name": "Mailbox",
       "help": "Claim the attachments in the mailbox"
-    },
-    "LostswordMain": {
-      "name": "Main story",
-      "help": "Push the adventure stages on normal, then hard, then hell, until the team loses"
     },
     "LostswordBoss": {
       "name": "Boss raid",
@@ -70,25 +74,29 @@
       "name": "Squad dungeon",
       "help": "Spend the daily try, wait for the match and the battle to clear"
     },
-    "LostswordStar": {
-      "name": "Star cycle",
-      "help": "Challenge the three adventure areas once each"
-    },
     "LostswordCopy": {
       "name": "Stage sweep",
       "help": "Open one sweepable stage and use the shared panel to sweep gold / exp / stones"
-    },
-    "LostswordMaze": {
-      "name": "Maze",
-      "help": "Open the maze and start the auto run; it walks until the daily limit"
     },
     "LostswordEvent": {
       "name": "Event",
       "help": "Clear new events and sweep the stages already done; 探险完成 events are skipped"
     },
+    "LostswordStar": {
+      "name": "Star cycle",
+      "help": "Challenge the three adventure areas once each"
+    },
     "LostswordArena": {
       "name": "Arena",
       "help": "Spend arena tickets on opponents, promotion matches first; tickets pile up and are spent once a day, then the season missions are claimed"
+    },
+    "LostswordMaze": {
+      "name": "Maze",
+      "help": "Open the maze and start the auto run; it walks until the daily limit"
+    },
+    "LostswordMain": {
+      "name": "Main story",
+      "help": "Push the adventure stages on normal, then hard, then hell, until the team loses"
     },
     "LostswordRound": {
       "name": "Round table",
@@ -97,14 +105,6 @@
     "LostswordAffection": {
       "name": "Affection talks",
       "help": "Talk to the six configured characters until the daily tries run out"
-    },
-    "LostswordShop": {
-      "name": "Shop",
-      "help": "Claim the daily, weekly and monthly free gifts"
-    },
-    "LostswordTreasure": {
-      "name": "Treasure",
-      "help": "Claim the idle rewards and use the free quick explore"
     },
     "LostswordTask": {
       "name": "Task rewards",

@@ -54,13 +54,17 @@
       "name": "核心製造",
       "help": "在資源副本「核心製造」裡掃蕩核心材料，消耗體力"
     },
+    "LostswordTreasure": {
+      "name": "寶藏探索",
+      "help": "領取掛機收益，並用掉每日免費的快速探查"
+    },
+    "LostswordShop": {
+      "name": "商店",
+      "help": "領取每日、每週、每月的免費禮包"
+    },
     "LostswordMail": {
       "name": "信箱",
       "help": "領取信箱裡的附件"
-    },
-    "LostswordMain": {
-      "name": "推主線",
-      "help": "冒險裡依序普通→困難→地獄推到打不過為止"
     },
     "LostswordBoss": {
       "name": "領主突襲",
@@ -70,25 +74,29 @@
       "name": "小隊副本",
       "help": "每天消耗一次副本次數，進房間匹配後等戰鬥結束"
     },
-    "LostswordStar": {
-      "name": "星辰輪迴",
-      "help": "三個冒險區域各挑戰一次，打完退出"
-    },
     "LostswordCopy": {
       "name": "副本掃蕩",
       "help": "進任意可掃蕩副本，用一鍵掃蕩把金幣/經驗書/屬性石一起掃掉"
-    },
-    "LostswordMaze": {
-      "name": "迷宮",
-      "help": "進迷宮點「自動進行」，讓它自己走到今天走不動為止"
     },
     "LostswordEvent": {
       "name": "活動",
       "help": "開荒新活動並掃蕩已通關的關卡；探險完成的活動自動跳過"
     },
+    "LostswordStar": {
+      "name": "星辰輪迴",
+      "help": "三個冒險區域各挑戰一次，打完退出"
+    },
     "LostswordArena": {
       "name": "競技場",
       "help": "消耗競技場票券挑戰對手，晉級賽優先；票券攢著一天打一次，打完領賽季任務"
+    },
+    "LostswordMaze": {
+      "name": "迷宮",
+      "help": "進迷宮點「自動進行」，讓它自己走到今天走不動為止"
+    },
+    "LostswordMain": {
+      "name": "推主線",
+      "help": "冒險裡依序普通→困難→地獄推到打不過為止"
     },
     "LostswordRound": {
       "name": "圓桌升級",
@@ -97,14 +105,6 @@
     "LostswordAffection": {
       "name": "好感對話",
       "help": "依設定的 6 個角色逐一進行好感對話，用完當天次數為止"
-    },
-    "LostswordShop": {
-      "name": "商店",
-      "help": "領取每日、每週、每月的免費禮包"
-    },
-    "LostswordTreasure": {
-      "name": "寶藏探索",
-      "help": "領取掛機收益，並用掉每日免費的快速探查"
     },
     "LostswordTask": {
       "name": "任務獎勵",
