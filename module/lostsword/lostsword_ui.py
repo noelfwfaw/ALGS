@@ -29,6 +29,7 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                     STAR_CARD, STAR_TITLE,
                                     MAIN_BTN_BATTLE, MAIN_BTN_MENU,
                                     MAIN_BTN_SHOP, MAIN_BTN_TREASURE,
+                                    MAIN_DEFEAT,
                                     MENU_BTN_CLOSE, MENU_BTN_MAIL,
                                     MAZE_BTN_AUTO, MAZE_CARD, MAZE_DONE,
                                     MENU_BTN_TASK, PASS_BTN, PASS_TITLE,
@@ -143,6 +144,11 @@ page_menu = Page(MENU_BTN_TASK)
 # The battle pass panel, opened from the lobby's left column. Full screen; the
 # season it shows is picked by the game, not by the graph.
 page_pass = Page(PASS_TITLE)
+# The 「返回」 button of the defeat page. The page has no page of its own - it is
+# handled as an overlay, see `ui_additional()`.
+MAIN_DEFEAT_BACK = Button(area=(896, 628, 1014, 668), color=(0, 0, 0),
+                          button=(896, 628, 1014, 668), name='MAIN_DEFEAT_BACK')
+
 # The character grid, opened from the bottom bar. Its 「角色」 heading is the
 # check point; a detail page shows the character name there instead (0.79).
 page_character = Page(CHAR_TITLE)
@@ -414,9 +420,19 @@ class LostswordUI(UI):
         点击屏幕。"): a run that was interrupted there would otherwise leave the
         game on a page nothing knows.
 
+        The defeat page of the main story ("DEFEAT BRITANNIA") is the same
+        story: its 「返回」 is the only way out and it leads straight to the
+        lobby through a loading screen, so any walk home that meets it must
+        press that key instead of reporting an unknown page.
+
         Returns:
             bool: If handled.
         """
+        if self.appear(MAIN_DEFEAT, offset=30):
+            logger.info('Defeat page, press 返回')
+            self.device.click(MAIN_DEFEAT_BACK)
+            return True
+
         if self.appear(REWARD_POPUP_TITLE, offset=30):
             logger.info('Reward popup, dismiss it')
             self.handle_reward_popup()
