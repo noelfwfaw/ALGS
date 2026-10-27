@@ -90,6 +90,10 @@ DIALOG_TIMEOUT = 30
 SETTLE_START = 30
 
 
+# Minutes between two runs: half a day, counted from the server update hour.
+CORE_INTERVAL = 12 * 60
+
+
 class HazeworldCore(HazeworldUI):
     """
     Spend stamina on the core material stage of today.
@@ -114,7 +118,7 @@ class HazeworldCore(HazeworldUI):
         core = self.core_of_today()
         if core is None:
             logger.info('No core type set for today, skip')
-            self.config.task_delay(server_update=True)
+            self.core_delay()
             return
 
         self.ui_ensure(page_core)
@@ -127,10 +131,18 @@ class HazeworldCore(HazeworldUI):
             self.core_sweep_all()
 
         self.ui_goto_main()
+        self.core_delay()
 
-        # Daily task. Stamina regenerates at a rate that fills the cap once a
-        # day, so there is nothing to gain from running more often.
-        self.config.task_delay(server_update=True)
+    def core_delay(self):
+        """
+        Run again half a day later.
+
+        The stamina spent here comes back in about half a day, so two runs a day
+        is what the regeneration pays for: one at the server update hour and one
+        twelve hours after it. `task_delay` takes the nearest of the two, so the
+        task lands on 05:00 and 17:00 on its own.
+        """
+        self.config.task_delay(server_update=True, minute=CORE_INTERVAL)
 
     def core_of_today(self):
         """

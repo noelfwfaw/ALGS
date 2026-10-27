@@ -58,19 +58,40 @@ class HazeworldPass(HazeworldUI):
 
     def run(self):
         logger.hr('Battle pass claim', level=1)
-        self.ui_ensure(page_pass)
-
-        if self.config.HazeworldPass_ClaimTask:
-            self.pass_claim_task()
-        if self.config.HazeworldPass_ClaimAll:
-            self.pass_claim_reward()
-
-        self.ui_goto_main()
-
+        self.pass_claim()
         # A pass task is only counted after it is claimed, and experience of a
         # claimed task is what levels the pass up, so this one follows the same
         # four openings as the mission page instead of the daily reset.
         self.config.task_delay(server_update=CLAIM_TIMES)
+
+    def pass_claim(self):
+        """
+        Claim the switched on parts of the pass, then go home.
+
+        Also called by `HazeworldUI.handle_session_claim()`, which is why the
+        switches come from the raw config: the claim runs from the scheduler,
+        whose config binding is whatever task ran last and has no
+        `HazeworldPass` attributes.
+
+        Pages:
+            in: page_main
+            out: page_main
+
+        Returns:
+            int: Times claimed.
+        """
+        from module.config.deep import deep_get
+
+        self.ui_ensure(page_pass)
+        count = 0
+        if deep_get(self.config.data, 'HazeworldPass.HazeworldPass.ClaimTask',
+                    default=True):
+            count += self.pass_claim_task()
+        if deep_get(self.config.data, 'HazeworldPass.HazeworldPass.ClaimAll',
+                    default=True):
+            count += self.pass_claim_reward()
+        self.ui_goto_main()
+        return count
 
     def pass_claim_task(self):
         """

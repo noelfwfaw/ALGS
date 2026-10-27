@@ -109,6 +109,11 @@ class HazeworldRoom(HazeworldUI):
     def run(self):
         logger.hr('Command room', level=1)
         self.ui_ensure(page_room)
+        # The game draws 「LOADING......」 over the bottom bar for a second or two
+        # after a page switches, and every press that lands in that window is
+        # swallowed - the task then logs "Collect all" while nothing happens and
+        # walks straight on to the expedition.
+        self.ui_wait_loading()
         # The room scene fades in and ui_ensure() returns on the first frame
         # that matches, so wait for a frame where the collect button is really
         # drawn, or the first click is swallowed by the transition.
@@ -120,6 +125,7 @@ class HazeworldRoom(HazeworldUI):
         delay = None
         if self.config.HazeworldRoom_Expedition:
             self.ui_ensure(page_expedition)
+            self.ui_wait_loading()
             delay = self.room_expedition()
             self.room_expedition_close()
 
@@ -157,6 +163,9 @@ class HazeworldRoom(HazeworldUI):
             skip_first_screenshot = False
         else:
             self.device.screenshot()
+
+        self.ui_wait_loading()
+        self.device.screenshot()
 
         if self.appear(ROOM_BTN_COLLECT_ALL, offset=(20, 20)):
             logger.info('Collect all')
@@ -337,7 +346,12 @@ class HazeworldRoom(HazeworldUI):
             in: page_expedition
             out: page_expedition
         """
-        timeout = Timer(1.5).start()
+        # The panel repaints when another expedition is picked, and the game
+        # keeps its loading line up during that switch. Reading the buttons in
+        # that window finds neither of them and would call an idle team "out" -
+        # which is how the second team ended up never being sent.
+        self.ui_wait_loading()
+        timeout = Timer(3).start()
 
         while 1:
             # End

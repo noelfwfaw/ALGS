@@ -1,5 +1,6 @@
 from module.base.button import Button
-from module.hazeworld.assets import (TASK_CLAIM_ALL,
+from module.base.timer import Timer
+from module.hazeworld.assets import (POPUP_TOUCH_EXIT, TASK_CLAIM_ALL,
                                      TASK_CLAIM_ALL_DISABLED, TASK_POINT_LABEL,
                                      TASK_TAB_DAILY, TASK_TAB_MONTHLY,
                                      TASK_TAB_WEEKLY, TEMPLATE_TASK_MILESTONE)
@@ -27,13 +28,37 @@ CLAIM_SATURATION = 40
 
 # The "可领取" tag of the milestone bar. Its left edge sits 40px right of the
 # centre of the reward box it belongs to, and 12px above it, measured on the
-# daily bar (tag left 866, tag centre y 628, box centre 824/640). The weekly and
-# monthly bars use the same layout with a box 55 to 60 wide, so the same offset
-# lands inside the box on all three.
+# daily bar (tag left 863, tag centre y 630, box centre 824/642). The weekly and
+# monthly bars use the same layout, so the same offset lands inside the box on
+# all three.
+#
+# The tag is matched, not read by colour: it is a solid plate whose hue belongs
+# to the game's current theme - it was gold when this task was written and a
+# later patch repainted it cyan (2026-10-27), which silently turned every
+# milestone claim into a no-op because the stored picture no longer matched
+# anything. The asset is therefore refreshed from the live game whenever the
+# theme changes, and the threshold is kept loose enough to accept the few pixels
+# of drift between the three bars (daily 1.00, weekly 0.93) while staying far
+# above the best false positive anywhere else on the page (0.67).
 MILESTONE_BOX_X = 40
 MILESTONE_BOX_Y = 12
-MILESTONE_SIMILARITY = 0.9
+MILESTONE_SIMILARITY = 0.85
 MILESTONE_MAX = 6
+
+# Crediting a milestone raises a popup of its own, and it is not the small
+# "获得资源" card `handle_reward()` knows: it is a wide sheet laid over the whole
+# point bar with a single reward in it and 「TOUCH TO EXIT」 under the box. The
+# template of the small card scores 0.53 on it, so the hint line is matched
+# instead - it is unique to this popup (1.00 with it, 0.53 without it anywhere
+# else in the screenshots collected so far).
+MILESTONE_POPUP_SIMILARITY = 0.85
+MILESTONE_POPUP_MAX = 4
+# A claim also repaints the bar, and both the repaint and its loading line hide
+# the tag for a moment - long enough for the next frame to read "no reward left"
+# and end the loop while the reward is still on the bar. The popup that comes
+# with the claim is the reliable signal that the bar has been refreshed, so each
+# claim waits for it instead of guessing a delay.
+MILESTONE_POPUP_TIMEOUT = 10
 
 
 # The tap on a tab is swallowed while the reward popup of the previous tab is
@@ -55,25 +80,48 @@ class HazeworldTask(HazeworldUI):
 
     def run(self):
         logger.hr('Task claim', level=1)
+        self.task_claim()
+        # Missions are finished during the day, not at the daily reset, and
+        # they only count as claimed once the button is pressed, so the task
+        # comes back on the four openings of the player rather than once a day.
+        self.config.task_delay(server_update=CLAIM_TIMES)
+
+    def task_claim(self):
+        """
+        Claim the tabs that are switched on, then go home.
+
+        This is also what `HazeworldUI.handle_session_claim()` calls, so the
+        tabs are read from the raw config rather than from
+        `self.config.HazeworldTask_*`: the claim runs from the scheduler, whose
+        config binding belongs to whatever task ran last and has no
+        `HazeworldTask` attributes at all.
+
+        Pages:
+            in: page_main
+            out: page_main
+
+        Returns:
+            int: Times claimed.
+        """
+        from module.config.deep import deep_get
+
         self.ui_ensure(page_task)
         # The task page fades in, and ui_ensure() returns on that half drawn
         # frame. Settle it before clicking a tab, or the click may be handled by
         # a page that is not drawn yet and the wrong tab gets claimed.
         self.appear_settled(TASK_POINT_LABEL, timeout=5)
 
-        if self.config.HazeworldTask_ClaimDaily:
-            self.task_claim_tab(TASK_TAB_DAILY)
-        if self.config.HazeworldTask_ClaimWeekly:
-            self.task_claim_tab(TASK_TAB_WEEKLY)
-        if self.config.HazeworldTask_ClaimMonthly:
-            self.task_claim_tab(TASK_TAB_MONTHLY)
+        count = 0
+        for key, tab in (('ClaimDaily', TASK_TAB_DAILY),
+                         ('ClaimWeekly', TASK_TAB_WEEKLY),
+                         ('ClaimMonthly', TASK_TAB_MONTHLY)):
+            if not deep_get(self.config.data, f'HazeworldTask.HazeworldTask.{key}',
+                            default=True):
+                continue
+            count += self.task_claim_tab(tab)
 
         self.ui_goto_main()
-
-        # Missions are finished during the day, not at the daily reset, and
-        # they only count as claimed once the button is pressed, so the task
-        # comes back on the four openings of the player rather than once a day.
-        self.config.task_delay(server_update=CLAIM_TIMES)
+        return count
 
     def task_claim_available(self):
         """
@@ -148,6 +196,38 @@ class HazeworldTask(HazeworldUI):
         count += self.task_claim_milestone()
         return count
 
+    def milestone_wait_reward(self, timeout=MILESTONE_POPUP_TIMEOUT):
+        """
+        Wait for the popup of a milestone claim and close it.
+
+        The popup is what tells that the claim went through: while it is up the
+        point bar behind it is covered, and the tag cannot be read. Coming back
+        only after it is gone means the next look at the bar is a real one.
+
+        Args:
+            timeout (int, float): Seconds to wait for it.
+
+        Returns:
+            bool: If a popup was closed.
+        """
+        timeout = Timer(timeout).start()
+        while 1:
+            self.device.stuck_record_clear()
+            self.device.screenshot()
+
+            if self.handle_reward():
+                return True
+            if self.appear(POPUP_TOUCH_EXIT, offset=(20, 20),
+                           similarity=MILESTONE_POPUP_SIMILARITY):
+                self.device.click(POPUP_TOUCH_EXIT)
+                self.device.sleep(0.8)
+                return True
+            if timeout.reached():
+                # Some milestones pay out without the sheet; the bar is simply
+                # redrawn. Nothing to close then.
+                return False
+            self.device.sleep(0.5)
+
     def task_claim_milestone(self, skip_first_screenshot=True):
         """
         Tap every milestone reward waiting on the point bar of this tab.
@@ -171,6 +251,7 @@ class HazeworldTask(HazeworldUI):
         """
         logger.hr('Claim milestones', level=2)
         count = 0
+        popups = 0
 
         while 1:
             if skip_first_screenshot:
@@ -179,6 +260,20 @@ class HazeworldTask(HazeworldUI):
                 self.device.screenshot()
 
             if self.handle_reward():
+                continue
+
+            if self.appear(POPUP_TOUCH_EXIT, offset=(20, 20),
+                           similarity=MILESTONE_POPUP_SIMILARITY):
+                # The hint sits on the sheet itself, so tapping it is the same
+                # as tapping anywhere else on the popup - and it is nowhere
+                # near the reward box, whose tap would open the item detail.
+                popups += 1
+                if popups > MILESTONE_POPUP_MAX:
+                    logger.warning('The milestone popup does not close')
+                    break
+                logger.info('Milestone reward popup, touch to exit')
+                self.device.click(POPUP_TOUCH_EXIT)
+                self.device.sleep(0.8)
                 continue
 
             similarity, button = TEMPLATE_TASK_MILESTONE.match_result(self.device.image)
@@ -200,6 +295,7 @@ class HazeworldTask(HazeworldUI):
                 name='TASK_MILESTONE',
             ))
             count += 1
+            self.milestone_wait_reward()
 
         if count:
             logger.info(f'Milestone finished, claimed {count} time(s)')

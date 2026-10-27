@@ -1,7 +1,11 @@
+import cv2
+import numpy as np
+
 from module.base.timer import Timer
 from module.base.utils import get_color
 from module.exception import GameStuckError
 from module.hazeworld.assets import (BACK_ARROW, BATTLE_CORE_ENTRY,
+                                    LOADING_TEXT,
                                     BATTLE_TAB_RESOURCE, BATTLE_TITLE,
                                     CORE_BTN_HOME, CORE_BTN_SWEEP,
                                     EXIT_CONFIRM, EX_TITLE_LABEL,
@@ -112,6 +116,43 @@ page_core.link(button=BACK_ARROW, destination=page_battle_resource)
 CLAIM_TIMES = ['05:00', '12:00', '18:00', '23:00']
 
 
+# The 「LOADING......」 line the game draws over the bottom bar while a page is
+# coming up. It is plain white text on whatever the page behind it is, so the
+# only stable thing about it is the glyphs themselves - a colour or mean-luma
+# test would fire on every bright page. Matching the binary shape of the text
+# scores 1.00 on the loading screen and 0.15~0.22 everywhere else (measured
+# against other screens), which is why it is matched rather than OCR'd: the
+# built-in OCR models read this font as 「L2ABIN」 / 「CLADINK」.
+LOADING_REGION = (500, 640, 780, 715)
+
+
+def match_loading(image, button, region):
+    """
+    Template match a button inside a region.
+
+    `Button.match()` has its arguments the wrong way round (it searches the
+    template for the screenshot), so it only works when both are the same size.
+    This helper does it the right way and only looks at a narrow region.
+
+    Args:
+        image (np.ndarray): Screenshot.
+        button (Button): Template to look for.
+        region (tuple): (x1, y1, x2, y2) to search in.
+
+    Returns:
+        float: Similarity of the best match, 0 when the region is too small.
+    """
+    button.ensure_template()
+    template = button.image
+    x1, y1, x2, y2 = region
+    patch = image[max(0, y1):min(image.shape[0], y2),
+                  max(0, x1):min(image.shape[1], x2)]
+    if patch.shape[0] < template.shape[0] or patch.shape[1] < template.shape[1]:
+        return 0.0
+    res = cv2.matchTemplate(patch, template, cv2.TM_CCOEFF_NORMED)
+    return float(cv2.minMaxLoc(res)[1])
+
+
 class HazeworldUI(UI):
     """
     Shared UI base of every Hazeworld task.
@@ -133,6 +174,23 @@ class HazeworldUI(UI):
     # opens "确认退出?" on the title screen, see handle_sign_in().
     SIGN_IN_BACK = Timer(2)
 
+    def ui_loading_appear(self):
+        """
+        Whether the game is drawing its loading line.
+
+        The threshold has to stay high: the template is white glyphs, so any
+        bright page with fine light lines drifts towards it. Lowering it to 0.45
+        to also catch a half faded line made the lobby read as loading (0.473),
+        and every `ui_goto` then waited for a loading screen that never ended.
+        A half faded line is not worth that trade - callers that need a repaint
+        to finish wait for the popup that comes with it instead.
+
+        Returns:
+            bool: If 「LOADING......」 is over the bottom bar.
+        """
+        return match_loading(self.device.image, LOADING_TEXT,
+                             LOADING_REGION) > 0.80
+
     def app_start(self):
         """
         Launch the game and walk through the boot screens until page_main.
@@ -141,6 +199,9 @@ class HazeworldUI(UI):
         front, so the boot loop below would wait for a title screen that never
         appears and die on a stuck check. If it runs but is not on any known
         page, it is stopped first so a cold boot is guaranteed.
+
+        The mission rewards and the battle pass are *not* claimed here, see
+        `handle_session_claim()`.
 
         Pages:
             in: any
@@ -156,6 +217,44 @@ class HazeworldUI(UI):
 
         self.device.app_start()
         self.handle_app_boot()
+
+    def handle_session_claim(self):
+        """
+        Claim the mission rewards and the battle pass, once per game session.
+
+        Called by the scheduler when the queue runs dry, i.e. after every queued
+        task of this session has been run, never at launch: the two panels are
+        worth nothing compared to the tasks the user queued, and claiming them
+        first would park the whole session behind them.
+
+        Both also keep a slot of their own in the scheduler, last in the
+        priority list, which covers the long sessions where the queue never runs
+        dry and this hook is not reached.
+
+        A failure here is logged and swallowed: both panels are entered from the
+        lobby again next session.
+
+        Returns:
+            bool: If both claims ran without an exception.
+        """
+        from module.hazeworld.battle_pass import HazeworldPass
+        from module.hazeworld.task import HazeworldTask
+
+        logger.hr('Session claims', level=2)
+        ok = True
+        try:
+            claimed = HazeworldTask(config=self.config, device=self.device).task_claim()
+            logger.info(f'Tasks claimed: {claimed}')
+        except Exception as e:
+            logger.warning(f'Task claim failed, ignored: {e}')
+            ok = False
+        try:
+            claimed = HazeworldPass(config=self.config, device=self.device).pass_claim()
+            logger.info(f'Pass claimed: {claimed}')
+        except Exception as e:
+            logger.warning(f'Battle pass claim failed, ignored: {e}')
+            ok = False
+        return ok
 
     def handle_app_boot(self, skip_first_screenshot=True):
         """
