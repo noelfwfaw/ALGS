@@ -343,6 +343,72 @@ class UI(ModuleBase):
         logger.warning(f'Page {page} still on screen, continue anyway')
         return False
 
+    def handle_session_claim(self):
+        """
+        Take the rewards that belong at the end of a session.
+
+        The scheduler calls this when the queue has run dry, before it closes
+        the game or leaves it alone, and only while the game is running. It is
+        where a game puts work that has to happen once per session *but must not
+        get in front of the queued tasks*: the mission list, the battle pass,
+        the daily mail. Claiming them at launch instead would park every task
+        behind a page that has nothing to do with what the user asked to run.
+
+        It must be safe to call at any time and cheap when there is nothing to
+        take - it runs once per drained queue, which can be once per game
+        session or once a day, depending on the schedule. Failing here must not
+        fail anything else, but the scheduler guards it as well.
+
+        Returns:
+            bool: True if the game claimed something.
+        """
+        return False
+
+    def ui_loading_appear(self):
+        """
+        Whether the game is showing its loading screen.
+
+        The framework has no idea what a loading screen looks like, so this is
+        False unless the game UI class overrides it. It exists because a page
+        switch is not finished when the first frame of the new page arrives: the
+        game keeps a loading line over the old page for a second or two, and any
+        press that lands in that window is swallowed - the task then reports the
+        click but the game never saw it.
+
+        Returns:
+            bool: If a loading screen is up.
+        """
+        return False
+
+    def ui_wait_loading(self, timeout=40):
+        """
+        Block until the loading screen goes away.
+
+        Only does anything for games that override `ui_loading_appear()`.
+
+        Args:
+            timeout (int, float): Seconds before giving up.
+
+        Returns:
+            bool: If the game is not loading any more.
+        """
+        if not self.ui_loading_appear():
+            return True
+        logger.info('Loading, wait for it')
+        timeout = Timer(timeout).start()
+        self.device.sleep(0.5)
+        while 1:
+            # A loading screen is a still image, so the frame never changes
+            # while it is up; without this the device reports "Wait too long".
+            self.device.stuck_record_clear()
+            self.device.screenshot()
+            if not self.ui_loading_appear():
+                return True
+            if timeout.reached():
+                logger.warning('The loading screen did not go away')
+                return False
+            self.device.sleep(0.6)
+
     def ui_goto(self, destination, offset=(30, 30), skip_first_screenshot=True):
         """
         Walk the shortest path to the destination page.
@@ -362,6 +428,13 @@ class UI(ModuleBase):
                 skip_first_screenshot = False
             else:
                 self.device.screenshot()
+
+            # A loading screen covers the page that is coming up, so every check
+            # below would read the page that is going away.
+            if self.ui_loading_appear():
+                self.ui_wait_loading()
+                skip_first_screenshot = False
+                continue
 
             # Destination page
             if self.ui_page_appear(page=destination, offset=offset):

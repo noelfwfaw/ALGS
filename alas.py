@@ -14,6 +14,12 @@ from module.exception import *
 from module.logger import logger
 
 
+# Seconds within which a second session claim is skipped. A drain that is
+# immediately followed by `Restart` would otherwise claim twice for the same
+# nothing; a real session gap is hours.
+SESSION_CLAIM_INTERVAL = 10 * 60
+
+
 class GameScheduler:
     """
     Generic task scheduler.
@@ -28,6 +34,18 @@ class GameScheduler:
     """
 
     stop_event: threading.Event = None
+
+    # When the queue last drained and the session wide rewards were taken, used
+    # by `session_claim()` to skip a repeated claim right after a restart.
+    session_claim_time: datetime = None
+
+    # Whether this process has already brought `self.game` to the front.
+    # `app_is_running()` only says the process exists: a game left in the
+    # background by an earlier run is "running" while the screen shows the other
+    # game, and skipping the launch then leaves the task waiting for a page that
+    # never comes (measured 2026-10-27: `LostswordMain` sat on a blank wait for
+    # ten minutes because the Lostsword process was alive in the background).
+    game_in_foreground: bool = False
 
     # Namespace -> (module, class name) of the game UI class, filled by the
     # subclass. Empty in a single game setup, which turns every game switch
@@ -178,7 +196,7 @@ class GameScheduler:
         """
         logger.hr('Restart app', level=1)
         self.device.app_stop()
-        self.game_ui().app_start()
+        self.start()
         # Restart is a daily task, it must push its own next run, otherwise
         # SuccessInterval is 0 and the scheduler picks it again immediately.
         self.config.task_delay(server_update=True)
@@ -268,14 +286,16 @@ class GameScheduler:
             self.device.package = package
             set_server(game)
             self.game = game
+            # Nothing has been shown yet for the new game.
+            self.game_in_foreground = False
             self.device.stuck_record_clear()
             self.device.click_record_clear()
         elif not boot:
             return False
-        elif self.device.app_is_running():
+        elif self.game_in_foreground and self.device.app_is_running():
             return False
         else:
-            logger.info(f'Game `{self.game}` is not running, start it')
+            logger.info(f'Game `{self.game}` is not in the foreground, start it')
 
         if boot:
             try:
@@ -292,11 +312,15 @@ class GameScheduler:
         """
         Start the current game app and wait until it is playable.
 
+        `app_start()` also brings a game that is only running in the background
+        to the front, so the flag below is set even when nothing was launched.
+
         Pages:
             in: any
             out: page_main
         """
         self.game_ui().app_start()
+        self.game_in_foreground = True
 
     def goto_main(self):
         """
@@ -355,6 +379,11 @@ class GameScheduler:
             if task.next_run > datetime.now():
                 logger.info(f'Wait until {task.next_run} for task `{task.command}`')
                 self.is_first_task = False
+                # Nothing is queued any more: this is the end of the session for
+                # the game that is on screen. The session wide claims (mission
+                # list, battle pass) are taken here rather than at launch, so
+                # they never sit in front of the tasks the user queued up.
+                self.session_claim()
                 method = self.config.Optimization_WhenTaskQueueEmpty
                 if method == 'close_game':
                     logger.info('Close game during wait')
@@ -394,6 +423,41 @@ class GameScheduler:
 
         AlasConfig.is_hoarding_task = False
         return task.command
+
+    def session_claim(self):
+        """
+        Take the rewards of the game on screen, once the queue is drained.
+
+        Only the game that is actually running is asked: when the emulator is
+        off, or the last task belonged to the other game, there is nothing to
+        claim and starting a game just to claim would defeat the purpose.
+
+        A drain can happen twice in a row - the scheduler closes the game after
+        the first one, waits, then boots it again for `Restart`, and the queue is
+        empty right after that boot as well. Claiming costs up to a minute of
+        page walking, so a claim made moments ago is not repeated; a real new
+        session is hours apart, which the window covers easily.
+
+        Returns:
+            bool: If a game handled it.
+        """
+        now = datetime.now()
+        if self.session_claim_time is not None and \
+                (now - self.session_claim_time).total_seconds() < SESSION_CLAIM_INTERVAL:
+            logger.info('Session claim done recently, skip')
+            return False
+
+        try:
+            if not self.device.app_is_running():
+                return False
+            logger.hr('Session claim', level=1)
+            self.session_claim_time = now
+            return self.game_ui().handle_session_claim()
+        except Exception as e:
+            # The queue is drained either way; a claim that fails must not turn
+            # into a task failure or keep the game from being closed.
+            logger.warning(f'Session claim failed, ignored: {e}')
+            return False
 
     def loop(self):
         """
