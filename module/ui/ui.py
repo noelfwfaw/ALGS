@@ -116,46 +116,6 @@ class UI(ModuleBase):
                 return True
         return False
 
-    def appear_settled(self, button, timeout=3, skip_first_screenshot=True, offset=None):
-        """
-        Wait until a check point appears, tolerating page transitions.
-
-        `ui_page_appear()` matches a template with an offset, which is loose
-        enough to fire in the middle of a page switch, while the new page is
-        still fading in. A color check point (`appear(button, offset=None)`)
-        compares the mean color of its area, and a half drawn frame is dimmer,
-        so it does not match. Acting on the screenshot `ui_ensure()` returns
-        on therefore reads "nothing here" and silently skips the whole task.
-
-        Use this instead of `appear()` for the first check after a page switch.
-        It leaves a settled screenshot in `device.image`, so the following state
-        loop can start with `skip_first_screenshot=True`.
-
-        Args:
-            button (Button): Check point.
-            timeout (int, float): Seconds to wait before giving up.
-            skip_first_screenshot (bool): Reuse the current image at first try.
-            offset (tuple, int, None): Template match offset. None matches by
-                mean color, which is cheaper but needs a page that is already
-                drawn and not covered by a modal.
-
-        Returns:
-            bool: If the check point appears.
-        """
-        button = self.ensure_button(button)
-        timeout = Timer(timeout).start()
-        while 1:
-            if skip_first_screenshot:
-                skip_first_screenshot = False
-            else:
-                self.device.screenshot()
-
-            if self.appear(button, offset=offset):
-                return True
-            if timeout.reached():
-                logger.warning(f'Wait too long for {button.name}')
-                return False
-
     def ensure_button_execute(self, button, offset=0):
         """
         Args:

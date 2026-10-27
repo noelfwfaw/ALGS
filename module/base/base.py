@@ -295,24 +295,177 @@ class ModuleBase:
             self.device.click(button)
         return appear
 
-    def wait_until_appear(self, button, offset=0, skip_first_screenshot=False):
+    def wait_until_appear(self, button, offset=0, skip_first_screenshot=False, timeout=None, settle=1):
+        """
+        Poll until `button` shows up.
+
+        Args:
+            button (Button, Template, str):
+            offset (bool, int, tuple):
+            skip_first_screenshot (bool): Reuse the current image at first try.
+            timeout (int, float, None): Seconds before giving up. None polls
+                forever, which is what upstream does and what a task that cannot
+                continue without the button wants, so prefer a number.
+            settle (int): Consecutive frames that have to match. A fading in
+                element matches from its first frame on but swallows clicks
+                until the animation ends, so a click right after a plain match
+                is lost. 1 keeps the old behaviour.
+
+        Returns:
+            bool: If the button appeared.
+
+        Examples:
+            ```
+            if self.wait_until_appear(REWARD_CHECK, offset=(20, 20), timeout=5):
+                self.handle_reward()
+            ```
+        """
+        timeout = None if timeout is None else Timer(timeout).start()
+        present = 0
         while 1:
             if skip_first_screenshot:
                 skip_first_screenshot = False
             else:
                 self.device.screenshot()
             if self.appear(button, offset=offset):
-                break
+                present += 1
+                if present >= settle:
+                    return True
+            else:
+                present = 0
+            if timeout is not None and timeout.reached():
+                logger.warning(f'wait_until_appear({button}) timeout')
+                return False
 
-    def wait_until_appear_then_click(self, button, offset=0):
-        self.wait_until_appear(button, offset=offset)
-        self.device.click(button)
+    def wait_until_appear_then_click(self, button, offset=0, timeout=None):
+        """
+        Args:
+            button (Button, Template, str):
+            offset:
+            timeout (int, float, None):
 
-    def wait_until_disappear(self, button, offset=0):
+        Returns:
+            bool: If clicked.
+        """
+        if self.wait_until_appear(button, offset=offset, timeout=timeout):
+            self.device.click(button)
+            return True
+        return False
+
+    def wait_until_disappear(self, button, offset=0, skip_first_screenshot=False, timeout=None, settle=1):
+        """
+        Poll until `button` is off screen.
+
+        Args:
+            button (Button, Template, str):
+            offset:
+            skip_first_screenshot (bool):
+            timeout (int, float, None): Seconds before giving up.
+            settle (int): Consecutive frames that have to miss. An element stops
+                matching on the first frame of its fade-out but still eats the
+                clicks aimed at what is underneath, so the absence has to hold
+                before anything below may be pressed.
+
+        Returns:
+            bool: If the button disappeared.
+        """
+        timeout = None if timeout is None else Timer(timeout).start()
+        absent = 0
         while 1:
-            self.device.screenshot()
+            if skip_first_screenshot:
+                skip_first_screenshot = False
+            else:
+                self.device.screenshot()
             if not self.appear(button, offset=offset):
-                break
+                absent += 1
+                if absent >= settle:
+                    return True
+            else:
+                absent = 0
+            if timeout is not None and timeout.reached():
+                logger.warning(f'wait_until_disappear({button}) timeout')
+                return False
+
+    def wait_until_still(self, area, timeout=3, threshold=1.0, skip_first_screenshot=True):
+        """
+        Wait until an area of the screen stops changing.
+
+        Gestures and panel animations have no check point of their own - there
+        is nothing to match while a card list snaps to its new position - so the
+        usual answer is `device.sleep(pause)`, which is a guess: too short on a
+        slow emulator, wasted time on a fast one. Watching the area until two
+        consecutive frames agree is the same wait without the guess.
+
+        Args:
+            area (Button, tuple): Button or area to watch.
+            timeout (int, float): Seconds before giving up.
+            threshold (float): Mean absolute difference per channel, in 0-255,
+                below which two frames count as the same.
+            skip_first_screenshot (bool): Reuse the current image as the first
+                frame of the comparison.
+
+        Returns:
+            bool: If the area stopped changing.
+        """
+        timeout = Timer(timeout).start()
+        previous = None
+        while 1:
+            if skip_first_screenshot:
+                skip_first_screenshot = False
+                if not self.device.has_cached_image:
+                    self.device.screenshot()
+            else:
+                self.device.screenshot()
+
+            current = self.image_crop(area, copy=True)
+            if previous is not None:
+                diff = np.mean(np.abs(current.astype(np.int16) - previous.astype(np.int16)))
+                if diff < threshold:
+                    return True
+            previous = current
+
+            if timeout.reached():
+                logger.warning(f'Area {area} is still changing')
+                return False
+
+    def wait_until_settled(self, button, timeout=3, skip_first_screenshot=True, offset=None):
+        """
+        Wait until a check point appears on a frame that is fully drawn.
+
+        `ui_page_appear()` matches a template with an offset, which is loose
+        enough to fire while the page is still fading in, and a color check
+        point (`offset=None`) compares the mean color of its area, which a half
+        drawn frame always fails because it is dimmer. Both are useful, and both
+        are wrong right after a page switch: the first says "arrived" too early,
+        the second says "not here" on the frame it is given.
+
+        This polls until the check point matches, so the image left in
+        `device.image` is a settled one and the next state loop may start with
+        `skip_first_screenshot=True`.
+
+        Args:
+            button (Button): Check point.
+            timeout (int, float): Seconds to wait before giving up.
+            skip_first_screenshot (bool): Reuse the current image at first try.
+            offset (tuple, int, None): Template match offset, or None to match
+                by mean color.
+
+        Returns:
+            bool: If the check point appeared.
+        """
+        button = self.ensure_button(button)
+        timeout = Timer(timeout).start()
+        while 1:
+            if skip_first_screenshot:
+                skip_first_screenshot = False
+            else:
+                self.device.screenshot()
+
+            if self.appear(button, offset=offset):
+                return True
+            if timeout.reached():
+                logger.warning(f'Wait too long for {button.name}')
+                return False
 
     def wait_until_stable(self, button, timer=Timer(0.3, count=1), timeout=Timer(5, count=10), skip_first_screenshot=True):
         button._match_init = False

@@ -283,7 +283,7 @@ def main():
         if diff > 10:
             bad += 1
             print(f'  [color] {name}: 色差 {diff} @ {best_page} -- '
-                  f'appear(x, offset=None) 会失败，用带 offset 的匹配或 appear_settled()')
+                  f'appear(x, offset=None) 会失败，用带 offset 的匹配或 wait_until_settled()')
     if not bad:
         print('  all matched assets pass the color check')
 
