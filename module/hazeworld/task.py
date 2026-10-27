@@ -36,6 +36,14 @@ MILESTONE_SIMILARITY = 0.9
 MILESTONE_MAX = 6
 
 
+# The tap on a tab is swallowed while the reward popup of the previous tab is
+# still closing: input stays locked for about a second after the tap that
+# dismissed it. A swallowed tap is indistinguishable from a tab with nothing to
+# claim, because both leave the button grey, so the tap is retried once instead
+# of trusting that first verdict. Cost: one extra settle window per empty tab.
+TASK_TAB_TRIES = 2
+
+
 class HazeworldTask(HazeworldUI):
     """
     Claim daily / weekly / monthly mission rewards.
@@ -92,6 +100,12 @@ class HazeworldTask(HazeworldUI):
         grey, so an early read reports "nothing to claim" for the tab that was
         just opened and skips its rewards (the weekly tab was lost this way).
 
+        The tab tap itself is retried once. The tap that dismissed the previous
+        tab's reward popup keeps input locked for about a second, and a tab tap
+        lands in that window often enough to matter: the tab then never switches
+        and its rewards are skipped exactly the same way, with the same innocent
+        looking log. See `TASK_TAB_TRIES`.
+
         Args:
             tab (Button): Tab button of the mission page.
             skip_first_screenshot (bool):
@@ -104,16 +118,28 @@ class HazeworldTask(HazeworldUI):
             int: Times claimed.
         """
         logger.hr(f'Claim {tab.name}', level=2)
-        self.interval_clear(tab)
+        count = 0
 
-        self.device.click(tab)
-        count = self.claim_all(
-            TASK_CLAIM_ALL,
-            disabled=TASK_CLAIM_ALL_DISABLED,
-            wait=TASK_CLAIM_SETTLE,
-            skip_first_screenshot=False,
-            available=self.task_claim_available,
-        )
+        for attempt in range(TASK_TAB_TRIES):
+            # The tap that dismissed the previous tab's reward popup locks input
+            # for about a second, so a tab tap right after it is lost and the
+            # claim loop then reads the previous tab's grey button as "nothing to
+            # claim" (the weekly and monthly rewards were skipped this way).
+            # Tapping an open tab does nothing, so the tap is simply repeated.
+            self.interval_clear(tab)
+            self.device.click(tab)
+            count = self.claim_all(
+                TASK_CLAIM_ALL,
+                disabled=TASK_CLAIM_ALL_DISABLED,
+                wait=TASK_CLAIM_SETTLE,
+                skip_first_screenshot=False,
+                available=self.task_claim_available,
+            )
+            if count:
+                break
+        else:
+            logger.info(f'{tab.name} has nothing to claim')
+
         self.interval_clear(TASK_CLAIM_ALL)
 
         # Claiming the missions raises the point counter, so the bar can reach a

@@ -6,6 +6,7 @@ from module.hazeworld.assets import (BACK_ARROW, BATTLE_CORE_ENTRY,
                                     CORE_BTN_HOME, CORE_BTN_SWEEP,
                                     EXIT_CONFIRM, EX_TITLE_LABEL,
                                     FRIEND_TAB_LIST, LOGIN_ANNOUNCE,
+                                    LOGIN_SIGN_CLOSE, LOGIN_SIGN_IN,
                                     LOGIN_TOUCH_START, MAIL_BTN_CLAIM_ALL,
                                     MAIN_BTN_BATTLE, MAIN_BTN_EXERCISE,
                                     MAIN_ICON_FRIEND, MAIN_ICON_MAIL,
@@ -121,6 +122,17 @@ class HazeworldUI(UI):
 
     page_main = page_main
 
+    # Own pages, in the order they are declared above. The registry is shared
+    # with every other game, and their check points only exist in their own
+    # asset namespace.
+    pages = (page_main, page_task, page_pass, page_friend, page_mail,
+             page_expedition, page_room, page_exercise, page_profile,
+             page_support, page_battle_resource, page_battle, page_core)
+
+    # Rate limit of the back key used to close the sign-in panel. The same key
+    # opens "确认退出?" on the title screen, see handle_sign_in().
+    SIGN_IN_BACK = Timer(2)
+
     def app_start(self):
         """
         Launch the game and walk through the boot screens until page_main.
@@ -191,6 +203,17 @@ class HazeworldUI(UI):
             if self.handle_exit_confirm():
                 continue
 
+            # Reward popups of the sign-in below, and of anything the game
+            # decides to hand out on login.
+            if self.handle_reward():
+                continue
+
+            # The monthly sign-in panel opens over the lobby on the first launch
+            # of a day. Nothing else in this loop matches it, so without this the
+            # boot dies on a stuck check 60 seconds in.
+            if self.handle_sign_in():
+                continue
+
             # Announcement is a modal over the title screen, back dismisses it.
             # Only pressed on the positive condition, never on the main page.
             if self.appear(LOGIN_ANNOUNCE, offset=(20, 20)):
@@ -224,6 +247,41 @@ class HazeworldUI(UI):
         if self.appear(EXIT_CONFIRM, offset=(20, 20)):
             logger.info('Exit confirm dialog, cancel it')
             self.device.click(EXIT_CONFIRM)
+            return True
+
+        return False
+
+    def handle_sign_in(self):
+        """
+        Claim and close the monthly sign-in panel.
+
+        The panel opens over the lobby on the first launch of a day and stays
+        until it is dismissed. 「点击签到」 is clicked first: it turns into
+        「已签到」 once the day is taken, so the close branch only runs after the
+        claim, never instead of it.
+
+        The panel draws a "◀" in its corner, but it is decoration and tapping it
+        does nothing (verified). The back key closes the panel instead. It is
+        only sent while the panel is on screen and it is rate limited, because
+        on the title screen the same key opens "确认退出?", which logs the account
+        out if confirmed; `handle_exit_confirm()` runs before this in the boot
+        loop and cancels that dialog.
+
+        Pages:
+            in: any
+            out: any
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear_then_click(LOGIN_SIGN_IN, offset=(20, 20), interval=3):
+            logger.info('Monthly sign-in, claim it')
+            return True
+
+        if self.appear(LOGIN_SIGN_CLOSE, offset=(10, 10)):
+            if self.SIGN_IN_BACK.reached_and_reset():
+                logger.info('Monthly sign-in, close it')
+                self.device.adb_shell(['input', 'keyevent', '4'])
             return True
 
         return False

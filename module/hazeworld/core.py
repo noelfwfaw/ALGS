@@ -56,6 +56,23 @@ STAMINA_READS = 2
 # count display to catch up before the next tap lands.
 COUNT_INTERVAL = 0.4
 
+# Pressing "max" rewrites the whole count display in one go, which takes longer
+# to repaint than a single "+" tap. Measured on a real dialog: a start pressed
+# 0.6s after the max tap still started 1 run, so the display had not caught up.
+MAX_INTERVAL = 1.2
+
+# The dialog ignores taps until its opening animation ends. Measured: it is
+# matched by template 0.2s after the sweep button is pressed, and a "max" tap
+# sent then is swallowed, which leaves the count at 1 and the sweep costs one
+# sortie. The animation is about half a second, and the tap that starts the
+# sweep right after it (1.4s) did land, so wait longer than that.
+DIALOG_SETTLE = 2.0
+
+# A sweep that spent less stamina than it was asked to is repeated, the dialog
+# swallows the tap on "max" when it lands during the fade in and the sweep then
+# costs a single sortie instead of the whole bar.
+SWEEP_TRIES = 3
+
 # One sweep animates for about a second, and the dialog allows as many as the
 # stamina pays for (20 at the moment of writing). The settlement is waited for
 # with a local timer, the framework stuck timer is only 60s.
@@ -107,7 +124,7 @@ class HazeworldCore(HazeworldUI):
         # and the first frame after ui_ensure() is still the fade in, where no
         # number can be read.
         if self.core_select_type(core):
-            self.core_sweep(self.core_run_count())
+            self.core_sweep_all()
 
         self.ui_goto_main()
 
@@ -199,7 +216,7 @@ class HazeworldCore(HazeworldUI):
             return None, None
         return left, cost
 
-    def core_run_count(self):
+    def core_run_count(self, current=None, cost=None):
         """
         How many runs to sweep with the stamina that is left.
 
@@ -208,11 +225,17 @@ class HazeworldCore(HazeworldUI):
         A count larger than the stamina pays for is reduced instead of being
         refused as a whole.
 
+        Args:
+            current (int): Stamina left, read by the caller when it needs the
+                same number for its own check. None reads it here.
+            cost (int): Stamina of one run, same idea.
+
         Returns:
             int or None: Runs to start, 0 for "as many as the stamina allows",
                 None when the stamina does not pay for a single run.
         """
-        current, cost = self.core_stamina()
+        if current is None or cost is None:
+            current, cost = self.core_stamina()
 
         if current is None or cost is None or cost <= 0:
             # An unreadable number must not cost a day of farming. The sweep
@@ -233,6 +256,54 @@ class HazeworldCore(HazeworldUI):
             logger.info(f'Sweep count {count} is beyond the stamina, sweep {runs}')
             return runs
         return count
+
+    def core_sweep_all(self):
+        """
+        Sweep with the stamina that is left and prove that it was spent.
+
+        The dialog swallows a tap that lands while it is still fading in, and a
+        swallowed "max" leaves the count at 1: the sweep then costs one sortie
+        instead of the whole bar, and the settlement looks exactly the same as a
+        full one. The stamina bar is the only witness, so it is read before and
+        after and the sweep is repeated while it did not spend what it was asked
+        to.
+
+        Pages:
+            in: page_core
+            out: page_core
+
+        Returns:
+            bool: If a sweep ran.
+        """
+        for attempt in range(SWEEP_TRIES):
+            before, cost = self.core_stamina()
+            count = self.core_run_count(before, cost)
+            if count is None:
+                return False
+            if not self.core_sweep(count):
+                # Nothing ran (no stamina, or the stage refused it), a second
+                # dialog would run into the same wall.
+                return False
+
+            if before is None or cost is None or cost <= 0:
+                return True
+
+            after, _ = self.core_stamina()
+            if after is None:
+                logger.warning('Cannot read the stamina after the sweep, skip the check')
+                return True
+
+            spent = before - after
+            expect = count * cost if count else (before // cost) * cost
+            logger.info(f'Stamina {before} -> {after}, spent {spent}, asked for {expect}')
+            # One run of slack: the bar regenerates while the sweep runs, and a
+            # number read a hair off must not start a second sweep.
+            if spent >= expect - cost + 1:
+                return True
+            logger.warning('The sweep spent less stamina than asked, sweep the rest')
+
+        logger.warning(f'Sweep tried {SWEEP_TRIES} times, stop')
+        return True
 
     def core_sweep(self, count):
         """
@@ -275,19 +346,25 @@ class HazeworldCore(HazeworldUI):
         interval = Timer(COUNT_INTERVAL)
         clicked = 0
         prepared = False
+        # Started on the first frame the dialog is matched, see DIALOG_SETTLE.
+        settle = Timer(DIALOG_SETTLE)
 
         while 1:
             self.device.screenshot()
 
             if self.appear(CORE_DIALOG_TITLE, offset=(20, 20)):
                 if not prepared:
+                    settle.start()
+                    if not settle.reached():
+                        continue
+
                     if count == 0:
                         # "MAX" fills the dialog with as many runs as the
                         # stamina pays for.
                         logger.info('Sweep every run the stamina allows')
                         self.device.click(CORE_DIALOG_MAX)
                         prepared = True
-                        interval.reset()
+                        interval = Timer(MAX_INTERVAL).start()
                         continue
                     if clicked < count - 1:
                         if interval.reached():
