@@ -30,6 +30,7 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                     MAIN_BTN_BATTLE, MAIN_BTN_MENU,
                                     MAIN_BTN_SHOP, MAIN_BTN_TREASURE,
                                     MENU_BTN_CLOSE, MENU_BTN_MAIL,
+                                    MAZE_BTN_AUTO, MAZE_CARD, MAZE_DONE,
                                     MENU_BTN_TASK, PASS_BTN, PASS_TITLE,
                                     REWARD_POPUP_TITLE, ROUND_BTN,
                                     ROUND_BTN_UPGRADE,
@@ -155,6 +156,9 @@ page_character_detail = Page(CHAR_BTN_AFFECTION)
 page_affection = Page([AFFECTION_BTN_TALK, AFFECTION_BTN_DONE])
 # A running conversation: the continue arrow at the bottom right.
 page_talk = Page(AFFECTION_TAP)
+# The maze map, opened from the last card of the battle page. Its 「自动进行」
+# button is drawn whether or not a run is left today (the panel it raises tells).
+page_maze = Page([MAZE_BTN_AUTO, MAZE_DONE])
 # The round table panel, opened from the menu grid. Its 「升级」 button is drawn
 # whether or not the resources are enough (the colour tells, read separately),
 # and it covers the menu behind it.
@@ -188,6 +192,7 @@ page_copy_stage.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_dungeon.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_dungeon_dialog.link(button=DUNGEON_DIALOG_CLOSE, destination=page_dungeon)
 page_battle.link(button=ARENA_CARD, destination=page_arena)
+page_maze.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 # All three cards lead to the same versus page: which one is fought is decided
 # by the task, not by the page graph.
 page_arena.link(button=ARENA_BTN_CHALLENGE_1, destination=page_arena_preview)
@@ -259,7 +264,8 @@ class LostswordUI(UI):
              page_arena_season,
              page_arena_preview, page_arena,
              page_event_start, page_event_stage, page_event,
-             page_talk, page_affection, page_character_detail, page_character,
+             page_maze, page_talk, page_affection, page_character_detail,
+             page_character,
              page_battle, page_menu, page_pass, page_round, page_main)
 
     # 连续多少帧看不到才算"真的消失"：淡出动画期间元素已经不再匹配，但还在吃点击。
@@ -274,8 +280,7 @@ class LostswordUI(UI):
         appears. If it runs but is not on any known page, it is stopped first so
         a cold boot is guaranteed.
 
-        Daily task rewards are claimed right after the game becomes playable,
-        see `handle_daily_task()`.
+        Daily task rewards are *not* claimed here, see `handle_session_claim()`.
 
         Pages:
             in: any
@@ -285,14 +290,12 @@ class LostswordUI(UI):
             if self.ui_any_page_appear():
                 logger.info('Game is running, walk to page_main')
                 self.ui_goto_main()
-                self.handle_daily_task()
                 return
             logger.info('Game is running on an unknown page, restart it')
             self.device.app_stop()
 
         self.device.app_start()
         self.handle_app_boot()
-        self.handle_daily_task()
 
     def handle_app_boot(self, skip_first_screenshot=True):
         """
@@ -347,14 +350,19 @@ class LostswordUI(UI):
                 logger.warning('Wait game boot timeout')
                 raise GameStuckError('Game did not reach page_main after launch')
 
-    def handle_daily_task(self):
+    def handle_session_claim(self):
         """
-        Claim the daily task rewards once per game session.
+        Claim the daily task rewards and the battle pass once per session.
+
+        Called by the scheduler when the queue runs dry, i.e. after every queued
+        task has been run, and never at launch: the rewards are worth nothing
+        compared to the tasks the user queued, so they go last, both here and in
+        the priority list.
 
         The task is scheduled last on purpose, but a task that waits for its own
         turn never runs when the queue is closed before it (last task of the
-        day, manual stop, crash restart). Claiming it right after every launch
-        closes that gap: whatever brought the game up, the rewards are taken.
+        day, manual stop, crash restart). This hook closes that gap: whatever
+        brought the game up, the rewards are taken at the end of the session.
 
         This is gated by `LostswordTask.Claim`, not by `Scheduler.Enable`: the
         point of bundling is that it happens even when the task itself is not
@@ -369,9 +377,9 @@ class LostswordUI(UI):
         """
         from module.config.deep import deep_get
 
-        # Read from the raw config: `app_start()` usually runs inside the
-        # `Restart` task, which binds neither `LostswordTask` nor its arguments,
-        # so `self.config.LostswordTask_*` does not exist there.
+        # Read from the raw config: the scheduler calls this hook outside of any
+        # task, so the bound config belongs to whatever ran last and neither
+        # `LostswordTask` nor its arguments exist on it.
         if not deep_get(self.config.data, 'LostswordTask.LostswordTask.Claim', default=True):
             return True
 

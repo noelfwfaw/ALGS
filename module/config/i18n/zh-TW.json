@@ -58,6 +58,10 @@
       "name": "信箱",
       "help": "領取信箱裡的附件"
     },
+    "LostswordMain": {
+      "name": "推主線",
+      "help": "冒險裡依序普通→困難→地獄推到打不過為止"
+    },
     "LostswordBoss": {
       "name": "領主突襲",
       "help": "每天挑戰一次，再把剩餘的免費次數掃蕩掉"
@@ -73,6 +77,10 @@
     "LostswordCopy": {
       "name": "副本掃蕩",
       "help": "進任意可掃蕩副本，用一鍵掃蕩把金幣/經驗書/屬性石一起掃掉"
+    },
+    "LostswordMaze": {
+      "name": "迷宮",
+      "help": "進迷宮點「自動進行」，讓它自己走到今天走不動為止"
     },
     "LostswordEvent": {
       "name": "活動",

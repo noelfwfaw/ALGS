@@ -26,10 +26,12 @@
     "page": "setting",
     "tasks": [
       "LostswordMail",
+      "LostswordMain",
       "LostswordBoss",
       "LostswordDungeon",
       "LostswordStar",
       "LostswordCopy",
+      "LostswordMaze",
       "LostswordEvent",
       "LostswordArena",
       "LostswordRound",

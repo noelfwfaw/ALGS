@@ -42,8 +42,9 @@ class LostswordTask(LostswordUI):
     """
     Claim the task rewards of every tab.
 
-    `task_claim()` is also called by `LostswordUI.app_start()`, so the rewards
-    are taken once per game session and never wait for their own schedule slot.
+    `task_claim()` is also called by `LostswordUI.handle_session_claim()`, so
+    the rewards are taken once per session even when the queue is cut short
+    before this task gets its turn.
 
     Pages:
         in: page_main

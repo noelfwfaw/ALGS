@@ -22,8 +22,8 @@ class ManualConfig:
     # drops it from the schedule entirely, so every task must be listed.
     SCHEDULER_PRIORITY = """
     Restart
-    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldPass > HazeworldCore > HazeworldTask
-    > LostswordMail > LostswordBoss > LostswordDungeon > LostswordStar > LostswordCopy > LostswordEvent > LostswordArena > LostswordRound > LostswordAffection > LostswordShop > LostswordTreasure > LostswordTask
+    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
+    > LostswordMail > LostswordMain > LostswordBoss > LostswordDungeon > LostswordStar > LostswordCopy > LostswordMaze > LostswordEvent > LostswordArena > LostswordRound > LostswordAffection > LostswordShop > LostswordTreasure > LostswordTask
     """
 
     """

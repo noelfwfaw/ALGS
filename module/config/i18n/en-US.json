@@ -58,6 +58,10 @@
       "name": "Mailbox",
       "help": "Claim the attachments in the mailbox"
     },
+    "LostswordMain": {
+      "name": "Main story",
+      "help": "Push the adventure stages on normal, then hard, then hell, until the team loses"
+    },
     "LostswordBoss": {
       "name": "Boss raid",
       "help": "Fight once a day, then sweep the rest of the free tries"
@@ -73,6 +77,10 @@
     "LostswordCopy": {
       "name": "Stage sweep",
       "help": "Open one sweepable stage and use the shared panel to sweep gold / exp / stones"
+    },
+    "LostswordMaze": {
+      "name": "Maze",
+      "help": "Open the maze and start the auto run; it walks until the daily limit"
     },
     "LostswordEvent": {
       "name": "Event",

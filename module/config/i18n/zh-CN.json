@@ -58,6 +58,10 @@
       "name": "邮箱",
       "help": "领取邮箱里的附件"
     },
+    "LostswordMain": {
+      "name": "推主线",
+      "help": "冒险里按普通→困难→地狱依次往死里推，打不过就换下一个难度"
+    },
     "LostswordBoss": {
       "name": "领主突袭",
       "help": "每天挑战一次，再把剩余的免费次数扫荡掉"
@@ -73,6 +77,10 @@
     "LostswordCopy": {
       "name": "副本扫荡",
       "help": "进任意可扫荡副本，用一键扫荡把金币/经验书/属性石一起扫掉"
+    },
+    "LostswordMaze": {
+      "name": "迷宫",
+      "help": "进迷宫点「自动进行」，让它自己走到今天走不动为止"
     },
     "LostswordEvent": {
       "name": "活动",

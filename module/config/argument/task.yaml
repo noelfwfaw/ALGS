@@ -56,6 +56,8 @@ Lostsword:
   tasks:
     LostswordMail:
       - Scheduler
+    LostswordMain:
+      - Scheduler
     LostswordBoss:
       - Scheduler
       - LostswordBoss
@@ -64,6 +66,8 @@ Lostsword:
     LostswordStar:
       - Scheduler
     LostswordCopy:
+      - Scheduler
+    LostswordMaze:
       - Scheduler
     LostswordEvent:
       - Scheduler

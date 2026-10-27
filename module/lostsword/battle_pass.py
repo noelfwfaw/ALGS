@@ -150,8 +150,8 @@ class LostswordBattlePass(LostswordUI):
 
     def run(self):
         """
-        Standalone entry, used by the tests. The daily routine calls
-        `pass_claim()` directly, see `LostswordUI.handle_daily_task()`.
+        Standalone entry, used by the tests. The session claim calls
+        `pass_claim()` directly, see `LostswordUI.handle_session_claim()`.
         """
         claimed = self.pass_claim()
         logger.info(f'Battle pass claimed: {claimed}')
