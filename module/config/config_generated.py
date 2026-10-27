@@ -89,6 +89,17 @@ class GeneratedConfig:
     LostswordTreasure_Claim = True
     LostswordTreasure_Quick = True
 
+    # Group `LostswordBoss`
+    LostswordBoss_Sweep = True
+
+    # Group `LostswordAffection`
+    LostswordAffection_Name1 = None
+    LostswordAffection_Name2 = None
+    LostswordAffection_Name3 = None
+    LostswordAffection_Name4 = None
+    LostswordAffection_Name5 = None
+    LostswordAffection_Name6 = None
+
     # Group `LostswordTask`
     LostswordTask_Claim = True
 

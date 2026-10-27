@@ -26,6 +26,14 @@
     "page": "setting",
     "tasks": [
       "LostswordMail",
+      "LostswordBoss",
+      "LostswordDungeon",
+      "LostswordStar",
+      "LostswordCopy",
+      "LostswordEvent",
+      "LostswordArena",
+      "LostswordRound",
+      "LostswordAffection",
       "LostswordShop",
       "LostswordTreasure",
       "LostswordTask"

@@ -58,6 +58,38 @@
       "name": "メール",
       "help": "メールの添付を受け取る"
     },
+    "LostswordBoss": {
+      "name": "ボスレイド",
+      "help": "1日1回挑戦し、残りの無料回数を掃討する"
+    },
+    "LostswordDungeon": {
+      "name": "小隊ダンジョン",
+      "help": "毎日1回挑戦し、マッチング後に戦闘終了まで待つ"
+    },
+    "LostswordStar": {
+      "name": "星辰輪廻",
+      "help": "3つの冒険エリアを1回ずつ挑戦する"
+    },
+    "LostswordCopy": {
+      "name": "ステージ掃討",
+      "help": "掃討可能なステージから一括掃討で金貨・EXP・属性石をまとめて回収"
+    },
+    "LostswordEvent": {
+      "name": "イベント",
+      "help": "新しいイベントを開拓し、クリア済みステージを掃討。探険完了はスキップ"
+    },
+    "LostswordArena": {
+      "name": "アリーナ",
+      "help": "アリーナチケットで対戦、昇格戦を優先。チケットは溜めて1日1回使い、最後にシーズン任務を受け取る"
+    },
+    "LostswordRound": {
+      "name": "円卓強化",
+      "help": "金貨と経験書で騎士団レベルを上げる。資源が尽きるまで"
+    },
+    "LostswordAffection": {
+      "name": "好感会話",
+      "help": "設定した6キャラと好感会話を行う。1日の回数を使い切るまで"
+    },
     "LostswordShop": {
       "name": "ショップ",
       "help": "デイリー・ウィークリー・マンスリーの無料ギフトを受け取る"
@@ -114,7 +146,7 @@
     },
     "PackageName": {
       "name": "Emulator.PackageName.name",
-      "help": "Emulator.PackageName.help",
+      "help": "起動時に最初に開くゲーム。以降はスケジューラがタスクに応じて自動で切り替えるため、インストール済みのものを1つ選べばよい（複数入っていると「自動検出」は判断できない）",
       "auto": "auto",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
@@ -460,6 +492,46 @@
     "Quick": {
       "name": "毎日1回の無料高速探索",
       "help": "その日の無料高速探索を使う。ダイヤが必要なときは押さない"
+    }
+  },
+  "LostswordBoss": {
+    "_info": {
+      "name": "領主襲撃設定",
+      "help": ""
+    },
+    "Sweep": {
+      "name": "残り回数を掃討",
+      "help": "オフにすると戦闘のみ行い、残りの無料回数は使いません"
+    }
+  },
+  "LostswordAffection": {
+    "_info": {
+      "name": "好感会話設定",
+      "help": ""
+    },
+    "Name1": {
+      "name": "キャラ 1",
+      "help": "キャラページのカード下に書かれている名前"
+    },
+    "Name2": {
+      "name": "キャラ 2",
+      "help": "キャラページのカード下に書かれている名前"
+    },
+    "Name3": {
+      "name": "キャラ 3",
+      "help": "キャラページのカード下に書かれている名前"
+    },
+    "Name4": {
+      "name": "キャラ 4",
+      "help": "キャラページのカード下に書かれている名前"
+    },
+    "Name5": {
+      "name": "キャラ 5",
+      "help": "キャラページのカード下に書かれている名前"
+    },
+    "Name6": {
+      "name": "キャラ 6",
+      "help": "キャラページのカード下に書かれている名前"
     }
   },
   "LostswordTask": {

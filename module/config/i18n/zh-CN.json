@@ -58,6 +58,38 @@
       "name": "邮箱",
       "help": "领取邮箱里的附件"
     },
+    "LostswordBoss": {
+      "name": "领主突袭",
+      "help": "每天挑战一次，再把剩余的免费次数扫荡掉"
+    },
+    "LostswordDungeon": {
+      "name": "小队副本",
+      "help": "每天消耗一次副本次数，进房间匹配后等战斗结束"
+    },
+    "LostswordStar": {
+      "name": "星辰轮回",
+      "help": "三个冒险区域各挑战一次，打完退出"
+    },
+    "LostswordCopy": {
+      "name": "副本扫荡",
+      "help": "进任意可扫荡副本，用一键扫荡把金币/经验书/属性石一起扫掉"
+    },
+    "LostswordEvent": {
+      "name": "活动",
+      "help": "开荒新活动并扫荡已通关的关卡；探险完成的活动自动跳过"
+    },
+    "LostswordArena": {
+      "name": "竞技场",
+      "help": "消耗竞技场票券挑战对手，晋级赛优先；票券攒着一天打一次，打完领赛季任务"
+    },
+    "LostswordRound": {
+      "name": "圆桌升级",
+      "help": "用金币和经验书提升骑士团等级，升到资源不足为止"
+    },
+    "LostswordAffection": {
+      "name": "好感对话",
+      "help": "按配置的 6 个角色逐个进行好感对话，用完当天次数为止"
+    },
     "LostswordShop": {
       "name": "商店",
       "help": "领取每日、每周、每月的免费礼包"
@@ -114,7 +146,7 @@
     },
     "PackageName": {
       "name": "游戏服务器",
-      "help": "模拟器上装有多个游戏客户端时，需要手动选择服务器",
+      "help": "启动时先打开的游戏。之后调度器会按任务自动切换，这里只需要选一个已安装的游戏；装有多个客户端时「自动检测」无法判断，必须手选",
       "auto": "自动检测",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
@@ -460,6 +492,46 @@
     "Quick": {
       "name": "每日一次免费快速探查",
       "help": "用掉当天免费的快速探查，需要钻石时不点"
+    }
+  },
+  "LostswordBoss": {
+    "_info": {
+      "name": "领主突袭设置",
+      "help": ""
+    },
+    "Sweep": {
+      "name": "扫荡剩余次数",
+      "help": "关闭后只打一次战斗，不消耗剩余的免费次数"
+    }
+  },
+  "LostswordAffection": {
+    "_info": {
+      "name": "好感对话设置",
+      "help": ""
+    },
+    "Name1": {
+      "name": "角色 1",
+      "help": "填角色名，即角色页卡片下方写的那个"
+    },
+    "Name2": {
+      "name": "角色 2",
+      "help": "填角色名，即角色页卡片下方写的那个"
+    },
+    "Name3": {
+      "name": "角色 3",
+      "help": "填角色名，即角色页卡片下方写的那个"
+    },
+    "Name4": {
+      "name": "角色 4",
+      "help": "填角色名，即角色页卡片下方写的那个"
+    },
+    "Name5": {
+      "name": "角色 5",
+      "help": "填角色名，即角色页卡片下方写的那个"
+    },
+    "Name6": {
+      "name": "角色 6",
+      "help": "填角色名，即角色页卡片下方写的那个"
     }
   },
   "LostswordTask": {

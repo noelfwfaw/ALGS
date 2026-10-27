@@ -254,6 +254,3 @@ class LostswordShop(LostswordUI):
             self.device.click(SHOP_DIALOG_CLOSE)
             return self.wait_overlay_gone(SHOP_DIALOG_TITLE, timeout=5)
         return False
-
-        self.handle_reward_popup()
-        return 1

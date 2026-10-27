@@ -23,7 +23,7 @@ class ManualConfig:
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldPass > HazeworldCore > HazeworldTask
-    > LostswordMail > LostswordShop > LostswordTreasure > LostswordTask
+    > LostswordMail > LostswordBoss > LostswordDungeon > LostswordStar > LostswordCopy > LostswordEvent > LostswordArena > LostswordRound > LostswordAffection > LostswordShop > LostswordTreasure > LostswordTask
     """
 
     """

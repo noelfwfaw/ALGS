@@ -161,5 +161,26 @@ LostswordTreasure:
   Claim: true
   Quick: true
 
+LostswordBoss:
+  Sweep: true
+LostswordAffection:
+  Name1:
+    type: input
+    value: ''
+  Name2:
+    type: input
+    value: ''
+  Name3:
+    type: input
+    value: ''
+  Name4:
+    type: input
+    value: ''
+  Name5:
+    type: input
+    value: ''
+  Name6:
+    type: input
+    value: ''
 LostswordTask:
   Claim: true

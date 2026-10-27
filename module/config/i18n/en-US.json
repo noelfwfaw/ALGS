@@ -58,6 +58,38 @@
       "name": "Mailbox",
       "help": "Claim the attachments in the mailbox"
     },
+    "LostswordBoss": {
+      "name": "Boss raid",
+      "help": "Fight once a day, then sweep the rest of the free tries"
+    },
+    "LostswordDungeon": {
+      "name": "Squad dungeon",
+      "help": "Spend the daily try, wait for the match and the battle to clear"
+    },
+    "LostswordStar": {
+      "name": "Star cycle",
+      "help": "Challenge the three adventure areas once each"
+    },
+    "LostswordCopy": {
+      "name": "Stage sweep",
+      "help": "Open one sweepable stage and use the shared panel to sweep gold / exp / stones"
+    },
+    "LostswordEvent": {
+      "name": "Event",
+      "help": "Clear new events and sweep the stages already done; 探险完成 events are skipped"
+    },
+    "LostswordArena": {
+      "name": "Arena",
+      "help": "Spend arena tickets on opponents, promotion matches first; tickets pile up and are spent once a day, then the season missions are claimed"
+    },
+    "LostswordRound": {
+      "name": "Round table",
+      "help": "Raise the knight order level with gold and exp books until the resources run out"
+    },
+    "LostswordAffection": {
+      "name": "Affection talks",
+      "help": "Talk to the six configured characters until the daily tries run out"
+    },
     "LostswordShop": {
       "name": "Shop",
       "help": "Claim the daily, weekly and monthly free gifts"
@@ -114,7 +146,7 @@
     },
     "PackageName": {
       "name": "Game Server",
-      "help": "Manual select is required if multiple game clients are installed on emulator",
+      "help": "Game to open first. The scheduler switches games by itself afterwards, so pick any installed one; \"Auto-detect\" cannot decide when several clients are installed",
       "auto": "Auto-detect",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
@@ -460,6 +492,46 @@
     "Quick": {
       "name": "Daily free quick explore",
       "help": "Use the free quick explore of the day; skip it when diamonds are required"
+    }
+  },
+  "LostswordBoss": {
+    "_info": {
+      "name": "Boss raid settings",
+      "help": ""
+    },
+    "Sweep": {
+      "name": "Sweep the rest",
+      "help": "When off only the battle is fought, the other free tries are left alone"
+    }
+  },
+  "LostswordAffection": {
+    "_info": {
+      "name": "Affection talk settings",
+      "help": ""
+    },
+    "Name1": {
+      "name": "Character 1",
+      "help": "The name written under the card on the character page"
+    },
+    "Name2": {
+      "name": "Character 2",
+      "help": "The name written under the card on the character page"
+    },
+    "Name3": {
+      "name": "Character 3",
+      "help": "The name written under the card on the character page"
+    },
+    "Name4": {
+      "name": "Character 4",
+      "help": "The name written under the card on the character page"
+    },
+    "Name5": {
+      "name": "Character 5",
+      "help": "The name written under the card on the character page"
+    },
+    "Name6": {
+      "name": "Character 6",
+      "help": "The name written under the card on the character page"
     }
   },
   "LostswordTask": {
