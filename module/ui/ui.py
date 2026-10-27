@@ -21,6 +21,39 @@ class UI(ModuleBase):
     ui_current: Page
     # Home page of the current game, set by subclass
     page_main: Page = None
+    # Pages of this game, in the order they should be matched. `Page.all_pages`
+    # is a registry shared by every game in the process, and matching a page of
+    # another game raises `KeyError: '<namespace>'` on every asset lookup, so a
+    # game has to name its own pages. Left empty by a single game setup, which
+    # then falls back to the whole registry.
+    pages = ()
+
+    def ui_iter_pages(self):
+        """
+        Pages of the game this UI belongs to.
+
+        Returns:
+            Iterable[Page]: Own pages, or every registered page when the game
+            did not declare any.
+        """
+        return self.pages if self.pages else Page.iter_pages()
+
+    def ui_iter_check_buttons(self):
+        """
+        Check points of the own pages, flattened.
+
+        Returns:
+            Iterable[Button]:
+        """
+        for page in self.ui_iter_pages():
+            button = page.check_button
+            if button is None:
+                continue
+            if isinstance(button, (list, tuple)):
+                for item in button:
+                    yield item
+            else:
+                yield button
 
     def ui_page_appear(self, page, offset=(30, 30), interval=0):
         """
@@ -75,7 +108,7 @@ class UI(ModuleBase):
         if not self.device.has_cached_image:
             self.device.screenshot()
 
-        for page in Page.iter_pages():
+        for page in self.ui_iter_pages():
             if page.check_button is None:
                 continue
             if self.ui_page_appear(page, offset=offset):
@@ -253,7 +286,7 @@ class UI(ModuleBase):
                 break
 
             # Known pages
-            for page in Page.iter_pages():
+            for page in self.ui_iter_pages():
                 if page.check_button is None:
                     continue
                 if self.ui_page_appear(page=page):
@@ -321,7 +354,7 @@ class UI(ModuleBase):
         """
         # Create connection
         Page.init_connection(destination)
-        self.interval_clear(list(Page.iter_check_buttons()))
+        self.interval_clear(list(self.ui_iter_check_buttons()))
 
         logger.hr(f"UI goto {destination}")
         while 1:
@@ -338,7 +371,7 @@ class UI(ModuleBase):
 
             # Other pages
             clicked = False
-            for page in Page.iter_pages():
+            for page in self.ui_iter_pages():
                 if page.parent is None or page.check_button is None:
                     continue
                 if self.ui_page_appear(page, offset=offset, interval=5):

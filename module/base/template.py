@@ -31,7 +31,17 @@ class Template(Resource):
 
     @cached_property
     def name(self):
-        return os.path.splitext(os.path.basename(self.file))[0].upper()
+        """
+        Name of this template, taken from its file name.
+
+        Namespace independent on purpose, see `Button.name`.
+        """
+        raw = self.raw_file
+        if isinstance(raw, dict):
+            path = next(iter(raw.values()), None)
+        else:
+            path = raw
+        return os.path.splitext(os.path.basename(path))[0].upper()
 
     @cached_property
     def is_gif(self):

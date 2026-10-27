@@ -29,11 +29,19 @@ class GameScheduler:
 
     stop_event: threading.Event = None
 
+    # Namespace -> (module, class name) of the game UI class, filled by the
+    # subclass. Empty in a single game setup, which turns every game switch
+    # below into a no-op.
+    games = {}
+
     def __init__(self, config_name='alas'):
         logger.hr('Start', level=0)
         self.config_name = config_name
         # Skip first restart
         self.is_first_task = True
+        # Namespace of the game currently on screen, None until the first task
+        # asks for one (then it is taken from the asset namespace).
+        self.game = None
         # Failure count of tasks
         # Key: str, task name, value: int, failure count
         self.failure_record = {}
@@ -175,6 +183,111 @@ class GameScheduler:
         # SuccessInterval is 0 and the scheduler picks it again immediately.
         self.config.task_delay(server_update=True)
 
+    def task_game(self, task):
+        """
+        Game a task belongs to.
+
+        Every game names its tasks after its own namespace (`Hazeworld*`,
+        `Lostsword*`), so the prefix is the mapping and a new task files itself.
+        Framework tasks (`Restart`, `start`, `goto_main`) match nothing: they act
+        on whichever game is on screen.
+
+        Args:
+            task (str): Task name, as written in `task.yaml`.
+
+        Returns:
+            str: Asset namespace, or None for a framework task.
+        """
+        if not task:
+            return None
+        name = task.lower()
+        # Longest first, so a namespace that is a prefix of another cannot win.
+        for game in sorted(self.games, key=len, reverse=True):
+            if name.startswith(game):
+                return game
+        return None
+
+    def peek_next_game(self):
+        """
+        Game of the next task that has one and is already due.
+
+        Used by `Restart` so that it boots the game the queue is about to use,
+        instead of the one that happened to run last night. Tasks that are only
+        waiting for their next run are not considered: restarting a game an hour
+        before it is used again would just be a cold boot for nothing.
+
+        Returns:
+            str: Asset namespace, or None.
+        """
+        for func in self.config.pending_task:
+            game = self.task_game(func.command)
+            if game is not None:
+                return game
+        return None
+
+    def switch_game(self, game, boot=True):
+        """
+        Put the given game in front and make its namespace the active one.
+
+        Switching is four steps in a fixed order: stop the old game, repoint the
+        package, switch the asset namespace (which drops the images and OCR
+        models of the old game), then clear the click/stuck records. Recognising
+        anything before the namespace switch would compare the new screen with
+        the old game's templates.
+
+        Two games are never left running: the low memory killer picks one of them
+        on a phone-sized device, and it picks the foreground one often enough to
+        look like a random crash.
+
+        Args:
+            game (str): Asset namespace, None for "whatever is on screen".
+            boot (bool): Launch the game when it is not running. False lets the
+                caller do it, which is what `Restart` wants.
+
+        Returns:
+            bool: If the game changed.
+        """
+        import module.config.server as server
+        from module.config.server import set_server, to_package
+
+        if self.game is None:
+            # Nothing switched yet in this process: the namespace set by the
+            # device at start up is the one on screen.
+            self.game = server.server
+
+        if game is not None and game != self.game:
+            package = to_package(game)
+            if package is None:
+                raise ScriptError(
+                    f'Game `{game}` has no package, register it in module/config/server.py')
+
+            logger.hr(f'Switch game: {self.game} -> {game}', level=1)
+            if self.device.app_is_running():
+                self.device.app_stop()
+            # `app_start` / `app_stop` / `app_is_running` are all relative to it.
+            self.device.package = package
+            set_server(game)
+            self.game = game
+            self.device.stuck_record_clear()
+            self.device.click_record_clear()
+        elif not boot:
+            return False
+        elif self.device.app_is_running():
+            return False
+        else:
+            logger.info(f'Game `{self.game}` is not running, start it')
+
+        if boot:
+            try:
+                self.start()
+            except (GameStuckError, GameNotRunningError, GameTooManyClickError) as e:
+                # A game that does not come up is a task failure, not a reason to
+                # kill the scheduler: the task below runs into the same wall right
+                # away, and the usual handling takes it from there (archive,
+                # `Restart`, three strikes).
+                logger.warning(f'Game `{self.game}` did not come up: {e}')
+        return True
+
     def start(self):
         """
         Start the current game app and wait until it is playable.
@@ -301,6 +414,14 @@ class GameScheduler:
             # Init device and change server
             _ = self.device
             self.device.config = self.config
+            # Bring the game that owns this task to the front. A framework task
+            # has no game of its own, so `Restart` prepares the one the queue is
+            # about to use and leaves the launching to itself.
+            game = self.task_game(task)
+            if game is not None:
+                self.switch_game(game)
+            elif task == 'Restart':
+                self.switch_game(self.peek_next_game(), boot=False)
             # Skip first restart
             if self.is_first_task and task == 'Restart':
                 logger.info('Skip task `Restart` at scheduler start')

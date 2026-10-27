@@ -66,12 +66,27 @@ class Button(Resource):
 
     @cached_property
     def name(self):
+        """
+        Name of this button, taken from its file name.
+
+        The name must not depend on the active namespace: `release_resources()`
+        walks every registered button, including the ones of games that are not
+        running right now, and resolving their file path would raise
+        `KeyError: '<namespace>'` there.
+        """
         if self.raw_name:
             return self.raw_name
-        elif self.file:
-            return os.path.splitext(os.path.split(self.file)[1])[0]
+
+        raw = self.raw_file
+        if isinstance(raw, dict):
+            # Every namespace points at the same file name, the folder differs.
+            path = next(iter(raw.values()), None)
         else:
-            return 'BUTTON'
+            path = raw
+        if path:
+            return os.path.splitext(os.path.split(path)[1])[0]
+
+        return 'BUTTON'
 
     @cached_property
     def is_gif(self):
