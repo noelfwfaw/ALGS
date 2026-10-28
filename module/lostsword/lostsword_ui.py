@@ -283,6 +283,9 @@ class LostswordUI(UI):
         from module.base.utils import get_color
 
         timeout = Timer(timeout).start()
+        # Not started: an unstarted timer counts as reached, so the first press
+        # goes out on the first frame.
+        retry = Timer(1.5)
         while 1:
             self.device.screenshot()
             color = get_color(self.device.image, BATTLE_TAB_NORMAL.area)
@@ -291,11 +294,14 @@ class LostswordUI(UI):
                 # the first card so every card asset sits where it was cut.
                 self.battle_scroll(forward=False)
                 return True
-            # The tab is on screen whether it is the open one or not, so the
-            # judgment here is the mean colour above and the press is the usual
-            # interval-throttled one.
-            if self.appear_then_click(BATTLE_TAB_NORMAL, offset=30, interval=1.5):
-                continue
+            # The tab is a plain area of the page with no template of its own,
+            # which `appear()` would need (calling it here raised AttributeError
+            # on 2026-10-28), so the battle heading is what guards the press and
+            # the mean colour above is what decides whether the press landed.
+            if retry.reached():
+                retry.reset()
+                if self.appear(BATTLE_TITLE, offset=30):
+                    self.device.click(BATTLE_TAB_NORMAL)
             if timeout.reached():
                 logger.warning('Cannot switch the battle page back to 普通')
                 return False

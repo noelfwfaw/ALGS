@@ -1,4 +1,6 @@
 from module.base.button import Button
+from module.base.timer import Timer
+from module.base.utils import get_color
 from module.logger import logger
 from module.lostsword.assets import REWARD_POPUP_TITLE, TASK_BTN_CLAIM_ALL
 from module.lostsword.lostsword_ui import LostswordUI, page_task
@@ -24,12 +26,24 @@ dot, which is why the same tab can legitimately be reached twice in one run.
 
 # Clickable areas of the three tabs. The panel layout is fixed, so plain
 # coordinates are enough; a miss lands on the empty header of the panel.
-TASK_TAB_DAILY = Button(area=(78, 72, 152, 122), color=(0, 0, 0),  # alas-lint: allow - a disabled-state variant of a generated asset
+#
+# They are click points, not assets: there is no template of them on disk, and
+# `appear()` needs one - calling it here raised AttributeError every time the
+# task ran (2026-10-28 12:54, the first run after these were split out of a
+# bigger task). The open tab is found by the colour of its plate instead, see
+# `TASK_TAB_MEAN`.
+TASK_TAB_DAILY = Button(area=(78, 72, 152, 122), color=(0, 0, 0),  # alas-lint: allow - a click point on a blank part of a panel
                         button=(78, 72, 152, 122), name='TASK_TAB_DAILY')
-TASK_TAB_WEEKLY = Button(area=(318, 72, 392, 122), color=(0, 0, 0),  # alas-lint: allow - a disabled-state variant of a generated asset
+TASK_TAB_WEEKLY = Button(area=(318, 72, 392, 122), color=(0, 0, 0),  # alas-lint: allow - a click point on a blank part of a panel
                          button=(318, 72, 392, 122), name='TASK_TAB_WEEKLY')
-TASK_TAB_MONTHLY = Button(area=(548, 72, 622, 122), color=(0, 0, 0),  # alas-lint: allow - a disabled-state variant of a generated asset
+TASK_TAB_MONTHLY = Button(area=(548, 72, 622, 122), color=(0, 0, 0),  # alas-lint: allow - a click point on a blank part of a panel
                           button=(548, 72, 622, 122), name='TASK_TAB_MONTHLY')
+
+# The open tab is drawn as a light plate with dark text, the others as dark
+# background with light text, so the mean colour of the area tells them apart
+# without a template: measured 140~200 for the open one and 73~79 for the two
+# closed ones, on three captures (two references and the 12:54 error frame).
+TASK_TAB_MEAN = 110
 
 TASK_TABS = (
     ('daily', TASK_TAB_DAILY),
@@ -82,13 +96,10 @@ class LostswordTask(LostswordUI):
             # 否则页签的点击会落在大厅上（那个位置是角色头像）。
             self.ui_ensure(page_task)
             logger.info(f'Claim {name} task rewards')
-            # The tab row is on screen whatever is selected, so this is only
-            # about the press.
-            if self.appear(tab, offset=(20, 20)):
-                self.device.click(tab)
-            # Switching tabs repaints the list in place, there is no transition
-            # to wait for, only the claim button repainting to its new state.
-            self.wait_until_still(TASK_BTN_CLAIM_ALL.area, timeout=2)
+            # A tab that cannot be confirmed as open is still claimed: the claim
+            # is idempotent, so a press that landed on the previous tab costs
+            # nothing, while skipping the tab loses its rewards until tomorrow.
+            self.task_open_tab(tab)
             claimed += self.task_claim_tab()
 
         self.ui_goto_main()
@@ -97,6 +108,44 @@ class LostswordTask(LostswordUI):
         else:
             logger.info('No task reward to claim')
         return claimed
+
+    def task_open_tab(self, tab, timeout=6):
+        """
+        Open one tab of the task panel.
+
+        The tabs carry no template of their own, so `appear()` cannot be used on
+        them (it would try to load a file that does not exist). Two things stand
+        in for it: 「全部领取」 is drawn in every state of the panel and guards
+        the press, and the mean colour of the tab's own area says whether it is
+        the open one (see `TASK_TAB_MEAN`).
+
+        Args:
+            tab (Button): Tab to open.
+            timeout (int, float): Seconds.
+
+        Returns:
+            bool: If the tab is the open one.
+        """
+        timeout = Timer(timeout).start()
+        # Not started: an unstarted timer counts as reached, so the first press
+        # goes out on the first frame instead of a second and a half later.
+        retry = Timer(1.5)
+
+        for _ in self.loop():
+            if sum(get_color(self.device.image, tab.area)) / 3 > TASK_TAB_MEAN:
+                # Switching repaints the list below, and 「全部领取」 is read for
+                # its colour, so let the panel stop changing first.
+                self.wait_until_still(TASK_BTN_CLAIM_ALL.area, timeout=3)
+                return True
+
+            if retry.reached():
+                retry.reset()
+                if self.appear(TASK_BTN_CLAIM_ALL, offset=30):
+                    self.device.click(tab)
+
+            if timeout.reached():
+                logger.warning(f'{tab.name} did not open')
+                return False
 
     def task_claim_tab(self):
         """
