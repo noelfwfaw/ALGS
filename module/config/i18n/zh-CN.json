@@ -574,6 +574,7 @@
     "Button": {
       "Start": "启动",
       "Stop": "停止",
+      "StartAll": "一键全跑 {0}",
       "ScrollON": "自动滚动 开",
       "ScrollOFF": "自动滚动 关",
       "ClearLog": "清空日志",
@@ -586,6 +587,7 @@
     "Toast": {
       "DisableTranslateMode": "点击这里关闭翻译模式",
       "ConfigSaved": "设置已保存",
+      "StartAll": "已排入 {0} 个任务，跳过 {1} 个未启用",
       "AlasIsRunning": "调度器已在运行中",
       "ClickToUpdate": "有更新可用，点击这里进行更新"
     },

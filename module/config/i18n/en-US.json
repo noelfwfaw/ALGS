@@ -574,6 +574,7 @@
     "Button": {
       "Start": "Start",
       "Stop": "Stop",
+      "StartAll": "Run all {0}",
       "ScrollON": "Auto Scroll ON",
       "ScrollOFF": "Auto Scroll OFF",
       "ClearLog": "Clear Log",
@@ -586,6 +587,7 @@
     "Toast": {
       "DisableTranslateMode": "Click here to disable translate mode",
       "ConfigSaved": "Config saved",
+      "StartAll": "Queued {0} task(s), skipped {1} disabled",
       "AlasIsRunning": "Scheduler is already running",
       "ClickToUpdate": "New update available, click here to update"
     },

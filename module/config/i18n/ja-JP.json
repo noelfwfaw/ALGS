@@ -574,6 +574,7 @@
     "Button": {
       "Start": "実行",
       "Stop": "中止",
+      "StartAll": "全タスク実行 {0}",
       "ScrollON": "自動スクロール ON",
       "ScrollOFF": "自動スクロール OFF",
       "ClearLog": "ログクリーニング",
@@ -586,6 +587,7 @@
     "Toast": {
       "DisableTranslateMode": "クリックして翻訳モードを中止します",
       "ConfigSaved": "コンフィグ設定は保存されました",
+      "StartAll": "{0} 件のタスクを予約しました（無効 {1} 件はスキップ）",
       "AlasIsRunning": "スケジューラーはもう実行しています",
       "ClickToUpdate": "新しいアップデータがあります。クリックしてアップデータ"
     },

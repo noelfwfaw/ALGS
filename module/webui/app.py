@@ -43,7 +43,7 @@ import module.webui.lang as lang
 from module.config.config import AlasConfig, Function
 from module.config.deep import deep_get, deep_iter, deep_set
 from module.config.env import IS_ON_PHONE_CLOUD
-from module.config.server import to_server
+from module.config.server import VALID_SERVER, to_server
 from module.config.utils import (
     alas_instance,
     alas_template,
@@ -423,6 +423,7 @@ class AlasGUI(Frame):
                         "font-size: 1.25rem; margin: auto .5rem auto;"
                     ),
                     put_scope("scheduler_btn"),
+                    put_scope("start_all_btn"),
                 ],
             )
             put_scope(
@@ -449,6 +450,21 @@ class AlasGUI(Frame):
                     put_scope("waiting_tasks"),
                 ],
             )
+
+        with use_scope("start_all_btn"):
+            groups = self.alas_game_groups()
+            if groups:
+                put_buttons(
+                    [
+                        {
+                            "label": t("Gui.Button.StartAll", t(f"Menu.{group}.name")),
+                            "value": group,
+                            "color": "on",
+                        }
+                        for group in groups
+                    ],
+                    onclick=self.alas_start_all,
+                )
 
         switch_scheduler = BinarySwitchButton(
             label_on=t("Gui.Button.Stop"),
@@ -636,6 +652,71 @@ class AlasGUI(Frame):
                     put_task(task)
             else:
                 put_text(t("Gui.Overview.NoTask")).style("--overview-notask-text--")
+
+    def alas_game_groups(self) -> List[str]:
+        """
+        Menu groups that are games, in the order of the sidebar.
+
+        A group is a game when its name is a registered asset namespace, which
+        is what `module/config/server.py` holds. The GUI keeps no list of its
+        own, so registering a game is enough to get its button.
+
+        Returns:
+            List[str]: Menu group names, such as `['Hazeworld', 'Lostsword']`.
+        """
+        return [group for group in self.ALAS_MENU if group.lower() in VALID_SERVER]
+
+    def alas_start_all(self, group: str) -> None:
+        """
+        Make every enabled task of one game due now, then start the scheduler.
+
+        The tasks are made due instead of being called one after another: the
+        scheduler is what knows the order (`SCHEDULER_PRIORITY`), how to switch
+        the game once instead of per task, and how to handle a failure, a delay
+        or the session claim. Calling tasks directly would run them in the order
+        they are listed in `task.yaml`, which is not the order they are meant to
+        run in.
+
+        A task the user switched off in its own `Scheduler.Enable` is left
+        alone: the button means "run everything I have switched on", not "turn
+        everything on". The number of skipped tasks is reported, so a skip is
+        never silent.
+
+        Args:
+            group (str): Menu group of the game, such as `Hazeworld`.
+        """
+        tasks = deep_get(self.ALAS_MENU, [group, 'tasks'], default=[])
+        config = self.alas_config.read_file(self.alas_name)
+        now = datetime.now().replace(microsecond=0)
+
+        queued = []
+        skipped = []
+        for task in tasks:
+            if deep_get(config, [task, 'Scheduler', 'Enable'], default=False):
+                deep_set(config, [task, 'Scheduler', 'NextRun'], now)
+                queued.append(task)
+            else:
+                skipped.append(task)
+
+        if queued:
+            # Written before the scheduler starts: a task list written after it
+            # has read the config is only picked up by the next reload, and a
+            # reload that lands in the same second as the read is missed
+            # (`ConfigWatcher` compares whole seconds).
+            self.alas_config.write_file(self.alas_name, config)
+            logger.info(f'Start all tasks of `{group}`: {queued}, disabled: {skipped}')
+
+        toast(
+            t("Gui.Toast.StartAll", len(queued), len(skipped)),
+            duration=3,
+            position="right",
+            color="success" if queued else "warn",
+        )
+
+        if queued and not self.alas.alive:
+            self.alas.start(None, updater.event)
+
+        self.alas_update_overview_task()
 
     @use_scope("content", clear=True)
     def alas_daemon_overview(self, task: str) -> None:

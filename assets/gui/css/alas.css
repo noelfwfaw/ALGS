@@ -408,6 +408,29 @@ pre.rich-traceback-code {
     grid-auto-flow: column;
 }
 
+/* The per-game "run everything" buttons get a row of their own: the scheduler
+   bar is only as wide as the panel, and two labels of six characters each do
+   not fit next to the start button without squeezing them into a column. */
+#pywebio-scope-scheduler-bar {
+    flex-wrap: wrap;
+}
+
+#pywebio-scope-scheduler-bar > p {
+    white-space: nowrap;
+}
+
+#pywebio-scope-start_all_btn {
+    flex: 1 1 100%;
+    display: grid;
+    grid-auto-flow: row;
+    gap: 0.3125rem;
+    margin-top: 0.625rem;
+}
+
+#pywebio-scope-start_all_btn button {
+    width: 100%;
+}
+
 #pywebio-scope-log {
     line-height: 1.2;
     font-size: 0.85rem;

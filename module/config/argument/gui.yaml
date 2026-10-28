@@ -12,6 +12,7 @@ Aside:
 Button:
   Start:
   Stop:
+  StartAll:
   ScrollON:
   ScrollOFF:
   ClearLog:
@@ -24,6 +25,7 @@ Button:
 Toast:
   DisableTranslateMode:
   ConfigSaved:
+  StartAll:
   AlasIsRunning:
   ClickToUpdate:
 
