@@ -12,7 +12,8 @@
         "option": [
           "auto",
           "com.feimo.hazeworld.bilibili",
-          "com.wemadeconnect.aos.lostdgl"
+          "com.wemadeconnect.aos.lostdgl",
+          "com.neowizgames.game.browndust2"
         ]
       },
       "ServerName": {
@@ -21,7 +22,8 @@
         "option": [
           "disabled",
           "hazeworld-0",
-          "lostsword-0"
+          "lostsword-0",
+          "browndust-0"
         ]
       },
       "ScreenshotMethod": {

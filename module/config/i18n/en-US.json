@@ -161,14 +161,16 @@
       "help": "Game to open first. The scheduler switches games by itself afterwards, so pick any installed one; \"Auto-detect\" cannot decide when several clients are installed",
       "auto": "Auto-detect",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
-      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
+      "com.neowizgames.game.browndust2": "BROWNDUST"
     },
     "ServerName": {
       "name": "Server in Game Client",
       "help": "Select the server where you are in the game to enable server status detection\nScript will hang up when server is being maintained or network is broken",
       "disabled": "disabled",
       "hazeworld-0": "[HAZEWORLD] default",
-      "lostsword-0": "[LOSTSWORD] default"
+      "lostsword-0": "[LOSTSWORD] default",
+      "browndust-0": "[BROWNDUST] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",

@@ -19,8 +19,8 @@ class GeneratedConfig:
 
     # Group `Emulator`
     Emulator_Serial = 'auto'
-    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl
-    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0
+    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl, com.neowizgames.game.browndust2
+    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0, browndust-0
     Emulator_ScreenshotMethod = 'auto'  # auto, ADB, ADB_nc, uiautomator2, aScreenCap, aScreenCap_nc, DroidCast, DroidCast_raw, nemu_ipc, ldopengl
     Emulator_ControlMethod = 'MaaTouch'  # ADB, uiautomator2, minitouch, Hermit, MaaTouch
     Emulator_ScreenshotDedithering = False

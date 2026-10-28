@@ -26,6 +26,7 @@ class AlGS(GameScheduler):
     games = {
         'hazeworld': ('module.hazeworld.hazeworld_ui', 'HazeworldUI'),
         'lostsword': ('module.lostsword.lostsword_ui', 'LostswordUI'),
+        'browndust': ('module.browndust.browndust_ui', 'BrowndustUI'),
     }
 
     @property
@@ -142,6 +143,21 @@ class AlGS(GameScheduler):
     def lostsword_task(self):
         from module.lostsword.task import LostswordTask
         LostswordTask(config=self.config, device=self.device).run()
+
+    # ==================== Brown Dust II (棕色尘埃2) ====================
+    #
+    # 骨架已就位，任务还没有：游戏包名和 UI 类已注册（见 `games` 与
+    # `module/config/server.py`），但一个任务都没有，所以调度器不会碰这个游戏。
+    #
+    # 第一个任务落地时按这个形状加，方法名必须是任务名的下划线形式
+    # （`inflection.underscore`），因为调度器是按名字调的：
+    #
+    #     def browndust_xxx(self):
+    #         from module.browndust.xxx import BrowndustXxx
+    #         BrowndustXxx(config=self.config, device=self.device).run()
+    #
+    # 任务名的 `Browndust` 前缀不是装饰：`task_game()` 靠它判断这个任务属于哪个
+    # 游戏，前缀对不上就切不了游戏，会在上一个游戏还在前台时直接开跑。
 
 
 if __name__ == '__main__':

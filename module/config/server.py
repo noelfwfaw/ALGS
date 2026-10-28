@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -25,6 +25,9 @@ VALID_PACKAGE = {
     'com.feimo.hazeworld.bilibili': 'hazeworld',
     # 失落之剑 (Lost Sword), Wemade Connect
     'com.wemadeconnect.aos.lostdgl': 'lostsword',
+    # 棕色尘埃2 (Brown Dust II), Neowiz. Read off the emulator with
+    # `adb shell pm list packages`, not guessed from the store listing.
+    'com.neowizgames.game.browndust2': 'browndust',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -34,6 +37,7 @@ VALID_CHANNEL_PACKAGE = {}
 VALID_SERVER_LIST = {
     'hazeworld': ['default'],
     'lostsword': ['default'],
+    'browndust': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

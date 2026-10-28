@@ -161,14 +161,16 @@
       "help": "啟動時先開啟的遊戲。之後調度器會依任務自動切換，這裡只要選一個已安裝的遊戲；裝有多個客戶端時「自動偵測」無法判斷，必須手選",
       "auto": "自動檢測",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
-      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
+      "com.neowizgames.game.browndust2": "BROWNDUST"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
       "help": "Emulator.ServerName.help",
       "disabled": "不使用檢測",
       "hazeworld-0": "[HAZEWORLD] default",
-      "lostsword-0": "[LOSTSWORD] default"
+      "lostsword-0": "[LOSTSWORD] default",
+      "browndust-0": "[BROWNDUST] default"
     },
     "ScreenshotMethod": {
       "name": "模擬器截圖方案",

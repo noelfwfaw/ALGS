@@ -161,14 +161,16 @@
       "help": "启动时先打开的游戏。之后调度器会按任务自动切换，这里只需要选一个已安装的游戏；装有多个客户端时「自动检测」无法判断，必须手选",
       "auto": "自动检测",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
-      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
+      "com.neowizgames.game.browndust2": "BROWNDUST"
     },
     "ServerName": {
       "name": "游戏内服务器",
       "help": "选择游戏内所在的服务器以启用服务器状态检测\n当服务器维护或网络不可用时挂起直到恢复",
       "disabled": "不使用检测",
       "hazeworld-0": "[HAZEWORLD] default",
-      "lostsword-0": "[LOSTSWORD] default"
+      "lostsword-0": "[LOSTSWORD] default",
+      "browndust-0": "[BROWNDUST] default"
     },
     "ScreenshotMethod": {
       "name": "模拟器截图方案",

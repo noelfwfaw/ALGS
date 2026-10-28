@@ -161,14 +161,16 @@
       "help": "起動時に最初に開くゲーム。以降はスケジューラがタスクに応じて自動で切り替えるため、インストール済みのものを1つ選べばよい（複数入っていると「自動検出」は判断できない）",
       "auto": "auto",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
-      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD"
+      "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
+      "com.neowizgames.game.browndust2": "BROWNDUST"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
       "help": "Emulator.ServerName.help",
       "disabled": "disabled",
       "hazeworld-0": "[HAZEWORLD] default",
-      "lostsword-0": "[LOSTSWORD] default"
+      "lostsword-0": "[LOSTSWORD] default",
+      "browndust-0": "[BROWNDUST] default"
     },
     "ScreenshotMethod": {
       "name": "Emulator.ScreenshotMethod.name",
