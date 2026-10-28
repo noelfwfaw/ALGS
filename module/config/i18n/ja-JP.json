@@ -59,8 +59,8 @@
       "help": "放置報酬を受け取り、毎日の無料高速探索を使う"
     },
     "LostswordSummon": {
-      "name": "Task.LostswordSummon.name",
-      "help": "Task.LostswordSummon.help"
+      "name": "無料召喚",
+      "help": "キャラクターとペットのガチャを毎日1回ずつ無料で引く"
     },
     "LostswordShop": {
       "name": "ショップ",
@@ -579,7 +579,7 @@
   "Gui": {
     "Aside": {
       "Install": "インストール",
-      "Home": "Gui.Aside.Home",
+      "Home": "ホーム",
       "Develop": "開発",
       "Performance": "機能",
       "Setting": "設定",

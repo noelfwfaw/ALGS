@@ -59,8 +59,8 @@
       "help": "領取掛機收益，並用掉每日免費的快速探查"
     },
     "LostswordSummon": {
-      "name": "Task.LostswordSummon.name",
-      "help": "Task.LostswordSummon.help"
+      "name": "免費召喚",
+      "help": "領取角色池與寵物池每天各一次的免費召喚"
     },
     "LostswordShop": {
       "name": "商店",

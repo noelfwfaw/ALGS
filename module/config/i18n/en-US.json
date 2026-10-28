@@ -59,8 +59,8 @@
       "help": "Claim the idle rewards and use the free quick explore"
     },
     "LostswordSummon": {
-      "name": "Task.LostswordSummon.name",
-      "help": "Task.LostswordSummon.help"
+      "name": "Free summon",
+      "help": "Take the daily free pull in the character and pet pools"
     },
     "LostswordShop": {
       "name": "Shop",
