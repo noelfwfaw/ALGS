@@ -1,3 +1,5 @@
+import numpy as np
+
 from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
@@ -17,7 +19,7 @@ Flow observed in game:
     page_summon  点「领取角色」   -> 角色池（右侧标题变成「领取角色」）
     ...          点「召唤1次」    -> 过场动画 -> 「查看全部」-> 点 -> 「确认」-> 点
     page_summon  点「领取宠物」   -> 宠物池（标题「领取宠物」）
-    ...          点「召唤1次」    -> 过场动画（右上角有 Skip）-> 「查看全部」->「确认」
+    ...          点「召唤1次」    -> 过场动画（右上角有 Skip）->「查看全部」->「确认」
     page_summon  关闭 X          -> page_main
 
 The free pull is one per pool per day. Once it is used the same button reads a
@@ -26,21 +28,14 @@ of this task is: a press on 「召唤1次」 only ever happens while the free ma
 on screen. Everything else waits, warns, or gives up.
 """
 
-# The two free pools: log name, the heading that only exists once the pool is
-# open, and the centre of its entry in the banner list.
-#
-# The entries flip between a light "selected" and a dark "idle" look, so one
-# asset cannot recognise an entry in both states, and the two entries look alike
-# anyway (0.57 against each other). The heading on the right panel is what tells
-# them apart: 1.00 in its own pool, 0.57 in the other, and it does not change
-# with the free pull being used.
-#
-# The click points are fixed once the list is scrolled to its end: the entries
-# are 92 pixels apart and the last one covers y 638~713, measured on the
-# screenshots of both pools.
+# The two free pools. The heading on the right panel is what tells them apart:
+# 1.00 in its own pool, 0.57 in the other, and it does not change with the free
+# pull being used. It is also how the caller learns which pool a press landed
+# on, since the list entries themselves are alike (0.57 against each other) and
+# flip between a light "selected" and a dark "idle" look.
 SUMMON_POOLS = (
-    ('character', SUMMON_POOL_CHAR, (123, 580)),
-    ('pet', SUMMON_POOL_PET, (123, 675)),
+    ('character', SUMMON_POOL_CHAR),
+    ('pet', SUMMON_POOL_PET),
 )
 
 # The banner list: a narrow column on the left, from under the heading to the
@@ -48,6 +43,36 @@ SUMMON_POOLS = (
 # stacks the momentum and overshoots the end.
 SUMMON_BANNER_LIST = (0, 90, 230, 700)
 SUMMON_SCROLL_DRAGS = 3
+
+# Where the game draws its red "something to take here" badge.
+#
+# Every entry that has something free right now carries one: a 23x24 blob with
+# its outside corner cut, on the right edge of the card, mean colour about
+# (233, 99, 77). The two free pools are two of those, so the badge is also what
+# *locates* them, and a fixed y would be wrong the first time a limited banner
+# above them expires - which is what the daily reset does, all of them read
+# 「剩余1日」. Measured on 领取角色.png: badges at y 535~558 and 627~650, cards
+# 533~615 and 632~700.
+SUMMON_BADGE_COLUMN = (195, 60, 235, 715)
+# R - max(G, B): 140~160 on the badge, 5~30 on the card it sits on.
+SUMMON_BADGE_RED = 60
+# Rows further apart than this belong to two badges.
+SUMMON_BADGE_GAP = 6
+# A badge is 24 rows tall. Below the minimum it is a stray red pixel; above the
+# maximum it is not a badge at all but a piece of the artwork showing through
+# while the list is still sliding - measured on a live run, a frame caught
+# mid-scroll put 86 rows of red in that column and the scan took it for an
+# entry.
+SUMMON_BADGE_MIN_ROWS = 12
+SUMMON_BADGE_MAX_ROWS = 40
+# Badge centre -> card centre, and the x of the card body under it.
+SUMMON_ENTRY_DROP = 30
+SUMMON_ENTRY_X = 123
+
+# A panel slides in after a press on an entry. The switch itself is quick
+# (0.2~0.4 s measured), so this only has to be longer than the fade; it is paid
+# twice in the worst case, see `summon_open_pool`.
+SUMMON_POOL_TIMEOUT = 3
 
 # A draw plays a cutscene before the result page. The pet one can be skipped,
 # the character one cannot, and the longest of the two runs about 12 seconds;
@@ -100,9 +125,18 @@ class LostswordSummon(LostswordUI):
         self.ui_goto(page_summon)
         self.summon_scroll_to_pools()
 
+        entries = self.summon_marked_entries()
+        if not entries:
+            logger.warning('The lobby says something is free, but no entry in the '
+                           'banner list carries a badge - nothing pressed')
+            self.ui_goto_main()
+            return 0
+        logger.info(f'{len(entries)} marked entries in the banner list')
+
         taken = 0
-        for name, title, point in SUMMON_POOLS:
-            if not self.summon_open_pool(name, title, point):
+        for point in entries:
+            name = self.summon_open_pool(point)
+            if name is None:
                 continue
             if self.summon_take_free(name):
                 taken += 1
@@ -132,10 +166,10 @@ class LostswordSummon(LostswordUI):
         """
         Drag the banner list to its end, where the two free pools are.
 
-        The list remembers the offset it was left at, and it is read through the
-        pool headings on the right rather than the entries themselves (see
-        `SUMMON_POOLS`). Dragging at the end does nothing, which is what makes a
-        fixed number of drags safe instead of a loop with a check point.
+        The list remembers the offset it was left at, so the free entries are
+        only in the same place when it is scrolled the same way. Dragging at the
+        end does nothing, which is what makes a fixed number of drags safe
+        instead of a loop with a check point.
 
         Pages:
             in: page_summon
@@ -153,36 +187,123 @@ class LostswordSummon(LostswordUI):
         # for a button" would stop the task halfway through a normal run.
         self.device.click_record_clear()
 
-    def summon_open_pool(self, name, title, point):
+    def summon_marked_entries(self):
         """
-        Open one of the two free pools from the banner list.
+        Centres of the list entries that carry the game's red badge.
+
+        Every entry with something to take is marked, so the badge both answers
+        "which pool is free" and says where the entry is. It has to: the cards
+        move as banners come and go (the column above them shrinks every time a
+        limited one expires), and a hardcoded y was already wrong the day after
+        it was measured.
+
+        The badge is found by colour, not by template. It is a flat red blob,
+        (233, 99, 77) mean, sitting on a list where nothing else in this column
+        is red - the templates of the entries themselves are useless here, they
+        look alike and change with the selection.
+
+        Pages:
+            in: page_summon, the list scrolled to its end and settled
+            out: page_summon
+
+        Returns:
+            list[tuple[int, int]]: (x, y) of each card, top to bottom.
+        """
+        x1, y1, x2, y2 = SUMMON_BADGE_COLUMN
+        # A frame caught mid-scroll reads as badges in the wrong place, or as
+        # none at all, so the column has to be standing still before it is read.
+        if not self.wait_until_still(SUMMON_BANNER_LIST, timeout=2):
+            logger.warning('The banner list is still moving, a badge may be missed')
+        column = self.device.image[y1:y2, x1:x2].astype('int16')
+        # Red minus the strongest of the other two channels: 140~160 on the
+        # badge, 5~30 on the artwork it is drawn over. Comparing the channels
+        # instead of the brightness keeps the dark cards and the bright panel
+        # behind them out of it.
+        red = column[:, :, 0] - np.maximum(column[:, :, 1], column[:, :, 2])
+        rows = np.where(red.max(axis=1) > SUMMON_BADGE_RED)[0]
+        if not len(rows):
+            return []
+
+        groups = [[int(rows[0])]]
+        for row in rows[1:]:
+            if row - groups[-1][-1] <= SUMMON_BADGE_GAP:
+                groups[-1].append(int(row))
+            else:
+                groups.append([int(row)])
+
+        entries = []
+        for group in groups:
+            if not SUMMON_BADGE_MIN_ROWS <= len(group) <= SUMMON_BADGE_MAX_ROWS:
+                logger.info(f'Ignored red blob y {group[0] + y1}~{group[-1] + y1}: '
+                            f'{len(group)} rows is not a badge')
+                continue
+            # The badge hangs on the card's top right corner; the card body is
+            # below it, and that is what has to be pressed.
+            y = (group[0] + group[-1]) // 2 + y1 + SUMMON_ENTRY_DROP
+            entries.append((SUMMON_ENTRY_X, y))
+            logger.attr('Marked entry', f'badge y {group[0] + y1}~{group[-1] + y1}, '
+                                        f'card centre {y}')
+        return entries
+
+    def summon_pool_shown(self):
+        """
+        Which of the two free pools the right panel is showing, if any.
+
+        Returns:
+            str: 'character', 'pet', or None.
+        """
+        for name, title in SUMMON_POOLS:
+            if self.appear(title, offset=(30, 30)):
+                return name
+        return None
+
+    def summon_open_pool(self, point):
+        """
+        Press a marked entry and say which pool came up.
+
+        A press on an entry that is *already* the open one changes nothing, so
+        waiting for "one of the two headings" would answer with the pool that
+        was there before the press. The pool on screen is therefore read first,
+        and what the press has to produce is the *other* one.
+
+        That leaves "the panel did not move" meaning two things - the entry was
+        already open, or the press was swallowed by an animation - so the press
+        is repeated once before the second reading is believed. Measured on the
+        live game: a press sent while the page was still opening did nothing at
+        all and the panel stayed on the previous pool for the whole timeout.
 
         Pages:
             in: page_summon
-            out: page_summon
+            out: page_summon, a pool open
 
         Args:
-            name (str): For the log.
-            title (Button): The pool heading drawn on the right panel.
-            point (tuple): Centre of its entry in the banner list.
+            point (tuple): Centre of the card.
 
         Returns:
-            bool: If the pool is open.
+            str: 'character', 'pet', or None if the entry is not one of them.
         """
-        if self.appear(title, offset=(30, 30)):
-            return True
-        for _ in range(2):
-            logger.info(f'Open the {name} pool')
+        before = self.summon_pool_shown()
+        for attempt in (1, 2):
+            logger.info(f'Open the marked entry (currently: {before or "unknown"})')
             self.tap_point(*point)
-            # Two frames, not one: the panel under the heading is a slide-in, and
-            # the first frame it matches is not yet the one that accepts a press
-            # on the draw button.
-            if self.wait_until_appear(title, offset=(30, 30), timeout=8, settle=2):
-                return True
-            # The list may have snapped back while the previous pool ran.
-            self.summon_scroll_to_pools()
-        logger.warning(f'Cannot open the {name} pool')
-        return False
+            # Two frames, not one: the panel under the heading is a slide-in,
+            # and the first frame it matches is not yet the one that accepts a
+            # press on the draw button. `settle` is not available here because
+            # the button being waited for is not known in advance - it is
+            # whichever heading was not there before the press.
+            for _ in self.loop(timeout=SUMMON_POOL_TIMEOUT):
+                after = self.summon_pool_shown()
+                if after is not None and after != before:
+                    return after
+            if attempt == 1:
+                logger.info('The panel did not move, pressing again')
+
+        # Nothing moved on either press, so the entry was the open one.
+        if before is not None:
+            logger.info(f'The {before} pool was already open')
+            return before
+        logger.warning('The marked entry is not one of the two free pools')
+        return None
 
     def summon_free_marker_up(self):
         """
