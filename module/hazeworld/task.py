@@ -1,5 +1,6 @@
+import numpy as np
+
 from module.base.button import Button
-from module.base.utils import get_color
 from module.hazeworld.assets import (POPUP_TOUCH_EXIT, TASK_CLAIM_ALL,
                                      TASK_CLAIM_ALL_DISABLED, TASK_POINT_LABEL,
                                      TASK_TAB_DAILY, TASK_TAB_MONTHLY,
@@ -11,9 +12,14 @@ from module.logger import logger
 # the previous tab's state until the slide-in animation finishes, and the button
 # fades in, so it only turns orange on the last frames. Measured on a real
 # weekly tab: 3.3s from the tab click to the first frame where the button reads
-# as clickable. A tab with nothing to claim looks exactly like that stale frame,
-# so the disabled button is only believed after this many seconds without the
-# clickable one showing up.
+# as clickable.
+#
+# This used to be a flat six second wait per tab, spent in full whether the tab
+# had anything to claim or not: three empty tabs cost eighteen seconds of a task
+# that had nothing to do at all. The animation is watched instead - the button
+# area stops changing when the tab has finished sliding in - so an empty tab is
+# read as soon as it is drawn and a tab with rewards is read once its button has
+# finished turning orange. The same number is now the ceiling, not the cost.
 TASK_CLAIM_SETTLE = 6
 
 # The "claim all" button is painted in the theme colour of the tab, not in one
@@ -70,18 +76,23 @@ MILESTONE_POPUP_TIMEOUT = 4
 
 # The tap on a tab is swallowed while the reward popup of the previous tab is
 # still closing: input stays locked for about a second after the tap that
-# dismissed it. A swallowed tap is indistinguishable from a tab with nothing to
-# claim by looking at the button alone - both leave it grey - so a tap that was
-# lost has to be sent again. See `task_tab_selected()` for how the two are told
-# apart, and `TASK_TAB_DARKNESS` for the measure.
+# dismissed it. What the tap did is read from the page itself - a switch repaints
+# the tab plates, so a press that landed changes the area it was aimed at, and
+# one that was eaten changes nothing.
+#
+# Do not try to tell the open tab from its neighbours by colour instead. The
+# three assets were cut while their own tab was selected and all three measure
+# 76 to 87 there, because the page behind the tabs is dark and an unselected one
+# is dark too - so a brightness limit accepts every tab at once. A flat 100 did
+# exactly that in the 09:26 run of 2026-10-28: no tab was ever pressed, all three
+# reported "nothing to claim", and the task was over in eighteen silent seconds.
+# The redraw answers the only question that matters - did the press do anything.
 TASK_TAB_TRIES = 2
 
-# The tabs of the mission page. A selected tab is filled with a dark plate while
-# the others are translucent and show the bright background behind them, so the
-# selection is read from the fill. Measured on this page: the plate fills of the
-# three tabs are 76 to 87, the unselected ones sit far above, and the battle
-# pass reads its own tabs the same way with the same threshold.
-TASK_TAB_DARKNESS = 100
+# Mean absolute difference per channel, in 0-255, above which the tab area counts
+# as having been redrawn. The plates are flat fills and the page behind them is
+# still, so anything above sensor noise means the page moved.
+TASK_TAB_REDRAWN = 3.0
 
 
 class HazeworldTask(HazeworldUI):
@@ -132,13 +143,19 @@ class HazeworldTask(HazeworldUI):
         self.wait_until_settled(TASK_POINT_LABEL, timeout=5)
 
         count = 0
-        for key, tab in (('ClaimDaily', TASK_TAB_DAILY),
-                         ('ClaimWeekly', TASK_TAB_WEEKLY),
-                         ('ClaimMonthly', TASK_TAB_MONTHLY)):
+        # The daily tab is the one the page opens on, and nothing has been
+        # tapped yet, so there is no locked input to eat the press: one press is
+        # all it needs. The other two are pressed while the popup of the tab
+        # before them may still be closing, which is the one case a press has to
+        # be repeated - and `task_tab_tap()` only repeats it when the page shows
+        # that it did not move.
+        for key, tab, retries in (('ClaimDaily', TASK_TAB_DAILY, 1),
+                                  ('ClaimWeekly', TASK_TAB_WEEKLY, TASK_TAB_TRIES),
+                                  ('ClaimMonthly', TASK_TAB_MONTHLY, TASK_TAB_TRIES)):
             if not deep_get(self.config.data, f'HazeworldTask.HazeworldTask.{key}',
                             default=True):
                 continue
-            count += self.task_claim_tab(tab)
+            count += self.task_claim_tab(tab, retries=retries)
 
         self.ui_goto_main()
         return count
@@ -158,46 +175,56 @@ class HazeworldTask(HazeworldUI):
         """
         return self.button_saturated(TASK_CLAIM_ALL, CLAIM_SATURATION)
 
-    def task_tab_selected(self, tab):
+    def task_tab_tap(self, tab):
         """
-        Whether a tab of the mission page is the selected one.
+        Press a tab and wait for the page to be redrawn around it.
 
-        The tab tap of this page is sometimes swallowed - input stays locked for
-        about a second after the popup of the previous tab is dismissed - and a
-        swallowed tap looks exactly like a tab with nothing to claim, because
-        both leave the claim button grey. The fill of the tab tells them apart:
-        the selected tab is drawn on a dark plate, an unselected one is
-        translucent. See `TASK_TAB_DARKNESS`.
+        A tab switch is a client side animation: the plates, the mission list
+        and the claim button are drawn again together. Waiting for the claim
+        button to stop changing is the same wait a flat six second window used
+        to make, measured instead of guessed.
 
         Args:
             tab (Button): The tab.
 
         Returns:
-            bool: If the tab is drawn on its dark plate.
+            bool: If the page was redrawn, meaning the press was not eaten.
         """
-        color = get_color(self.device.image, tab.area)
-        return max(color) < TASK_TAB_DARKNESS
+        before = self.image_crop(tab.area, copy=True)
+        # The page has been reached and settled by the caller, and all three
+        # tabs are drawn on it at once whatever is selected, so there is no
+        # state where this press has nowhere to land - and asking `appear()`
+        # first would answer "no" on exactly the transition frames the press is
+        # meant to start. Whether it landed is read from the redraw below.
+        self.device.click(tab)  # alas-lint: allow - verified by the redraw comparison below and retried by task_claim_tab(), both stronger than a single appear()
+        if not self.wait_until_still(TASK_CLAIM_ALL.area, timeout=TASK_CLAIM_SETTLE):
+            logger.warning('The claim button is still moving, reading it anyway')
+        after = self.image_crop(tab.area, copy=True)
+        diff = np.mean(np.abs(after.astype(np.int16) - before.astype(np.int16)))
+        return diff >= TASK_TAB_REDRAWN
 
-    def task_claim_tab(self, tab, skip_first_screenshot=True):
+    def task_claim_tab(self, tab, retries=TASK_TAB_TRIES):
         """
         Switch to a mission tab, claim its missions and its milestone rewards.
 
         The claim button is saturated when there is something to claim and grey
         when there is not, so the disabled state is the exit condition. It is
-        read with a settle window: switching tabs on a grey button leaves it
-        grey, so an early read reports "nothing to claim" for the tab that was
-        just opened and skips its rewards (the weekly tab was lost this way).
+        read only once the tab has finished sliding in: switching tabs on a grey
+        button leaves it grey, so an early read reports "nothing to claim" for
+        the tab that was just opened and skips its rewards (the weekly tab was
+        lost this way).
 
-        The tab tap itself is retried, but only when it did not land. It used to
-        be retried on every empty tab, which cost a second settle window on a
-        tab that had nothing to claim: the 09:12 run of 2026-10-28 spent thirty
-        six seconds on three empty tabs, half of it re-reading a tab that was
-        already open. `task_tab_selected()` answers "did the tap land", so a tab
-        that is open and empty is believed the first time.
+        A press can be eaten - input stays locked for about a second after the
+        popup of the previous tab is dismissed - and that is read from the page:
+        a switch repaints the tab plates, so the press is only believed when the
+        area it was aimed at changed. Retrying is for that case alone. It used
+        to be unconditional, which cost a whole settle window on every tab that
+        had nothing to claim: thirty six seconds on three empty tabs in the
+        09:12 run of 2026-10-28, half of it re-reading a tab that was open.
 
         Args:
             tab (Button): Tab button of the mission page.
-            skip_first_screenshot (bool):
+            retries (int): How many presses to spend on this tab.
 
         Pages:
             in: page_task
@@ -207,33 +234,29 @@ class HazeworldTask(HazeworldUI):
             int: Times claimed.
         """
         logger.hr(f'Claim {tab.name}', level=2)
-        count = 0
 
-        for _ in range(TASK_TAB_TRIES):
+        count = 0
+        for attempt in range(retries):
             self.interval_clear(tab)
-            # The tab is always on screen whatever is selected, so the press is
-            # not guarded by a match; the plate is what tells whether it is
-            # already the open one.
-            if not self.task_tab_selected(tab):
-                self.device.click(tab)  # alas-lint: allow - `task_tab_selected()` above is the guard: the asset of a tab only matches while it is selected, the fill is what describes both states
+            redrawn = self.task_tab_tap(tab)
+            # `task_tab_tap()` left the frame it was reading on, so the claim
+            # loop starts from that one instead of taking another screenshot.
             count = self.claim_all(
                 TASK_CLAIM_ALL,
                 disabled=TASK_CLAIM_ALL_DISABLED,
-                wait=TASK_CLAIM_SETTLE,
-                skip_first_screenshot=False,
                 available=self.task_claim_available,
             )
             if count:
                 break
-            # Nothing to claim, and the tab is the open one: that is the real
-            # answer for this tab. Only a tab that is not open means the tap was
-            # lost and the loop has to send it again.
-            if self.task_tab_selected(tab):
-                logger.info(f'{tab.name} has nothing to claim')
+            if redrawn:
+                # The page did move, so this tab is the open one and it really
+                # has nothing to claim.
+                logger.info(f'{tab.name} is open and has nothing to claim')
                 break
-            logger.info(f'{tab.name} is not open, tapping it again')
+            logger.info(f'{tab.name} did not open, pressing it again')
         else:
-            logger.warning(f'Cannot open {tab.name} of the mission page')
+            if attempt:
+                logger.info(f'{tab.name} was already open, nothing to claim')
 
         self.interval_clear(TASK_CLAIM_ALL)
 

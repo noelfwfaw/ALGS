@@ -135,8 +135,13 @@ class HazeworldPass(HazeworldUI):
         """
         if not self.pass_select_tab(tab):
             return 0
-        return self.claim_all(PASS_CLAIM_ALL, wait=PASS_CLAIM_SETTLE,
-                              available=self.pass_claim_available)
+        # The plate turning dark is what `pass_select_tab()` waits for, but the
+        # claim button is painted a few frames later - measured 3.3s on the
+        # weekly tab - so reading it right away reports the previous tab's grey
+        # button. Waiting for this area to stop changing is the same wait that
+        # `PASS_CLAIM_SETTLE` used to spend in full on every tab, empty or not.
+        self.wait_until_still(PASS_CLAIM_ALL.area, timeout=PASS_CLAIM_SETTLE)
+        return self.claim_all(PASS_CLAIM_ALL, available=self.pass_claim_available)
 
     def pass_claim_reward(self):
         """
@@ -153,8 +158,9 @@ class HazeworldPass(HazeworldUI):
         if not self.pass_view(PASS_VIEW_REWARD):
             return 0
 
-        count = self.claim_all(PASS_CLAIM_ALL, wait=PASS_CLAIM_SETTLE,
-                               available=self.pass_claim_available)
+        # The view slides in, and its claim button is drawn with it.
+        self.wait_until_still(PASS_CLAIM_ALL.area, timeout=PASS_CLAIM_SETTLE)
+        count = self.claim_all(PASS_CLAIM_ALL, available=self.pass_claim_available)
         logger.info(f'Pass rewards finished, claimed {count} times')
         return count
 

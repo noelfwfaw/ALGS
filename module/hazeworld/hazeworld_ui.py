@@ -379,19 +379,21 @@ class HazeworldUI(UI):
         color = get_color(self.device.image, button.area)
         return max(color) - min(color) > threshold
 
-    def claim_all(self, claim, disabled=None, max_click=20, wait=0, available=None,
+    def claim_all(self, claim, disabled=None, max_click=20, available=None,
                   skip_first_screenshot=True):
         """
         Click the "claim all" button until there is nothing left to claim.
+
+        The caller is responsible for the page being drawn: this loop reads the
+        button on the first frame it gets, so a tab that is still sliding in
+        reports the previous tab's button. Callers that switch a tab wait for it
+        with `wait_until_still()` first.
 
         Args:
             claim (Button): Claim all button, only matches when it is clickable.
             disabled (Button): The same button in disabled state, used as the
                 positive exit condition. None to exit when `claim` disappears.
             max_click (int): Safety limit, to avoid clicking forever.
-            wait (int, float): Seconds to keep looking for `claim` before the
-                disabled state is accepted. Needed after a tab switch, see
-                `HazeworldTask`.
             available (callable): Decides "there is something to claim" instead
                 of `appear(claim)`. Needed when no single colour describes the
                 button, see `HazeworldTask.task_claim_available`.
@@ -401,10 +403,6 @@ class HazeworldUI(UI):
             int: Times clicked.
         """
         count = 0
-        # Just after a tab switch the button still shows the previous tab, so a
-        # disabled button is only believed after `wait` seconds without the
-        # clickable one showing up. Zero keeps the plain behaviour.
-        settle = Timer(wait).start() if wait else None
 
         while 1:
             if skip_first_screenshot:
@@ -416,8 +414,6 @@ class HazeworldUI(UI):
                 continue
 
             if disabled is not None and self.appear(disabled, offset=None):
-                if settle is not None and not settle.reached():
-                    continue
                 logger.info('Nothing left to claim')
                 break
 
@@ -441,19 +437,12 @@ class HazeworldUI(UI):
                 # counted twenty presses without sending one.
                 if available is not None or self.appear(claim, offset=(20, 20)):
                     self.device.click(claim)
+                # The counter follows the press, never the judgement: it used to
+                # be incremented on a frame where the press was skipped, and the
+                # log claimed twenty clicks for a pass that was never claimed.
                 count += 1
-                # The page is obviously the right one now, no need to wait for
-                # the disabled state any more.
-                settle = None
                 continue
 
-            # Neither the clickable nor the disabled button is on screen. That
-            # is not a verdict while the settle window is open: right after a
-            # tab switch the list is still sliding and both states read as
-            # absent, which used to end the loop after a single frame and skip
-            # the whole tab. Keep looking until the window closes.
-            if settle is not None and not settle.reached():
-                continue
             break
 
         logger.info(f'Claim all finished, clicked {count} times')
