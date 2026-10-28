@@ -58,6 +58,10 @@
       "name": "トレジャー",
       "help": "放置報酬を受け取り、毎日の無料高速探索を使う"
     },
+    "LostswordSummon": {
+      "name": "Task.LostswordSummon.name",
+      "help": "Task.LostswordSummon.help"
+    },
     "LostswordShop": {
       "name": "ショップ",
       "help": "デイリー・ウィークリー・マンスリーの無料ギフトを受け取る"
@@ -550,6 +554,16 @@
     "Claim": {
       "name": "ゲーム起動ごとに1回受け取る",
       "help": "オフにすると受け取りませんが、任務自体のスケジュールは残ります"
+    }
+  },
+  "LostswordSummon": {
+    "_info": {
+      "name": "毎日の無料召喚設定",
+      "help": ""
+    },
+    "Draw": {
+      "name": "無料の2つのガチャを引く",
+      "help": "オフにすると引かず、任務自体のスケジュールは残ります"
     }
   },
   "Storage": {

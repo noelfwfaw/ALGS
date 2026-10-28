@@ -36,9 +36,14 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      MAIL_TITLE,
                                      STAR_CARD,
                                      STAR_TITLE,
+                                     SUMMON_CLOSE,
+                                     SUMMON_CONFIRM,
+                                     SUMMON_TITLE,
+                                     SUMMON_VIEW_ALL,
                                      MAIN_BTN_BATTLE,
                                      MAIN_BTN_MENU,
                                      MAIN_BTN_SHOP,
+                                     MAIN_BTN_SUMMON,
                                      MAIN_BTN_TREASURE,
                                      MENU_BTN_CLOSE,
                                      MENU_BTN_MAIL,
@@ -187,6 +192,17 @@ page_maze = Page([MAZE_BTN_AUTO, MAZE_DONE])
 # whether or not the resources are enough (the colour tells, read separately),
 # and it covers the menu behind it.
 page_round = Page(ROUND_BTN_UPGRADE)
+# The summon page, and both of its free pools. They share one page: the banner
+# list and the 「召唤」 heading stay on screen while the panel on their right is
+# swapped for 领取角色 / 领取宠物, so the heading (checked 1.00 on the page, 0.99
+# on a pool, 0.52 on the lobby) covers all three.
+page_summon = Page(SUMMON_TITLE)
+# The two steps after a draw. Both are a single card over a dimmed panel with one
+# button at the bottom, and that button is the only thing that differs: 查看全部
+# then 确认. Each button as a check point scores 1.00 on its own step and 0.68 on
+# the other, which is what tells them apart.
+page_summon_result = Page(SUMMON_VIEW_ALL)
+page_summon_confirm = Page(SUMMON_CONFIRM)
 # The lobby. The battle icon is opaque art and gets covered by every modal.
 page_main = Page(MAIN_BTN_BATTLE)
 
@@ -195,6 +211,14 @@ page_main.link(button=MAIN_BTN_MENU, destination=page_menu)
 page_main.link(button=MAIN_BTN_BATTLE, destination=page_battle)
 page_main.link(button=PASS_BTN, destination=page_pass)
 page_main.link(button=CHAR_BTN, destination=page_character)
+page_main.link(button=MAIN_BTN_SUMMON, destination=page_summon)
+page_summon.link(button=SUMMON_CLOSE, destination=page_main)
+# 查看全部 opens the list of what was drawn, 确认 closes it and lands back on the
+# pool. They are two states of one screen rather than two pages of a graph, so
+# both links lead to the pool: walking home from either one presses its own
+# button once and re-reads the screen, which is the only exit the game offers.
+page_summon_result.link(button=SUMMON_VIEW_ALL, destination=page_summon)
+page_summon_confirm.link(button=SUMMON_CONFIRM, destination=page_summon)
 page_character.link(button=ARENA_BTN_CLOSE, destination=page_main)
 page_character_detail.link(button=ARENA_BTN_CLOSE, destination=page_character)
 page_affection.link(button=ARENA_BTN_CLOSE, destination=page_character_detail)

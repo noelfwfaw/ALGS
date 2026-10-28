@@ -64,3 +64,6 @@ LostswordTreasure:
 LostswordTask:
   Scheduler:
     ServerUpdate: 00:00
+LostswordSummon:
+  Scheduler:
+    ServerUpdate: 00:00

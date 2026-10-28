@@ -103,5 +103,8 @@ class GeneratedConfig:
     # Group `LostswordTask`
     LostswordTask_Claim = True
 
+    # Group `LostswordSummon`
+    LostswordSummon_Draw = True
+
     # Group `Storage`
     Storage_Storage = {}

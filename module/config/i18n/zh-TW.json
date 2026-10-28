@@ -58,6 +58,10 @@
       "name": "寶藏探索",
       "help": "領取掛機收益，並用掉每日免費的快速探查"
     },
+    "LostswordSummon": {
+      "name": "Task.LostswordSummon.name",
+      "help": "Task.LostswordSummon.help"
+    },
     "LostswordShop": {
       "name": "商店",
       "help": "領取每日、每週、每月的免費禮包"
@@ -550,6 +554,16 @@
     "Claim": {
       "name": "每次進入遊戲都領取一次",
       "help": "關閉後不領取，但任務本身仍然排期"
+    }
+  },
+  "LostswordSummon": {
+    "_info": {
+      "name": "每日免費召喚設定",
+      "help": ""
+    },
+    "Draw": {
+      "name": "抽取兩個免費池",
+      "help": "關閉後不抽卡，任務仍然排期"
     }
   },
   "Storage": {

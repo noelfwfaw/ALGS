@@ -135,6 +135,10 @@ class AlGS(GameScheduler):
         from module.lostsword.treasure import LostswordTreasure
         LostswordTreasure(config=self.config, device=self.device).run()
 
+    def lostsword_summon(self):
+        from module.lostsword.summon import LostswordSummon
+        LostswordSummon(config=self.config, device=self.device).run()
+
     def lostsword_task(self):
         from module.lostsword.task import LostswordTask
         LostswordTask(config=self.config, device=self.device).run()

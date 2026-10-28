@@ -27,10 +27,14 @@ class ManualConfig:
     # long ones (maze, main story, round table) close the block. 好感 sits next
     # to them: it is a slow walk through a deep character list, worth nothing
     # compared to a mode that expires.
+    #
+    # 每日免费召唤 sits right after 宝藏探索: two presses, nothing spent, and the
+    # only thing it competes with is the day itself - a queue that gets cut short
+    # before this task runs loses the free pull for good.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
-    > LostswordTreasure > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask
+    > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask
     """
 
     """

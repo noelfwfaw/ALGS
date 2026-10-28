@@ -58,6 +58,10 @@
       "name": "Treasure",
       "help": "Claim the idle rewards and use the free quick explore"
     },
+    "LostswordSummon": {
+      "name": "Task.LostswordSummon.name",
+      "help": "Task.LostswordSummon.help"
+    },
     "LostswordShop": {
       "name": "Shop",
       "help": "Claim the daily, weekly and monthly free gifts"
@@ -550,6 +554,16 @@
     "Claim": {
       "name": "Claim once per game session",
       "help": "When off nothing is claimed, but the task keeps its own schedule"
+    }
+  },
+  "LostswordSummon": {
+    "_info": {
+      "name": "Daily free summon settings",
+      "help": ""
+    },
+    "Draw": {
+      "name": "Draw both free pools",
+      "help": "When off nothing is drawn, but the task keeps its own schedule"
     }
   },
   "Storage": {

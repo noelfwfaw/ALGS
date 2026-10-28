@@ -3,7 +3,7 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (BOSS_VICTORY, DUNGEON_BTN_BACK,
                                     DUNGEON_CLEAR, LOGIN_CHECK, MAIN_DEFEAT,
-                                    REWARD_POPUP_TITLE)
+                                    REWARD_POPUP_TITLE, SUMMON_SKIP)
 from module.lostsword.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
 from module.lostsword.page import BOSS_RESULT_TAP, MAIN_DEFEAT_BACK
 from module.ui.ui import UI
@@ -24,7 +24,9 @@ class LostswordUI(UI):
              page_event_start, page_event_stage, page_event,
              page_maze, page_talk, page_affection, page_character_detail,
              page_character,
-             page_battle, page_menu, page_pass, page_round, page_main)
+             page_battle, page_menu, page_pass, page_round,
+             page_summon_confirm, page_summon_result, page_summon,
+             page_main)
 
     # 连续多少帧看不到才算"真的消失"：淡出动画期间元素已经不再匹配，但还在吃点击。
     SETTLE_FRAMES = 3
@@ -204,9 +206,19 @@ class LostswordUI(UI):
         lobby through a loading screen, so any walk home that meets it must
         press that key instead of reporting an unknown page.
 
+        A summon cutscene is handled here as well, for the same reason: no page
+        matches while it plays, and the Skip key in its corner is the only way
+        out. The summon task skips its own cutscenes, so this only fires when a
+        run died in one and a later task has to walk home through it.
+
         Returns:
             bool: If handled.
         """
+        if self.appear(SUMMON_SKIP, offset=30, interval=2):
+            logger.info('Summon cutscene, skip it')
+            self.tap_asset(SUMMON_SKIP)
+            return True
+
         if self.appear(MAIN_DEFEAT, offset=30):
             logger.info('Defeat page, press 返回')
             self.device.click(MAIN_DEFEAT_BACK)

@@ -57,6 +57,9 @@ Lostsword:
     LostswordTreasure:
       - Scheduler
       - LostswordTreasure
+    LostswordSummon:
+      - Scheduler
+      - LostswordSummon
     LostswordShop:
       - Scheduler
     LostswordMail:

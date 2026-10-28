@@ -26,6 +26,7 @@
     "page": "setting",
     "tasks": [
       "LostswordTreasure",
+      "LostswordSummon",
       "LostswordShop",
       "LostswordMail",
       "LostswordBoss",
