@@ -51,6 +51,12 @@ MILESTONE_BOX_Y = 12
 MILESTONE_SIMILARITY = 0.85
 MILESTONE_MAX = 6
 
+# The tag disappearing is how the loop learns that this tab has no milestone
+# left, but the claim itself repaints the bar and the tag is absent for a moment
+# while it does. One frame of absence is therefore not the answer; this many in
+# a row are.
+MILESTONE_GONE_FRAMES = 3
+
 # Crediting a milestone raises a popup of its own, and it is not the small
 # "获得资源" card `handle_reward()` knows: it is a wide sheet laid over the whole
 # point bar with a single reward in it and 「TOUCH TO EXIT」 under the box. The
@@ -326,6 +332,7 @@ class HazeworldTask(HazeworldUI):
         logger.hr('Claim milestones', level=2)
         count = 0
         popups = 0
+        gone = 0
 
         for _ in self.loop(skip_first=skip_first_screenshot):
             if self.handle_reward():
@@ -348,7 +355,16 @@ class HazeworldTask(HazeworldUI):
 
             similarity, button = TEMPLATE_TASK_MILESTONE.match_result(self.device.image)
             if similarity < MILESTONE_SIMILARITY:
-                break
+                # A tag that is not on screen means this milestone is claimed,
+                # and also that this frame caught the bar mid redraw - the claim
+                # repaints it, and during that repaint the tag is simply absent.
+                # Absence is what every transition looks like, so it has to hold
+                # for a few frames before it counts as the end of the loop.
+                gone += 1
+                if gone >= MILESTONE_GONE_FRAMES:
+                    break
+                continue
+            gone = 0
 
             if count >= MILESTONE_MAX:
                 logger.warning(f'Milestone claimed {count} times, stop')

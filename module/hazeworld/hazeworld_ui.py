@@ -10,6 +10,7 @@ from module.hazeworld.assets import (LOADING_TEXT,
                                      LOGIN_TOUCH_START,
                                      REWARD_POPUP,
                                      SUPPORT_REWARD)
+from module.hazeworld.claim import Claim
 from module.logger import logger
 from module.ui.ui import UI
 
@@ -66,12 +67,13 @@ def match_loading(image, button, region):
     return float(cv2.minMaxLoc(res)[1])
 
 
-class HazeworldUI(UI):
+class HazeworldUI(Claim, UI):
     """
     Shared UI base of every Hazeworld task.
 
-    Provides the reward popup handler and the "claim all" loop, so each task
-    module only describes which page and which button it uses.
+    Provides the reward popup handler and, through `Claim`, the "claim all"
+    loop, so each task module only describes which page and which button it
+    uses.
     """
 
     page_main = page_main
@@ -378,72 +380,3 @@ class HazeworldUI(UI):
         """
         color = get_color(self.device.image, button.area)
         return max(color) - min(color) > threshold
-
-    def claim_all(self, claim, disabled=None, max_click=20, available=None,
-                  skip_first_screenshot=True):
-        """
-        Click the "claim all" button until there is nothing left to claim.
-
-        The caller is responsible for the page being drawn: this loop reads the
-        button on the first frame it gets, so a tab that is still sliding in
-        reports the previous tab's button. Callers that switch a tab wait for it
-        with `wait_until_still()` first.
-
-        Args:
-            claim (Button): Claim all button, only matches when it is clickable.
-            disabled (Button): The same button in disabled state, used as the
-                positive exit condition. None to exit when `claim` disappears.
-            max_click (int): Safety limit, to avoid clicking forever.
-            available (callable): Decides "there is something to claim" instead
-                of `appear(claim)`. Needed when no single colour describes the
-                button, see `HazeworldTask.task_claim_available`.
-            skip_first_screenshot (bool):
-
-        Returns:
-            int: Times clicked.
-        """
-        count = 0
-
-        while 1:
-            if skip_first_screenshot:
-                skip_first_screenshot = False
-            else:
-                self.device.screenshot()
-
-            if self.handle_reward():
-                continue
-
-            if disabled is not None and self.appear(disabled, offset=None):
-                logger.info('Nothing left to claim')
-                break
-
-            if available is not None:
-                clickable = available()
-            else:
-                clickable = self.appear(claim, offset=None)
-
-            if clickable:
-                if count >= max_click:
-                    logger.warning(f'Claim all clicked {count} times, stop')
-                    break
-                logger.info(f'Claim all ({count + 1})')
-                # Only one of the two judgements may decide the press. When
-                # `available` is given it already answered "the button is
-                # there" with a measure the asset can support (a colour spread,
-                # a label match). Asking the template afterwards is a second,
-                # stricter opinion that some assets can never give: the stored
-                # crop of `PASS_CLAIM_ALL` is its disabled look, so a match
-                # refuses the very frame that says click me, and the loop then
-                # counted twenty presses without sending one.
-                if available is not None or self.appear(claim, offset=(20, 20)):
-                    self.device.click(claim)
-                # The counter follows the press, never the judgement: it used to
-                # be incremented on a frame where the press was skipped, and the
-                # log claimed twenty clicks for a pass that was never claimed.
-                count += 1
-                continue
-
-            break
-
-        logger.info(f'Claim all finished, clicked {count} times')
-        return count
