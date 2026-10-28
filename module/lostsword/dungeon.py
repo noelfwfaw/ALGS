@@ -19,6 +19,12 @@ Flow observed in game:
     -> client loading page (正在火热招募队友中… 20)
     -> battle (auto played, no preparation) -> 「CLEAR」 result page
     -> 「返回」 --> page_dungeon
+
+The recruiting step never fails: empty slots are filled by NPCs, so the room
+always opens and the countdown only makes it shorter. There is no "no teammate
+found" state to wait for, nothing to retry and nothing to cancel - a press on
+「确认」 is followed by a battle in every case, and the only question left is
+when the battle is over.
     page_dungeon -- top right round X --> page_battle -- round X --> page_main
 
 One try a day. The detail page is built exactly like the boss raid one (same
@@ -33,9 +39,16 @@ Whether today's try is left is read from the match button: it is drawn as
 once it is used up (match below 0.5).
 """
 
-# Recruiting takes 20 seconds, then the client loads, then the battle runs on its
-# own. Two minutes is generous.
-DUNGEON_TIMEOUT = 300
+# The detail page leaving after 「确认」 is the sign that the run started. The
+# recruiting countdown is 20 seconds and NPCs shorten it, so this only has to
+# cover a slow emulator plus the client loading page.
+DUNGEON_START_TIMEOUT = 30
+
+# Then the battle runs on its own. The boss raid one has measured up to 240
+# seconds on the same engine and the same kind of boss, so the ceiling is the
+# same as that task's; a frame drop of the emulator is the only thing that ever
+# gets close to it.
+DUNGEON_TIMEOUT = 600
 
 
 class LostswordDungeon(LostswordUI):
@@ -94,6 +107,9 @@ class LostswordDungeon(LostswordUI):
             GameStuckError: If the battle does not end in time.
         """
         logger.hr('Squad dungeon battle', level=2)
+        # A previous run may have left this button cooling down, and
+        # `appear_then_click` is False both for "not there" and for "throttled".
+        self.interval_clear(DUNGEON_BTN_MATCH)
         if self.wait_until_appear(DUNGEON_BTN_MATCH, offset=30, timeout=2):
             self.device.click(DUNGEON_BTN_MATCH)
         else:
@@ -114,8 +130,33 @@ class LostswordDungeon(LostswordUI):
             logger.warning('Match confirm button not found')
             return False
 
-        # Recruiting runs on its own countdown ("小队突袭无需准备，一定时间后自动
-        # 开始"), and the battle is auto played: nothing is clicked until CLEAR.
+        # The dialog closing is the only proof the press was taken: the detail
+        # page behind it does not move, so the page being on screen cannot tell
+        # "accepted" from "still waiting for the press". Leaving while the
+        # dialog is up would click into the dialog and, two seconds later, into
+        # whatever the game decided to do with it.
+        if not self.wait_overlay_gone(DUNGEON_DIALOG_TITLE, timeout=8):
+            logger.warning('The confirm press was not taken, leaving the match alone')
+            return False
+
+        # The run has started once the detail page leaves. Right after the
+        # confirm it is still fully drawn (the dialog covered its middle only),
+        # which is why a plain `appear(DUNGEON_TITLE)` in the loop below read
+        # "back at the dungeon page, battle is over" 62 ms after the press and
+        # walked home through a battle that had just begun.
+        started = self.wait_until_disappear(
+            DUNGEON_TITLE, offset=30, timeout=DUNGEON_START_TIMEOUT, settle=2)
+        if started:
+            logger.info('Squad dungeon started')
+        else:
+            # Not an error: the recruiting panel may be drawn over a page that
+            # still matches underneath. Keep watching instead of walking away -
+            # a task that leaves here clicks into a live battle and then reports
+            # an unknown page for a minute.
+            logger.warning('The detail page is still up, watching it for the result')
+
+        # Recruiting, the client loading page and the battle are all on their
+        # own from here: nothing is clicked until the result page.
         timeout = Timer(timeout).start()
         report = Timer(30).start()
         for _ in self.loop():
@@ -123,15 +164,22 @@ class LostswordDungeon(LostswordUI):
             # change, which reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
 
-            # End
+            # End - the result page.
             if self.appear(DUNGEON_CLEAR, offset=30):
                 logger.info('Squad dungeon cleared')
                 break
+
             if self.appear(DUNGEON_TITLE, offset=30):
-                # Back on the detail page without a result screen: the run ended
-                # in some way that leaves nothing to collect.
-                logger.info('Back at the dungeon page, battle is over')
-                return True
+                # End - the detail page is back without a result page, so the
+                # run ended in a way that leaves nothing to collect. Only
+                # believed once the page has been watched leaving above.
+                if started:
+                    logger.info('Back at the detail page, the run is over')
+                    return True
+            elif not started:
+                logger.info('Squad dungeon started')
+                started = True
+
             if timeout.reached():
                 logger.warning('Squad dungeon did not finish in time')
                 raise GameStuckError('Squad dungeon did not end in time')
@@ -140,7 +188,45 @@ class LostswordDungeon(LostswordUI):
                 report.reset()
                 logger.info(f'Still in the dungeon, {int(timeout.current_time())}s elapsed')
 
-        if self.appear_then_click(DUNGEON_BTN_BACK, offset=30, interval=3):
-            if not self.wait_overlay(DUNGEON_TITLE, timeout=40):
-                logger.warning('Did not return to the squad dungeon page')
+        self.dungeon_leave_result()
         return True
+
+    def dungeon_leave_result(self, timeout=40):
+        """
+        Press 「返回」 on the result page until the detail page is back.
+
+        The result page fades in and swallows the press aimed at it, so one
+        press is a coin flip; and the client loading page that follows keeps the
+        button away for seconds at a time, so its absence is not an error
+        either. The press is therefore repeated from the state loop.
+
+        Pages:
+            in: page_dungeon_result
+            out: page_dungeon
+
+        Args:
+            timeout (int, float): Seconds.
+
+        Returns:
+            bool: If the detail page is back.
+        """
+        timeout = Timer(timeout).start()
+        retry = Timer(3).start()
+        for _ in self.loop():
+            self.device.stuck_record_clear()
+
+            # End - the detail page is back, either because the loading page
+            # before it is over or because the press already worked.
+            if self.appear(DUNGEON_TITLE, offset=30):
+                return True
+
+            # Click - 「返回」 is the only way out of the result page.
+            if retry.reached():
+                retry.reset()
+                if self.appear(DUNGEON_BTN_BACK, offset=30):
+                    logger.info('Leave the result page')
+                    self.device.click(DUNGEON_BTN_BACK)
+
+            if timeout.reached():
+                logger.warning('Did not return to the squad dungeon page')
+                return False
