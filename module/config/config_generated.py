@@ -106,5 +106,18 @@ class GeneratedConfig:
     # Group `LostswordSummon`
     LostswordSummon_Draw = True
 
+    # Group `BrowndustSummon`
+    BrowndustSummon_Draw = True
+
+    # Group `BrowndustHunt`
+    BrowndustHunt_HuntField = 5
+    BrowndustHunt_HuntCoin = 5
+    BrowndustHunt_HuntSlime = 5
+    BrowndustHunt_CaveFire = 2
+    BrowndustHunt_CaveWater = 2
+    BrowndustHunt_CaveWind = 2
+    BrowndustHunt_CaveLight = 2
+    BrowndustHunt_CaveDark = 2
+
     # Group `Storage`
     Storage_Storage = {}

@@ -404,5 +404,96 @@
     "Storage": {
       "Storage": {}
     }
+  },
+  "BrowndustSummon": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustSummon",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "BrowndustSummon": {
+      "Draw": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "BrowndustHunt": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustHunt",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "BrowndustHunt": {
+      "HuntField": 5,
+      "HuntCoin": 5,
+      "HuntSlime": 5,
+      "CaveFire": 2,
+      "CaveWater": 2,
+      "CaveWind": 2,
+      "CaveLight": 2,
+      "CaveDark": 2
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "BrowndustMail": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustMail",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "BrowndustManager": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustManager",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "BrowndustTask": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustTask",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "BrowndustPass": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustPass",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
   }
 }

@@ -31,10 +31,14 @@ class ManualConfig:
     # 每日免费召唤 sits right after 宝藏探索: two presses, nothing spent, and the
     # only thing it competes with is the day itself - a queue that gets cut short
     # before this task runs loses the free pull for good.
+    #
+    # 棕色尘埃2 的免费抽抽乐 same story: two presses a day (服装 / 装备), and the
+    # category is the only line so far.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask
+    > BrowndustSummon > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustPass > BrowndustHunt
     """
 
     """

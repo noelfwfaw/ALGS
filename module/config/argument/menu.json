@@ -41,5 +41,17 @@
       "LostswordAffection",
       "LostswordTask"
     ]
+  },
+  "Browndust": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "BrowndustSummon",
+      "BrowndustHunt",
+      "BrowndustMail",
+      "BrowndustManager",
+      "BrowndustTask",
+      "BrowndustPass"
+    ]
   }
 }

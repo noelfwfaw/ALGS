@@ -145,19 +145,30 @@ class AlGS(GameScheduler):
         LostswordTask(config=self.config, device=self.device).run()
 
     # ==================== Brown Dust II (棕色尘埃2) ====================
-    #
-    # 骨架已就位，任务还没有：游戏包名和 UI 类已注册（见 `games` 与
-    # `module/config/server.py`），但一个任务都没有，所以调度器不会碰这个游戏。
-    #
-    # 第一个任务落地时按这个形状加，方法名必须是任务名的下划线形式
-    # （`inflection.underscore`），因为调度器是按名字调的：
-    #
-    #     def browndust_xxx(self):
-    #         from module.browndust.xxx import BrowndustXxx
-    #         BrowndustXxx(config=self.config, device=self.device).run()
-    #
-    # 任务名的 `Browndust` 前缀不是装饰：`task_game()` 靠它判断这个任务属于哪个
-    # 游戏，前缀对不上就切不了游戏，会在上一个游戏还在前台时直接开跑。
+
+    def browndust_summon(self):
+        from module.browndust.summon import BrowndustSummon
+        BrowndustSummon(config=self.config, device=self.device).run()
+
+    def browndust_hunt(self):
+        from module.browndust.hunt import BrowndustHunt
+        BrowndustHunt(config=self.config, device=self.device).run()
+
+    def browndust_mail(self):
+        from module.browndust.mail import BrowndustMail
+        BrowndustMail(config=self.config, device=self.device).run()
+
+    def browndust_manager(self):
+        from module.browndust.manager import BrowndustManager
+        BrowndustManager(config=self.config, device=self.device).run()
+
+    def browndust_task(self):
+        from module.browndust.task import BrowndustTask
+        BrowndustTask(config=self.config, device=self.device).run()
+
+    def browndust_pass(self):
+        from module.browndust.battle_pass import BrowndustPass
+        BrowndustPass(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

@@ -89,3 +89,24 @@ Lostsword:
     LostswordTask:
       - Scheduler
       - LostswordTask
+
+# ==================== Brown Dust II ====================
+
+Browndust:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    BrowndustSummon:
+      - Scheduler
+      - BrowndustSummon
+    BrowndustHunt:
+      - Scheduler
+      - BrowndustHunt
+    BrowndustMail:
+      - Scheduler
+    BrowndustManager:
+      - Scheduler
+    BrowndustTask:
+      - Scheduler
+    BrowndustPass:
+      - Scheduler

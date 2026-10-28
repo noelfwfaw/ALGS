@@ -11,6 +11,10 @@
     "Lostsword": {
       "name": "Lost Sword",
       "help": "Daily routines of Lost Sword"
+    },
+    "Browndust": {
+      "name": "Brown Dust II",
+      "help": "Daily tasks of Brown Dust II"
     }
   },
   "Task": {
@@ -113,6 +117,30 @@
     "LostswordTask": {
       "name": "Task rewards",
       "help": "Claim all daily, weekly and epic task rewards"
+    },
+    "BrowndustSummon": {
+      "name": "Free gacha",
+      "help": "Take the daily free pull of the costume and equipment gacha"
+    },
+    "BrowndustHunt": {
+      "name": "Quick Hunt",
+      "help": "Spend the daily quick-hunt runs of the field, coin and slime areas, and of the sacred stone caves"
+    },
+    "BrowndustMail": {
+      "name": "Mail",
+      "help": "Claim every attachment in 普通邮箱 (shop mail and the log page are left alone)"
+    },
+    "BrowndustManager": {
+      "name": "Management",
+      "help": "Claim the accumulated 经营管理 rewards (一键获得)"
+    },
+    "BrowndustTask": {
+      "name": "Daily Quests",
+      "help": "Claim the daily and weekly quest rewards (全部获得)"
+    },
+    "BrowndustPass": {
+      "name": "Pass Rewards",
+      "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"
     }
   },
   "Scheduler": {
@@ -566,6 +594,54 @@
     "Draw": {
       "name": "Draw both free pools",
       "help": "When off nothing is drawn, but the task keeps its own schedule"
+    }
+  },
+  "BrowndustSummon": {
+    "_info": {
+      "name": "Daily free gacha settings",
+      "help": ""
+    },
+    "Draw": {
+      "name": "Take both free pulls",
+      "help": "When off, nothing is pulled, the task is still scheduled"
+    }
+  },
+  "BrowndustHunt": {
+    "_info": {
+      "name": "Quick Hunt Settings",
+      "help": "The two groups have separate daily caps, see each entry"
+    },
+    "HuntField": {
+      "name": "Hunting Field runs",
+      "help": "Runs per day in 狩猎场, 0 = skip. The field, coin and slime areas share one stamina bar, so the three together cannot exceed 15"
+    },
+    "HuntCoin": {
+      "name": "Coin Area runs",
+      "help": "Runs per day in the coin area, 0 = skip. Shares stamina with the field and slime areas, 15 in total"
+    },
+    "HuntSlime": {
+      "name": "Slime Area runs",
+      "help": "Runs per day in the slime area, 0 = skip. Shares stamina with the field and coin areas, 15 in total"
+    },
+    "CaveFire": {
+      "name": "Fire Cave runs",
+      "help": "Sacred stone cave, fire. 0 = skip. The five caves share the torch, 10 in total"
+    },
+    "CaveWater": {
+      "name": "Water Cave runs",
+      "help": "Sacred stone cave, water. 0 = skip. The five caves share the torch, 10 in total"
+    },
+    "CaveWind": {
+      "name": "Wind Cave runs",
+      "help": "Sacred stone cave, wind. 0 = skip. The five caves share the torch, 10 in total"
+    },
+    "CaveLight": {
+      "name": "Light Cave runs",
+      "help": "Sacred stone cave, light. 0 = skip. The five caves share the torch, 10 in total"
+    },
+    "CaveDark": {
+      "name": "Dark Cave runs",
+      "help": "Sacred stone cave, dark. 0 = skip. The five caves share the torch, 10 in total"
     }
   },
   "Storage": {

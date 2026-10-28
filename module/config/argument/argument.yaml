@@ -186,3 +186,14 @@ LostswordTask:
   Claim: true
 LostswordSummon:
   Draw: true
+BrowndustSummon:
+  Draw: true
+BrowndustHunt:
+  HuntField: 5
+  HuntCoin: 5
+  HuntSlime: 5
+  CaveFire: 2
+  CaveWater: 2
+  CaveWind: 2
+  CaveLight: 2
+  CaveDark: 2
