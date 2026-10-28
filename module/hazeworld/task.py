@@ -1,5 +1,5 @@
 from module.base.button import Button
-from module.base.timer import Timer
+from module.base.utils import get_color
 from module.hazeworld.assets import (POPUP_TOUCH_EXIT, TASK_CLAIM_ALL,
                                      TASK_CLAIM_ALL_DISABLED, TASK_POINT_LABEL,
                                      TASK_TAB_DAILY, TASK_TAB_MONTHLY,
@@ -55,18 +55,33 @@ MILESTONE_POPUP_SIMILARITY = 0.85
 MILESTONE_POPUP_MAX = 4
 # A claim also repaints the bar, and both the repaint and its loading line hide
 # the tag for a moment - long enough for the next frame to read "no reward left"
-# and end the loop while the reward is still on the bar. The popup that comes
-# with the claim is the reliable signal that the bar has been refreshed, so each
-# claim waits for it instead of guessing a delay.
-MILESTONE_POPUP_TIMEOUT = 10
+# and end the loop while the reward is still on the bar. So the claim has to be
+# followed by a wait; what it waits for is the bar itself.
+#
+# It used to wait for the popup that sometimes comes with a claim, and gave up
+# only when a ten second timer ran out. Most milestones pay out without that
+# popup - four of them in the 07:52 run of 2026-10-28, forty one seconds of the
+# task's forty six - so the wait was almost always spent on a sheet that was
+# never going to be drawn. Watching the bar until it stops changing is the same
+# wait, measured on the screen instead of guessed, and it ends as soon as the
+# redraw is done.
+MILESTONE_POPUP_TIMEOUT = 4
 
 
 # The tap on a tab is swallowed while the reward popup of the previous tab is
 # still closing: input stays locked for about a second after the tap that
 # dismissed it. A swallowed tap is indistinguishable from a tab with nothing to
-# claim, because both leave the button grey, so the tap is retried once instead
-# of trusting that first verdict. Cost: one extra settle window per empty tab.
+# claim by looking at the button alone - both leave it grey - so a tap that was
+# lost has to be sent again. See `task_tab_selected()` for how the two are told
+# apart, and `TASK_TAB_DARKNESS` for the measure.
 TASK_TAB_TRIES = 2
+
+# The tabs of the mission page. A selected tab is filled with a dark plate while
+# the others are translucent and show the bright background behind them, so the
+# selection is read from the fill. Measured on this page: the plate fills of the
+# three tabs are 76 to 87, the unselected ones sit far above, and the battle
+# pass reads its own tabs the same way with the same threshold.
+TASK_TAB_DARKNESS = 100
 
 
 class HazeworldTask(HazeworldUI):
@@ -143,6 +158,26 @@ class HazeworldTask(HazeworldUI):
         """
         return self.button_saturated(TASK_CLAIM_ALL, CLAIM_SATURATION)
 
+    def task_tab_selected(self, tab):
+        """
+        Whether a tab of the mission page is the selected one.
+
+        The tab tap of this page is sometimes swallowed - input stays locked for
+        about a second after the popup of the previous tab is dismissed - and a
+        swallowed tap looks exactly like a tab with nothing to claim, because
+        both leave the claim button grey. The fill of the tab tells them apart:
+        the selected tab is drawn on a dark plate, an unselected one is
+        translucent. See `TASK_TAB_DARKNESS`.
+
+        Args:
+            tab (Button): The tab.
+
+        Returns:
+            bool: If the tab is drawn on its dark plate.
+        """
+        color = get_color(self.device.image, tab.area)
+        return max(color) < TASK_TAB_DARKNESS
+
     def task_claim_tab(self, tab, skip_first_screenshot=True):
         """
         Switch to a mission tab, claim its missions and its milestone rewards.
@@ -153,11 +188,12 @@ class HazeworldTask(HazeworldUI):
         grey, so an early read reports "nothing to claim" for the tab that was
         just opened and skips its rewards (the weekly tab was lost this way).
 
-        The tab tap itself is retried once. The tap that dismissed the previous
-        tab's reward popup keeps input locked for about a second, and a tab tap
-        lands in that window often enough to matter: the tab then never switches
-        and its rewards are skipped exactly the same way, with the same innocent
-        looking log. See `TASK_TAB_TRIES`.
+        The tab tap itself is retried, but only when it did not land. It used to
+        be retried on every empty tab, which cost a second settle window on a
+        tab that had nothing to claim: the 09:12 run of 2026-10-28 spent thirty
+        six seconds on three empty tabs, half of it re-reading a tab that was
+        already open. `task_tab_selected()` answers "did the tap land", so a tab
+        that is open and empty is believed the first time.
 
         Args:
             tab (Button): Tab button of the mission page.
@@ -173,17 +209,13 @@ class HazeworldTask(HazeworldUI):
         logger.hr(f'Claim {tab.name}', level=2)
         count = 0
 
-        for attempt in range(TASK_TAB_TRIES):
-            # The tap that dismissed the previous tab's reward popup locks input
-            # for about a second, so a tab tap right after it is lost and the
-            # claim loop then reads the previous tab's grey button as "nothing to
-            # claim" (the weekly and monthly rewards were skipped this way).
-            # Tapping an open tab does nothing, so the tap is simply repeated.
+        for _ in range(TASK_TAB_TRIES):
             self.interval_clear(tab)
-            # The tab is always on screen whatever is selected, so this is only
-            # about the press, not about a match.
-            if self.appear(tab, offset=(20, 20)):
-                self.device.click(tab)
+            # The tab is always on screen whatever is selected, so the press is
+            # not guarded by a match; the plate is what tells whether it is
+            # already the open one.
+            if not self.task_tab_selected(tab):
+                self.device.click(tab)  # alas-lint: allow - `task_tab_selected()` above is the guard: the asset of a tab only matches while it is selected, the fill is what describes both states
             count = self.claim_all(
                 TASK_CLAIM_ALL,
                 disabled=TASK_CLAIM_ALL_DISABLED,
@@ -193,8 +225,15 @@ class HazeworldTask(HazeworldUI):
             )
             if count:
                 break
+            # Nothing to claim, and the tab is the open one: that is the real
+            # answer for this tab. Only a tab that is not open means the tap was
+            # lost and the loop has to send it again.
+            if self.task_tab_selected(tab):
+                logger.info(f'{tab.name} has nothing to claim')
+                break
+            logger.info(f'{tab.name} is not open, tapping it again')
         else:
-            logger.info(f'{tab.name} has nothing to claim')
+            logger.warning(f'Cannot open {tab.name} of the mission page')
 
         self.interval_clear(TASK_CLAIM_ALL)
 
@@ -206,40 +245,39 @@ class HazeworldTask(HazeworldUI):
 
     def milestone_wait_reward(self, timeout=MILESTONE_POPUP_TIMEOUT):
         """
-        Wait for the popup of a milestone claim and close it.
+        Wait until the point bar has been redrawn after a claim, then close
+        whatever the claim raised.
 
-        The popup is what tells that the claim went through: while it is up the
-        point bar behind it is covered, and the tag cannot be read. Coming back
-        only after it is gone means the next look at the bar is a real one.
+        Waiting on the bar rather than on a popup: the popup only comes with
+        some milestones, and waiting for one that never appears costs the whole
+        timeout on every claim. The bar, on the other hand, is always redrawn -
+        the reward has to come off it - so "the bar stopped changing" is the
+        signal that is always there. A popup that does come is caught after the
+        wait, and the caller's own loop checks for one again before reading the
+        bar, so a sheet that arrives late is still closed.
 
         Args:
-            timeout (int, float): Seconds to wait for it.
+            timeout (int, float): Seconds to watch the bar before giving up on
+                it settling.
 
         Returns:
             bool: If a popup was closed.
         """
-        timeout = Timer(timeout).start()
+        self.wait_until_still(TASK_POINT_LABEL.area, timeout=timeout,
+                              skip_first_screenshot=True)
 
-        for _ in self.loop():
-            # The sheet covers the point bar behind it, so the claim is only
-            # confirmed once the sheet is gone.
-            self.device.stuck_record_clear()
-
-            # Click - one action per frame.
-            if self.handle_reward():
-                continue
-            if self.appear(POPUP_TOUCH_EXIT, offset=(20, 20),
-                           similarity=MILESTONE_POPUP_SIMILARITY):
-                self.device.click(POPUP_TOUCH_EXIT)
-                # A sheet that is still fading in eats the tap, and the caller
-                # must read an uncovered bar, so wait until it is really gone.
-                self.wait_until_disappear(POPUP_TOUCH_EXIT, offset=(20, 20), timeout=3,
-                                          settle=self.SETTLE_FRAMES)
-                return True
-            if timeout.reached():
-                # Some milestones pay out without the sheet; the bar is simply
-                # redrawn. Nothing to close then.
-                return False
+        if self.handle_reward():
+            return True
+        if self.appear(POPUP_TOUCH_EXIT, offset=(20, 20),
+                       similarity=MILESTONE_POPUP_SIMILARITY):
+            # A sheet that is still fading in eats the tap, and the caller must
+            # read an uncovered bar, so wait until it is really gone.
+            self.device.click(POPUP_TOUCH_EXIT)
+            self.wait_until_disappear(POPUP_TOUCH_EXIT, offset=(20, 20), timeout=3,
+                                      settle=self.SETTLE_FRAMES)
+            self.wait_until_still(TASK_POINT_LABEL.area, timeout=timeout)
+            return True
+        return False
 
     def task_claim_milestone(self, skip_first_screenshot=True):
         """
