@@ -180,6 +180,12 @@ class LostswordStar(LostswordUI):
         timeout = Timer(timeout).start()
         report = Timer(30).start()
         waves = 0
+        # One area is one battle: the click counter exists to catch a task
+        # hammering a button while it is stuck, and it holds the last 15 presses
+        # with no notion of time. The two or three presses of three battles
+        # spread over minutes would otherwise add up to the same 12 that the
+        # throttle below is meant to stay away from.
+        self.device.click_record_clear()
 
         for _ in self.loop():
             # A battle is a live scene that barely changes for minutes, which
@@ -193,7 +199,7 @@ class LostswordStar(LostswordUI):
             if self.appear(BOSS_VICTORY, offset=30) or self.appear(DUNGEON_CLEAR, offset=30):
                 waves += 1
                 logger.info(f'{name}: wave {waves} cleared')
-                self.device.click(BOSS_RESULT_TAP)
+                self.star_dismiss_result()
                 continue
 
             if report.reached():
@@ -202,6 +208,49 @@ class LostswordStar(LostswordUI):
             if timeout.reached():
                 logger.warning(f'{name}: battle did not end in time')
                 raise GameStuckError('Star cycle battle did not end in time')
+
+    def star_dismiss_result(self, timeout=10):
+        """
+        Tap the result page away and wait until it is really off screen.
+
+        The page matches from its first fading frame and keeps matching for
+        several frames after a tap has been taken, so one press per state loop
+        iteration turns into a dozen presses on the same spot within a second.
+        The click record counts those as one button hammered and kills the task:
+        measured 2026-10-28, the second area died with
+        `GameTooManyClickError: Too many click for a button: BOSS_RESULT_TAP`
+        after 12 presses, and the first area got away with 11.
+
+        The press is therefore throttled and repeated until the artwork is
+        gone, which also makes the wave counter mean what it says: one result
+        page, one wave.
+
+        Returns:
+            bool: If the result page is gone.
+        """
+        timeout = Timer(timeout).start()
+        # Not started on purpose: a timer that was never started is reached on
+        # the first call, so the first press goes out at once and only the
+        # repeats are throttled.
+        retry = Timer(1)
+        for _ in self.loop():
+            # A result page is a still scene, which reads as a frozen game.
+            self.device.stuck_record_clear()
+
+            if self.appear(BOSS_VICTORY, offset=30) or self.appear(DUNGEON_CLEAR, offset=30):
+                # Click - anywhere on the artwork advances it, and the next wave
+                # starts right after the loading screen.
+                if retry.reached():
+                    retry.reset()
+                    self.device.click(BOSS_RESULT_TAP)
+            else:
+                # End - the artwork is off screen, so the next wave is loading or
+                # the panel is coming back.
+                return True
+
+            if timeout.reached():
+                logger.warning('The result page does not leave')
+                return False
 
     def star_close(self):
         """

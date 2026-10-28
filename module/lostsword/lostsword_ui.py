@@ -219,7 +219,7 @@ class LostswordUI(UI):
             self.tap_asset(SUMMON_SKIP)
             return True
 
-        if self.appear(MAIN_DEFEAT, offset=30):
+        if self.appear(MAIN_DEFEAT, offset=30, interval=2):
             logger.info('Defeat page, press 返回')
             self.device.click(MAIN_DEFEAT_BACK)
             return True
@@ -229,12 +229,17 @@ class LostswordUI(UI):
             self.handle_reward_popup()
             return True
 
-        if self.appear(BOSS_VICTORY, offset=30):
+        # Throttled: these two pages are met in the middle of a battle that has
+        # just ended, and every frame they keep matching is one more press on
+        # the same spot. The click record holds the last 15 presses with no
+        # notion of time, and 12 of them on one button is a GameTooManyClickError
+        # - which is exactly how the star cycle task died (2026-10-28).
+        if self.appear(BOSS_VICTORY, offset=30, interval=2):
             logger.info('Battle result page, tap through it')
             self.device.click(BOSS_RESULT_TAP)
             return True
 
-        if self.appear(DUNGEON_CLEAR, offset=30):
+        if self.appear(DUNGEON_CLEAR, offset=30, interval=2):
             logger.info('Squad dungeon clear page, leave it')
             self.device.click(DUNGEON_BTN_BACK)
             return True
