@@ -431,7 +431,15 @@ class HazeworldUI(UI):
                     logger.warning(f'Claim all clicked {count} times, stop')
                     break
                 logger.info(f'Claim all ({count + 1})')
-                if self.appear(claim, offset=(20, 20)):
+                # Only one of the two judgements may decide the press. When
+                # `available` is given it already answered "the button is
+                # there" with a measure the asset can support (a colour spread,
+                # a label match). Asking the template afterwards is a second,
+                # stricter opinion that some assets can never give: the stored
+                # crop of `PASS_CLAIM_ALL` is its disabled look, so a match
+                # refuses the very frame that says click me, and the loop then
+                # counted twenty presses without sending one.
+                if available is not None or self.appear(claim, offset=(20, 20)):
                     self.device.click(claim)
                 count += 1
                 # The page is obviously the right one now, no need to wait for

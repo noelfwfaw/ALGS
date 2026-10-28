@@ -214,6 +214,15 @@ class HazeworldPass(HazeworldUI):
         left alone for `PASS_TAB_RETRY` seconds: pressing on every frame would
         restart the redraw it is waiting for.
 
+        The press is not guarded by a template match. The crop of a tab can only
+        be taken while it is selected - that is the only state where the plate
+        is solid enough to cut - which makes `appear()` refuse the tab exactly
+        when it needs pressing. The two tabs that are not selected by default
+        were never pressed at all, each waiting out the timeout on a tab the
+        check below would have described correctly. So the press goes straight
+        to the area of the tab, and `pass_tab_selected()` is both the guard and
+        the confirmation.
+
         Args:
             tab (Button): The tab.
             timeout (int, float): Give up after this many seconds.
@@ -241,8 +250,7 @@ class HazeworldPass(HazeworldUI):
                 return False
 
             if retry.reached():
-                if self.appear(tab, offset=(20, 20)):
-                    self.device.click(tab)
+                self.device.click(tab)  # alas-lint: allow - the asset of a tab only matches while it is selected, and `pass_tab_selected()` above is what tells the two states apart
                 retry.reset()
             self.device.screenshot()
 
