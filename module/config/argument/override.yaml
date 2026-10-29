@@ -99,6 +99,9 @@ BrowndustManager:
 BrowndustTask:
   Scheduler:
     ServerUpdate: 08:00
+BrowndustEvent:
+  Scheduler:
+    ServerUpdate: 08:00
 BrowndustPass:
   Scheduler:
     ServerUpdate: 08:00

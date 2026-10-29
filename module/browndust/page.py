@@ -1,7 +1,8 @@
 """
 页面图 of 棕色尘埃2.
 
-Seven pages so far, all measured on the 2026-10-28 screenshots:
+Nine pages so far: the seven below, measured on the 2026-10-28 screenshots, and
+the two of the running event, measured on 2026-10-29 (see the end of the file).
 
 - `page_map` —— 游戏每天第一次启动落地的地方。检查点就是右上角那个白色房子按钮，
   它同时也是"进主页面"的入口，所以一个素材干两件事（判地图页 + 点它进大厅）。
@@ -39,10 +40,11 @@ luma>200 的像素，8 张弹窗截图全是 0）。
 `BrowndustUI.pages` 要把这里的页面全部列一遍，顺序即匹配顺序（先特殊后通用）。
 """
 from module.base.button import Button
-from module.browndust.assets import (HUNT_BUTTON, HUNT_ENTRY, MAIL_CLAIM, MAIL_ENTRY,
+from module.browndust.assets import (EVENT_ENTRY, EVENT_SCHEDULE, EVENT_TAB_STORY,
+                                     HUNT_BUTTON, HUNT_ENTRY, MAIL_CLAIM, MAIL_ENTRY,
                                      MAIN_HOME_ICON, MAP_HOME_BTN, PASS_ENTRY,
-                                     PASS_TITLE, SUMMON_BANNER, SUMMON_ENTRY,
-                                     TASK_CLAIM_ALL, TASK_ENTRY)
+                                     PASS_TITLE, STORY_TITLE, SUMMON_BANNER,
+                                     SUMMON_ENTRY, TASK_CLAIM_ALL, TASK_ENTRY)
 from module.ui.page import Page
 
 page_map = Page(MAP_HOME_BTN)
@@ -133,3 +135,43 @@ PASS_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow
 # 纯黑遮罩 0.99）。所以它只在大厅上被读，别处一律不认。
 page_main.link(button=PASS_ENTRY, destination=page_pass)
 page_pass.link(button=PASS_BACK, destination=page_main)
+
+# ---- 活动（每期换皮的那一套）---------------------------------------------
+#
+# 活动页。检查点是左上角那枚「行程」按钮：它只在这一页上有 —— 点进去的
+# 剧情/战斗/任务几个子页左上角都换成了一行"图标 + 页名"的标题，别的页面上
+# 根本没有这枚按钮（剧情列表页 0.50、大厅 0.48，都在 0.85 之下）。
+#
+# 为什么不用底部那排页签当检查点：它们**只在活动页上出现**没错，但每个页签
+# 都是一块红色木牌 + 白字，六块长得几乎是同一张图，认错一格就会点进别的模式。
+# 「行程」是唯一的。
+page_event = Page(EVENT_SCHEDULE)
+
+# 活动「剧情」页（亲密度剧集列表）。检查点是左上角标题「剧情」。
+#
+# 它和 `PASS_TITLE`（通行证标题）在**同一个位置、同样大小、同样是"图标+两个字"**，
+# 所以专门量了互相的干扰：剧情标题在通行证页 0.480，通行证标题在剧情页 0.500，
+# 两边都远在 0.85 之下。这对位置上的近邻是这一层最容易踩的坑，换期重新抠图时
+# 要重新量一遍。
+page_event_story = Page(STORY_TITLE)
+
+# 活动页的返回箭头。跟其它五页的返回键同一个位置（游戏统一的左上角胶囊），
+# 所以还是纯坐标：背后是每期都换的活动主视觉。
+EVENT_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                    button=(124, 24, 152, 56), name='EVENT_BACK')
+
+# 大厅右侧那面活动横幅。`EVENT_ENTRY` 取的是横幅下面那行小字（这一期是
+# 「魔兽追踪者解锁」），它既当检查点也当点击点 —— 实测点它的中心就进活动页，
+# 不用再建一个 `.BUTTON`。代价是换期要重新导出这张图，见 skill 8.6。
+page_main.link(button=EVENT_ENTRY, destination=page_event)
+page_event.link(button=EVENT_BACK, destination=page_main)
+
+# 活动页底部第一块木牌「剧情」。实测点木牌下面的**文字**就能进（不用点上面的
+# 图标），所以直接用素材的 area。
+page_event.link(button=EVENT_TAB_STORY, destination=page_event_story)
+
+# 剧情页的返回箭头，还是同一个位置。回的是活动页而不是大厅：活动页才是它的
+# 上一级，`ui_goto(page_main)` 会顺着这条边再走一步。
+STORY_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                    button=(124, 24, 152, 56), name='STORY_BACK')
+page_event_story.link(button=STORY_BACK, destination=page_event)

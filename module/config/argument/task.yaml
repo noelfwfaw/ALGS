@@ -110,6 +110,8 @@ Browndust:
       - Scheduler
     BrowndustTask:
       - Scheduler
+    BrowndustEvent:
+      - Scheduler
     BrowndustPass:
       - Scheduler
     BrowndustRedeem:

@@ -142,6 +142,10 @@
       "name": "Daily Quests",
       "help": "Claim the daily and weekly quest rewards (全部获得)"
     },
+    "BrowndustEvent": {
+      "name": "Event Story",
+      "help": "Skip every episode the running event has to offer, after reading the days left from 行程"
+    },
     "BrowndustPass": {
       "name": "Pass Rewards",
       "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"

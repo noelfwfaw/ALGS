@@ -52,6 +52,7 @@
       "BrowndustManager",
       "BrowndustMail",
       "BrowndustTask",
+      "BrowndustEvent",
       "BrowndustPass",
       "BrowndustRedeem"
     ]

@@ -11,6 +11,9 @@ config/tmp*
 !config/template*.json
 *.pyw
 dev_tools/debug_tools
+# One-off probes: they read a live screen, so they are worth nothing later and
+# `git status` was carrying twenty of them. Findings belong in the skill, not here.
+dev_tools/probe_*.py
 .idea
 /screenshots
 /collection/
