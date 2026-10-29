@@ -174,6 +174,10 @@ class AlGS(GameScheduler):
         from module.browndust.battle_pass import BrowndustPass
         BrowndustPass(config=self.config, device=self.device).run()
 
+    def browndust_redeem(self):
+        from module.browndust.redeem import BrowndustRedeem
+        BrowndustRedeem(config=self.config, device=self.device).run()
+
 
 if __name__ == '__main__':
     logger.hr('AlGS', level=0)

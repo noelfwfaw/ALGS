@@ -112,3 +112,5 @@ Browndust:
       - Scheduler
     BrowndustPass:
       - Scheduler
+    BrowndustRedeem:
+      - Scheduler

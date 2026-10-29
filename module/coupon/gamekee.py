@@ -1,5 +1,8 @@
 """The coupon list of GameKee (gamekee.com).
 
+Shared by every game of this fork: the endpoint is one and the same, only the
+`game-alias` header tells it which game is being asked about.
+
 The site is a Vue SPA: the page itself is a 3.6 KB shell and every list on it is
 fetched as XHR from `/v1/**`. Those endpoints are same origin, need no login and
 carry no signature - the single requirement is the `game-alias` header, without
@@ -24,7 +27,11 @@ import requests
 from module.logger import logger
 
 API = 'https://www.gamekee.com/v1/game/cdk/query-list'
-URL = 'https://www.gamekee.com/{alias}/redemptionCode/20'
+# The wiki page the header has to point at. The trailing number is the section
+# of that game's wiki and is different per game (失落之剑 20, 棕色尘埃2 12); the
+# server does not seem to read it, but a Referer from the right wiki is the
+# honest thing to send.
+URL = 'https://www.gamekee.com/{alias}/redemptionCode/{page}'
 # The list of this game never came close to 100 entries; the endpoint has no
 # page count in `meta` (only request ids), so a second page would have to be
 # guessed. One page it is.
@@ -34,7 +41,6 @@ RETRY_DELAY = (1.5, 3.0, 4.5)
 TIMEOUT = 20
 
 HEADERS = {
-    'game-alias': 'lostsword',
     'X-Requested-With': 'XMLHttpRequest',
     'Lang': 'zh-cn',
     # An empty UA is the easiest way to get rate limited.
@@ -47,13 +53,15 @@ class GameKeeError(Exception):
     """The site answered something the caller cannot use."""
 
 
-def fetch_codes(alias='lostsword', limit=PAGE_LIMIT, timeout=TIMEOUT):
+def fetch_codes(alias, page=1, limit=PAGE_LIMIT, timeout=TIMEOUT):
     """
-    Read the coupon list and keep the ones that are still valid.
+    Read the coupon list of one game and keep the codes that are still valid.
 
     Args:
-        alias (str): Game alias, `lostsword` for Lost Sword. The first segment
-            of the wiki URL is the same string.
+        alias (str): Game alias on GameKee, i.e. the first segment of the wiki
+            URL: `lostsword` for 失落之剑, `zsca2` for 棕色尘埃2. It goes into the
+            `game-alias` header, which is the only thing the endpoint asks for.
+        page (int): Last segment of that game's wiki URL, used for the Referer.
         limit (int): Entries per page.
         timeout (int, float): Seconds per attempt.
 
@@ -67,7 +75,7 @@ def fetch_codes(alias='lostsword', limit=PAGE_LIMIT, timeout=TIMEOUT):
     """
     headers = dict(HEADERS)
     headers['game-alias'] = alias
-    referer = URL.format(alias=alias)
+    referer = URL.format(alias=alias, page=page)
     headers['Referer'] = referer
 
     last = None

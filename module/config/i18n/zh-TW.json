@@ -145,6 +145,10 @@
     "BrowndustPass": {
       "name": "通行證領取",
       "help": "領取每一張帶紅點的通行證裡的任務與獎勵（全部獲得）"
+    },
+    "BrowndustRedeem": {
+      "name": "兌換碼",
+      "help": "每天從 GameKee 抓一次兌換碼，新的在遊戲裡兌換掉；已兌換和過期的跳過"
     }
   },
   "Scheduler": {

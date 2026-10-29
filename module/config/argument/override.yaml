@@ -102,3 +102,9 @@ BrowndustTask:
 BrowndustPass:
   Scheduler:
     ServerUpdate: 08:00
+BrowndustRedeem:
+  Scheduler:
+    # Quoted on purpose: YAML reads a bare `10:30` as the sexagesimal number 630,
+    # and the generator then refuses it as "not a string". 10:30 keeps this task
+    # off the daily-reset rush and an hour after the 失落之剑 one.
+    ServerUpdate: '10:30'

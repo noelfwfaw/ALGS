@@ -26,16 +26,20 @@
 """
 
 from module.base.timer import Timer
+from module.coupon.codes import EXPIRED, FAILED, REDEEMED, USED, CodeBook
+from module.coupon.gamekee import GameKeeError, fetch_codes
 from module.logger import logger
 from module.lostsword.assets import (ARENA_BTN_CLOSE, REDEEM_BTN_CONFIRM,
                                      REDEEM_BTN_COUPON, REDEEM_BTN_SUBMIT,
                                      REDEEM_DIALOG_TITLE, REDEEM_ENTRY,
                                      REDEEM_TAB_ACCOUNT, REDEEM_TITLE_SETTING)
-from module.lostsword.codes import (EXPIRED, FAILED, REDEEMED, USED, CodeBook)
 from module.lostsword.coupon_input import REDEEM_INPUT, REDEEM_KEYBOARD_OK, CouponInput
-from module.lostsword.gamekee import GameKeeError, fetch_codes
 from module.lostsword.lostsword_ui import LostswordUI, page_battle, page_main
 from module.lostsword.utils import read_text
+
+# 账本。放在 `config/state/` 而不是 `config/` 顶层：那里每个 json 都会被
+# `alas_instance()` 当成一个调度器实例（硬约束 118）。
+COUPON_LEDGER = './config/state/lostsword_codes.json'
 
 # 大厅右上角的三条横线。这个图标本身带红点、背后是会动的链条，做不成模板，
 # 所以按坐标点，点完用菜单里的齿轮（`REDEEM_ENTRY`）验证菜单真的开了。
@@ -108,7 +112,7 @@ class LostswordRedeem(LostswordUI, CouponInput):
             self.config.task_delay(server_update=True)
             return
 
-        book = CodeBook()
+        book = CodeBook(COUPON_LEDGER)
         book.log_summary()
         todo = book.pending(codes)
         # `pending()` 顺手把过期码记进账本，这里落一次盘。
@@ -153,7 +157,7 @@ class LostswordRedeem(LostswordUI, CouponInput):
             list[dict] or None: None when the site could not be read at all.
         """
         try:
-            codes = fetch_codes()
+            codes = fetch_codes(alias='lostsword', page=20)
         except GameKeeError as e:
             # Not an exception for the scheduler: the list being down is not a
             # broken game, and the next run is tomorrow anyway.

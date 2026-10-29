@@ -1,9 +1,3 @@
-import re
-
-import cv2
-
-from module.base.button import Button
-
 """
 Image helpers shared by the tasks of this game.
 
@@ -11,7 +5,14 @@ Image helpers shared by the tasks of this game.
 round (upstream does too), so it only works when both pieces have the same size.
 Anything that has to search a narrow region for a small label needs the helpers
 here instead.
+
+`read_text()` moved to `module/coupon/text.py` when 棕色尘埃2 got the same
+feature (the coupon tasks of both games read Chinese), and is re-exported here so
+the tasks of this game keep importing it from one place.
 """
+import cv2
+
+from module.coupon.text import read_text  # noqa: F401 - re-exported for the tasks of this game
 
 
 def match(image, button, region):
@@ -42,29 +43,3 @@ def match(image, button, region):
         return 0.0
     res = cv2.matchTemplate(patch, template, cv2.TM_CCOEFF_NORMED)
     return float(cv2.minMaxLoc(res)[1])
-
-
-def read_text(image, area):
-    """
-    OCR a piece of the screenshot with the Chinese model.
-
-    The default model of the framework is trained on the Latin names of the other
-    game and turns Chinese into noise, so every read of a Chinese label has to ask
-    for `cnocr` explicitly. Punctuation never survives the model, and the names of
-    this game carry a middle dot (迪安·凯特), so whatever is not a Han character is
-    dropped instead of compared.
-
-    Args:
-        image (np.ndarray): Screenshot.
-        area (tuple): (x1, y1, x2, y2).
-
-    Returns:
-        str: What was read, Han characters only.
-    """
-    from module.ocr.ocr import Ocr
-
-    button = Button(area=area, color=(0, 0, 0), button=area, name='NAME')
-    ocr = Ocr(button, lang='cnocr', letter=(255, 255, 255), threshold=170,
-              name='CHAR_NAME')
-    text = ocr.ocr(image)
-    return re.sub(r'[^\u4e00-\u9fa5]', '', str(text))

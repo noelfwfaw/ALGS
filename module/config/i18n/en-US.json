@@ -145,6 +145,10 @@
     "BrowndustPass": {
       "name": "Pass Rewards",
       "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"
+    },
+    "BrowndustRedeem": {
+      "name": "Coupon codes",
+      "help": "Fetch the coupon codes of the game from GameKee once a day and redeem the new ones; used and expired codes are skipped"
     }
   },
   "Scheduler": {

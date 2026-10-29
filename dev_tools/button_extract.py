@@ -193,6 +193,15 @@ class ModuleExtractor:
             # assets.py and broke the whole module at import time.
             if os.path.splitext(file)[1].lower() not in ('.png', '.gif'):
                 continue
+            # [AlGS PATCH] Assets are named in English, the 素材工坊 exports them
+            # in Chinese and `asset_rename` renames them before this tool runs.
+            # A leftover export becomes an identifier such as `兑换码入口`,
+            # which is legal Python but unreachable from `import *` and from
+            # grep in most editors. Skipping with a warning keeps the file
+            # importable while the rename is still pending.
+            if not file.isascii():
+                logger.warning(f'{self.name}/{file} is not ASCII, rename it with dev_tools.asset_rename')
+                continue
             if file[0].isdigit():
                 continue
             if file.startswith('TEMPLATE_'):
@@ -215,9 +224,20 @@ class ModuleExtractor:
         folder = os.path.join(MODULE_FOLDER, self.name)
         if not os.path.exists(folder):
             os.mkdir(folder)
-        with open(os.path.join(folder, BUTTON_FILE), 'w', newline='') as f:
-            for text in self.expression:
+        # Build the whole list before touching the file, and replace the file in
+        # one step. `self.expression` reads every png in the folder and a single
+        # unreadable asset raises halfway through; writing in place leaves a
+        # truncated assets.py behind, which breaks the module at import time
+        # with no trace of the real error. A broken pipe does the same thing to
+        # every module at once (2026-10-29: `| head -20` killed the pool while
+        # it was writing, emptying browndust, hazeworld and lostsword together).
+        exp = list(self.expression)
+        path = os.path.join(folder, BUTTON_FILE)
+        temp = path + '.tmp'
+        with open(temp, 'w', newline='') as f:
+            for text in exp:
                 f.write(text + '\n')
+        os.replace(temp, path)
 
 
 def worker(module):

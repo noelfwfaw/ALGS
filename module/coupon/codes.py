@@ -1,7 +1,16 @@
 """The local ledger of coupon codes: what was already redeemed, what is dead.
 
-`config/lostsword_codes.json`, next to `alas.json` (the whole `config/*.json`
-folder is out of the repository, the ledger is runtime state, not code):
+One file per game, e.g. `config/state/lostsword_codes.json` - a subfolder of
+`config/`, on purpose. `module/config/utils.py` builds the instance dropdown of
+the WebUI out of `os.listdir('./config')`, taking every top-level `*.json` as an
+instance name (`alas_instance()`, and `list_mod_instance()` for the modded
+ones). A ledger sitting next to `alas.json` shows up there as an instance called
+`lostsword_codes`, and picking it runs the scheduler against a file that has no
+`Alas` section. Both enumerators only read the top level, so a subfolder is
+invisible to them.
+
+The ledger is runtime state, not code, and `config/state/` is out of the
+repository:
 
     {
       "updated_at": "2026-10-29 10:40:00",
@@ -15,15 +24,18 @@ folder is out of the repository, the ledger is runtime state, not code):
       }
     }
 
-Four statuses, and every one of them means "do not try again":
+Five statuses, and every one of them means "do not try again":
 
     redeemed   the game took it
-    used       the game said 「已使用过的优惠券」 - the code is spent
+    used       the code was spent before (「已使用过的优惠券」 / 「本序列号已使用完毕」)
     expired    past `end_at`, or gone from the list without ever being sent
-    failed     the press did not produce a readable answer; retrying the same
-               code every day would just repeat the same failure
+    invalid    the server does not know the code - 棕色尘埃2 answers this with
+               「无效的序列号」. Not the same thing as expired: the code may
+               still be inside its `end_at` and simply never existed.
+    failed     the game answered something that could not be read; retrying the
+               same code every day would just repeat the same failure
 
-The point of `failed` is the opposite of the other three: a code that could not
+The point of `failed` is the opposite of the other four: a code that could not
 be read is kept out of the retry loop for good, because a task that retries the
 one broken entry every day never gets to the new ones in a useful order.
 """
@@ -34,26 +46,31 @@ import os
 
 from module.logger import logger
 
-FILE = './config/lostsword_codes.json'
-
 REDEEMED = 'redeemed'
 USED = 'used'
 EXPIRED = 'expired'
+INVALID = 'invalid'
 FAILED = 'failed'
 
 # Every one of them means the code will not be sent to the game again.
-SETTLED = (REDEEMED, USED, EXPIRED, FAILED)
+SETTLED = (REDEEMED, USED, EXPIRED, INVALID, FAILED)
 
 
 class CodeBook:
     """
     Read, query and update the ledger.
 
-    It is deliberately a plain file next to the config: the user can open it,
+    It is deliberately a plain file under `config/state/`: the user can open it,
     delete a line to retry a code, and nothing else in the run depends on it.
     """
 
-    def __init__(self, file=FILE):
+    def __init__(self, file):
+        """
+        Args:
+            file (str): Path of this game's ledger, e.g.
+                `./config/state/lostsword_codes.json`. Required, because a
+                default would silently mix the two games' codes.
+        """
         self.file = file
         self.data = self.load()
 
