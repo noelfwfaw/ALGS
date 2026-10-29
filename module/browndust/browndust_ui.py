@@ -48,8 +48,9 @@ from module.browndust.assets import (BOOT_DOWNLOAD_DIALOG, BOOT_PAYMENT_ERROR,
                                      HUNT_START, MAIL_CLAIM, MAIN_HOME_ICON,
                                      MAP_HOME_BTN, TASK_CLAIM_ALL)
 from module.browndust.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
-from module.browndust.page import (page_event, page_event_story, page_hunt, page_main,
-                                   page_mail, page_map, page_pass, page_summon, page_task)
+from module.browndust.page import (page_event, page_event_battle, page_event_story,
+                                   page_hunt, page_main, page_mail, page_map, page_pass,
+                                   page_summon, page_task)
 from module.ui.ui import UI
 
 # 关大厅弹窗时点的地方：左边那条竖栏（我的小屋/好友/公会…）的左侧留白。
@@ -127,7 +128,7 @@ class BrowndustUI(UI):
     # （剧情页标题）0.48~0.52 —— 后者和 `PASS_TITLE` 同位置同尺寸，是这里唯一
     # 需要盯着的一对，实测互相 0.480 / 0.500。
     pages = (page_map, page_hunt, page_summon, page_task, page_pass, page_mail,
-             page_event, page_event_story, page_main)
+             page_event, page_event_story, page_event_battle, page_main)
 
     def ui_page_appear(self, page, offset=(30, 30), interval=0):
         """

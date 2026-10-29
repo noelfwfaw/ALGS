@@ -188,6 +188,14 @@ LostswordSummon:
   Draw: true
 BrowndustSummon:
   Draw: true
+BrowndustEventBattle:
+  BattleMode:
+    value: Normal
+    option: [ Normal, Challenge, Both ]
+  Times:
+    value: 3
+    argtype: integer
+    validate: [ 1, 5 ]
 BrowndustHunt:
   HuntField: 5
   HuntCoin: 5

@@ -109,6 +109,10 @@ class GeneratedConfig:
     # Group `BrowndustSummon`
     BrowndustSummon_Draw = True
 
+    # Group `BrowndustEventBattle`
+    BrowndustEventBattle_BattleMode = 'Normal'  # Normal, Challenge, Both
+    BrowndustEventBattle_Times = 3
+
     # Group `BrowndustHunt`
     BrowndustHunt_HuntField = 5
     BrowndustHunt_HuntCoin = 5

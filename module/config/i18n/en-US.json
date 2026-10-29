@@ -146,6 +146,10 @@
       "name": "Event Story",
       "help": "Skip every episode the running event has to offer, after reading the days left from 行程"
     },
+    "BrowndustEventBattle": {
+      "name": "Task.BrowndustEventBattle.name",
+      "help": "Task.BrowndustEventBattle.help"
+    },
     "BrowndustPass": {
       "name": "Pass Rewards",
       "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"
@@ -616,6 +620,23 @@
     "Draw": {
       "name": "Take both free pulls",
       "help": "When off, nothing is pulled, the task is still scheduled"
+    }
+  },
+  "BrowndustEventBattle": {
+    "_info": {
+      "name": "BrowndustEventBattle._info.name",
+      "help": "BrowndustEventBattle._info.help"
+    },
+    "BattleMode": {
+      "name": "BrowndustEventBattle.BattleMode.name",
+      "help": "BrowndustEventBattle.BattleMode.help",
+      "Normal": "Normal",
+      "Challenge": "Challenge",
+      "Both": "Both"
+    },
+    "Times": {
+      "name": "BrowndustEventBattle.Times.name",
+      "help": "BrowndustEventBattle.Times.help"
     }
   },
   "BrowndustHunt": {

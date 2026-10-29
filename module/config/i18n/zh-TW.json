@@ -146,6 +146,10 @@
       "name": "活動劇情",
       "help": "跳過當前活動劇情頁裡所有可看的劇集；動手之前先在「行程」裡讀一次還剩幾天"
     },
+    "BrowndustEventBattle": {
+      "name": "Task.BrowndustEventBattle.name",
+      "help": "Task.BrowndustEventBattle.help"
+    },
     "BrowndustPass": {
       "name": "通行證領取",
       "help": "領取每一張帶紅點的通行證裡的任務與獎勵（全部獲得）"
@@ -616,6 +620,23 @@
     "Draw": {
       "name": "抽取兩個分類的免費次數",
       "help": "關閉後不抽卡，任務仍然排期"
+    }
+  },
+  "BrowndustEventBattle": {
+    "_info": {
+      "name": "BrowndustEventBattle._info.name",
+      "help": "BrowndustEventBattle._info.help"
+    },
+    "BattleMode": {
+      "name": "BrowndustEventBattle.BattleMode.name",
+      "help": "BrowndustEventBattle.BattleMode.help",
+      "Normal": "Normal",
+      "Challenge": "Challenge",
+      "Both": "Both"
+    },
+    "Times": {
+      "name": "BrowndustEventBattle.Times.name",
+      "help": "BrowndustEventBattle.Times.help"
     }
   },
   "BrowndustHunt": {

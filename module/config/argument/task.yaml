@@ -112,6 +112,9 @@ Browndust:
       - Scheduler
     BrowndustEvent:
       - Scheduler
+    BrowndustEventBattle:
+      - Scheduler
+      - BrowndustEventBattle
     BrowndustPass:
       - Scheduler
     BrowndustRedeem:

@@ -1,8 +1,8 @@
 """
 页面图 of 棕色尘埃2.
 
-Nine pages so far: the seven below, measured on the 2026-10-28 screenshots, and
-the two of the running event, measured on 2026-10-29 (see the end of the file).
+Ten pages so far: the seven below, measured on the 2026-10-28 screenshots, and
+the three of the running event, measured on 2026-10-29 (see the end of the file).
 
 - `page_map` —— 游戏每天第一次启动落地的地方。检查点就是右上角那个白色房子按钮，
   它同时也是"进主页面"的入口，所以一个素材干两件事（判地图页 + 点它进大厅）。
@@ -40,7 +40,8 @@ luma>200 的像素，8 张弹窗截图全是 0）。
 `BrowndustUI.pages` 要把这里的页面全部列一遍，顺序即匹配顺序（先特殊后通用）。
 """
 from module.base.button import Button
-from module.browndust.assets import (EVENT_ENTRY, EVENT_SCHEDULE, EVENT_TAB_STORY,
+from module.browndust.assets import (BATTLE_PANEL, EVENT_ENTRY, EVENT_SCHEDULE,
+                                     EVENT_TAB_STORY,
                                      HUNT_BUTTON, HUNT_ENTRY, MAIL_CLAIM, MAIL_ENTRY,
                                      MAIN_HOME_ICON, MAP_HOME_BTN, PASS_ENTRY,
                                      PASS_TITLE, STORY_TITLE, SUMMON_BANNER,
@@ -175,3 +176,21 @@ page_event.link(button=EVENT_TAB_STORY, destination=page_event_story)
 STORY_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
                     button=(124, 24, 152, 56), name='STORY_BACK')
 page_event_story.link(button=STORY_BACK, destination=page_event)
+
+# ---- 活动战斗（普通战斗 / 挑战战斗）---------------------------------------
+#
+# **两个页签共用这一个页面。** 它们的骨架完全一样（左边一列关卡、右边一张详情
+# 面板），只有左上角那两个字不一样 —— 而「普通战斗」和「挑战战斗」的标题模板
+# 互相能到 0.834，离 0.85 的阈值只有一点余量，拿它当检查点迟早会认错。
+#
+# 所以检查点取面板里的「通关奖励」：两个模式都 1.000 / 0.991，活动页 0.462、
+# 剧情页 0.577、结果页 0.568，安全。
+#
+# 代价是"当前在普通还是挑战"没法从页面图上看出来，所以切换页签不用 link，
+# 由 `event_battle.py` 先 `ui_goto(page_event)` 再点页签。
+page_event_battle = Page(BATTLE_PANEL)
+
+# 战斗页的返回箭头，还是同一个位置。回活动页 —— 活动页才是它的上一级。
+BATTLE_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                     button=(124, 24, 152, 56), name='BATTLE_BACK')
+page_event_battle.link(button=BATTLE_BACK, destination=page_event)

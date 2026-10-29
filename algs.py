@@ -178,6 +178,10 @@ class AlGS(GameScheduler):
         from module.browndust.event import BrowndustEvent
         BrowndustEvent(config=self.config, device=self.device).run()
 
+    def browndust_event_battle(self):
+        from module.browndust.event_battle import BrowndustEventBattle
+        BrowndustEventBattle(config=self.config, device=self.device).run()
+
     def browndust_redeem(self):
         from module.browndust.redeem import BrowndustRedeem
         BrowndustRedeem(config=self.config, device=self.device).run()

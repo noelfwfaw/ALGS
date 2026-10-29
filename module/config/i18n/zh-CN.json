@@ -146,6 +146,10 @@
       "name": "活动剧情",
       "help": "跳过当前活动剧情页里所有可看的剧集；动手之前先在「行程」里读一次还剩几天"
     },
+    "BrowndustEventBattle": {
+      "name": "Task.BrowndustEventBattle.name",
+      "help": "Task.BrowndustEventBattle.help"
+    },
     "BrowndustPass": {
       "name": "通行证领取",
       "help": "领取每一张带红点的通行证里的任务与奖励（全部获得）"
@@ -616,6 +620,23 @@
     "Draw": {
       "name": "抽取两个分类的免费次数",
       "help": "关闭后不抽卡，任务仍然排期"
+    }
+  },
+  "BrowndustEventBattle": {
+    "_info": {
+      "name": "BrowndustEventBattle._info.name",
+      "help": "BrowndustEventBattle._info.help"
+    },
+    "BattleMode": {
+      "name": "BrowndustEventBattle.BattleMode.name",
+      "help": "BrowndustEventBattle.BattleMode.help",
+      "Normal": "Normal",
+      "Challenge": "Challenge",
+      "Both": "Both"
+    },
+    "Times": {
+      "name": "BrowndustEventBattle.Times.name",
+      "help": "BrowndustEventBattle.Times.help"
     }
   },
   "BrowndustHunt": {
