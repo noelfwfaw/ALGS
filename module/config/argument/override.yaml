@@ -108,6 +108,9 @@ BrowndustEventBattle:
 BrowndustWorldBoss:
   Scheduler:
     ServerUpdate: 08:00
+BrowndustEventMission:
+  Scheduler:
+    ServerUpdate: 08:00
 BrowndustPass:
   Scheduler:
     ServerUpdate: 08:00

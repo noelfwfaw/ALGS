@@ -154,6 +154,10 @@
       "name": "World Boss",
       "help": "Start from the lowest difficulty and go up until one is out of reach"
     },
+    "BrowndustEventMission": {
+      "name": "Event Missions",
+      "help": "Open the event's 任务 tab and press 全部领取 once if a reward is ready; otherwise press nothing"
+    },
     "BrowndustPass": {
       "name": "Pass Rewards",
       "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"

@@ -1,8 +1,9 @@
 """
 页面图 of 棕色尘埃2.
 
-Ten pages so far: the seven below, measured on the 2026-10-28 screenshots, and
-the three of the running event, measured on 2026-10-29 (see the end of the file).
+Eleven pages so far: the seven below, measured on the 2026-10-28 screenshots,
+and the four of the running event, measured on 2026-10-29 (see the end of the
+file).
 
 - `page_map` —— 游戏每天第一次启动落地的地方。检查点就是右上角那个白色房子按钮，
   它同时也是"进主页面"的入口，所以一个素材干两件事（判地图页 + 点它进大厅）。
@@ -40,7 +41,8 @@ luma>200 的像素，8 张弹窗截图全是 0）。
 `BrowndustUI.pages` 要把这里的页面全部列一遍，顺序即匹配顺序（先特殊后通用）。
 """
 from module.base.button import Button
-from module.browndust.assets import (BATTLE_PANEL, EVENT_ENTRY, EVENT_SCHEDULE,
+from module.browndust.assets import (BATTLE_PANEL, EVENT_ENTRY, EVENT_MISSION_CLAIM,
+                                     EVENT_SCHEDULE, EVENT_TAB_MISSION,
                                      EVENT_TAB_STORY, EVENT_TAB_TRACKER,
                                      HUNT_BUTTON, HUNT_ENTRY, MAIL_CLAIM, MAIL_ENTRY,
                                      MAIN_HOME_ICON, MAP_HOME_BTN, PASS_ENTRY,
@@ -213,3 +215,22 @@ BOSS_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow
 # 活动页底部第四块木牌进、魔兽页左上角箭头出。
 page_event.link(button=EVENT_TAB_TRACKER, destination=page_world_boss)
 page_world_boss.link(button=BOSS_BACK, destination=page_event)
+
+# ---- 活动任务（助力任务）--------------------------------------------------
+#
+# 检查点是右下角那颗「全部领取」。它有两种状态：有奖励可领时亮蓝底白字，领空之后
+# 深蓝底灰字 —— 实测模板分 1.000 / 0.960，两态都匹配得上，所以它能当检查点，
+# 但不能当"还有没有奖励"的判据，那个在 `event_mission.py` 里数亮度（796 vs 0）。
+#
+# 位置也帮了忙：邮箱页那颗「全部领取」是同一个胶囊、同样四个字，可它画在
+# (1007,642)-(1177,680)，跟这块差着 140 像素，`appear(offset=(30,30))` 搜不到。
+# 其它页面（大厅、活动页、魔兽页、结算页）最高 0.404。
+page_event_mission = Page(EVENT_MISSION_CLAIM)
+
+# 活动任务页的返回箭头，还是同一个位置。回活动页 —— 活动页才是它的上一级。
+MISSION_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                      button=(124, 24, 152, 56), name='EVENT_MISSION_BACK')
+
+# 活动页底部第五块木牌进、活动任务页左上角箭头出。
+page_event.link(button=EVENT_TAB_MISSION, destination=page_event_mission)
+page_event_mission.link(button=MISSION_BACK, destination=page_event)

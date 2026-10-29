@@ -117,6 +117,8 @@ Browndust:
       - BrowndustEventBattle
     BrowndustWorldBoss:
       - Scheduler
+    BrowndustEventMission:
+      - Scheduler
     BrowndustPass:
       - Scheduler
     BrowndustRedeem:

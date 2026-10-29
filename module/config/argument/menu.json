@@ -55,6 +55,7 @@
       "BrowndustEvent",
       "BrowndustEventBattle",
       "BrowndustWorldBoss",
+      "BrowndustEventMission",
       "BrowndustPass",
       "BrowndustRedeem"
     ]

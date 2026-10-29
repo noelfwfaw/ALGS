@@ -44,13 +44,15 @@ from module.exception import GameStuckError, RequestHumanTakeover
 from module.logger import logger
 from module.browndust.assets import (BOOT_DOWNLOAD_DIALOG, BOOT_PAYMENT_ERROR,
                                      BOOT_RESTART_DIALOG, BOOT_TOUCH_START,
-                                     BOOT_UPDATE_NOTICE, HUNT_BUTTON, HUNT_REWARD,
-                                     HUNT_START, MAIL_CLAIM, MAIN_HOME_ICON,
-                                     MAP_HOME_BTN, TASK_CLAIM_ALL)
+                                     BOOT_UPDATE_NOTICE, EVENT_MISSION_CLAIM,
+                                     HUNT_BUTTON, HUNT_REWARD, HUNT_START,
+                                     MAIL_CLAIM, MAIN_HOME_ICON, MAP_HOME_BTN,
+                                     TASK_CLAIM_ALL)
 from module.browndust.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
-from module.browndust.page import (page_event, page_event_battle, page_event_story,
-                                   page_hunt, page_main, page_mail, page_map, page_pass,
-                                   page_summon, page_task, page_world_boss)
+from module.browndust.page import (page_event, page_event_battle, page_event_mission,
+                                   page_event_story, page_hunt, page_main, page_mail,
+                                   page_map, page_pass, page_summon, page_task,
+                                   page_world_boss)
 from module.ui.ui import UI
 
 # 关大厅弹窗时点的地方：左边那条竖栏（我的小屋/好友/公会…）的左侧留白。
@@ -107,6 +109,7 @@ class BrowndustUI(UI):
     page_mail = page_mail
     page_task = page_task
     page_pass = page_pass
+    page_event_mission = page_event_mission
 
     # Own pages, in the order they are declared above. The registry is shared
     # with every other game, and their check points only exist in their own
@@ -128,7 +131,8 @@ class BrowndustUI(UI):
     # （剧情页标题）0.48~0.52 —— 后者和 `PASS_TITLE` 同位置同尺寸，是这里唯一
     # 需要盯着的一对，实测互相 0.480 / 0.500。
     pages = (page_map, page_hunt, page_summon, page_task, page_pass, page_mail,
-             page_event, page_event_story, page_event_battle, page_world_boss, page_main)
+             page_event, page_event_story, page_event_battle, page_world_boss,
+             page_event_mission, page_main)
 
     def tap_point(self, x, y):
         """
@@ -202,6 +206,10 @@ class BrowndustUI(UI):
             return self.appear(MAIL_CLAIM, offset=offset, interval=interval) and self.ui_reward_clean(offset=offset)
         if page is self.page_task:
             return self.appear(TASK_CLAIM_ALL, offset=offset, interval=interval) and self.ui_reward_clean(offset=offset)
+        if page is self.page_event_mission:
+            # 活动任务页的「全部领取」透过 REWARD 结算页照样 0.957，跟邮箱、日常任务
+            # 完全同一个理由 —— 结算页是半透明的一条带子，画在列表上面而不是替掉它。
+            return self.appear(EVENT_MISSION_CLAIM, offset=offset, interval=interval) and self.ui_reward_clean(offset=offset)
         return super().ui_page_appear(page, offset=offset, interval=interval)
 
     def ui_hunt_clean(self, offset=(30, 30)):
