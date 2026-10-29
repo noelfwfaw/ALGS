@@ -1,13 +1,16 @@
 from module.base.timer import Timer
-from module.base.utils import get_color
-from module.hazeworld.assets import (PASS_CLAIM_ALL, PASS_TAB_DAILY,
-                                    PASS_TAB_PERIOD, PASS_TAB_WEEKLY,
-                                    PASS_VIEW_REWARD, PASS_VIEW_TASK)
+from module.base.utils import crop
+from module.hazeworld.assets import (PASS_CLAIM_ALL, PASS_CLAIM_ALL_DISABLED,
+                                    PASS_TAB_DAILY, PASS_TAB_PERIOD,
+                                    PASS_TAB_WEEKLY, PASS_VIEW_REWARD,
+                                    PASS_VIEW_TASK)
 from module.hazeworld.hazeworld_ui import CLAIM_TIMES, HazeworldUI, page_pass
 from module.logger import logger
 
-# The pass page holds two views behind one toggle at the bottom centre: the
-# reward view, one card per level, and the task view, one list per tab.
+# The pass page holds two views behind one button at the bottom centre: the
+# reward view, one card per level, and the task view, one list per tab. Each
+# view draws the button that leads to the other one, so a frame of the reward
+# view reads 「任务」 and a frame of the task view reads 「奖励」.
 #
 # Claiming a task grants the points that level the pass up, and a level is what
 # holds a reward, so the tasks have to be claimed before the rewards. Doing it
@@ -17,14 +20,19 @@ from module.logger import logger
 # The tabs of the task view, in the order their tasks are claimed.
 PASS_TASK_TABS = (PASS_TAB_DAILY, PASS_TAB_WEEKLY, PASS_TAB_PERIOD)
 
-# A selected tab is drawn on a solid dark plate, the others are translucent and
-# show the bright background of the page. Measured: selected 60 to 65, the
-# others 150 to 173.
-PASS_TAB_DARKNESS = 100
+# A selected tab is painted solid black, the other two are translucent and let
+# the background of the page through. The fill is what tells the two apart, and
+# it is also what makes a plain brightness threshold useless: the two unselected
+# tabs of one frame measured 36 and 72, because a translucent plate only reports
+# how dark the picture behind it is. What is the same on every frame is the
+# plate itself, so the test is "is this patch solid black" - nearly every pixel
+# of a selected tab is below 25, nearly none of an unselected one is.
+PASS_TAB_DARK = 25
+PASS_TAB_DARK_RATIO = 0.5
 
-# The "claim all" button is painted solid blue while there is something to
-# claim and translucent while there is not. Measured: colour spread 171 and 26,
-# the disabled one being closer to the sand of the background than to blue.
+# The "claim all" button is painted in a strong colour while there is something
+# to claim and plain grey while there is not. Measured: colour spread 182 for
+# the orange of a clickable one, 6 for the disabled one.
 PASS_CLAIM_SATURATION = 100
 
 # Switching a tab redraws the list, and a list that has not been drawn yet
@@ -141,7 +149,8 @@ class HazeworldPass(HazeworldUI):
         # button. Waiting for this area to stop changing is the same wait that
         # `PASS_CLAIM_SETTLE` used to spend in full on every tab, empty or not.
         self.wait_until_still(PASS_CLAIM_ALL.area, timeout=PASS_CLAIM_SETTLE)
-        return self.claim_all(PASS_CLAIM_ALL, available=self.pass_claim_available)
+        return self.claim_all(PASS_CLAIM_ALL, disabled=PASS_CLAIM_ALL_DISABLED,
+                              available=self.pass_claim_available)
 
     def pass_claim_reward(self):
         """
@@ -160,7 +169,8 @@ class HazeworldPass(HazeworldUI):
 
         # The view slides in, and its claim button is drawn with it.
         self.wait_until_still(PASS_CLAIM_ALL.area, timeout=PASS_CLAIM_SETTLE)
-        count = self.claim_all(PASS_CLAIM_ALL, available=self.pass_claim_available)
+        count = self.claim_all(PASS_CLAIM_ALL, disabled=PASS_CLAIM_ALL_DISABLED,
+                              available=self.pass_claim_available)
         logger.info(f'Pass rewards finished, claimed {count} times')
         return count
 
@@ -168,11 +178,11 @@ class HazeworldPass(HazeworldUI):
         """
         Open one of the two views of the pass page.
 
-        The toggle at the bottom centre carries the label of the view it opens,
+        The button at the bottom centre carries the label of the view it opens,
         so a frame of the task view shows the "奖励" label and a frame of the
         reward view shows the "任务" one. Each crop is taken from a frame of the
         view it is named after, which makes `view` the confirmation and `other`
-        the thing to press: whatever the toggle reads right now is exactly the
+        the thing to press: whatever the button reads right now is exactly the
         button that leads to the view that is missing.
 
         The press itself is guarded twice. It is only sent while the label of
@@ -220,14 +230,15 @@ class HazeworldPass(HazeworldUI):
         left alone for `PASS_TAB_RETRY` seconds: pressing on every frame would
         restart the redraw it is waiting for.
 
-        The press is not guarded by a template match. The crop of a tab can only
-        be taken while it is selected - that is the only state where the plate
-        is solid enough to cut - which makes `appear()` refuse the tab exactly
-        when it needs pressing. The two tabs that are not selected by default
-        were never pressed at all, each waiting out the timeout on a tab the
-        check below would have described correctly. So the press goes straight
-        to the area of the tab, and `pass_tab_selected()` is both the guard and
-        the confirmation.
+        The press is not guarded by a template match. Each tab is cropped in the
+        state it happened to be in when the screenshot was taken - the daily one
+        selected, the other two not - so a match would report "this is the look
+        the crop was taken in" rather than "this is the tab", and `appear()`
+        would refuse exactly the tabs that still need pressing. The press goes
+        straight to the area of the tab, and `pass_tab_selected()` is both the
+        guard and the confirmation: the plate of a tab is solid black when it is
+        the selected one, which is the same question the press is there to
+        answer.
 
         Args:
             tab (Button): The tab.
@@ -256,9 +267,30 @@ class HazeworldPass(HazeworldUI):
                 return False
 
             if retry.reached():
-                self.device.click(tab)  # alas-lint: allow - the asset of a tab only matches while it is selected, and `pass_tab_selected()` above is what tells the two states apart
+                self.device.click(tab)  # alas-lint: allow - a tab is cropped in whatever state it happened to be in, so a match says nothing about which tab is selected; `pass_tab_selected()` above is what tells the states apart
                 retry.reset()
             self.device.screenshot()
+
+    @staticmethod
+    def pass_tab_probe(tab):
+        """
+        The blank patch of a tab that carries nothing but the plate itself.
+
+        The icon sits on the left, the label in the middle and the red dot of a
+        finished task in the top right corner, so the only stretch of plain
+        plate is the bottom right one, below the dot and right of the label. It
+        is taken relative to the tab so that the three tabs, which are neither
+        the same height nor on the same horizontal line, all get their own blank
+        patch.
+
+        Args:
+            tab (Button): The tab.
+
+        Returns:
+            tuple: (x1, y1, x2, y2)
+        """
+        _, _, x2, y2 = tab.area
+        return x2 - 51, y2 - 24, x2 - 21, y2 - 8
 
     def pass_tab_selected(self, tab):
         """
@@ -268,10 +300,11 @@ class HazeworldPass(HazeworldUI):
             tab (Button): The tab.
 
         Returns:
-            bool: If the tab is drawn on its dark plate.
+            bool: If the tab is drawn on its solid black plate.
         """
-        color = get_color(self.device.image, tab.area)
-        return max(color) < PASS_TAB_DARKNESS
+        patch = crop(self.device.image, self.pass_tab_probe(tab)).astype(int)
+        grey = patch.mean(axis=2)
+        return (grey < PASS_TAB_DARK).mean() > PASS_TAB_DARK_RATIO
 
     def pass_claim_available(self):
         """
