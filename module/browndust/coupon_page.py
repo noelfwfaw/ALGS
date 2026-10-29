@@ -122,7 +122,8 @@ class CouponPage:
 
         Every press of this flow goes through here: the probe that measured the
         flow used adb taps and every one of them landed, while the game's own
-        control method is unchanged for the rest of the tasks.
+        control method is unchanged for the rest of the tasks. The tap itself is
+        `BrowndustUI.tap_point()` — one adb press per game (hard rule 60).
 
         Args:
             target (Button, tuple): Button, or `(x, y)`.
@@ -140,4 +141,4 @@ class CouponPage:
             return
 
         logger.info(f'Tap {target} @ ({x}, {y})')
-        self.device.click_adb(x, y)  # alas-lint: allow - the coupon page has no control method of its own
+        self.tap_point(x, y)

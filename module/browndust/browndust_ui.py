@@ -50,7 +50,7 @@ from module.browndust.assets import (BOOT_DOWNLOAD_DIALOG, BOOT_PAYMENT_ERROR,
 from module.browndust.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
 from module.browndust.page import (page_event, page_event_battle, page_event_story,
                                    page_hunt, page_main, page_mail, page_map, page_pass,
-                                   page_summon, page_task)
+                                   page_summon, page_task, page_world_boss)
 from module.ui.ui import UI
 
 # 关大厅弹窗时点的地方：左边那条竖栏（我的小屋/好友/公会…）的左侧留白。
@@ -128,7 +128,35 @@ class BrowndustUI(UI):
     # （剧情页标题）0.48~0.52 —— 后者和 `PASS_TITLE` 同位置同尺寸，是这里唯一
     # 需要盯着的一对，实测互相 0.480 / 0.500。
     pages = (page_map, page_hunt, page_summon, page_task, page_pass, page_mail,
-             page_event, page_event_story, page_event_battle, page_main)
+             page_event, page_event_story, page_event_battle, page_world_boss, page_main)
+
+    def tap_point(self, x, y):
+        """
+        Press a point of this game with an adb tap.
+
+        大多数按钮吃 `device.click()` 的 minitouch 短按，但魔兽页的「去战斗」
+        不吃 —— 2026-10-29 连续两次点下去游戏一声不响（同一坐标换
+        `adb shell input tap` 一点就进战斗），而同一轮里「编辑队伍」「推荐部署」
+        「返回」全都是 minitouch 点成功的。所以"必须落下去"的那一下走 adb，
+        调用的地方照样在点完之后等屏幕给出结果 —— 换掉的只是输入通道。
+
+        全游戏只有这一份（硬约束 60）：兑换码那条流程的 `coupon_tap()` 也走这里。
+
+        Args:
+            x (int): Pixel x.
+            y (int): Pixel y.
+        """
+        self.device.click_adb(x, y)
+
+    def tap_asset(self, button):
+        """
+        Press the click point of a button with an adb tap.
+
+        Args:
+            button (Button): Target.
+        """
+        x1, y1, x2, y2 = button.button
+        self.tap_point((x1 + x2) // 2, (y1 + y2) // 2)
 
     def ui_page_appear(self, page, offset=(30, 30), interval=0):
         """

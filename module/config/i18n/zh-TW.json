@@ -147,8 +147,12 @@
       "help": "跳過當前活動劇情頁裡所有可看的劇集；動手之前先在「行程」裡讀一次還剩幾天"
     },
     "BrowndustEventBattle": {
-      "name": "Task.BrowndustEventBattle.name",
-      "help": "Task.BrowndustEventBattle.help"
+      "name": "活動戰鬥",
+      "help": "普通戰鬥和挑戰戰鬥共用每天 5 次活動 AP"
+    },
+    "BrowndustWorldBoss": {
+      "name": "魔獸追蹤者",
+      "help": "從最低難度開始一路上打，打不穿就停在那一關"
     },
     "BrowndustPass": {
       "name": "通行證領取",
@@ -624,19 +628,19 @@
   },
   "BrowndustEventBattle": {
     "_info": {
-      "name": "BrowndustEventBattle._info.name",
-      "help": "BrowndustEventBattle._info.help"
+      "name": "活動戰鬥",
+      "help": "普通戰鬥和挑戰戰鬥共用每天 5 次活動 AP。還沒通關的關卡會自動開荒——設一次次數就連著打到打不過為止；已經通關的關卡沒有那個入口，改成一場一場重複打。AP 用完時遊戲會問要不要補充，腳本一律點取消，不會花你的貨幣。"
     },
     "BattleMode": {
-      "name": "BrowndustEventBattle.BattleMode.name",
-      "help": "BrowndustEventBattle.BattleMode.help",
+      "name": "打哪個模式",
+      "help": "Normal = 只打普通戰鬥（首通給抽卡資源，開荒期建議開著）；Challenge = 只打挑戰戰鬥；Both = 兩個都打，各按下面的場次分。",
       "Normal": "Normal",
       "Challenge": "Challenge",
       "Both": "Both"
     },
     "Times": {
-      "name": "BrowndustEventBattle.Times.name",
-      "help": "BrowndustEventBattle.Times.help"
+      "name": "每個模式打幾場",
+      "help": "普通戰鬥和挑戰戰鬥共用每天那 5 次。選「兩個都打」時兩邊各按這個場次分，只開一個模式時 5 次全給它。"
     }
   },
   "BrowndustHunt": {

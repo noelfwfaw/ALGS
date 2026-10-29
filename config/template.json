@@ -526,6 +526,19 @@
       "Storage": {}
     }
   },
+  "BrowndustWorldBoss": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustWorldBoss",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "BrowndustPass": {
     "Scheduler": {
       "Enable": false,

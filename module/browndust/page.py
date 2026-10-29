@@ -41,11 +41,12 @@ luma>200 的像素，8 张弹窗截图全是 0）。
 """
 from module.base.button import Button
 from module.browndust.assets import (BATTLE_PANEL, EVENT_ENTRY, EVENT_SCHEDULE,
-                                     EVENT_TAB_STORY,
+                                     EVENT_TAB_STORY, EVENT_TAB_TRACKER,
                                      HUNT_BUTTON, HUNT_ENTRY, MAIL_CLAIM, MAIL_ENTRY,
                                      MAIN_HOME_ICON, MAP_HOME_BTN, PASS_ENTRY,
                                      PASS_TITLE, STORY_TITLE, SUMMON_BANNER,
-                                     SUMMON_ENTRY, TASK_CLAIM_ALL, TASK_ENTRY)
+                                     SUMMON_ENTRY, TASK_CLAIM_ALL, TASK_ENTRY,
+                                     WB_EDIT_TEAM)
 from module.ui.page import Page
 
 page_map = Page(MAP_HOME_BTN)
@@ -194,3 +195,21 @@ page_event_battle = Page(BATTLE_PANEL)
 BATTLE_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
                      button=(124, 24, 152, 56), name='BATTLE_BACK')
 page_event_battle.link(button=BATTLE_BACK, destination=page_event)
+
+# ---- 魔兽追踪者 -----------------------------------------------------------
+#
+# 检查点是底部那枚「编辑队伍」。它在魔兽页上 1.000 / 0.990，而编辑队伍页自己的
+# 标题虽然也写着这四个字，但位置在左上角、字号也小一圈，对不上这块（0.309）；
+# 推荐部署面板 0.325、结算页 0.188、活动页 0.123，都远在 0.85 之下。
+#
+# 为什么不用左上角那行「魔兽」标题：它跟「魔兽练习战斗」的标题只差两个字，
+# 而练习战斗是独立的一套阵容和战绩，认错就会进错页。
+page_world_boss = Page(WB_EDIT_TEAM)
+
+# 魔兽页的返回箭头，还是同一个位置。回活动页 —— 活动页才是它的上一级。
+BOSS_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                   button=(124, 24, 152, 56), name='BOSS_BACK')
+
+# 活动页底部第四块木牌进、魔兽页左上角箭头出。
+page_event.link(button=EVENT_TAB_TRACKER, destination=page_world_boss)
+page_world_boss.link(button=BOSS_BACK, destination=page_event)

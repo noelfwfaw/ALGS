@@ -147,8 +147,12 @@
       "help": "Skip every episode the running event has to offer, after reading the days left from 行程"
     },
     "BrowndustEventBattle": {
-      "name": "Task.BrowndustEventBattle.name",
-      "help": "Task.BrowndustEventBattle.help"
+      "name": "Event battle",
+      "help": "Normal and challenge share the same 5 event AP a day"
+    },
+    "BrowndustWorldBoss": {
+      "name": "World Boss",
+      "help": "Start from the lowest difficulty and go up until one is out of reach"
     },
     "BrowndustPass": {
       "name": "Pass Rewards",
@@ -624,19 +628,19 @@
   },
   "BrowndustEventBattle": {
     "_info": {
-      "name": "BrowndustEventBattle._info.name",
-      "help": "BrowndustEventBattle._info.help"
+      "name": "Event battle",
+      "help": "Normal and challenge battles share the same 5 event AP a day. A stage that has not been cleared yet is pushed through automatically — set a count and it keeps going until one is too hard; a stage already cleared has no such entry, so it is fought one at a time. When the AP runs out the game offers to refill it; the script always declines and never spends your currency."
     },
     "BattleMode": {
-      "name": "BrowndustEventBattle.BattleMode.name",
-      "help": "BrowndustEventBattle.BattleMode.help",
+      "name": "Which mode",
+      "help": "Normal = normal battles only (first clears pay gacha currency, keep it on early); Challenge = challenge only; Both = play both, split by the fights below.",
       "Normal": "Normal",
       "Challenge": "Challenge",
       "Both": "Both"
     },
     "Times": {
-      "name": "BrowndustEventBattle.Times.name",
-      "help": "BrowndustEventBattle.Times.help"
+      "name": "Fights per mode",
+      "help": "Normal and challenge battles share the same 5 daily AP. With Both, each mode gets this many; with a single mode it gets all 5."
     }
   },
   "BrowndustHunt": {

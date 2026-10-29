@@ -147,8 +147,12 @@
       "help": "開催中イベントのストーリーを全話スキップする（事前に行程で残り日数を確認）"
     },
     "BrowndustEventBattle": {
-      "name": "Task.BrowndustEventBattle.name",
-      "help": "Task.BrowndustEventBattle.help"
+      "name": "イベント戦闘",
+      "help": "通常戦闘とチャレンジ戦闘は一日 5 回のイベント AP を共有します"
+    },
+    "BrowndustWorldBoss": {
+      "name": "ワールドボス",
+      "help": "最低難易度から順に上げ、届かないところで止める"
     },
     "BrowndustPass": {
       "name": "パス報酬",
@@ -624,19 +628,19 @@
   },
   "BrowndustEventBattle": {
     "_info": {
-      "name": "BrowndustEventBattle._info.name",
-      "help": "BrowndustEventBattle._info.help"
+      "name": "イベント戦闘",
+      "help": "通常戦闘とチャレンジ戦闘は一日 5 回のイベント AP を共有します。未クリアのステージは自動で進められ、回数を設定すると勝てなくなるまで続きます。クリア済みのステージにはその入口がないため、1 戦ずつ繰り返します。AP が切れるとゲームが補充を尋ねますが、スクリプトは必ずキャンセルし、通貨を使いません。"
     },
     "BattleMode": {
-      "name": "BrowndustEventBattle.BattleMode.name",
-      "help": "BrowndustEventBattle.BattleMode.help",
+      "name": "戦うモード",
+      "help": "Normal = 通常戦闘のみ（初クリアでガチャ通貨が手に入るので序盤は推奨）；Challenge = チャレンジ戦闘のみ；Both = 両方、下の回数で分け合います。",
       "Normal": "Normal",
       "Challenge": "Challenge",
       "Both": "Both"
     },
     "Times": {
-      "name": "BrowndustEventBattle.Times.name",
-      "help": "BrowndustEventBattle.Times.help"
+      "name": "モードごとの戦闘回数",
+      "help": "ノーマル戦闘とチャレンジ戦闘は毎日 5 回の AP を共有します。「両方」なら各モードがこの回数、片方だけなら 5 回すべてをそこに使います。"
     }
   },
   "BrowndustHunt": {
