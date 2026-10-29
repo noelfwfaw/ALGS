@@ -109,9 +109,11 @@ class GeneratedConfig:
     # Group `BrowndustSummon`
     BrowndustSummon_Draw = True
 
-    # Group `BrowndustEventBattle`
-    BrowndustEventBattle_BattleMode = 'Normal'  # Normal, Challenge, Both
-    BrowndustEventBattle_Times = 3
+    # Group `BrowndustEvent`
+    BrowndustEvent_BattleMode = 'Normal'  # Normal, Challenge, Both
+    BrowndustEvent_Times = 3
+    BrowndustEvent_ShopFilter = 'GachaTicket > GoddessTear > EquipUR > EquipSR > EquipMaterial > AncientCrystal > Essence > RefineCrystal > Star4'
+    BrowndustEvent_BuyAmount = 'max'  # max, one
 
     # Group `BrowndustHunt`
     BrowndustHunt_HuntField = 5
@@ -122,10 +124,6 @@ class GeneratedConfig:
     BrowndustHunt_CaveWind = 2
     BrowndustHunt_CaveLight = 2
     BrowndustHunt_CaveDark = 2
-
-    # Group `BrowndustShop`
-    BrowndustShop_ShopFilter = 'GachaTicket > GoddessTear > EquipUR > EquipSR > EquipMaterial > AncientCrystal > Essence > RefineCrystal > Star4'
-    BrowndustShop_BuyAmount = 'max'  # max, one
 
     # Group `Storage`
     Storage_Storage = {}

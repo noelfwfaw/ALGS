@@ -112,16 +112,7 @@ Browndust:
       - Scheduler
     BrowndustEvent:
       - Scheduler
-    BrowndustEventBattle:
-      - Scheduler
-      - BrowndustEventBattle
-    BrowndustWorldBoss:
-      - Scheduler
-    BrowndustEventMission:
-      - Scheduler
-    BrowndustShop:
-      - Scheduler
-      - BrowndustShop
+      - BrowndustEvent
     BrowndustPass:
       - Scheduler
     BrowndustRedeem:

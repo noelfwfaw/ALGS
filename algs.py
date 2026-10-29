@@ -175,24 +175,10 @@ class AlGS(GameScheduler):
         BrowndustPass(config=self.config, device=self.device).run()
 
     def browndust_event(self):
+        # 一期的五件事全在这一个任务里：剧情 → 活动战斗 → 魔兽追踪者 →
+        # 活动任务 → 活动商店。只启动一次模拟器、只进一次活动页。
         from module.browndust.event import BrowndustEvent
         BrowndustEvent(config=self.config, device=self.device).run()
-
-    def browndust_event_battle(self):
-        from module.browndust.event_battle import BrowndustEventBattle
-        BrowndustEventBattle(config=self.config, device=self.device).run()
-
-    def browndust_world_boss(self):
-        from module.browndust.world_boss import BrowndustWorldBoss
-        BrowndustWorldBoss(config=self.config, device=self.device).run()
-
-    def browndust_event_mission(self):
-        from module.browndust.event_mission import BrowndustEventMission
-        BrowndustEventMission(config=self.config, device=self.device).run()
-
-    def browndust_shop(self):
-        from module.browndust.shop import BrowndustShop
-        BrowndustShop(config=self.config, device=self.device).run()
 
     def browndust_redeem(self):
         from module.browndust.redeem import BrowndustRedeem

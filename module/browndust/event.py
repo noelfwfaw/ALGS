@@ -1,5 +1,22 @@
 """
-活动剧情 (Brown Dust II) —— 每期活动的「剧情」页逐个跳过。
+活动 (Brown Dust II) —— 一期的五件事，一个任务跑完。
+
+这个文件放着总入口 `BrowndustEvent` 和它的第一步（剧情）。其余四步在各自的文件里，
+都是不继承 `BrowndustUI` 的 mixin，靠 `BrowndustEvent` 把它们拼起来：
+
+    event_battle.py   EventBattle      普通战斗 / 挑战战斗（共用每天 5 次 AP）
+    world_boss.py     EventWorldBoss   魔兽追踪者（从最低难度往上推）
+    event_mission.py  EventMission     活动「任务」木牌里的助力任务奖励
+    shop.py           EventShop        活动商店按优先级兑换
+
+为什么是一个任务而不是五个（用户原话：「属于魔兽的不要分开，合并在一个任务里」）：
+活动页底部那排木牌本来就是同一页上的六块牌子，以前每块牌子是一个独立任务，各自
+"回大厅 → 点横幅 → 进活动页 → 点木牌 → 做完 → 回大厅"，冷启动一次、活动页进五次。
+合并之后一次启动、一次进活动页，五步连着做完才回大厅。
+
+下面是「剧情」这一步量出来的东西，其余四步的实测记录在各自模块的 docstring 里。
+
+活动剧情 —— 每期活动的「剧情」页逐个跳过。
 
 Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
 
@@ -60,8 +77,27 @@ from module.browndust.assets import (EVENT_ENTRY, EVENT_SCHEDULE, EVENT_SCHEDULE
                                      STORY_CONFIRM, STORY_REWARD, STORY_SKIP_CONFIRM,
                                      STORY_TITLE, STORY_VIEW)
 from module.browndust.browndust_ui import BrowndustUI, page_event, page_event_story
+from module.browndust.event_battle import EventBattle
+from module.browndust.event_mission import EventMission
+from module.browndust.shop import EventShop
+from module.browndust.world_boss import EventWorldBoss
+from module.exception import (EmulatorNotRunningError, GameBugError, GameNotRunningError,
+                              GamePageUnknownError, GameStuckError, GameTooManyClickError,
+                              RequestHumanTakeover, ScriptError)
 from module.logger import logger
 from module.ocr.ocr import Ocr
+
+# 一步走不通时，哪些异常可以吞掉、哪些必须往上抛。
+#
+# 吞掉的这几种都表示"这一步的页面没走到/没认出来"：`ui_goto` 认不出当前页抛
+# `GamePageUnknownError`，点太多下抛 `GameTooManyClickError`，模板对不上抛
+# `ScriptError`。吞掉之后下一步照做 —— 魔兽打不动的时候，剧情和商店没有任何理由
+# 跟着不做。
+EVENT_STEP_SKIP = (ScriptError, GamePageUnknownError, GameBugError, GameTooManyClickError)
+# 这几种说明"机器/游戏已经不在可工作的状态"，继续往下点只会把错误滚大：
+# 卡死要重开、游戏没开要拉起、需要人工要停下来问。
+EVENT_STEP_FATAL = (GameStuckError, GameNotRunningError, EmulatorNotRunningError,
+                    RequestHumanTakeover)
 
 # 剧情播放界面右上角的「跳过」。位置在所有剧情、所有场景上都一样，但背景每段
 # 都不一样（酒馆内部 / 野外 / 战场），模板匹配在三个场景之间只到 0.83 —— 而
@@ -119,34 +155,26 @@ EVENT_STORY_MAX = 12
 EVENT_SCHEDULE_TIMEOUT = 10
 
 
-class BrowndustEvent(BrowndustUI):
+class EventStory:
     """
-    Skip every 剧情 episode the current 魔兽 season has to offer.
+    Skip every 剧情 episode the current season has to offer.
 
-    活动的其它页签（普通战斗 / 挑战战斗 / 魔兽追踪者 / 任务）还没有做：这一版
-    只走剧情，因为剧情的收益是"看完就解锁下一集"，不消耗任何资源，而且它
-    每期都在同一个位置 —— 战斗那几页每期换的规则更多，要单独量。
+    活动的第一步，**不消耗任何资源**（看完就解锁下一集），所以它排在最前面：
+    后面几步里最难的那一步（魔兽一场三四分钟）失败时，剧情也已经拿到了。
 
     Pages:
-        in: page_main
-        out: page_main
+        in: page_event
+        out: page_event
     """
 
-    def run(self):
+    def event_story_run(self):
         """
-        Pages:
-            in: page_main
-            out: page_main
-        """
-        self.ui_goto_main()
-        if not self.wait_until_appear(EVENT_ENTRY, offset=(20, 20), timeout=5):
-            # 换期、活动结束、或者横幅被大厅弹窗压着。前两种都不该让调度器停摆，
-            # 第三种下一轮自己会好（`ui_additional()` 会关弹窗），所以只报 warning。
-            # 用 `wait_until_appear` 而不是一次 `appear`：进大厅的那一帧可能还在转场。
-            logger.warning('The event banner is not on the lobby, nothing to watch')
-            self.config.task_delay(server_update=True)
-            return
+        活动页 → 剧情页 → 跳完所有集 → 回活动页。
 
+        Pages:
+            in: page_event
+            out: page_event
+        """
         self.ui_goto(page_event)
         days = self.event_days_left()
         if days is not None:
@@ -158,9 +186,7 @@ class BrowndustEvent(BrowndustUI):
         else:
             # 和"跳过了 0 集"分开写：这一期早就看完了，日志应该是看得出来的一行。
             logger.info('[Event story] nothing to watch today')
-
-        self.ui_goto_main()
-        self.config.task_delay(server_update=True)
+        # `event_story()` 出来时停在剧集列表上，回活动页交给外层下一步的 `ui_goto`。
 
     def event_days_left(self):
         """
@@ -303,3 +329,82 @@ class BrowndustEvent(BrowndustUI):
             logger.warning('The event story did not finish in time')
 
         return watched
+
+
+class BrowndustEvent(BrowndustUI, EventStory, EventBattle, EventWorldBoss,
+                     EventMission, EventShop):
+    """
+    这一期活动的全部日常，一个任务跑完。
+
+    顺序按「先挣后花」和「失败代价从小到大」排，不是随手写的：
+
+        剧情        不花任何资源，跳完就解锁下一集，所以排第一 —— 后面最难的那步
+                    挂了，这一趟至少把剧情拿到了
+        活动战斗    花活动 AP，产出活动币
+        魔兽追踪者  独立次数，一场三四分钟，整趟里最慢也最可能失败
+        活动任务    领做完的助力任务奖励 —— 得等上面几步把任务做出来才有得领
+        活动商店    花币，必须排在"给币的那几步"后面
+
+    单步失败不中断整趟（`EVENT_STEP_SKIP`）：活动战斗认不出页面时，魔兽、领奖、
+    商店照做。只有"卡死 / 游戏没了 / 要人工"才往上抛（`EVENT_STEP_FATAL`）。
+
+    Pages:
+        in: page_main
+        out: page_main
+    """
+
+    def run(self):
+        """
+        Pages:
+            in: page_main
+            out: page_main
+        """
+        self.ui_goto_main()
+        # 大厅右侧那面横幅是这一期的活动入口。它的模板分一直在抖（实测 0.85~0.94
+        # 来回跳，横幅底下压着一层跟着大厅动画变的光），所以给 15 秒而不是 5 秒。
+        if not self.wait_until_appear(EVENT_ENTRY, offset=(20, 20), timeout=15):
+            # 换期、活动结束、或者横幅被大厅弹窗压着。前两种不该让调度器停摆，
+            # 第三种下一轮自己会好（`ui_additional()` 会关弹窗），所以只报 warning。
+            logger.warning('The event banner is not on the lobby, nothing to do')
+            self.device.save_screenshot(genre='event_no_banner')
+            self.config.task_delay(server_update=True)
+            return
+
+        self.ui_goto(page_event)
+
+        for name, step in self.event_steps():
+            logger.hr(f'Event · {name}', level=2)
+            # 一步可能要看几十秒的 OCR 和重载（活动战斗和魔兽都要重载整个游戏，
+            # 14~17 秒一次），这期间一个点击都没有 —— 明说"我还在盯屏幕"，免得
+            # 框架的卡死计时器把这当成卡住（硬约束 13）。
+            self.device.stuck_record_clear()
+            try:
+                step()
+            except EVENT_STEP_FATAL:
+                raise
+            except EVENT_STEP_SKIP as e:
+                # 一步走不通不该把整趟带走：魔兽打不动的时候，剧情和商店没有
+                # 任何理由跟着不做。下一步自己会 `ui_goto(page_event)` 重新归位。
+                logger.warning(f'[Event] {name} did not work out, go on with the rest: {e!r}')
+
+        self.ui_goto_main()
+        self.config.task_delay(server_update=True)
+
+    def event_steps(self):
+        """
+        按执行顺序列出这五步。
+
+        每一步都只接受"当前在活动页"作为入口，出口也回到活动页（做法是让下一步
+        自己 `ui_goto(page_event)`，而不是每一步都硬回一次）—— 所以中间某一步
+        抛异常停在半路，下一步照样能从任意页面走回来。
+
+        Returns:
+            list: [(名字, 方法)]，名字只用来分节打日志。
+        """
+        return [
+            ('剧情', self.event_story_run),
+            ('活动战斗', self.event_battle_run),
+            ('魔兽追踪者', self.event_world_boss_run),
+            ('活动任务', self.event_mission_run),
+            ('活动商店', self.event_shop_run),
+        ]

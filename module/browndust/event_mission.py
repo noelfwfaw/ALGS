@@ -42,9 +42,9 @@ Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
 """
 from module.base.button import Button
 from module.base.timer import Timer
-from module.browndust.assets import (EVENT_ENTRY, EVENT_MISSION_CLAIM,
-                                     EVENT_TAB_MISSION, HUNT_REWARD)
-from module.browndust.browndust_ui import BrowndustUI, page_event, page_event_mission
+from module.browndust.assets import (EVENT_MISSION_CLAIM, EVENT_TAB_MISSION,
+                                     HUNT_REWARD)
+from module.browndust.browndust_ui import page_event, page_event_mission
 from module.browndust.page import MISSION_BACK
 from module.logger import logger
 
@@ -80,44 +80,32 @@ MISSION_TAP_INTERVAL = 2
 MISSION_CLAIM_TRIES = 3
 
 
-class BrowndustEventMission(BrowndustUI):
+class EventMission:
     """
     Claim every finished mission on the event's 「任务」 page.
 
     Pages:
-        in: page_main
-        out: page_main
+        in: page_event
+        out: page_event
     """
 
-    def run(self):
+    def event_mission_run(self):
         """
         Pages:
-            in: page_main
-            out: page_main
+            in: page_event
+            out: page_event
         """
-        # 上一次崩在结算页上时，活动任务页的检查点照样在它底下匹配（0.957），
-        # `ui_goto` 会以为"已经到这一页"然后拿着一个点不动的屏幕继续干活。
-        # 结算页只盖在活动任务页上，所以先把它点掉再谈导航。
+        # 上一步（活动战斗 / 魔兽追踪者）结束时可能还压着一个结算页，活动任务页的
+        # 检查点照样在它底下匹配（0.957），`ui_goto` 会以为"已经到这一页"然后
+        # 拿着一个点不动的屏幕继续干活。结算页只盖在活动任务页上，先点掉再谈导航。
         if self.appear(HUNT_REWARD, offset=(20, 20)):
             logger.info('[Event mission] a leftover reward screen, tap it away')
             self.mission_dismiss_reward()
-
-        self.ui_goto_main()
-        # 大厅右侧那面横幅是这一期的活动入口，模板分一直在抖（实测 0.85~0.94
-        # 来回跳，横幅底下压着一层跟着大厅动画变的光），所以给 15 秒。
-        if not self.wait_until_appear(EVENT_ENTRY, offset=(20, 20), timeout=15):
-            logger.warning('[Event mission] the event banner is not on the lobby')
-            self.device.save_screenshot(genre='event_mission_no_banner')
-            self.config.task_delay(server_update=True)
-            return
 
         if self.mission_enter():
             claimed = self.mission_claim_all()
             logger.attr('Event mission claimed', claimed)
             self.mission_back()
-
-        self.ui_goto_main()
-        self.config.task_delay(server_update=True)
 
     def mission_enter(self):
         """

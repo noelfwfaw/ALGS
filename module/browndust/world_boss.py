@@ -66,10 +66,10 @@ import numpy as np
 
 from module.base.button import Button
 from module.base.timer import Timer
-from module.browndust.assets import (EVENT_ENTRY, EVENT_TAB_TRACKER, WB_CLEARED,
-                                     WB_CONFIRM_DIALOG, WB_EDIT_TEAM, WB_RECOMMEND,
-                                     WB_RECOMMEND_TITLE, WB_RESULT_BACK, WB_VICTORY)
-from module.browndust.browndust_ui import BrowndustUI, page_event
+from module.browndust.assets import (EVENT_TAB_TRACKER, WB_CLEARED, WB_CONFIRM_DIALOG,
+                                     WB_EDIT_TEAM, WB_RECOMMEND, WB_RECOMMEND_TITLE,
+                                     WB_RESULT_BACK, WB_VICTORY)
+from module.browndust.browndust_ui import page_event
 from module.logger import logger
 from module.ocr.ocr import Ocr
 
@@ -159,7 +159,7 @@ BOSS_PANEL_AREA = (700, 70, 1200, 500)
 
 
 
-class BrowndustWorldBoss(BrowndustUI):
+class EventWorldBoss:
     """
     Clear the event's world boss from the lowest difficulty upward.
 
@@ -172,36 +172,23 @@ class BrowndustWorldBoss(BrowndustUI):
     好处是换期不用另外判断：新一期的面板上没有任何一档写着「完成讨伐」。
 
     Pages:
-        in: page_main
-        out: page_main
+        in: page_event
+        out: page_event
     """
 
-    def run(self):
+    def event_world_boss_run(self):
         """
         Pages:
-            in: page_main
-            out: page_main
+            in: page_event
+            out: page_event
         """
-        self.ui_goto_main()
-        # 大厅右侧那面横幅是这一期的活动入口。它的模板分一直在抖（实测 0.85~0.94
-        # 来回跳，横幅底下压着一层跟着大厅动画变的光），所以给 15 秒而不是 5 秒 ——
-        # 这一步判错等于今天不打了，多等十秒很划算。
-        if not self.wait_until_appear(EVENT_ENTRY, offset=(20, 20), timeout=15):
-            logger.warning('The event banner is not on the lobby, nothing to fight')
-            self.device.save_screenshot(genre='world_boss_no_banner')
-            self.config.task_delay(server_update=True)
-            return
-
         if not self.world_boss_enter():
-            self.ui_goto_main()
-            self.config.task_delay(server_update=True)
             return
 
         self.ensure_team()
         if not self.difficulty_to_lowest():
             logger.warning('Cannot go back to the lowest difficulty')
-            self.ui_goto_main()
-            self.config.task_delay(server_update=True)
+            self.ui_goto(page_event)
             return
 
         logger.attr('Boss', self.read_boss_name())
@@ -214,7 +201,7 @@ class BrowndustWorldBoss(BrowndustUI):
                 logger.info(f'[World boss] {name}: 完成讨伐, skip')
                 continue
 
-            victory, damage = self.battle(name)
+            victory, damage = self.wb_battle(name)
             if victory is None:
                 # 打了、但没看到结算页。停在这儿，明天这一档还会再打一次，
                 # 代价只是一场。
@@ -229,8 +216,7 @@ class BrowndustWorldBoss(BrowndustUI):
         else:
             logger.info('[World boss] every difficulty is cleared, nothing left this season')
 
-        self.ui_goto_main()
-        self.config.task_delay(server_update=True)
+        self.ui_goto(page_event)
 
     def world_boss_enter(self):
         """
@@ -431,7 +417,7 @@ class BrowndustWorldBoss(BrowndustUI):
             return False
         return self.difficulty_goto(current + 1)
 
-    def battle(self, name):
+    def wb_battle(self, name):
         """
         在当前难度上打一场，读回结算结果。
 
@@ -473,7 +459,7 @@ class BrowndustWorldBoss(BrowndustUI):
         self.wait_until_still(BATTLE_HUD_AREA, timeout=BATTLE_ENTER_TIMEOUT)
 
         self.auto_battle_on()
-        if not self.battle_wait_end():
+        if not self.wb_wait_end():
             logger.warning(f'[World boss] {name}: the fight did not end in time')
             return None, 0
 
@@ -482,7 +468,7 @@ class BrowndustWorldBoss(BrowndustUI):
         damage = self.read_damage()
         victory = self.appear(WB_VICTORY, offset=(20, 20))
         logger.attr(f'{name} result', ('VICTORY' if victory else 'BATTLE END') + f', {damage} damage')
-        self.battle_back()
+        self.wb_battle_back()
         return victory, damage
 
     def auto_battle_on(self):
@@ -548,7 +534,7 @@ class BrowndustWorldBoss(BrowndustUI):
                 return False
         return True
 
-    def battle_wait_end(self):
+    def wb_wait_end(self):
         """
         等这一场打完。
 
@@ -580,7 +566,7 @@ class BrowndustWorldBoss(BrowndustUI):
                     self.auto_battle_on()
         return False
 
-    def battle_back(self):
+    def wb_battle_back(self):
         """
         结算页点「返回」，等魔兽页回来。
 

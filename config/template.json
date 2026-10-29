@@ -505,63 +505,9 @@
       "FailureInterval": 120,
       "ServerUpdate": "08:00"
     },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "BrowndustEventBattle": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "BrowndustEventBattle",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "08:00"
-    },
-    "BrowndustEventBattle": {
+    "BrowndustEvent": {
       "BattleMode": "Normal",
-      "Times": 3
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "BrowndustWorldBoss": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "BrowndustWorldBoss",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "08:00"
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "BrowndustEventMission": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "BrowndustEventMission",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "08:00"
-    },
-    "Storage": {
-      "Storage": {}
-    }
-  },
-  "BrowndustShop": {
-    "Scheduler": {
-      "Enable": false,
-      "NextRun": "2020-01-01 00:00:00",
-      "Command": "BrowndustShop",
-      "SuccessInterval": 0,
-      "FailureInterval": 120,
-      "ServerUpdate": "08:00"
-    },
-    "BrowndustShop": {
+      "Times": 3,
       "ShopFilter": "GachaTicket > GoddessTear > EquipUR > EquipSR > EquipMaterial > AncientCrystal > Essence > RefineCrystal > Star4",
       "BuyAmount": "max"
     },

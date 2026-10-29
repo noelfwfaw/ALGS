@@ -53,10 +53,6 @@
       "BrowndustMail",
       "BrowndustTask",
       "BrowndustEvent",
-      "BrowndustEventBattle",
-      "BrowndustWorldBoss",
-      "BrowndustEventMission",
-      "BrowndustShop",
       "BrowndustPass",
       "BrowndustRedeem"
     ]

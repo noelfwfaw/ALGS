@@ -48,8 +48,10 @@ Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
   买得起的数量**（限购 99999 个的精炼粉末，余额 4650 时 MAX 填的是 4649），
   所以数量不用脚本算。
 
-- **买不起的那一档要跳过，不能让整趟收工**：清单是按优先级排的，贵的排在前面，
-  钱花光时会先撞上它。跳过它继续买剩下的便宜货，才是"按优先级兑换"的意思。
+- **买不动就停，不许往下买**（用户 2026-10-29 纠正过一版）：清单是按价值排的，
+  越靠后越不值。高优先级那一档还有货、只是币不够时，把币花在后面的档上等于
+  挪用了它的预算 —— 活动币每天涨、限购不会跑，今天买不起的那一档明天接着买
+  就是了。所以失败分支不是"跳过它"，而是"整趟收工"。
 
 - **买完会自动滚回列表顶部**，所以循环不用自己记账位置。
 
@@ -66,9 +68,9 @@ import numpy as np
 from module.base.button import Button
 from module.base.timer import Timer
 from module.base.utils import crop
-from module.browndust.assets import (EVENT_ENTRY, EVENT_TAB_SHOP, SHOP_BUY_DONE,
-                                     SHOP_BUY_PANEL, SHOP_SOLD_OUT, SHOP_TITLE)
-from module.browndust.browndust_ui import BrowndustUI, page_event, page_shop
+from module.browndust.assets import (EVENT_TAB_SHOP, SHOP_BUY_DONE, SHOP_BUY_PANEL,
+                                     SHOP_SOLD_OUT, SHOP_TITLE)
+from module.browndust.browndust_ui import page_event, page_shop
 from module.browndust.page import SHOP_BACK
 from module.browndust.utils import match
 from module.logger import logger
@@ -300,50 +302,25 @@ class ShopGoods:
         return (self.code not in ('EquipUR', 'EquipSR')
                 and self.left_code in ('EquipUR', 'EquipSR'))
 
-    @property
-    def key(self):
-        """
-        同一件商品的标识，跟位置无关（列表会重排，位置不能用）。
-
-        同一件商品分几档卖的时候名字是一样的，会被当成同一件 —— 那种情况下"买不起
-        这一档"通常也意味着买不起另一档，可以接受。
-
-        Returns:
-            tuple[str, str, bool]:
-        """
-        return self.name, self.code, self.paid
-
-
-class BrowndustShop(BrowndustUI):
+class EventShop:
     """
     Spend the event currency on whatever the priority list asks for.
 
     Pages:
-        in: page_main
-        out: page_main
+        in: page_event
+        out: page_event
     """
 
-    def run(self):
+    def event_shop_run(self):
         """
         Pages:
-            in: page_main
-            out: page_main
+            in: page_event
+            out: page_event
         """
-        self.ui_goto_main()
-        # 大厅右侧那面横幅是这一期的活动入口，模板分一直在抖（0.85~0.94），给 15 秒。
-        if not self.wait_until_appear(EVENT_ENTRY, offset=(20, 20), timeout=15):
-            logger.warning('[Shop] the event banner is not on the lobby')
-            self.device.save_screenshot(genre='shop_no_banner')
-            self.config.task_delay(server_update=True)
-            return
-
         if self.shop_enter():
             bought = self.shop_buy_all()
             logger.attr('Shop bought', bought)
             self.shop_back()
-
-        self.ui_goto_main()
-        self.config.task_delay(server_update=True)
 
     # ---- 导航 --------------------------------------------------------------
 
@@ -603,14 +580,16 @@ class BrowndustShop(BrowndustUI):
         pink_mean = ((red - blue > pink_min) & (red > pink_light)).mean()
         return pink_mean < pink_ratio
 
-    def shop_pick(self, goods, rules, skip=()):
+    def shop_pick(self, goods, rules):
         """
-        按优先级挑一个能买的格子。
+        按优先级挑**当前最该下手的那一格**：清单从上往下走，第一条还有货就不看第二条。
+
+        只在同一优先级内部才看"哪一格" —— 那一档可能分几格卖（比如两格不同的限购），
+        买完一格它会沉底，下一轮自然轮到另一格。
 
         Args:
             goods (list[ShopGoods]):
             rules (list[str]): `shop_filter_parse()` 的结果。
-            skip (set): 这一趟已经确定买不上的（`ShopGoods.key`）。
 
         Returns:
             ShopGoods: 没有可买的返回 None。
@@ -618,8 +597,6 @@ class BrowndustShop(BrowndustUI):
         for rule in rules:
             for item in goods:
                 if item.sold_out:
-                    continue
-                if item.key in skip:
                     continue
                 if self.shop_match(item, rule):
                     return item
@@ -661,12 +638,13 @@ class BrowndustShop(BrowndustUI):
         Returns:
             int: 买了几次。
         """
-        rules = shop_filter_parse(self.config.BrowndustShop_ShopFilter)
+        rules = shop_filter_parse(self.config.BrowndustEvent_ShopFilter)
         logger.attr('Shop priority', ' > '.join(rules))
-        buy_max = str(self.config.BrowndustShop_BuyAmount).lower() == 'max'
+        buy_max = str(self.config.BrowndustEvent_BuyAmount).lower() == 'max'
 
         bought = 0
-        skip = set()
+        # 是被"买不动"停下来的，还是真的没有可买的了。收尾那句日志要分开说。
+        broke = False
 
         for _ in range(SHOP_BUY_ROUNDS):
             # 一场 OCR 要一两秒，这期间一个点击都没有 —— 明说"我在盯着屏幕"，
@@ -678,22 +656,33 @@ class BrowndustShop(BrowndustUI):
             self.device.click_record_clear()
 
             goods, page = self.shop_collect()
-            target = self.shop_pick(goods, rules, skip=skip)
+            target = self.shop_pick(goods, rules)
             if target is None:
                 break
             # 扫描量到的坐标只在那一趟的滚动位置成立，先滚回去再点。
             if target.page != page:
                 self.shop_goto(target.page)
             if not self.shop_buy(target, buy_max=buy_max):
-                # 这一档买不上（多半是活动币不够了）：记下来别反复试，接着看
-                # 便宜的 —— 买不起一件贵的，不代表买不起剩下的。
-                skip.add(target.key)
-                continue
+                # 买不动了。**这里不降级去买后面的档**：清单是按价值排的，越靠后越
+                # 不值，活动币每天涨、限购不会跑，今天买不起的那一档明天接着买。
+                #
+                # 但"买不动"有两种，得分开：这一档其实**已经买满**（只是刚才没识别
+                # 出「购买成功」）要接着下一档；**有货但币不够**才是真的收工。
+                # 判据就是"再看一眼这一格现在写的是什么"。
+                self.shop_goto(target.page)
+                self.device.screenshot()
+                if self.shop_sold_out(self.device.image, target):
+                    logger.info('[Shop] it turns out that one is sold out, go on with the next')
+                    continue
+                logger.info(f'[Shop] cannot afford {target}, stop here — '
+                            f'everything below it on the list is worth less')
+                broke = True
+                break
             bought += 1
             # 买完之后游戏自己会滚回顶部，但别指望它 —— 下一轮从顶开始扫。
             self.shop_scroll_top()
 
-        if not bought:
+        if not bought and not broke:
             logger.info('[Shop] nothing to buy today')
         return bought
 
@@ -772,8 +761,9 @@ class BrowndustShop(BrowndustUI):
         self.device.click(SHOP_CONFIRM)  # alas-lint: allow - same dialog, same proof
         if not self.wait_until_appear(SHOP_BUY_DONE, offset=(30, 30), timeout=SHOP_DONE_TIMEOUT):
             # 多半是活动币不够买哪怕一个（MAX 已经按余额截过了），偶尔是这一档
-            # 刚好在这几秒里被别人买空。拍照留证、关掉弹窗，交给调用方记进跳过表。
-            logger.warning('[Shop] the purchase did not go through, skip this one')
+            # 刚好在这几秒里被别人买空。拍照留证、关掉弹窗，交给调用方判断该继续
+            # 还是收工。
+            logger.warning('[Shop] the purchase did not go through')
             self.device.save_screenshot(genre='shop_buy_failed')
             if self.appear(SHOP_BUY_PANEL, offset=(30, 30)):
                 self.device.click(SHOP_PANEL_CLOSE)  # alas-lint: allow - a plain close X

@@ -53,9 +53,9 @@ import re
 
 from module.base.button import Button
 from module.browndust.assets import (BATTLE_PANEL, EVENT_AP_SHORT, EVENT_AUTO_STOP,
-                                     EVENT_AUTO_TITLE, EVENT_ENTRY, EVENT_RESULT_BACK,
+                                     EVENT_AUTO_TITLE, EVENT_RESULT_BACK,
                                      EVENT_TAB_CHALLENGE, EVENT_TAB_NORMAL)
-from module.browndust.browndust_ui import BrowndustUI, page_event
+from module.browndust.browndust_ui import page_event
 from module.logger import logger
 from module.ocr.ocr import Ocr
 
@@ -111,7 +111,7 @@ RESULT_BACK_TIMEOUT = 30
 LEVEL_PANEL_AREA = (490, 70, 1010, 600)
 
 
-class BrowndustEventBattle(BrowndustUI):
+class EventBattle:
     """
     Spend the event's shared 5-a-day AP on 普通战斗 / 挑战战斗.
 
@@ -120,35 +120,27 @@ class BrowndustEventBattle(BrowndustUI):
     的关卡只剩「战斗」和「重新挑战」，只能一场一场来。
 
     Pages:
-        in: page_main
-        out: page_main
+        in: page_event
+        out: page_event
     """
 
-    def run(self):
+    def event_battle_run(self):
         """
         Pages:
-            in: page_main
-            out: page_main
+            in: page_event
+            out: page_event
         """
-        self.ui_goto_main()
-        if not self.wait_until_appear(EVENT_ENTRY, offset=(20, 20), timeout=5):
-            logger.warning('The event banner is not on the lobby, nothing to fight')
-            self.config.task_delay(server_update=True)
-            return
-
         self.ui_goto(page_event)
         pages = self.battle_pages()
         # 只开一个模式的时候把今天的次数全给它；两个都开就各按 `Times` 分，
         # 否则先打的那个会把 AP 吃光，后一个一场都打不了。
-        budget = int(self.config.BrowndustEventBattle_Times) if len(pages) > 1 else 5
+        budget = int(self.config.BrowndustEvent_Times) if len(pages) > 1 else 5
         for tab, name in pages:
             logger.hr(name, level=2)
             if not self.battle_enter(tab, name):
                 continue
             self.battle_page(name, budget)
-
-        self.ui_goto_main()
-        self.config.task_delay(server_update=True)
+        # `battle_page()` 打完就停在关卡列表上，回活动页交给外层下一步的 `ui_goto`。
 
     def battle_pages(self):
         """
@@ -157,7 +149,7 @@ class BrowndustEventBattle(BrowndustUI):
         Returns:
             list: [(Button, str)]，可能为空。
         """
-        mode = self.config.BrowndustEventBattle_BattleMode
+        mode = self.config.BrowndustEvent_BattleMode
         if mode == 'Challenge':
             return [(EVENT_TAB_CHALLENGE, '挑战战斗')]
         if mode == 'Both':

@@ -35,14 +35,17 @@ class ManualConfig:
     # 棕色尘埃2 的免费抽抽乐 same story: two presses a day (服装 / 装备), and the
     # category is the only line so far. The rest of the block follows the order
     # the user asked for on 2026-10-29: 快速狩猎 > 经营管理 > 邮箱 > 日常任务 >
-    # 通行证, which puts 通行证 last - the least of the daily claims. 活动剧情
-    # sits in front of it: one click per episode and it spends nothing, but it
-    # is also the item that a new season resets every few weeks.
+    # 活动 > 通行证, which puts 通行证 last - the least of the daily claims.
+    #
+    # 活动 is ONE task on purpose (user, 2026-10-29: 属于魔兽的不要分开) - it walks
+    # the event page once and does all five things in the order 剧情 → 活动战斗 →
+    # 魔兽追踪者 → 活动任务 → 活动商店. Splitting it took a cold start and a trip
+    # through the lobby for every single tab of the same page.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
-    > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustEventBattle > BrowndustWorldBoss > BrowndustEventMission > BrowndustShop > BrowndustPass
+    > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
     """
 

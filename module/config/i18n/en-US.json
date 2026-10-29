@@ -143,24 +143,8 @@
       "help": "Claim the daily and weekly quest rewards (全部获得)"
     },
     "BrowndustEvent": {
-      "name": "Event Story",
-      "help": "Skip every episode the running event has to offer, after reading the days left from 行程"
-    },
-    "BrowndustEventBattle": {
-      "name": "Event battle",
-      "help": "Normal and challenge share the same 5 event AP a day"
-    },
-    "BrowndustWorldBoss": {
-      "name": "World Boss",
-      "help": "Start from the lowest difficulty and go up until one is out of reach"
-    },
-    "BrowndustEventMission": {
-      "name": "Event Missions",
-      "help": "Open the event's 任务 tab and press 全部领取 once if a reward is ready; otherwise press nothing"
-    },
-    "BrowndustShop": {
-      "name": "Event Shop",
-      "help": "Spend the event currency following an editable priority list: buy one entry to its limit, then move to the next; anything not listed is never bought"
+      "name": "Event",
+      "help": "Five things of the running event in one task: story → battles → world boss → missions → shop"
     },
     "BrowndustPass": {
       "name": "Pass Rewards",
@@ -634,10 +618,10 @@
       "help": "When off, nothing is pulled, the task is still scheduled"
     }
   },
-  "BrowndustEventBattle": {
+  "BrowndustEvent": {
     "_info": {
-      "name": "Event battle",
-      "help": "Normal and challenge battles share the same 5 event AP a day. A stage that has not been cleared yet is pushed through automatically — set a count and it keeps going until one is too hard; a stage already cleared has no such entry, so it is fought one at a time. When the AP runs out the game offers to refill it; the script always declines and never spends your currency."
+      "name": "Event",
+      "help": "The five things the running event offers, in one task and in this order: story → battles → world boss → missions → shop. The story spends nothing, the battles spend event AP and earn the currency, the boss climbs from the easiest difficulty, the missions are claimed after the steps that finish them, and the shop spends the currency last. One trip into the event page; a step that fails is skipped without taking the others down."
     },
     "BattleMode": {
       "name": "Which mode",
@@ -649,6 +633,16 @@
     "Times": {
       "name": "Fights per mode",
       "help": "Normal and challenge battles share the same 5 daily AP. With Both, each mode gets this many; with a single mode it gets all 5."
+    },
+    "ShopFilter": {
+      "name": "Purchase priority",
+      "help": "Separated by >, leftmost is bought first, anything not listed is never bought. Codes: Paid (diamond-priced goods), EquipUR / EquipSR (event equipment), EquipMaterial (equipment upgrade material), GachaTicket, GoddessTear, AncientCrystal, Essence, RefineCrystal, Star4 (4-star star-up). Anything else is matched against the item name, so writing the name in your own language works too."
+    },
+    "BuyAmount": {
+      "name": "How many per entry",
+      "help": "max = buy the whole limit of that entry (the game refuses when coins run out); one = buy a single one.",
+      "max": "To the limit",
+      "one": "One only"
     }
   },
   "BrowndustHunt": {
@@ -687,22 +681,6 @@
     "CaveDark": {
       "name": "BrowndustHunt.CaveDark.name",
       "help": "BrowndustHunt.CaveDark.help"
-    }
-  },
-  "BrowndustShop": {
-    "_info": {
-      "name": "Event Shop",
-      "help": "Only three kinds of goods change between seasons: the three paid items in the first row (priced in diamonds), the event-limited equipment, and the equipment upgrade material. The paid ones are skipped by default — put them in the list and they will be bought; they are recognised by the blue gem left of the price, so the artwork can change freely. Equipment is recognised by the (UR)/(SR) suffix in its name, so that needs no edit either. The upgrade material is the cell right after the equipment; if a season does not match, just write that season's item name into the list."
-    },
-    "ShopFilter": {
-      "name": "Purchase priority",
-      "help": "Separated by >, leftmost is bought first, anything not listed is never bought. Codes: Paid (diamond-priced goods), EquipUR / EquipSR (event equipment), EquipMaterial (equipment upgrade material), GachaTicket, GoddessTear, AncientCrystal, Essence, RefineCrystal, Star4 (4-star star-up). Anything else is matched against the item name, so writing the name in your own language works too."
-    },
-    "BuyAmount": {
-      "name": "How many per entry",
-      "help": "max = buy the whole limit of that entry (the game refuses when coins run out); one = buy a single one.",
-      "max": "To the limit",
-      "one": "One only"
     }
   },
   "Storage": {
