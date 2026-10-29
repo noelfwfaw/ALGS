@@ -5,11 +5,22 @@
 
     page_main   --右侧那枚「RETURN / 通行证」图标-->  page_pass
     page_pass   左边是一列通行证卡片（本期 5 张），每张卡片右上角带一枚红「!」，
-                表示这张通行证有东西可以领；右边是选中的那张的详情
-                （LEVEL + 基础 [+ 豪华] 三列奖励，底部右下角「全部获得」）
-    ...         点一张卡 -> 右边换成它的详情，**「全部获得」把这张通行证的任务和
-                奖励一起领掉**，弹 REWARD 结算页 -> 点画面任意处回同一页
-    ...         领完之后那张卡的红点消失、「全部获得」变灰
+                表示这张通行证有东西要看；右边是选中的那张的详情
+    ...         点一张卡 -> 右边换成它的详情。**详情有两页**，右上竖栏切换：
+                上面那枚是等级奖励（LEVEL + 基础 [+ 豪华]），下面那枚是每日任务
+                （DAY 1~DAY 7 的清单）。**两页各有一个「全部获得」，位置一样**。
+    ...         按「全部获得」-> 弹 REWARD 结算页 -> 点画面任意处回同一页
+    ...         任务页领完之后游戏常常自己跳到下一个还有任务的 DAY
+
+**红点不等于"奖励页有东西可领"**（2026-10-29 用户指出并实测确认）：
+
+- 左列卡片的红「!」是"这张通行证有新内容"，它的来源可能是等级奖励，也可能是
+  每日任务。毁灭之星艾瑞克 PASS 就是奖励页整页全灰、任务页 DAY 5 挂着一条已完成
+  的任务 —— 只看奖励页会把它判成"没东西可领"然后跳过（这就是"通行证会漏领"）。
+- 所以每张带红点的卡都要**两页都问一遍**，两页的判据同一个：「全部获得」还能不能按
+  （`pass_claim_ready()` 数亮度，可按时 3853~3865 个 luma>200 像素，灰时 0~6）。
+- 领完之后**左列红点不一定消失**：任务每天解锁一批，红点会留着。所以"红点还在"
+  不能当"没领到"去无限重试，每张卡处理一次就记下来（`done`）。
 
 为什么只能靠左列的红点定位（用户 2026-10-28 的原话："通行证每期都不一样，而且有
 很多个。你可以像抽卡一样定位左边的红点去点不同的通行证，没有红点的就是没有东西
@@ -18,24 +29,24 @@
 - 通行证是按赛季/活动一批批换的，卡片上的名字（「特别赛季通行证」「Loyal Maid
   赛季通行证」「毁灭之星艾瑞克角色通行证」）每次都不一样，立绘也会换，**没法写死
   任何一张卡的名字、位置或用模板认卡片**；
-- 红「!」是游戏自己画的"这张有东西可领"，跟卡片内容无关，所以它同时回答了
-  "哪张要开"和"还有没有剩余"；
+- 红「!」是游戏自己画的，跟卡片内容无关，所以它回答了"哪张要开"；
 - 一屏放得下 5 张卡，卡片行距实测 85 px（红点 y = 242 / 327 / 412 / 497）。
 
-三个不是从截图上能看出来、必须实机量的事实：
+几个不是从截图上能看出来、必须实机量的事实：
 
 1. **红点只钉在卡片右缘那条窄带里**（x=274~290）。卡片本身的立绘里红色很多
    （Loyal Maid 是紫红、毁灭之星是红披风），扫整张卡会把立绘当成徽标。
-2. **「全部获得」在五种通行证里的位置是同一个**（(933,518)-(1090,564)），哪怕
-   列数从两列（角色通行证）变成三列（赛季通行证）、面板底色从绿换成紫/橙。
-   但**它外围那圈彩绘背景每次都不同**，所以模板只取胶囊内的一段，否则同一个
-   按钮的相似度会从 0.98 掉到 0.84，正好压在 0.85 的阈值上。
+2. **「全部获得」在五种通行证、两个页签里的位置都是同一个**，哪怕列数从两列
+   （角色通行证）变成三列（赛季通行证）、面板底色从绿换成紫/橙。但**它外围那圈
+   彩绘背景每次都不同**，所以模板只取胶囊内的一段，否则同一个按钮的相似度会从
+   0.98 掉到 0.84，正好压在 0.85 的阈值上。
 3. **结算页盖不住这一页**：REWARD 横条只盖中间，通行证页的标题照样 0.966、
-   「全部获得」照样 0.916~0.960，所以"按下去有没有领到"只能看红点有没有消失，
-   不能看按钮还在不在（硬约束 79/96）。
+   「全部获得」照样 0.916~0.960，所以"按下去有没有领到"只能看**结算页有没有出现**
+   （`wait_until_appear(HUNT_REWARD)`），不能看按钮还在不在（硬约束 79/96）。
+4. **页签的选中色跟着通行证主色走**：这期是紫红，`page_6.png` 那期是绿。判"现在
+   在哪一页"只能看饱和度（选中 102~151，未选中 35~45），不能判"是不是红的"。
 """
 from module.base.timer import Timer
-from module.base.utils import color_mask
 from module.browndust.assets import HUNT_REWARD, PASS_CLAIM
 from module.browndust.browndust_ui import BrowndustUI, page_main, page_pass
 from module.logger import logger
@@ -47,9 +58,27 @@ import numpy as np
 # 里，所以只扫这一条 —— 扫整张卡时 Loyal Maid 的紫红立绘和毁灭之星的红披风
 # 都会被当成徽标（抽抽乐的卡池列表踩过同一个坑）。
 PASS_LIST = (268, 80, 298, 560)
-# 徽标红：(202,63,50)，14x14 的框里约 100 个像素。
-PASS_BADGE_COLOR = (202, 63, 50)
-PASS_BADGE_THRESHOLD = 60
+# 徽标是一枚**纯红的圆**，中间挖一个白色「!」。判它用 HSV，不用 `color_mask`
+# 写死三元组：这里原来写的是 `PASS_BADGE_COLOR = (202, 63, 50)` + 阈值 60，看起来
+# 是红的，实际在实机帧上只命中 87 个像素（真徽标一圈约 190 个），凑不够一个块。
+# 更要命的是 **`device.image` 是 RGB**（见 `pass_badge_mask()`），离线用 adb 截图
+# （`cv2.imread` 拿到的是 BGR）去校准颜色，通道正好反着，很容易把结论搞反。
+#
+# 后果是这版红点扫描自 2026-10-28 上线以来没有一次是靠得住地扫到徽标：
+#   - `screenshots/browndust/page_6.png`（4 张卡全带「!」，当天留的图）
+#     `pass_badges()` 返回空；
+#   - 2026-10-29 实机帧（2 个徽标）同样是空 → 循环第一轮就 `break`，
+#     日志写 `[Pass claimed] 0`，看起来像"今天没东西可领"。
+# 而 10-28 08:00 那次 `Pass claimed: 20` 是更早的"盲目点 20 次"版本，不是这个。
+#
+# HSV 只认色相和饱和度，红点在不同通行证底色、不同亮度下色相不变。`device.image`
+# 里徽标像素的 RGB 是 (201,70,57) / (206,78,73) / (196,67,55) / (208,84,62)，
+# 色相全落在色相环两端那两段里。四组参数在 16 张其它页面的整屏截图上比过，
+# (12,168,120,120) 与更严的一组结果相同且零误报。
+PASS_BADGE_HUE_MAX = 12
+PASS_BADGE_HUE_MIN = 168
+PASS_BADGE_SATURATION = 120
+PASS_BADGE_VALUE = 120
 # 形状过滤：`color_mask` + 膨胀之后一个徽标 100~400 px、16x16 上下。立绘碎片
 # 要么是一大片，要么只有一个像素。
 PASS_BADGE_MIN_AREA = 50
@@ -65,14 +94,33 @@ PASS_CARD_DX = -70
 PASS_CLAIM_LUMA = 200
 PASS_CLAIM_PIXELS = 500
 
+# 右侧竖栏那两枚页签：上面是等级奖励，下面是每日任务。**两页都有「全部获得」**，
+# 位置一模一样，只是内容不同 —— 所以"这张卡还有没有东西"必须两页都问一遍。
+# 任务页比奖励页要紧得多：通行证的红「!」常常整枚挂在任务上（2026-10-29 实测，
+# 毁灭之星艾瑞克 PASS 的奖励页按钮全灰、任务页 DAY 5 有一条已完成的任务），
+# 只看奖励页就会把这张卡判成"没东西可领"。
+#
+# 页签的位置在四种主色（绿 / 紫 / 紫红 / 橙）的通行证上都一样，但**选中态的颜色
+# 跟着通行证主色走**：这期是紫红，`page_6.png` 那期是绿。所以判"现在在哪一页"
+# 不能用"是不是红色"，要用**饱和度** —— 选中那一条是纯主色（102~151），未选中是
+# 灰（35~45），五张截图全在这两段里，没有中间值。
+PASS_TAB_REWARD = (1128, 250)
+PASS_TAB_TASK = (1128, 470)
+PASS_TAB_REWARD_AREA = (1108, 145, 1148, 355)
+PASS_TAB_TASK_AREA = (1108, 368, 1148, 578)
+PASS_TAB_SATURATION = 70
+# 点页签到对面那页画完：实机不到 1 秒。
+PASS_TAB_TIMEOUT = 4
+
 # 结算页底部写着「点击画面即可返回。」，这一片是空的。和邮箱 (620,700)、
 # 任务 (620,700) 落在同一条空白带上。
 PASS_REWARD_TAP = (620, 700)
 
 # 点图标到页面出来：实机 1.8 秒，慢的模拟器按 25 秒兜底。
 PASS_ENTRY_TIMEOUT = 25
-# 点一张卡到右边详情画完。卡片是原位切换，没有转场，10 秒足够。
-PASS_CARD_TIMEOUT = 10
+# 点一张卡到右边详情画完：实机 0.5~0.6 秒，4 秒足够（等的是"动起来再停下"，
+# 不是固定时长）。
+PASS_CARD_TIMEOUT = 4
 # 按「全部获得」到结算页出来：实机 1.2 秒。
 PASS_REWARD_TIMEOUT = 15
 # 结算页要连点几下的节流（第一下可能被淡入吞掉）。
@@ -131,41 +179,48 @@ class BrowndustPass(BrowndustUI):
                                       timeout=PASS_ENTRY_TIMEOUT, settle=2):
             logger.warning('The pass page did not show its claim button')
         self.wait_until_still(PASS_CLAIM.area, timeout=3)
+        # 左列卡片是**滑进来**的，红点跟着一起滑。进场 0.8 秒（`Page arrive` 之后
+        # 第一次扫）读到的 y 是滑动中间态：2026-10-29 那次实机扫到 (274, 161)，
+        # 而页面上真正的红点在 327。滑完之后才读，红点位置才是卡片的位置。
+        self.wait_until_still(PASS_LIST, timeout=3)
         self.pass_close_reward()
 
         claimed = 0
-        # 试过但没领成的红点（y 坐标）。记下来是为了不在一张废卡上打转 ——
-        # 红点还在但「全部获得」是灰的，说明这张的"有新任务"和"有奖励可领"
-        # 不是一回事，跳过它继续下一张。
-        skipped = set()
+        # 处理过的红点（y 坐标）。记下来是因为**红点不一定消失**：领完每日任务后
+        # 那张卡的红点照样在（任务每天解锁一批），所以不能拿"红点还在"当"没领到"
+        # 反复重试，否则会在这张卡上打转到轮数上限。
+        done = set()
 
         for _ in range(PASS_ROUNDS_MAX):
             self.device.screenshot()
-            badges = [b for b in self.pass_badges() if b[1] not in skipped]
+            badges = [b for b in self.pass_badges() if b[1] not in done]
             if not badges:
                 break
 
             badge = badges[0]
             for i in range(PASS_CARD_TRIES):
-                if self.pass_claim_one(badge):
-                    claimed += 1
+                count = self.pass_claim_one(badge)
+                if count:
+                    claimed += count
                     break
                 logger.warning(f'The pass at {badge[1]} was not claimed ({i + 1}/{PASS_CARD_TRIES})')
-            else:
-                skipped.add(badge[1])
+            done.add(badge[1])
 
         logger.info(f'[Pass claimed] {claimed}')
         return claimed
 
     def pass_claim_one(self, badge):
         """
-        Open one pass, press 全部获得 and close the reward screen.
+        Claim one pass on both of its pages.
 
-        The press is verified by the badge disappearing - the only observation
-        that answers "did it land". Everything else on this page survives the
-        reward screen: the title scores 0.966 through it and even
-        「全部获得」 itself still scores 0.916~0.960, so neither can tell
-        "claimed" from "still up".
+        一张通行证有两页，右上竖栏切换：上面是等级奖励，下面是每日任务，
+        **两页各有一个「全部获得」，位置一样**。要两页都问一遍 —— 2026-10-29
+        实机那张「毁灭之星 艾瑞克 PASS」就是奖励页全灰、任务页 DAY 5 有一条
+        已完成的任务挂着红点（用户原话："有的通行证不能直接全部领取，所以得看
+        右侧有没有任务的红点"）。
+
+        每页的领取都用「按下之后有没有结算页」来验证：这一页的标题和按钮都
+        扛得过结算页（标题 0.966、按钮 0.916~0.960），只有结算页本身是新增的。
 
         Pages:
             in: page_pass
@@ -175,29 +230,96 @@ class BrowndustPass(BrowndustUI):
             badge (tuple[int, int]): Centre of the 「!」 on that pass's card.
 
         Returns:
-            bool: If the badge is gone afterwards, i.e. this pass was claimed.
+            int: How many of the two pages were claimed.
         """
         self.pass_open_card(badge)
         if self.pass_close_reward():
             # 上一轮留下的结算页被点掉了，这一帧的亮度不可信，重新看一次。
             self.device.screenshot()
 
+        claimed = 0
+        if self.pass_goto_tab(PASS_TAB_REWARD, PASS_TAB_REWARD_AREA):
+            if self.pass_claim_here():
+                logger.info('Level rewards claimed')
+                claimed += 1
+        if self.pass_goto_tab(PASS_TAB_TASK, PASS_TAB_TASK_AREA):
+            if self.pass_claim_here():
+                logger.info('Task rewards claimed')
+                claimed += 1
+
+        if not claimed:
+            logger.info('Both pages of this pass are empty')
+        return claimed
+
+    def pass_claim_here(self):
+        """
+        Press 「全部获得」 on the page that is open, if it can be pressed.
+
+        Returns:
+            bool: If a reward screen was opened and then closed.
+        """
         if not self.pass_claim_ready():
-            logger.warning('「全部获得」 is grey on this pass, nothing to claim there')
             return False
 
         logger.info('Press 全部获得')
-        self.device.click(PASS_CLAIM)  # alas-lint: allow - guarded by pass_claim_ready() right above and verified by the badge below
-        if not self.pass_close_reward():
-            # 结算页没关掉（或者根本没弹）。两条路都读不出"红点还在不在"：
-            # 横条盖着时左列那一片会变暗，`pass_badges()` 返回空 —— 拿它当证据
-            # 会把"没领成"记成"领成了"。这里宁可报没领成，让调用方再试一次，
-            # 由轮数上限收场，剩下的交给 `ui_goto_main()` 把横条点掉。
-            logger.warning('The reward screen did not close, the pass list is not readable')
+        self.device.click(PASS_CLAIM)  # alas-lint: allow - guarded by pass_claim_ready() right above
+        if not self.wait_until_appear(HUNT_REWARD, offset=(20, 20), timeout=PASS_REWARD_TIMEOUT):
+            # 按下去没有任何反应 —— 这个按钮是灰的那一帧被当成了亮的，或者这一下
+            # 被淡入吞了。两种情况都该让调用方再试，所以报没领成。
+            logger.warning('The press opened no reward screen')
             return False
+        if not self.pass_close_reward():
+            logger.warning('The reward screen did not close')
+            return False
+        return True
 
-        self.device.screenshot()
-        return badge[1] not in {b[1] for b in self.pass_badges()}
+    def pass_tab_active(self, area):
+        """
+        Whether a tab of the right-hand rail is the selected one.
+
+        Not by colour: the selected tab is painted in the pass's own theme colour,
+        which is green on one pass and magenta on the next（`page_6.png` vs
+        2026-10-29）。The difference that survives a theme change is saturation -
+        selected 102~151, unselected 35~45 across five screenshots.
+
+        Args:
+            area (tuple): The tab's strip.
+
+        Returns:
+            bool: If this tab is the selected one.
+        """
+        pixel = self.image_crop(area, copy=True).reshape(-1, 3).mean(axis=0)
+        brightest, darkest = float(pixel.max()), float(pixel.min())
+        if brightest <= 0:
+            return False
+        return (brightest - darkest) / brightest * 255 > PASS_TAB_SATURATION
+
+    def pass_goto_tab(self, point, area):
+        """
+        Make sure the requested tab of the detail panel is the open one.
+
+        Switching is verified by the strip turning into the theme colour, not by
+        the panel going still: the two pages differ only in their content, and
+        when both are empty the 「全部获得」 area is nearly identical, so a
+        stillness check would pass on the old frame.
+
+        Args:
+            point (tuple[int, int]): Centre of the tab.
+            area (tuple): The tab's strip, used as the check point.
+
+        Returns:
+            bool: If that tab is open afterwards.
+        """
+        if self.pass_tab_active(area):
+            return True
+
+        self.device.click_minitouch(point[0], point[1])  # alas-lint: allow - the tab rail is fixed UI, verified by pass_tab_active() below
+        for _ in self.loop(timeout=PASS_TAB_TIMEOUT):
+            if self.pass_tab_active(area):
+                return True
+
+        logger.warning(f'The tab at {point} did not open')
+        return False
 
     def pass_open_card(self, badge):
         """
@@ -206,7 +328,9 @@ class BrowndustPass(BrowndustUI):
         A card press repaints the whole detail panel, and the panel comes back
         with 「全部获得」 in the same place for every pass type (两列/三列、绿/紫/橙
         底都一样), so there is no position change to wait for - only "it stopped
-        moving".
+        moving". `pass_wait_repaint()` is that wait, and it has to see the repaint
+        *start* first; see there for why one plain `wait_until_still()` is not
+        enough.
 
         Pages:
             in: page_pass
@@ -216,13 +340,50 @@ class BrowndustPass(BrowndustUI):
             badge (tuple[int, int]): Centre of the 「!」 on that card.
 
         Returns:
-            bool: If the panel settled.
+            bool: If the panel repainted.
         """
         point = (badge[0] + PASS_CARD_DX, badge[1])
         logger.info(f'Open the pass at {point}')
         self.device.click_minitouch(point[0], point[1])  # alas-lint: allow - a card press in the list, verified by the badge check in pass_claim_one()
-        self.wait_until_still(PASS_CLAIM.area, timeout=PASS_CARD_TIMEOUT)
-        return True
+        return self.pass_wait_repaint()
+
+    def pass_wait_repaint(self, timeout=PASS_CARD_TIMEOUT):
+        """
+        Wait for the detail panel to finish repainting after a card press.
+
+        实测（2026-10-29，`dev_tools/probe_browndust_pass_repaint.py`）：按下
+        卡片之后右侧面板大约 0.5~0.6 秒才换过来，在那之前「全部获得」还是**上一张
+        卡的样子**。而 `wait_until_still()` 判的是"两帧一样"，画面还没开始变时它
+        第一对帧就相同，于是**立刻返回** —— 日志上 `Open the pass at (211, 327)`
+        到 `The reward screen did not close` 只隔 263 ms，按下去的是上一张卡那个
+        灰按钮。
+
+        所以要等的是"先动起来、再停下来"：观察到变化之后，两帧一致才算画完。
+        点了本来就选中的那张卡时不会有变化，超时放行 —— 那不是错误，调用方接着
+        读亮度就行。
+
+        Returns:
+            bool: If a repaint was seen and it settled.
+        """
+        timeout = Timer(timeout).start()
+        previous = self.image_crop(PASS_CLAIM.area, copy=True)
+        moved = False
+
+        for _ in self.loop():
+            current = self.image_crop(PASS_CLAIM.area, copy=True)
+            diff = np.mean(np.abs(current.astype(np.int16) - previous.astype(np.int16)))
+            previous = current
+            if diff >= 1.0:
+                moved = True
+            elif moved:
+                return True
+
+            if timeout.reached():
+                if moved:
+                    logger.warning('The detail panel kept repainting, carry on anyway')
+                else:
+                    logger.info('The detail panel did not repaint, the card was probably already selected')
+                return moved
 
     def pass_claim_ready(self):
         """
@@ -277,6 +438,40 @@ class BrowndustPass(BrowndustUI):
         logger.warning('The reward screen did not close')
         return False
 
+    @staticmethod
+    def pass_badge_mask(image):
+        """
+        The red pixels of a strip of the pass list.
+
+        **`device.image` 是 RGB，不是 BGR**：`screenshot_nemu_ipc()` 走的是
+        `cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)`（`module/device/method/nemu_ipc.py`
+        第 600 行），而本项目默认截图方式就是 nemu。全项目的颜色判据（
+        `color_mask`、`Button.color`）都是在这个 RGB 数组上、按 RGB 值写出来的，
+        所以这里也必须用 `COLOR_RGB2HSV`。
+
+        写成 `COLOR_BGR2HSV` 的后果在 2026-10-29 实机见过：同一帧上它会去找**蓝色**
+        的东西，扫出 `(274, 161)`（卡片立绘的品红碎片）和一个 24x55 的大块（选中卡片的
+        高亮边框），而真正的红「!」在 `(281, 327)` 一个都找不到 —— 于是脚本跑去点一张
+        不存在的卡，日志写 `did not repaint` + `Both pages of this pass are empty`。
+        离线用 adb 截图（`cv2.imread` 得到的确实是 BGR）校准判据时特别容易踩这一脚：
+        两条路径的通道正好相反。
+
+        Hue is split across the two ends of the wheel - a red is either just
+        above 0 or just below 180 - so both ends are taken. Saturation and value
+        are only there to keep near-black and near-white pixels out.
+
+        Args:
+            image: A crop of `PASS_LIST`, RGB.
+
+        Returns:
+            np.ndarray: Shape (height, width), uint8, 255 for red pixels.
+        """
+        hue, saturation, value = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2HSV))
+        red = (hue < PASS_BADGE_HUE_MAX) | (hue > PASS_BADGE_HUE_MIN)
+        return np.where(red
+                        & (saturation > PASS_BADGE_SATURATION)
+                        & (value > PASS_BADGE_VALUE), 255, 0).astype(np.uint8)
+
     def pass_badges(self):
         """
         The red 「!」 marks of the pass list, top to bottom.
@@ -290,8 +485,7 @@ class BrowndustPass(BrowndustUI):
         Returns:
             list[tuple[int, int]]: Centre of each badge, in screen coordinates.
         """
-        mask = color_mask(self.image_crop(PASS_LIST, copy=False),
-                          color=PASS_BADGE_COLOR, threshold=PASS_BADGE_THRESHOLD)
+        mask = self.pass_badge_mask(self.image_crop(PASS_LIST, copy=False))
         # 淡入时「!」会碎成几块，先连起来再数。
         mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1)
         _, _, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
