@@ -43,10 +43,11 @@ luma>200 的像素，8 张弹窗截图全是 0）。
 from module.base.button import Button
 from module.browndust.assets import (BATTLE_PANEL, EVENT_ENTRY, EVENT_MISSION_CLAIM,
                                      EVENT_SCHEDULE, EVENT_TAB_MISSION,
-                                     EVENT_TAB_STORY, EVENT_TAB_TRACKER,
-                                     HUNT_BUTTON, HUNT_ENTRY, MAIL_CLAIM, MAIL_ENTRY,
-                                     MAIN_HOME_ICON, MAP_HOME_BTN, PASS_ENTRY,
-                                     PASS_TITLE, STORY_TITLE, SUMMON_BANNER,
+                                     EVENT_TAB_SHOP, EVENT_TAB_STORY,
+                                     EVENT_TAB_TRACKER, HUNT_BUTTON, HUNT_ENTRY,
+                                     MAIL_CLAIM, MAIL_ENTRY, MAIN_HOME_ICON,
+                                     MAP_HOME_BTN, PASS_ENTRY, PASS_TITLE,
+                                     SHOP_TITLE, STORY_TITLE, SUMMON_BANNER,
                                      SUMMON_ENTRY, TASK_CLAIM_ALL, TASK_ENTRY,
                                      WB_EDIT_TEAM)
 from module.ui.page import Page
@@ -234,3 +235,22 @@ MISSION_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: al
 # 活动页底部第五块木牌进、活动任务页左上角箭头出。
 page_event.link(button=EVENT_TAB_MISSION, destination=page_event_mission)
 page_event_mission.link(button=MISSION_BACK, destination=page_event)
+
+# ---- 活动商店 -------------------------------------------------------------
+#
+# 检查点是左上角那行「活动商店」标题（图标 + 文字）。它只在这一页上 —— 活动页
+# 0.267、活动任务页和任务页 0.612、魔兽页 0.541，都远在 0.85 之下。
+#
+# 但它**在购买弹窗底下也是 0.997**：弹窗只是一层半透明遮罩，模板匹配对整体变暗
+# 不敏感。所以它回答"在不在商店页"，回答不了"有没有被弹窗盖着" —— 那个由
+# `SHOP_BUY_PANEL`（弹窗里那行黄字）自己回答，实测弹窗上 1.000、列表上 0.228。
+page_shop = Page(SHOP_TITLE)
+
+# 商店页的返回箭头，跟其它页同一个位置（游戏统一的左上角胶囊），所以还是纯坐标：
+# 它背后是每次都换的活动主视觉。
+SHOP_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                   button=(124, 24, 152, 56), name='SHOP_BACK')
+
+# 活动页底部第六块木牌进、商店页左上角箭头出。
+page_event.link(button=EVENT_TAB_SHOP, destination=page_shop)
+page_shop.link(button=SHOP_BACK, destination=page_event)

@@ -552,6 +552,23 @@
       "Storage": {}
     }
   },
+  "BrowndustShop": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "BrowndustShop",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "08:00"
+    },
+    "BrowndustShop": {
+      "ShopFilter": "GachaTicket > GoddessTear > EquipUR > EquipSR > EquipMaterial > AncientCrystal > Essence > RefineCrystal > Star4",
+      "BuyAmount": "max"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "BrowndustPass": {
     "Scheduler": {
       "Enable": false,

@@ -111,6 +111,9 @@ BrowndustWorldBoss:
 BrowndustEventMission:
   Scheduler:
     ServerUpdate: 08:00
+BrowndustShop:
+  Scheduler:
+    ServerUpdate: 08:00
 BrowndustPass:
   Scheduler:
     ServerUpdate: 08:00

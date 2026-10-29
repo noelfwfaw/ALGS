@@ -158,6 +158,10 @@
       "name": "活动任务",
       "help": "进活动页的「任务」木牌，有奖励可领就按一次「全部领取」；没有可领的就一个按钮都不按"
     },
+    "BrowndustShop": {
+      "name": "活动商店",
+      "help": "按一张可调的优先级清单花活动兑换道具：买满一档自动换下一档，没写进清单的一律不买"
+    },
     "BrowndustPass": {
       "name": "通行证领取",
       "help": "领取每一张带红点的通行证里的任务与奖励（全部获得）"
@@ -677,12 +681,28 @@
       "help": "圣石洞穴 · 风，0 = 不打。五种洞穴共用火把，合计不能超过 10 次"
     },
     "CaveLight": {
-      "name": "光之洞穴次数",
-      "help": "圣石洞穴 · 光，0 = 不打。五种洞穴共用火把，合计不能超过 10 次"
+      "name": "BrowndustHunt.CaveLight.name",
+      "help": "BrowndustHunt.CaveLight.help"
     },
     "CaveDark": {
-      "name": "暗之洞穴次数",
-      "help": "圣石洞穴 · 暗，0 = 不打。五种洞穴共用火把，合计不能超过 10 次"
+      "name": "BrowndustHunt.CaveDark.name",
+      "help": "BrowndustHunt.CaveDark.help"
+    }
+  },
+  "BrowndustShop": {
+    "_info": {
+      "name": "活动商店",
+      "help": "商品每期会换的只有三类：第一排前三个付费道具（价格是钻石的那几档）、活动限定装备、装备的强化材料。付费道具默认不买，把它们加进清单就会买——识别靠价格左边那颗蓝宝石，所以商品图怎么换都不用改。装备靠名字里的 (UR)/(SR) 后缀认，也不用改。强化材料认「紧挨着装备右边」那一格；如果哪一期认不出来，直接把这一期的名字（比如「魔法之丝」）写进清单即可。"
+    },
+    "ShopFilter": {
+      "name": "兑换优先级",
+      "help": "用 > 分隔，越靠前越优先，没写的就是不买。可用代号：Paid（钻石付费道具）、EquipUR / EquipSR（活动限定装备）、EquipMaterial（装备强化材料）、GachaTicket（抽抽乐券）、GoddessTear（女神之泪）、AncientCrystal（远古水晶）、Essence（各种精髓）、RefineCrystal（精炼水晶）、Star4（4★升星之星）。除代号之外的项按商品名匹配，中文名直接写也行。"
+    },
+    "BuyAmount": {
+      "name": "每种买多少",
+      "help": "max = 把这一档的限购次数买满（活动币不够时游戏自己会拦）；one = 每种只买一个。",
+      "max": "买满",
+      "one": "只买一个"
     }
   },
   "Storage": {

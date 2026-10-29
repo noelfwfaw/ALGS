@@ -123,5 +123,9 @@ class GeneratedConfig:
     BrowndustHunt_CaveLight = 2
     BrowndustHunt_CaveDark = 2
 
+    # Group `BrowndustShop`
+    BrowndustShop_ShopFilter = 'GachaTicket > GoddessTear > EquipUR > EquipSR > EquipMaterial > AncientCrystal > Essence > RefineCrystal > Star4'
+    BrowndustShop_BuyAmount = 'max'  # max, one
+
     # Group `Storage`
     Storage_Storage = {}

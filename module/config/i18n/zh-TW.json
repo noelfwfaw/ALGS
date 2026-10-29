@@ -158,6 +158,10 @@
       "name": "活動任務",
       "help": "進活動頁的「任務」木牌，有獎勵可領就按一次「全部領取」；沒有可領的就一個按鈕都不按"
     },
+    "BrowndustShop": {
+      "name": "活動商店",
+      "help": "按一張可調的優先級清單花活動兌換道具：買滿一檔自動換下一檔，沒寫進清單的一律不買"
+    },
     "BrowndustPass": {
       "name": "通行證領取",
       "help": "領取每一張帶紅點的通行證裡的任務與獎勵（全部獲得）"
@@ -677,12 +681,28 @@
       "help": "聖石洞穴 · 風，0 = 不打。五種洞穴共用火把，合計不能超過 10 次"
     },
     "CaveLight": {
-      "name": "光之洞穴次數",
-      "help": "聖石洞穴 · 光，0 = 不打。五種洞穴共用火把，合計不能超過 10 次"
+      "name": "BrowndustHunt.CaveLight.name",
+      "help": "BrowndustHunt.CaveLight.help"
     },
     "CaveDark": {
-      "name": "暗之洞穴次數",
-      "help": "聖石洞穴 · 暗，0 = 不打。五種洞穴共用火把，合計不能超過 10 次"
+      "name": "BrowndustHunt.CaveDark.name",
+      "help": "BrowndustHunt.CaveDark.help"
+    }
+  },
+  "BrowndustShop": {
+    "_info": {
+      "name": "活動商店",
+      "help": "商品每期會換的只有三類：第一排前三個付費道具（價格是鑽石的那幾檔）、活動限定裝備、裝備的強化材料。付費道具預設不買，把它們加進清單就會買——識別靠價格左邊那顆藍寶石，所以商品圖怎麼換都不用改。裝備靠名字裡的 (UR)/(SR) 後綴認，也不用改。強化材料認「緊挨著裝備右邊」那一格；如果哪一期認不出來，直接把這一期的名字（比如「魔法之絲」）寫進清單即可。"
+    },
+    "ShopFilter": {
+      "name": "兌換優先級",
+      "help": "用 > 分隔，越靠前越優先，沒寫的就是不買。可用代號：Paid（鑽石付費道具）、EquipUR / EquipSR（活動限定裝備）、EquipMaterial（裝備強化材料）、GachaTicket（抽抽樂券）、GoddessTear（女神之淚）、AncientCrystal（遠古水晶）、Essence（各種精髓）、RefineCrystal（精煉水晶）、Star4（4★升星之星）。除代號之外的項按商品名匹配，中文名直接寫也行。"
+    },
+    "BuyAmount": {
+      "name": "每種買多少",
+      "help": "max = 把這一檔的限購次數買滿（活動幣不夠時遊戲自己會攔）；one = 每種只買一個。",
+      "max": "買滿",
+      "one": "只買一個"
     }
   },
   "Storage": {

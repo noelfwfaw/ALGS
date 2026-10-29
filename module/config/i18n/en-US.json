@@ -158,6 +158,10 @@
       "name": "Event Missions",
       "help": "Open the event's 任务 tab and press 全部领取 once if a reward is ready; otherwise press nothing"
     },
+    "BrowndustShop": {
+      "name": "Event Shop",
+      "help": "Spend the event currency following an editable priority list: buy one entry to its limit, then move to the next; anything not listed is never bought"
+    },
     "BrowndustPass": {
       "name": "Pass Rewards",
       "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"
@@ -677,12 +681,28 @@
       "help": "Sacred stone cave, wind. 0 = skip. The five caves share the torch, 10 in total"
     },
     "CaveLight": {
-      "name": "Light Cave runs",
-      "help": "Sacred stone cave, light. 0 = skip. The five caves share the torch, 10 in total"
+      "name": "BrowndustHunt.CaveLight.name",
+      "help": "BrowndustHunt.CaveLight.help"
     },
     "CaveDark": {
-      "name": "Dark Cave runs",
-      "help": "Sacred stone cave, dark. 0 = skip. The five caves share the torch, 10 in total"
+      "name": "BrowndustHunt.CaveDark.name",
+      "help": "BrowndustHunt.CaveDark.help"
+    }
+  },
+  "BrowndustShop": {
+    "_info": {
+      "name": "Event Shop",
+      "help": "Only three kinds of goods change between seasons: the three paid items in the first row (priced in diamonds), the event-limited equipment, and the equipment upgrade material. The paid ones are skipped by default — put them in the list and they will be bought; they are recognised by the blue gem left of the price, so the artwork can change freely. Equipment is recognised by the (UR)/(SR) suffix in its name, so that needs no edit either. The upgrade material is the cell right after the equipment; if a season does not match, just write that season's item name into the list."
+    },
+    "ShopFilter": {
+      "name": "Purchase priority",
+      "help": "Separated by >, leftmost is bought first, anything not listed is never bought. Codes: Paid (diamond-priced goods), EquipUR / EquipSR (event equipment), EquipMaterial (equipment upgrade material), GachaTicket, GoddessTear, AncientCrystal, Essence, RefineCrystal, Star4 (4-star star-up). Anything else is matched against the item name, so writing the name in your own language works too."
+    },
+    "BuyAmount": {
+      "name": "How many per entry",
+      "help": "max = buy the whole limit of that entry (the game refuses when coins run out); one = buy a single one.",
+      "max": "To the limit",
+      "one": "One only"
     }
   },
   "Storage": {

@@ -119,6 +119,9 @@ Browndust:
       - Scheduler
     BrowndustEventMission:
       - Scheduler
+    BrowndustShop:
+      - Scheduler
+      - BrowndustShop
     BrowndustPass:
       - Scheduler
     BrowndustRedeem:

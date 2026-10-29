@@ -205,3 +205,17 @@ BrowndustHunt:
   CaveWind: 2
   CaveLight: 2
   CaveDark: 2
+# 活动商店。`ShopFilter` 是优先级清单，`>` 分隔、前面优先、**没写的就是不买**
+# （和碧蓝的自定义过滤器同一个形状）。可用代号：
+#   Paid           价格是钻石的那几档（默认不写 —— 想花钱买就把它加到最前面）
+#   EquipUR / EquipSR   活动限定装备，靠名字里的 (UR)/(SR) 后缀认，换期不用改
+#   EquipMaterial  活动限定装备的强化材料，认"紧挨着装备右边"那一格
+#   GachaTicket / GoddessTear / AncientCrystal / RefineCrystal / Essence / Star4
+# 除此之外的项按**商品名子串**匹配，所以换期想知道这期的材料叫什么，直接写名字
+# （比如 `魔法之丝`）也能用。
+BrowndustShop:
+  ShopFilter:
+    value: 'GachaTicket > GoddessTear > EquipUR > EquipSR > EquipMaterial > AncientCrystal > Essence > RefineCrystal > Star4'
+  BuyAmount:
+    value: max
+    option: [ max, one ]

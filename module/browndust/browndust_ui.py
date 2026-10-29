@@ -51,8 +51,8 @@ from module.browndust.assets import (BOOT_DOWNLOAD_DIALOG, BOOT_PAYMENT_ERROR,
 from module.browndust.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
 from module.browndust.page import (page_event, page_event_battle, page_event_mission,
                                    page_event_story, page_hunt, page_main, page_mail,
-                                   page_map, page_pass, page_summon, page_task,
-                                   page_world_boss)
+                                   page_map, page_pass, page_shop, page_summon,
+                                   page_task, page_world_boss)
 from module.ui.ui import UI
 
 # 关大厅弹窗时点的地方：左边那条竖栏（我的小屋/好友/公会…）的左侧留白。
@@ -110,6 +110,7 @@ class BrowndustUI(UI):
     page_task = page_task
     page_pass = page_pass
     page_event_mission = page_event_mission
+    page_shop = page_shop
 
     # Own pages, in the order they are declared above. The registry is shared
     # with every other game, and their check points only exist in their own
@@ -132,7 +133,7 @@ class BrowndustUI(UI):
     # 需要盯着的一对，实测互相 0.480 / 0.500。
     pages = (page_map, page_hunt, page_summon, page_task, page_pass, page_mail,
              page_event, page_event_story, page_event_battle, page_world_boss,
-             page_event_mission, page_main)
+             page_event_mission, page_shop, page_main)
 
     def tap_point(self, x, y):
         """

@@ -42,7 +42,7 @@ class ManualConfig:
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
-    > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustEventBattle > BrowndustWorldBoss > BrowndustEventMission > BrowndustPass
+    > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustEventBattle > BrowndustWorldBoss > BrowndustEventMission > BrowndustShop > BrowndustPass
     > BrowndustRedeem
     """
 
@@ -68,6 +68,14 @@ class ManualConfig:
 
     ASCREENCAP_FILEPATH_LOCAL = './bin/ascreencap'
     ASCREENCAP_FILEPATH_REMOTE = '/data/local/tmp/ascreencap'
+
+    # `Device.save_screenshot()` 要把出错画面存下来，这两个是它的目录与去抖间隔。
+    # 上游把它们写在配置项里，这里裁剪过 argument.yaml，改成常量（否则出错路径
+    # 自己会 AttributeError，把真正的错误盖掉）。目录用 `./log/error`：它一定
+    # 存在，而且 `save_screenshot()` 只 mkdir 一层（genre 子目录）。
+    SCREEN_SHOT_SAVE_INTERVAL = 5
+    SCREEN_SHOT_SAVE_FOLDER = './log/error'
+    SCREEN_SHOT_SAVE_FOLDER_BASE = './log/error'
 
     # 'DroidCast', 'DroidCast_raw'
     DROIDCAST_VERSION = 'DroidCast'
