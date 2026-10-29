@@ -115,6 +115,7 @@ class CouponPage:
         # `GamePageUnknownError` 会被调度器变成 exit(1)，带走整个进程。
         logger.warning('The coupon flow could not walk back to the lobby')
         return False
+
     def coupon_tap(self, target):
         """
         Tap a button's centre, or a raw pixel, with `adb shell input tap`.
