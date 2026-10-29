@@ -1,10 +1,12 @@
 import cv2
 from module.base.timer import Timer
-from module.base.utils import get_color
+from module.base.utils import crop, get_color
 from module.exception import GameStuckError
 from module.hazeworld.assets import (LOADING_TEXT,
                                      EXIT_CONFIRM,
                                      LOGIN_ANNOUNCE,
+                                     LOGIN_DOWNLOAD_CONFIRM,
+                                     LOGIN_DOWNLOAD_NOTICE,
                                      LOGIN_SIGN_CLOSE,
                                      LOGIN_SIGN_IN,
                                      LOGIN_TOUCH_START,
@@ -12,6 +14,7 @@ from module.hazeworld.assets import (LOADING_TEXT,
                                      SUPPORT_REWARD)
 from module.hazeworld.claim import Claim
 from module.logger import logger
+from module.ocr.ocr import Ocr
 from module.ui.ui import UI
 
 from module.hazeworld.page import *  # noqa: F401,F403 - re-exported for the tasks
@@ -38,6 +41,36 @@ CLAIM_TIMES = ['05:00', '12:00', '18:00', '23:00']
 # against other screens), which is why it is matched rather than OCR'd: the
 # built-in OCR models read this font as 「L2ABIN」 / 「CLADINK」.
 LOADING_REGION = (500, 640, 780, 715)
+
+
+# A client update makes the game ask before it fills the disk:
+#
+#     「游戏需要下载额外2.38 GB资源」  [取消] [确认]
+#
+# 「取消」 drops back to the title screen and asks again on the next launch,
+# so the only useful answer is 「确认」. Once it is pressed the dialog gives way
+# to a download screen that says, over the bottom bar:
+#
+#     「正在下载资源…(1.04 GB/2.38 GB)」
+#
+# That line is the only thing that tells a download apart from a stalled
+# loading screen: the background behind it is one of the rotating lore
+# paintings and the progress bar at the left edge is drawn with the accent
+# colour of the week. The numbers change every frame, so the line is OCR'd
+# rather than matched - and since the model eats the ellipsis and the spaces
+# ("正在下载资源(1.04GB/2.38GB)"), only "下载" and the two numbers are used.
+BOOT_DOWNLOAD_AREA = (460, 675, 840, 710)
+BOOT_DOWNLOAD_THRESHOLD = 140
+
+# Downloading 2.38 GB took eight minutes on the test box (about 5 MB/s), so the
+# 240 seconds of the boot loop are not enough. This is the download's own
+# ceiling; the boot timer is reset once the download is over, so the time spent
+# here does not count as a boot failure.
+BOOT_DOWNLOAD_TIMEOUT = 60 * 60
+
+# A progress number that does not move for this long means the connection died.
+# The game does not retry on its own, so this raises instead of waiting forever.
+BOOT_DOWNLOAD_STALL = 5 * 60
 
 
 def match_loading(image, button, region):
@@ -179,6 +212,11 @@ class HazeworldUI(Claim, UI):
         announcement that has to be dismissed, then the title screen waiting for
         a tap. Loading alone takes about 30 seconds, so the timeout is generous.
 
+        When the client has an update waiting, the game inserts two more screens
+        between the loading screen and the title: 「游戏需要下载额外X GB资源」
+        with 取消 / 确认, and then the download itself. See
+        `handle_download_notice()` and `handle_downloading()`.
+
         The announcement only closes on the back key, but the back key on the
         title screen opens the "确认退出?" dialog, which logs the account out on
         the next launch when it is confirmed. So the key is sent at most once
@@ -228,6 +266,11 @@ class HazeworldUI(Claim, UI):
             if self.handle_sign_in():
                 continue
 
+            # Also before the title screen: the dialog sits on top of it and the
+            # title is still readable through the dimming.
+            if self.handle_download_notice():
+                continue
+
             # Announcement is a modal over the title screen, back dismisses it.
             # Only pressed on the positive condition, never on the main page.
             if self.appear(LOGIN_ANNOUNCE, offset=(20, 20)):
@@ -240,9 +283,173 @@ class HazeworldUI(Claim, UI):
                 logger.info('Title screen, touch to start')
                 continue
 
+            # Last, because it costs an OCR call: none of the checks above can
+            # match while a download is running (measured), so reaching this
+            # point on a download screen means everything else was a miss.
+            if self.handle_downloading():
+                # The download took minutes; without this the loop would leave
+                # on the next timeout check, right after a successful download.
+                timeout.reset()
+                continue
+
             if timeout.reached():
                 logger.warning('Wait game boot timeout')
                 raise GameStuckError('Game did not reach page_main after launch')
+
+    def handle_download_notice(self):
+        """
+        Answer the 「游戏需要下载额外X GB资源」 dialog with 「确认」.
+
+        「取消」 is never pressed: it goes back to the title screen and the same
+        dialog waits there on the next launch, so nothing would ever get past
+        it. The button is pressed at most once every three seconds; a press
+        that the fade-in swallows is repeated on the next screenshot rather
+        than by hammering.
+
+        Pages:
+            in: any
+            out: any
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(LOGIN_DOWNLOAD_NOTICE, offset=(20, 20)):
+            if self.appear_then_click(LOGIN_DOWNLOAD_CONFIRM, offset=(20, 20), interval=3):
+                logger.info('Client needs a resource pack, press 确认 to download it')
+            return True
+
+        return False
+
+    def handle_downloading(self):
+        """
+        Wait out a resource download.
+
+        Nothing is clicked here: once 「确认」 has been given the game downloads
+        on its own and moves on by itself when the pack is complete. What is
+        watched is the progress line - the loop ends the moment that line is
+        gone, which is either the client restarting or the title screen coming
+        up. Both are handled by the caller's boot loop.
+
+        Pages:
+            in: any
+            out: any
+
+        Returns:
+            bool: If a download was running.
+        """
+        status = self.boot_download_status()
+        if status is None:
+            return False
+
+        logger.hr('Download resources', level=2)
+        done, total = status
+        if total > 0:
+            logger.info(f'Downloading resources, {done:.0f} MB of {total:.0f} MB')
+
+        timeout = Timer(BOOT_DOWNLOAD_TIMEOUT, count=3).start()
+        stall = Timer(BOOT_DOWNLOAD_STALL, count=3).start()
+        report = Timer(30, count=2).start()
+        last = done
+
+        while 1:
+            self.device.screenshot()
+            # A download takes minutes and presses nothing, so the framework's
+            # "nothing clicked for 60 seconds" watchdog fires on it. Say out
+            # loud that the screen is being watched (hard rule 13).
+            self.device.stuck_record_clear()
+
+            status = self.boot_download_status()
+            if status is None:
+                logger.info('Download finished')
+                return True
+
+            done, total = status
+            # The line is there but the numbers came back unreadable: still a
+            # download, just one that cannot be told apart from a stalled one,
+            # so only the overall timeout applies.
+            if total > 0 and done > last:
+                last = done
+                stall.reset()
+
+            if report.reached_and_reset():
+                logger.info(f'Downloading resources, {done:.0f} MB of {total:.0f} MB')
+
+            if stall.reached():
+                logger.warning(f'Download has not moved for {BOOT_DOWNLOAD_STALL} seconds')
+                raise GameStuckError(
+                    '苍雾世界 卡在资源下载上，进度五分钟没动。游戏自己不会重试，'
+                    '请检查模拟器网络，让它下完再重跑。')
+            if timeout.reached():
+                logger.warning('Download timeout')
+                raise GameStuckError(
+                    '苍雾世界 的资源下载超过一小时还没结束。'
+                    '请手动让游戏下完，或者换个网络重跑。')
+
+    def boot_download_status(self):
+        """
+        Read the download line the game draws over the bottom bar.
+
+        「正在下载资源…(1.04 GB/2.38 GB)」 is OCR'd, not matched: the numbers
+        change every frame. The model drops the ellipsis and the spaces, and it
+        reads the G of GB as a 6 often enough to matter (measured:
+        「正在下载资源(1.446B/2.38GB)」), so the text can only be recognised by
+        the word 「下载」 and the sizes are parsed tolerantly.
+
+        Returns:
+            tuple[float, float] | None:
+                (downloaded, total) in MB; `(0, 0)` when the line is there but
+                its numbers are unreadable; None when there is no download
+                line at all.
+        """
+        ocr = Ocr([], lang='cnocr', letter=(255, 255, 255),
+                  threshold=BOOT_DOWNLOAD_THRESHOLD)
+        ocr.SHOW_LOG = False
+        text = ocr.ocr([crop(self.device.image, BOOT_DOWNLOAD_AREA)], direct_ocr=True)[0]
+        if '下载' not in text:
+            return None
+
+        halves = text.split('(')[-1].split('/')
+        if len(halves) != 2:
+            return 0, 0
+
+        done = self.boot_parse_size(halves[0])
+        total = self.boot_parse_size(halves[1].rstrip(')'))
+        if done is None or total is None:
+            return 0, 0
+
+        return done, total
+
+    @staticmethod
+    def boot_parse_size(note):
+        """
+        Read one size off the download line, in megabytes.
+
+        「938.15MB」, 「2.38GB」 and the misread 「1.446B」 all end with two
+        characters of unit and the number never does, so the last two are cut
+        off instead of letting a regex decide where the digits stop - it would
+        swallow the 6 of a misread G into the number.
+
+        Args:
+            note (str): Such as 「938.15MB」.
+
+        Returns:
+            float | None: Megabytes, or None when the unit is not recognised.
+        """
+        note = note.replace(' ', '').upper()
+        if len(note) < 3:
+            return None
+
+        number, unit = note[:-2], note[-2:]
+        try:
+            value = float(number)
+        except ValueError:
+            return None
+
+        if unit[0] in 'G6':
+            return value * 1024
+        if unit[0] == 'M':
+            return value
+        return None
 
     def handle_exit_confirm(self):
         """
