@@ -89,6 +89,8 @@ Lostsword:
     LostswordTask:
       - Scheduler
       - LostswordTask
+    LostswordRedeem:
+      - Scheduler
 
 # ==================== Brown Dust II ====================
 
@@ -102,9 +104,9 @@ Browndust:
     BrowndustHunt:
       - Scheduler
       - BrowndustHunt
-    BrowndustMail:
-      - Scheduler
     BrowndustManager:
+      - Scheduler
+    BrowndustMail:
       - Scheduler
     BrowndustTask:
       - Scheduler

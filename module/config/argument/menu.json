@@ -39,7 +39,8 @@
       "LostswordMain",
       "LostswordRound",
       "LostswordAffection",
-      "LostswordTask"
+      "LostswordTask",
+      "LostswordRedeem"
     ]
   },
   "Browndust": {
@@ -48,8 +49,8 @@
     "tasks": [
       "BrowndustSummon",
       "BrowndustHunt",
-      "BrowndustMail",
       "BrowndustManager",
+      "BrowndustMail",
       "BrowndustTask",
       "BrowndustPass"
     ]

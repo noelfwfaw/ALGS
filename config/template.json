@@ -405,6 +405,19 @@
       "Storage": {}
     }
   },
+  "LostswordRedeem": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "LostswordRedeem",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "10:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "BrowndustSummon": {
     "Scheduler": {
       "Enable": false,
@@ -444,11 +457,11 @@
       "Storage": {}
     }
   },
-  "BrowndustMail": {
+  "BrowndustManager": {
     "Scheduler": {
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
-      "Command": "BrowndustMail",
+      "Command": "BrowndustManager",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "08:00"
@@ -457,11 +470,11 @@
       "Storage": {}
     }
   },
-  "BrowndustManager": {
+  "BrowndustMail": {
     "Scheduler": {
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
-      "Command": "BrowndustManager",
+      "Command": "BrowndustMail",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "08:00"

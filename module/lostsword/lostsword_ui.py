@@ -2,14 +2,17 @@ from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (BOSS_VICTORY, DUNGEON_BTN_BACK,
-                                    DUNGEON_CLEAR, LOGIN_CHECK, MAIN_DEFEAT,
-                                    REWARD_POPUP_TITLE, SUMMON_SKIP)
+                                     DUNGEON_CLEAR, LOGIN_CHECK, MAIN_DEFEAT,
+                                     REWARD_POPUP_TITLE, SUMMON_SKIP)
+from module.lostsword.offer import OfferPopup
 from module.lostsword.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
 from module.lostsword.page import BOSS_RESULT_TAP, MAIN_DEFEAT_BACK
+from module.lostsword.schedule import next_week_reset
+from module.lostsword.sign_in import SignIn
 from module.ui.ui import UI
 
 
-class LostswordUI(UI):
+class LostswordUI(OfferPopup, SignIn, UI):
     page_main = page_main
 
     # Own pages, in the order they are declared above. The registry is shared
@@ -100,6 +103,11 @@ class LostswordUI(UI):
         stays while the key visual behind it rotates, which is why it matches
         0.95 on every title screen frame and 0.15~0.40 everywhere else.
 
+        Behind the tap comes the daily sign-in on the first launch of a game
+        day: the login rewards play themselves, then the activity centre's
+        sign-in page is put in front of the lobby and stays there, see
+        `handle_sign_in()`.
+
         The emulator's own speed-up feature is the user's business, this loop
         just waits as long as the client needs.
 
@@ -131,6 +139,16 @@ class LostswordUI(UI):
 
             if self.appear_then_click(LOGIN_CHECK, offset=(20, 20), interval=3):
                 logger.info('Title screen, tap to start')
+                continue
+
+            # 点掉标题屏以后，第一天会先播登录奖励、再把签到面板顶上来，
+            # 那个面板挡住大厅，不留这一支就只能等着超时。
+            if self.handle_sign_in():
+                continue
+
+            # 礼包卡也是"盖住大厅"的一种，它按自己的节奏弹，冷启动撞上就
+            # 一样进不了大厅。启动循环不经过 `ui_additional()`，得单独挂一次。
+            if self.handle_offer_popup():
                 continue
 
             if timeout.reached():
@@ -211,9 +229,19 @@ class LostswordUI(UI):
         out. The summon task skips its own cutscenes, so this only fires when a
         run died in one and a later task has to walk home through it.
 
+        The limited-time offer card is the same story once more, and it is why
+        this hook matters: it appears on its own schedule while the game sits on
+        the lobby, covers the whole screen with a blurred copy of it, and every
+        task met it the same way - no page matched, `ui_goto` gave up with
+        `GamePageUnknownError`. Checked first because it is the only one of
+        these that is *fully* opaque; the others are small panels.
+
         Returns:
             bool: If handled.
         """
+        if self.handle_offer_popup():
+            return True
+
         if self.appear(SUMMON_SKIP, offset=30, interval=2):
             logger.info('Summon cutscene, skip it')
             self.tap_asset(SUMMON_SKIP)
@@ -439,3 +467,24 @@ class LostswordUI(UI):
             if timeout.reached():
                 logger.warning('Reward popup is still on screen')
                 return False
+
+    def delay_next_week(self, label=None):
+        """
+        Postpone the current task to the next weekly reset of this game.
+
+        The weekly modes (星辰轮回, 迷宫) reset at Sunday 11:00 in Korea, which is
+        Monday 00:00 here. `task_delay(server_update=True)` is a daily reset and
+        would bring the task back the next day, so the target is computed by
+        `next_week_reset()` and handed over as an absolute time.
+
+        Args:
+            label (str): Log name of the schedule, such as 'Maze next reset'.
+
+        Returns:
+            datetime.datetime: The target time.
+        """
+        target = next_week_reset()
+        if label:
+            logger.attr(label, str(target))
+        self.config.task_delay(target=target)
+        return target

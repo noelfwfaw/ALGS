@@ -34,6 +34,9 @@ LostswordDungeon:
 LostswordEvent:
   Scheduler:
     ServerUpdate: 00:00
+# 星辰轮回 is a weekly mode: it schedules itself onto the Monday 00:00 reset, so
+# this hour is only a fallback for a failure retry. It stays on 00:00 to match
+# the game's own day.
 LostswordStar:
   Scheduler:
     ServerUpdate: 00:00
@@ -67,6 +70,15 @@ LostswordTask:
 LostswordSummon:
   Scheduler:
     ServerUpdate: 00:00
+# 兑换码 runs on the wiki's clock, not the game's: the site posts new codes in the
+# morning (KST), so the task reads it at 10:00 and then not again until tomorrow.
+LostswordRedeem:
+  Scheduler:
+    # Quoted on purpose: YAML reads a bare `10:00` as the sexagesimal number 600,
+    # and the generator then refuses it as "not a string". Other tasks of this
+    # file all start with a zero (`00:00`, `05:00`), which is why this never
+    # showed up before.
+    ServerUpdate: '10:00'
 
 # ==================== Brown Dust II (棕色尘埃2) ====================
 

@@ -33,12 +33,14 @@ class ManualConfig:
     # before this task runs loses the free pull for good.
     #
     # 棕色尘埃2 的免费抽抽乐 same story: two presses a day (服装 / 装备), and the
-    # category is the only line so far.
+    # category is the only line so far. The rest of the block follows the order
+    # the user asked for on 2026-10-29: 快速狩猎 > 经营管理 > 邮箱 > 日常任务 >
+    # 通行证, which puts 通行证 last - the least of the daily claims.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask
-    > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask
-    > BrowndustSummon > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustPass > BrowndustHunt
+    > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
+    > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustPass
     """
 
     """

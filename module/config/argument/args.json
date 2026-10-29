@@ -1476,6 +1476,51 @@
       }
     }
   },
+  "LostswordRedeem": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "LostswordRedeem",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "10:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "BrowndustSummon": {
     "Scheduler": {
       "Enable": {
@@ -1606,7 +1651,7 @@
       }
     }
   },
-  "BrowndustMail": {
+  "BrowndustManager": {
     "Scheduler": {
       "Enable": {
         "type": "checkbox",
@@ -1623,7 +1668,7 @@
       },
       "Command": {
         "type": "input",
-        "value": "BrowndustMail",
+        "value": "BrowndustManager",
         "display": "hide"
       },
       "SuccessInterval": {
@@ -1651,7 +1696,7 @@
       }
     }
   },
-  "BrowndustManager": {
+  "BrowndustMail": {
     "Scheduler": {
       "Enable": {
         "type": "checkbox",
@@ -1668,7 +1713,7 @@
       },
       "Command": {
         "type": "input",
-        "value": "BrowndustManager",
+        "value": "BrowndustMail",
         "display": "hide"
       },
       "SuccessInterval": {

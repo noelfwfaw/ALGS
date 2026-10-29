@@ -118,6 +118,10 @@
       "name": "Task rewards",
       "help": "Claim all daily, weekly and epic task rewards"
     },
+    "LostswordRedeem": {
+      "name": "Coupon codes",
+      "help": "Fetch the coupon codes from GameKee once a day and redeem the new ones in the game; used and expired codes are skipped"
+    },
     "BrowndustSummon": {
       "name": "Free gacha",
       "help": "Take the daily free pull of the costume and equipment gacha"
@@ -126,13 +130,13 @@
       "name": "Quick Hunt",
       "help": "Spend the daily quick-hunt runs of the field, coin and slime areas, and of the sacred stone caves"
     },
-    "BrowndustMail": {
-      "name": "Mail",
-      "help": "Claim every attachment in 普通邮箱 (shop mail and the log page are left alone)"
-    },
     "BrowndustManager": {
       "name": "Management",
       "help": "Claim the accumulated 经营管理 rewards (一键获得)"
+    },
+    "BrowndustMail": {
+      "name": "Mail",
+      "help": "Claim every attachment in 普通邮箱 (shop mail and the log page are left alone)"
     },
     "BrowndustTask": {
       "name": "Daily Quests",

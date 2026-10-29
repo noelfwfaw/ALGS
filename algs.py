@@ -144,6 +144,10 @@ class AlGS(GameScheduler):
         from module.lostsword.task import LostswordTask
         LostswordTask(config=self.config, device=self.device).run()
 
+    def lostsword_redeem(self):
+        from module.lostsword.redeem import LostswordRedeem
+        LostswordRedeem(config=self.config, device=self.device).run()
+
     # ==================== Brown Dust II (棕色尘埃2) ====================
 
     def browndust_summon(self):
