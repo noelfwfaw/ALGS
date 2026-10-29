@@ -339,8 +339,24 @@ class WorkerPool:
         if len(self.all_workers) >= self.pool_size:
             # See release_full_lock()
             self.notify_worker.release()
-            self.notify_pool.acquire()
-            # A worker just idle
+            # [AlGS PATCH] Upstream waits here forever. A worker stuck inside an
+            # external DLL - `nemu_capture_display` of nemu_ipc does not return
+            # when the emulator is busy switching scenes - never finishes, and
+            # `kill()` only unhooks it from `all_workers` while the thread itself
+            # stays blocked in C. The notification this line waits for can then
+            # never come, and the whole task chain parks on it: no log, no
+            # exception, no exit. Measured 2026-10-29, the arena run sat on its
+            # victory page for over three minutes with `log/2026-10-29_alas.txt`
+            # frozen at the last click. Give up after a while and start one more
+            # worker instead: the caller's own timeout decides whether the device
+            # is broken, this class must not hang the process.
+            if not self.notify_pool.acquire(timeout=10):
+                logger.warning(
+                    f'Worker pool: no worker finished in 10s ({len(self.all_workers)} alive), '
+                    f'adding one more')
+            # A worker that idles out removes itself from `idle_workers` first, so
+            # the pop below still finds a free thread most of the time; falling
+            # through to "create new worker" is the safe answer when it does not.
             try:
                 worker, _ = self.idle_workers.popitem()
                 return worker
