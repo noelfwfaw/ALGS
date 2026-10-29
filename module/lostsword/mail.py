@@ -1,4 +1,7 @@
+import numpy as np
+
 from module.base.timer import Timer
+from module.base.utils import color_mask
 from module.logger import logger
 from module.lostsword.assets import MAIL_BTN_CLAIM_ALL, REWARD_POPUP_TITLE
 from module.lostsword.lostsword_ui import LostswordUI, page_mail
@@ -15,9 +18,9 @@ Flow observed in game:
 The "claim all" button looks the same whether there is something to claim or
 not: the mean colour of its area is identical to the last digit in both states,
 and it stays on screen after the mailbox is emptied. So the button can not tell
-whether the mailbox is empty. The only thing that changes is the red badge at
-the right edge of every unclaimed row, which is counted with
-`image_color_count()`.
+whether the mailbox is empty. The only thing that changes is the badge at the
+right edge of every unclaimed row, which is counted with `image_color_count()` —
+in whichever of the colours the game happens to draw it, see MAIL_UNREAD_COLORS.
 
 Closing the reward popup also closes the mailbox behind it, one click being
 consumed by both layers, so the mailbox has to be re-ensured instead of assumed.
@@ -26,8 +29,21 @@ consumed by both layers, so the mailbox has to be re-ensured instead of assumed.
 # The red badge column of the mail list. Kept narrow on purpose: the mail titles
 # are orange-red as well and a wider area would count them.
 MAIL_UNREAD_AREA = (510, 60, 560, 620)
-MAIL_UNREAD_COLOR = (216, 80, 60)
-# One badge is about 330 pixels at threshold 30, so 100 still detects a single
+
+# The badge colour is **not** stable. Measured 2026-10-27: every unclaimed row
+# carried (225, 81, 57), a red disc. Measured 2026-10-29: the two new unclaimed
+# rows carry (57, 81, 225), the same disc in blue — position, diameter and the
+# white "!" inside are identical, only the hue flipped (red and blue are exactly
+# swapped, so the game is encoding something the script does not need to know).
+#
+# Counting one hard coded colour therefore goes silent the day the game changes
+# its mind, and silence here means "the mailbox is empty": the 00:26 run logged
+# `Mail claimed, 0 time(s)` with two unclaimed mails on screen
+# (`log/probe/lostsword_signin/mail_page_after_04.png`). Both observed colours
+# are counted now.
+MAIL_UNREAD_COLORS = ((225, 81, 57), (57, 81, 225))
+MAIL_UNREAD_THRESHOLD = 30
+# One badge is 380~430 pixels at threshold 30, so 100 still detects a single
 # unclaimed mail while reading 0 on every other page of this game.
 MAIL_UNREAD_PIXELS = 100
 
@@ -56,7 +72,7 @@ class LostswordMail(LostswordUI):
             # Dismissing the reward popup closes the mailbox with it, so walk
             # back in rather than assuming the page survived.
             self.ui_ensure(page_mail)
-            if not self.mail_unread():
+            if not self.mail_unread_settled():
                 break
 
         logger.info(f'Mail claimed, {count} time(s)')
@@ -97,8 +113,17 @@ class LostswordMail(LostswordUI):
                 self.handle_reward_popup()
                 continue
 
-            if not self.mail_unread():
-                logger.info('No unclaimed mail left')
+            # The list fades in every time the page opens, and a badge that is
+            # still fading reads as absent. Absent ends the task, so the first
+            # answer has to come from a still frame: the 00:26 run asked 0.4
+            # seconds after "Page arrive: page_mail" and was told the box was
+            # empty while two mails were on screen.
+            if count == 0:
+                self.wait_until_still(MAIL_UNREAD_AREA, timeout=3)
+
+            red, blue = self.mail_badge_pixels()
+            if red + blue <= MAIL_UNREAD_PIXELS:
+                logger.info(f'No unclaimed mail left (badge pixels red={red} blue={blue})')
                 break
 
             if count >= max_click:
@@ -116,6 +141,24 @@ class LostswordMail(LostswordUI):
 
         return count
 
+    def mail_badge_pixels(self):
+        """
+        Pixels of every known badge colour inside the badge column.
+
+        Only meaningful on page_mail: the rest of this game is a colourful UI and
+        the column does cross red and blue pixels elsewhere. The caller reads it
+        after the mailbox has been ensured, which is where the numbers below
+        were measured.
+
+        Returns:
+            tuple: Pixel count per colour in MAIL_UNREAD_COLORS, in that order.
+        """
+        image = self.image_crop(MAIL_UNREAD_AREA, copy=False)
+        return tuple(
+            int(np.count_nonzero(color_mask(image, color=color, threshold=MAIL_UNREAD_THRESHOLD)))
+            for color in MAIL_UNREAD_COLORS
+        )
+
     def mail_unread(self):
         """
         Whether the mailbox still holds unclaimed mail.
@@ -123,5 +166,21 @@ class LostswordMail(LostswordUI):
         Returns:
             bool: If there is at least one unclaimed mail.
         """
-        return self.image_color_count(MAIL_UNREAD_AREA, color=MAIL_UNREAD_COLOR,
-                                      threshold=30, count=MAIL_UNREAD_PIXELS)
+        return sum(self.mail_badge_pixels()) > MAIL_UNREAD_PIXELS
+
+    def mail_unread_settled(self, timeout=3):
+        """
+        `mail_unread()` read from a frame the list has stopped moving in.
+
+        The mailbox is re-opened behind the reward popup on every batch, and the
+        rows fade in each time; a badge mid-fade is invisible to the colour count
+        and "no badge" here means done.
+
+        Args:
+            timeout (int, float): Seconds to wait for the column to settle.
+
+        Returns:
+            bool: If there is at least one unclaimed mail.
+        """
+        self.wait_until_still(MAIL_UNREAD_AREA, timeout=timeout)
+        return self.mail_unread()

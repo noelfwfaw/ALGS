@@ -48,9 +48,15 @@ SHOP_TABS = (
     ('monthly', SHOP_TAB_MONTHLY, SHOP_GIFT_MONTHLY, (262, 317, 293, 348)),
 )
 
-# The badge of this game is the same red circle everywhere (mail, shop, menu).
-# A badge is about 400 pixels, so 100 detects one and still reads 0 when there is
-# nothing left.
+# The badge of this game is a red circle in the shop and in the menu. A badge is
+# about 400 pixels, so 100 detects one and still reads 0 when there is nothing
+# left.
+#
+# Do **not** fold the mailbox badge into this constant: it is the same disc but
+# the game draws it in a different colour (red on 2026-10-27, blue on 2026-10-29
+# — see `module/lostsword/mail.py`, MAIL_UNREAD_COLORS). The menu badges were
+# still red on 2026-10-29, so this one is current; if the shop ever goes quiet
+# with gifts on screen, look at the colour first.
 SHOP_BADGE_COLOR = (221, 86, 62)
 SHOP_BADGE_PIXELS = 100
 

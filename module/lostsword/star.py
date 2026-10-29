@@ -40,6 +40,11 @@ A challenge is not one fight: the first wave ends in VICTORY, tapping through it
 starts a second one (measured: 26.8M then 2.4M, the area score ended at 30.06M).
 So the wait loop taps every result screen it sees and only stops when the panel
 is back.
+
+**Scheduled weekly, unlike the other tasks of this game.** The mode runs on the
+weekly clock (Monday 00:00 here, Sunday 11:00 in Korea, the same reset the maze
+uses), so `run()` ends with `delay_next_week()` instead of the daily
+`task_delay(server_update=True)` that every other lostsword task calls.
 """
 
 # Cards of the adventure area list: name, tap point, background strip used to
@@ -64,7 +69,7 @@ class LostswordStar(LostswordUI):
         out: page_main
     """
 
-    def run(self):
+    def run(self):  # alas-lint: allow - tasks weekly through delay_next_week(), which hands the target to config.task_delay()
         """
         Pages:
             in: page_main
@@ -84,9 +89,16 @@ class LostswordStar(LostswordUI):
                 fought += 1
 
         logger.info(f'Star areas challenged: {fought}')
+        if not fought:
+            # Nothing opened at all: the week is already spent, or a popup the
+            # task has no asset for is sitting on top of the panel. Either way
+            # the run is over - say it out loud instead of rescheduling
+            # silently and letting the next week look the same.
+            logger.warning('No area could be challenged this week')
         self.ui_goto_main()
-        # Three tries a day, refreshed at the daily reset of this game (00:00).
-        self.config.task_delay(server_update=True)
+        # A weekly mode, not a daily one: it goes back on the Monday 00:00 reset
+        # instead of tomorrow's, so the three areas are walked once a week.
+        self.delay_next_week(label='Star next reset')
 
     def star_fight(self, name, tab, strip):
         """

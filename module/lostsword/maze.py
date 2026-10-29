@@ -12,8 +12,6 @@ the map just scrolls and the floors go up (measured: 1 层 to 16 层 in about
 fifteen seconds). What is left to do is to wait until the map stops moving.
 """
 
-import datetime
-
 from module.base.timer import Timer
 from module.logger import logger
 from module.lostsword.assets import ARENA_BTN_CLOSE, MAZE_BTN_AUTO, MAZE_CARD
@@ -85,14 +83,11 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
         The maze is a weekly mode, not a daily one: the reset is Sunday 11:00 in
         Korea, which is Monday 00:00 here, and the run spends everything the week
         allows - after it the map shows 「完成」 and the 「自动进行」 button does
-        nothing until the reset.
+        nothing until the reset. The date arithmetic lives in
+        `module/lostsword/schedule.py`, reached through
+        `LostswordUI.delay_next_week()`, because 星辰轮回 runs on the same clock.
         """
-        now = datetime.datetime.now()
-        days = (7 - now.weekday()) % 7 or 7
-        target = (now + datetime.timedelta(days=days)).replace(
-            hour=0, minute=0, second=0, microsecond=0)
-        logger.attr('Maze next reset', str(target))
-        self.config.task_delay(target=target)
+        self.delay_next_week(label='Maze next reset')
 
     def maze_enter(self, timeout=15):
         """

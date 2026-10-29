@@ -10,7 +10,8 @@ from module.lostsword.assets import (ARENA_BTN_CHALLENGE_1,
                                      ARENA_BTN_SEASON, ARENA_BTN_SKIP,
                                      ARENA_BTN_TEAM, ARENA_PROMO_TAG,
                                      ARENA_SEASON_CLAIM_ALL, ARENA_TITLE,
-                                     ARENA_VICTORY, REWARD_POPUP_TITLE)
+                                     ARENA_VICTORY, MAIN_BTN_BATTLE,
+                                     REWARD_POPUP_TITLE)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP,
                                            LostswordUI,
                                            page_arena,
@@ -376,20 +377,27 @@ class LostswordArena(LostswordUI):
             # reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
 
-            if self.appear(ARENA_VICTORY, offset=30):
-                logger.info('Battle won')
-                self.device.click(BOSS_RESULT_TAP)
-                # The result page is followed by the client loading screen.
-                if not self.wait_overlay(ARENA_TITLE, timeout=40):
-                    # Measured: some battles drop back to the lobby instead of
-                    # the list (the third of five did), and the battle page may
-                    # come back on another tab. Walk in from the lobby: that
-                    # resets the tab and anything the battle left behind.
-                    logger.info('Not at the arena list, walk back into it')
-                    self.ui_goto_main()
-                    self.ui_ensure(page_battle)
-                    self.battle_goto_normal()
-                    self.ui_ensure(page_arena)
+            if self.appear(ARENA_VICTORY, offset=30, interval=2):
+                # 这一页有两个坑，都让它变成"点一次就去等列表"的反面教材：
+                # 1. `appear()` 在淡入第一帧就匹配，那一帧的点击会被吞掉；
+                # 2. 它和副本扫荡面板一样不吃 minitouch 短按。2026-10-29 实测：
+                #    脚本点了一次 (626, 88) 之后画面在 VICTORY 上停了三分多钟，
+                #    同一坐标换成 adb tap 一次就进了加载页。
+                # 所以按下去走 adb，并且点完继续看，没走就下一轮再点 - 这里
+                # 不负责等列表，离开由下面的 `ARENA_TITLE` / 大厅两个分支判定。
+                logger.info('Battle won, tap through the result page')
+                self.tap_asset(BOSS_RESULT_TAP)
+                continue
+
+            if self.appear(MAIN_BTN_BATTLE, offset=30):
+                # Measured: some battles drop back to the lobby instead of the
+                # list (the third of five did), and the battle page may come
+                # back on another tab. Walk in from the lobby: that resets the
+                # tab and anything the battle left behind.
+                logger.info('Battle ended back at the lobby, walk into the list')
+                self.ui_ensure(page_battle)
+                self.battle_goto_normal()
+                self.ui_ensure(page_arena)
                 return True
 
             if self.appear(ARENA_BTN_SKIP, offset=30):
