@@ -243,6 +243,51 @@ class GameScheduler:
                 return game
         return None
 
+    def game_alive(self, package):
+        """
+        Whether a package has a process on the device, foreground or not.
+
+        `app_is_running()` answers a different question: it compares the
+        *foreground* package with `device.package`, so a game left in the
+        background reads as "not running" while its process is very much alive.
+        That is the difference between "the screen shows another app" and "the
+        game is gone", and only the second one is safe to skip a force-stop on.
+
+        Args:
+            package (str): Package name.
+
+        Returns:
+            bool:
+        """
+        if not package:
+            return False
+        try:
+            return bool(self.device.adb_shell(['pidof', package]).strip())
+        except Exception as e:
+            # A dropped adb connection, or `pidof` missing on an old Android
+            # build, is not a reason to leave a game running: stop it anyway.
+            logger.info(f'Cannot tell whether {package} is running: {e}')
+            return True
+
+    def stop_game(self, package):
+        """
+        Force-stop one package if its process is still alive.
+
+        Args:
+            package (str): Package name.
+
+        Returns:
+            bool: If a running process was stopped.
+        """
+        if not self.config.Error_HandleError:
+            logger.warning('No app stop, because HandleError disabled')
+            return False
+        if not self.game_alive(package):
+            return False
+        logger.info(f'Stop game: {package}')
+        self.device.app_stop_adb(package)
+        return True
+
     def switch_game(self, game, boot=True):
         """
         Put the given game in front and make its namespace the active one.
@@ -252,6 +297,14 @@ class GameScheduler:
         models of the old game), then clear the click/stuck records. Recognising
         anything before the namespace switch would compare the new screen with
         the old game's templates.
+
+        Stopping the old game is part of switching, and it is *not* the same
+        thing as `Optimization_WhenTaskQueueEmpty`: that option decides whether
+        the game is left open while the queue is empty and waiting for the next
+        task (`stay_there` / `goto_main`) or closed (`close_game`). Once a task
+        of another game is due, the old game has to go either way, so this never
+        assumes the previous stop happened and never asks whether the game is in
+        the foreground.
 
         Two games are never left running: the low memory killer picks one of them
         on a phone-sized device, and it picks the foreground one often enough to
@@ -280,8 +333,16 @@ class GameScheduler:
                     f'Game `{game}` has no package, register it in module/config/server.py')
 
             logger.hr(f'Switch game: {self.game} -> {game}', level=1)
-            if self.device.app_is_running():
-                self.device.app_stop()
+            # The bound package is the game that just ran; the loop after it
+            # catches a third game left behind by anything else. The target game
+            # is never stopped: if it is running in the background, `start()`
+            # brings that process to the front instead of a cold boot.
+            old_package = self.device.package
+            self.stop_game(old_package)
+            for name in self.games:
+                other = to_package(name)
+                if other and other not in (old_package, package):
+                    self.stop_game(other)
             # `app_start` / `app_stop` / `app_is_running` are all relative to it.
             self.device.package = package
             set_server(game)
