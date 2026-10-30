@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword', 'browndust']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -28,6 +28,9 @@ VALID_PACKAGE = {
     # 棕色尘埃2 (Brown Dust II), Neowiz. Read off the emulator with
     # `adb shell pm list packages`, not guessed from the store listing.
     'com.neowizgames.game.browndust2': 'browndust',
+    # 卡厄思梦境 (Chaos Zero Nightmare), Smilegate / SUPER CREATIVE, STOVE 客户端.
+    # 中文社区也写作「卡厄思梦镜」，同一个包。
+    'com.smilegate.chaoszero.stove.google': 'chaoszero',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -38,6 +41,7 @@ VALID_SERVER_LIST = {
     'hazeworld': ['default'],
     'lostsword': ['default'],
     'browndust': ['default'],
+    'chaoszero': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

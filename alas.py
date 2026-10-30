@@ -318,13 +318,16 @@ class GameScheduler:
         Returns:
             bool: If the game changed.
         """
-        import module.config.server as server
-        from module.config.server import set_server, to_package
+        from module.config.server import set_server, to_package, to_server
 
         if self.game is None:
-            # Nothing switched yet in this process: the namespace set by the
-            # device at start up is the one on screen.
-            self.game = server.server
+            # Nothing switched yet in this process. The game on screen is the one
+            # the device was bound to at start up (`Emulator_PackageName`), which
+            # is not necessarily the default asset namespace: a config that owns a
+            # single game (its own emulator, its own package) would otherwise
+            # "switch" to the game it is already on, force-stop a healthy client
+            # and cold start it for nothing.
+            self.game = to_server(self.device.package)
 
         if game is not None and game != self.game:
             package = to_package(game)

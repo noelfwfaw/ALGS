@@ -119,3 +119,12 @@ Browndust:
       - Scheduler
     BrowndustRedeem:
       - Scheduler
+
+# ==================== Chaos Zero Nightmare (卡厄思梦境) ====================
+
+Chaoszero:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    ChaoszeroMain:
+      - Scheduler

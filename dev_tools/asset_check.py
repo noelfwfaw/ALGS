@@ -20,6 +20,11 @@ Screenshots should be named after the page they show, e.g.
 The `--expect` option takes "asset=page" pairs (comma separated) and turns the
 matrix into a pass/fail check:
     --expect MAIN_ICON_MAIL=page_main,MAIN_ICON_ROOM=page_main
+
+One asset may belong to several screenshots of the same page (a clean lobby and
+the same lobby with a dialog), which is why the page side takes alternatives
+separated by `|`:
+    --expect "MAIN_MENU_STORY=主界面|主界面-对话"
 """
 import argparse
 import importlib
@@ -175,7 +180,9 @@ def print_matrix(assets, shots, matrix, threshold, cells_width=6, block=16):
 def check_expect(assets, shots, matrix, expect, threshold):
     """
     Args:
-        expect (dict[str, str]): asset name -> expected page name.
+        expect (dict[str, list[str]]): asset name -> pages it may appear on. More
+            than one entry means "this page has several states" (a clean lobby
+            and the same lobby with a dialog), not "matches anywhere".
 
     Returns:
         int: Failed count.
@@ -185,23 +192,25 @@ def check_expect(assets, shots, matrix, expect, threshold):
     failed = 0
     print()
     print('Expectation check')
-    for asset, page in expect.items():
+    for asset, wanted in expect.items():
         if asset not in names:
             print(f'  FAIL {asset}: 素材不存在于 assets.py')
             failed += 1
             continue
-        if page not in pages:
-            print(f'  FAIL {asset}: 截图里没有名为 {page} 的页面')
+        missing = [page for page in wanted if page not in pages]
+        if missing:
+            print(f'  FAIL {asset}: 截图里没有名为 {"、".join(missing)} 的页面')
             failed += 1
             continue
-        own = matrix[(asset, page)]
-        others = max([matrix[(asset, p)] for p in pages if p != page], default=0)
+        own = max(matrix[(asset, page)] for page in wanted)
+        others = max([matrix[(asset, p)] for p in pages if p not in wanted], default=0)
+        label = '|'.join(wanted)
         if own > threshold and others < threshold:
-            print(f'  OK   {asset}: {page} {own:.3f} / 其他最高 {others:.3f}')
+            print(f'  OK   {asset}: {label} {own:.3f} / 其他最高 {others:.3f}')
         else:
             failed += 1
             if own <= threshold:
-                print(f'  FAIL {asset}: 在 {page} 上只有 {own:.3f}，识别不出来')
+                print(f'  FAIL {asset}: 在 {label} 上只有 {own:.3f}，识别不出来')
             else:
                 print(f'  FAIL {asset}: 在别的页面也命中（最高 {others:.3f}），会误匹配')
     return failed
@@ -301,7 +310,7 @@ def main():
             if not item.strip():
                 continue
             asset, _, page = item.partition('=')
-            expect[asset.strip()] = page.strip()
+            expect[asset.strip()] = [x.strip() for x in page.split('|') if x.strip()]
         failed = check_expect(assets, shots, matrix, expect, args.threshold)
         print()
         print('PASS' if failed == 0 else f'{failed} check(s) failed')

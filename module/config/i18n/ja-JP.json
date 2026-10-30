@@ -15,6 +15,10 @@
     "Browndust": {
       "name": "ブラウンダスト2",
       "help": "ブラウンダスト2 のデイリータスク"
+    },
+    "Chaoszero": {
+      "name": "カオスゼロナイトメア",
+      "help": "カオスゼロナイトメアのデイリータスク（今は起動タスクのみ）"
     }
   },
   "Task": {
@@ -157,6 +161,10 @@
     "BrowndustRedeem": {
       "name": "クーポンコード",
       "help": "GameKee から毎日クーポンコードを取得し、新しいものだけゲーム内で引き換える。使用済みと期限切れはスキップ"
+    },
+    "ChaoszeroMain": {
+      "name": "ゲーム起動",
+      "help": "コールドスタート・タイトル画面・放置中の立ち絵からメイン画面まで進める。報酬は受け取らない"
     }
   },
   "Scheduler": {
@@ -206,7 +214,8 @@
       "auto": "auto",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
-      "com.neowizgames.game.browndust2": "BROWNDUST"
+      "com.neowizgames.game.browndust2": "BROWNDUST",
+      "com.smilegate.chaoszero.stove.google": "CHAOSZERO"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
@@ -214,7 +223,8 @@
       "disabled": "disabled",
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
-      "browndust-0": "[BROWNDUST] default"
+      "browndust-0": "[BROWNDUST] default",
+      "chaoszero-0": "[CHAOSZERO] default"
     },
     "ScreenshotMethod": {
       "name": "Emulator.ScreenshotMethod.name",

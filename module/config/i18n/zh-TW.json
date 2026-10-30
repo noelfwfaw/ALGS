@@ -15,6 +15,10 @@
     "Browndust": {
       "name": "棕色塵埃2",
       "help": "棕色塵埃2 的日常任務"
+    },
+    "Chaoszero": {
+      "name": "卡厄思夢境",
+      "help": "卡厄思夢境的日常任務（目前只有「喚起」）"
     }
   },
   "Task": {
@@ -157,6 +161,10 @@
     "BrowndustRedeem": {
       "name": "兌換碼",
       "help": "每天從 GameKee 抓一次兌換碼，新的在遊戲裡兌換掉；已兌換和過期的跳過"
+    },
+    "ChaoszeroMain": {
+      "name": "喚起遊戲",
+      "help": "把客戶端從冷啟動、標題畫面或閒置立繪帶到主畫面，不領取任何獎勵。後面所有任務都從這一頁開始"
     }
   },
   "Scheduler": {
@@ -206,7 +214,8 @@
       "auto": "自動檢測",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
-      "com.neowizgames.game.browndust2": "BROWNDUST"
+      "com.neowizgames.game.browndust2": "BROWNDUST",
+      "com.smilegate.chaoszero.stove.google": "CHAOSZERO"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
@@ -214,7 +223,8 @@
       "disabled": "不使用檢測",
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
-      "browndust-0": "[BROWNDUST] default"
+      "browndust-0": "[BROWNDUST] default",
+      "chaoszero-0": "[CHAOSZERO] default"
     },
     "ScreenshotMethod": {
       "name": "模擬器截圖方案",

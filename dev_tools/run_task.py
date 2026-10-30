@@ -8,6 +8,7 @@ else (delays, error handling) works as usual, so the run also writes
 Usage:
     ./toolkit/python.exe -m dev_tools.run_task LostswordShop
     ./toolkit/python.exe -m dev_tools.run_task LostswordAffection --no-boot
+    ./toolkit/python.exe -m dev_tools.run_task ChaoszeroMain --serial 127.0.0.1:16448
 
 The game is taken from the task name (`Lostsword*` / `Hazeworld*`), so the
 namespace and the package are right without being repeated on the command line.
@@ -31,6 +32,9 @@ def main():
     parser.add_argument('task', help='Task name as written in task.yaml')
     parser.add_argument('--no-boot', action='store_true',
                         help='Do not launch the game, assume it is on screen')
+    parser.add_argument('--serial', default=None,
+                        help='Emulator serial to use instead of the one in the config, '
+                             'e.g. the adb port of another MuMu instance')
     args = parser.parse_args()
 
     algs = AlGS()
@@ -49,6 +53,8 @@ def main():
     # config belongs to the other game, so it is overridden in memory only:
     # `overridden` is applied by `bind()` and never written back to the file.
     config.overridden['Emulator_PackageName'] = package
+    if args.serial:
+        config.overridden['Emulator_Serial'] = args.serial
     # `config.task` is a `Function` in the scheduler, and `Device.__init__` reads
     # its `command` to decide whether it is a real task, so a plain string fails
     # there. Build one from the config, like `get_next_task()` does.

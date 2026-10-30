@@ -15,6 +15,10 @@
     "Browndust": {
       "name": "Brown Dust II",
       "help": "Daily tasks of Brown Dust II"
+    },
+    "Chaoszero": {
+      "name": "Chaos Zero Nightmare",
+      "help": "Daily tasks of Chaos Zero Nightmare (only the launch task so far)"
     }
   },
   "Task": {
@@ -157,6 +161,10 @@
     "BrowndustRedeem": {
       "name": "Coupon codes",
       "help": "Fetch the coupon codes of the game from GameKee once a day and redeem the new ones; used and expired codes are skipped"
+    },
+    "ChaoszeroMain": {
+      "name": "Launch game",
+      "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"
     }
   },
   "Scheduler": {
@@ -206,7 +214,8 @@
       "auto": "Auto-detect",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
-      "com.neowizgames.game.browndust2": "BROWNDUST"
+      "com.neowizgames.game.browndust2": "BROWNDUST",
+      "com.smilegate.chaoszero.stove.google": "CHAOSZERO"
     },
     "ServerName": {
       "name": "Server in Game Client",
@@ -214,7 +223,8 @@
       "disabled": "disabled",
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
-      "browndust-0": "[BROWNDUST] default"
+      "browndust-0": "[BROWNDUST] default",
+      "chaoszero-0": "[CHAOSZERO] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",

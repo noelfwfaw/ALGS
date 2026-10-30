@@ -27,6 +27,7 @@ class AlGS(GameScheduler):
         'hazeworld': ('module.hazeworld.hazeworld_ui', 'HazeworldUI'),
         'lostsword': ('module.lostsword.lostsword_ui', 'LostswordUI'),
         'browndust': ('module.browndust.browndust_ui', 'BrowndustUI'),
+        'chaoszero': ('module.chaoszero.chaoszero_ui', 'ChaoszeroUI'),
     }
 
     @property
@@ -187,6 +188,13 @@ class AlGS(GameScheduler):
     def browndust_redeem(self):
         from module.browndust.redeem import BrowndustRedeem
         BrowndustRedeem(config=self.config, device=self.device).run()
+
+    # ==================== Chaos Zero Nightmare (卡厄思梦境) ====================
+
+    def chaoszero_main(self):
+        # 唤起：把客户端从任意一屏带到主界面。这个游戏的其它任务都排在它后面。
+        from module.chaoszero.main import ChaoszeroMain
+        ChaoszeroMain(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

@@ -57,5 +57,12 @@
       "BrowndustPass",
       "BrowndustRedeem"
     ]
+  },
+  "Chaoszero": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "ChaoszeroMain"
+    ]
   }
 }

@@ -33,7 +33,7 @@ from module.config.config import Function
 from module.config.server import to_package
 from module.logger import logger
 
-GAMES = ['hazeworld', 'lostsword', 'browndust']
+GAMES = ['hazeworld', 'lostsword', 'browndust', 'chaoszero']
 
 # Three failures back to back leave the game on a page the loop cannot name, so
 # the rest of the block would only repeat the same dump.
