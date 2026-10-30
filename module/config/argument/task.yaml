@@ -64,6 +64,8 @@ Lostsword:
       - Scheduler
     LostswordMail:
       - Scheduler
+    LostswordGuild:
+      - Scheduler
     LostswordBoss:
       - Scheduler
       - LostswordBoss

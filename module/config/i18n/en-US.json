@@ -74,6 +74,10 @@
       "name": "Mailbox",
       "help": "Claim the attachments in the mailbox"
     },
+    "LostswordGuild": {
+      "name": "Guild",
+      "help": "Donate gold and spirit coins, sign in, and take both guild investments; skipped when the guild entry has no red dot"
+    },
     "LostswordBoss": {
       "name": "Boss raid",
       "help": "Fight once a day, then sweep the rest of the free tries"

@@ -88,6 +88,10 @@ class AlGS(GameScheduler):
         from module.lostsword.mail import LostswordMail
         LostswordMail(config=self.config, device=self.device).run()
 
+    def lostsword_guild(self):
+        from module.lostsword.guild import LostswordGuild
+        LostswordGuild(config=self.config, device=self.device).run()
+
     def lostsword_main(self):
         from module.lostsword.main_story import LostswordMain
         LostswordMain(config=self.config, device=self.device).run()

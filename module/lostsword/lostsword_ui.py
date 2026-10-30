@@ -11,6 +11,13 @@ from module.lostsword.schedule import next_week_reset
 from module.lostsword.sign_in import SignIn
 from module.ui.ui import UI
 
+# A cold start is one to two minutes of loading screen followed by 「正在登录平台」,
+# and not one button is pressed during any of it. Once `handle_app_boot()` has told
+# `Device` that the silence is expected, this timer is what decides the game has had
+# enough: five minutes is three times the loading time, and short enough that a
+# maintenance window (the client sits on its notice for hours) is reported quickly.
+BOOT_TIMEOUT = 300
+
 
 class LostswordUI(OfferPopup, SignIn, UI):
     page_main = page_main
@@ -27,7 +34,8 @@ class LostswordUI(OfferPopup, SignIn, UI):
              page_event_start, page_event_stage, page_event,
              page_maze, page_talk, page_affection, page_character_detail,
              page_character,
-             page_battle, page_menu, page_pass, page_round,
+             page_battle, page_guild_donate, page_guild, page_menu,
+             page_pass, page_round,
              page_summon_confirm, page_summon_result, page_summon,
              page_main)
 
@@ -122,7 +130,7 @@ class LostswordUI(OfferPopup, SignIn, UI):
             GameStuckError: If the game does not reach page_main in time.
         """
         logger.hr('App boot', level=2)
-        timeout = Timer(300, count=3).start()
+        timeout = Timer(BOOT_TIMEOUT, count=3).start()
 
         while 1:
             if skip_first_screenshot:
@@ -131,6 +139,16 @@ class LostswordUI(OfferPopup, SignIn, UI):
                     self.device.screenshot()
             else:
                 self.device.screenshot()
+
+            # The client spends its first two minutes on the loading screen and
+            # then a while on 「正在登录平台」, with nothing to press in between.
+            # `Device` reads "nothing clicked for 60 seconds" as a hang and only
+            # `LOGIN_CHECK` of this loop is on its short list of exceptions, so
+            # a cold start that took its time died at 180 seconds on its own
+            # watchdog - the screen still said 33.33% (1/3) of the login. The
+            # wait is legitimate, say so (hard rule 13); `BOOT_TIMEOUT` below is
+            # what actually decides when the game has had enough.
+            self.device.stuck_record_clear()
 
             # End
             if self.ui_page_appear(page_main):

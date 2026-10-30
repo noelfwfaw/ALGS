@@ -32,6 +32,13 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      EVENT_BTN_START,
                                      EVENT_TAB,
                                      EVENT_TAB_SELECTED,
+                                     GUILD_BTN_CLOSE,
+                                     GUILD_BTN_DONATE,
+                                     GUILD_BTN_INVEST_GOLD,
+                                     GUILD_BTN_INVEST_TOKEN,
+                                     GUILD_BTN_SIGN,
+                                     GUILD_DONATE_CLOSE,
+                                     GUILD_TITLE,
                                      MAIL_BTN_CLOSE,
                                      MAIL_TITLE,
                                      STAR_CARD,
@@ -46,6 +53,7 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      MAIN_BTN_SUMMON,
                                      MAIN_BTN_TREASURE,
                                      MENU_BTN_CLOSE,
+                                     MENU_BTN_GUILD,
                                      MENU_BTN_MAIL,
                                      MAZE_BTN_AUTO,
                                      MAZE_DONE,
@@ -160,6 +168,16 @@ page_arena_preview = Page(ARENA_BTN_TEAM)
 # other's screenshots (same label, 170 pixels apart), so either of them used as a
 # check point made the two pages claim each other. The footnote exists only here.
 page_arena_season = Page(ARENA_SEASON_FOOTER)
+# The 公会捐献 dialog. Its check point is the X in its own corner, because the
+# dialog leaves the guild title behind it completely untouched - `GUILD_TITLE`
+# still matches 1.00 through the dim layer - so nothing of the page below can
+# tell the two apart. Being a page of its own also means a dialog left open by
+# a dead run is closed by `ui_goto(page_guild)` instead of swallowing clicks.
+page_guild_donate = Page(GUILD_DONATE_CLOSE)
+# The guild, opened from the menu grid. Its title is the check point: the tab
+# row highlights whatever is selected, and the two bottom buttons and both
+# investment rows carry badges that come and go.
+page_guild = Page(GUILD_TITLE)
 # The menu. Identified by the "任务" text of its icon grid: the icon itself
 # carries a red dot that disappears once the tasks are claimed, which drops the
 # match from 1.00 to 0.74, so only the text is used.
@@ -258,10 +276,19 @@ page_boss_dialog.link(button=BOSS_DIALOG_CLOSE, destination=page_boss)
 page_boss_ticket.link(button=BOSS_TICKET_CLOSE, destination=page_boss)
 page_menu.link(button=MENU_BTN_MAIL, destination=page_mail)
 page_menu.link(button=MENU_BTN_TASK, destination=page_task)
+page_menu.link(button=MENU_BTN_GUILD, destination=page_guild)
 page_menu.link(button=MAIN_BTN_SHOP, destination=page_shop)
 page_menu.link(button=MENU_BTN_CLOSE, destination=page_main)
 page_menu.link(button=ROUND_BTN, destination=page_round)
 page_round.link(button=ARENA_BTN_CLOSE, destination=page_menu)
+# The 捐献 button of the guild raises the 公会捐献 dialog on top of the page, and
+# the dialog's own X closes it back onto the page. The guild's X in the top
+# right corner is the same round key as the menu's, but drawn at a different
+# size over a different background: the menu asset scores 0.69 there, so this
+# corner has an asset of its own.
+page_guild.link(button=GUILD_BTN_DONATE, destination=page_guild_donate)
+page_guild_donate.link(button=GUILD_DONATE_CLOSE, destination=page_guild)
+page_guild.link(button=GUILD_BTN_CLOSE, destination=page_menu)
 # The mailbox X is its own round button, not the plain X of the menu and task
 # panels, so it needs its own asset.
 page_mail.link(button=MAIL_BTN_CLOSE, destination=page_main)

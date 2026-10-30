@@ -58,6 +58,9 @@ LostswordAffection:
 LostswordMail:
   Scheduler:
     ServerUpdate: 00:00
+LostswordGuild:
+  Scheduler:
+    ServerUpdate: 00:00
 LostswordShop:
   Scheduler:
     ServerUpdate: 00:00
