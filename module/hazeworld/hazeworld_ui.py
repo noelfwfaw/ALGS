@@ -245,6 +245,13 @@ class HazeworldUI(Claim, UI):
             else:
                 self.device.screenshot()
 
+            # A cold start is a minute of loading screen and another of the
+            # announcement and the title, and none of it is pressed. `Device`
+            # reads "nothing clicked for 60 seconds" as a hang, so tell it the
+            # silence is expected (hard rule 13); `timeout` below is what ends
+            # a boot that really is stuck.
+            self.device.stuck_record_clear()
+
             # End
             if self.ui_page_appear(page_main):
                 logger.info('Game is at page_main')

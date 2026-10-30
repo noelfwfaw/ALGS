@@ -156,6 +156,14 @@ BATTLE_TIMEOUT = 900
 RESULT_BACK_TIMEOUT = 30
 # 魔兽页的面板面积，等重载画完。
 BOSS_PANEL_AREA = (700, 70, 1200, 500)
+# 退出编辑队伍页的时限，以及两次点击的间隔。
+#
+# 点一下不一定就退出去：确认框刚关掉的那段动画里，点击会被游戏吞掉（硬约束 40）。
+# 2026-10-30 实测，点完「确认」0.8 秒后点左上角返回，页面纹丝不动，白等 15 秒
+# 判了失败，接着 `ui_goto` 认不出停在哪儿，被看门狗 60 秒带走。所以按间隔重试，
+# 直到魔兽页真的回来 —— 反正判据一直在看，多点两下没有副作用。
+TEAM_BACK_TIMEOUT = 20
+TEAM_BACK_INTERVAL = 2
 
 
 
@@ -334,11 +342,14 @@ class EventWorldBoss:
         Returns:
             bool: 回到魔兽页了没有。
         """
-        self.device.click(TEAM_BACK)  # alas-lint: allow - leaving the team page, the boss page below confirms it
-        if not self.wait_until_appear(WB_EDIT_TEAM, offset=(20, 20), timeout=10):
-            logger.warning('[World boss] cannot leave the team page')
-            return False
-        return True
+        tap = Timer(TEAM_BACK_INTERVAL)
+        for _ in self.loop(timeout=TEAM_BACK_TIMEOUT):
+            if self.appear(WB_EDIT_TEAM, offset=(20, 20)):
+                return True
+            if tap.reached_and_reset():
+                self.device.click(TEAM_BACK)  # alas-lint: allow - the boss page above is the proof the tap landed
+        logger.warning('[World boss] cannot leave the team page')
+        return False
 
     def difficulty_read(self):
         """

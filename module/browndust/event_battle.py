@@ -318,6 +318,11 @@ class EventBattle:
         """
         running = False
         for _ in self.loop(timeout=BATTLE_TIMEOUT):
+            # 连打四场要好几分钟，中间一个按钮都不点。框架的看门狗把"60 秒没
+            # 点击"当成卡死 —— 2026-10-30 实测，第 60 秒准时掐在连打中间，而
+            # 那时游戏正打得好好的。这里等的是游戏自己打完，先说清楚（硬约束 13）；
+            # 真卡住由上面的 BATTLE_TIMEOUT 收场。
+            self.device.stuck_record_clear()
             if self.appear(EVENT_RESULT_BACK, offset=(20, 20)):
                 logger.info('[Event battle] this round is over')
                 return True
