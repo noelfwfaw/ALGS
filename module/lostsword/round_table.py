@@ -168,19 +168,6 @@ class LostswordRoundTable(LostswordUI):
             if absent >= 2:
                 return True
 
-    def tap_point(self, x, y):
-        """
-        Press a point of this page with an adb tap.
-
-        The notice button is a plain text box with no template of its own, so
-        the point is tapped directly.
-
-        Args:
-            x (int): Pixel x.
-            y (int): Pixel y.
-        """
-        self.device.adb_shell(['input', 'tap', str(int(x)), str(int(y))])  # alas-lint: allow
-
     def round_upgrade_enabled(self):
         """
         Whether 「升级」 can be pressed.
