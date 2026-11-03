@@ -4,16 +4,12 @@ The map plays itself: no battle screen, no click, the floors go up while the
 camera pans (measured: 1 层 to 16 层 in about fifteen seconds). What is left is
 the waiting - and the three ways the game interrupts itself:
 
-- a story scene, which a tap in the middle advances (its bottom right arrow is
-  decoration and does nothing);
+- a story scene, which a tap in the middle advances;
 - 「女神的祝福」, a choice of three cards, answered by picking a 增益型 one;
-- the last room, which the auto run does not enter: the map stops, the round
-  button opens the party check, the boss node asks 「是否移动?」 and the sortie
-  page starts the fight.
+- the last room, which the auto run does not enter - see `maze_fight_boss`.
 
-A run is over when the map stops moving. Two consecutive frames of a running maze
-always differ, a finished one is the same image - so the end of a run is a
-property of the screen, not a timer.
+A run is over when the map stops moving: two frames of a running maze always
+differ, a finished one is the same image.
 """
 
 import numpy as np
@@ -26,10 +22,9 @@ from module.lostsword.assets import (AFFECTION_TAP, BOSS_VICTORY,
 from module.lostsword.page import page_battle, page_main
 from module.lostsword.utils import match, read_text
 
-# The auto run is not fully automatic: every few rooms the game stops and asks a
-# question. 「女神的祝福」 shows three cards and a 「选择」 bar at the bottom; the
-# run only goes on once one is picked. The bar is the reliable sign - the map
-# behind it is dark (mean 67) while the bar is cream (mean 189).
+# Every few rooms the game stops at 「女神的祝福」: three cards and a 「选择」
+# bar, dark map behind it (mean 67) against the cream bar (mean 189). The
+# brightness check alone once matched any bright page (2026-10-27).
 MAZE_CHOICE_BAR = (590, 625, 700, 660)
 MAZE_CHOICE_MEAN = 120
 # The three cards of that screen, and the label of each one's kind.
@@ -38,34 +33,32 @@ MAZE_CHOICE_CARD_Y = 384
 MAZE_CHOICE_LABELS = ((270, 348, 412, 378), (566, 348, 708, 378),
                       (870, 348, 1012, 378))
 MAZE_CHOICE_CONFIRM = (640, 653)
-# Story scenes of the maze - the 流泪的女神像 and the like - show the same arrow
-# at the bottom right as a conversation, but that arrow is only decoration: a tap
-# on it does nothing (confirmed by the user). The whole screen advances the line,
-# so the press goes to the middle.
+# Story scenes of the maze show the conversation arrow at the bottom right, but
+# there it is decoration: the whole screen advances, the press goes to the middle.
 MAZE_TALK_TAP = (640, 360)
 MAZE_TALK_REGION = (1150, 600, 1280, 720)
 # The last room - the Minotauros King - is not part of the auto run: the map
-# stops there, the 「自动进行」 button is gone, and the run only continues after
-# the round button at the bottom right opens the party check and its 「确认」.
-MAZE_BOSS_NEXT = (904, 653)
-MAZE_BOSS_CONFIRM = (640, 632)
+# stops in front of it (measured: the run went to floor 50 of 50) and pressing
+# the King node asks 「是否移动?」, then the sortie page starts the fight.
+MAZE_BOSS_NODE = (1064, 384)
 # Tapping the boss room raises 「感受到怪物的气息。是否移动?」 with a checkbox that
-# stops the question from coming back for the rest of the session.
+# stops the question from coming back for the rest of the session; a tap on the
+# node then moves straight on and the sortie page comes up without the dialog.
 MAZE_MOVE_CHECKBOX = (488, 432)
 MAZE_MOVE_CONFIRM = (640, 520)
-MAZE_BOSS_NODE = (1064, 384)
-# The boss room opens the usual sortie page: team on the left, 「出发」 bottom right.
+MAZE_MOVE_ASK_AREA = (520, 300, 780, 375)
+# The boss room opens the usual sortie page: 「出发」 bottom right (measured
+# 2026-11-04, the button spans (886, 643) - (1197, 687)).
 MAZE_BOSS_START = (996, 664)
-# The 「自动进行迷宫」 panel: its own 「自动进行」 button sits in the middle.
-MAZE_PANEL_POINT = (640, 600)
+MAZE_SORTIE_AREA = (900, 640, 1180, 690)
+# The 「自动进行迷宫」 panel: its own 「自动进行」 button sits in the middle of
+# the bottom bar. Measured 2026-11-04 on V1.610.1: the panel sits higher than
+# before, the old (640, 600) landed under the button and only dismissed it.
+MAZE_PANEL_POINT = (640, 538)
 # A run is over when the map stops moving; two frames of a running maze always
 # differ (the camera pans), a finished one is the same image.
 MAZE_STILL_FRAMES = 3
 MAZE_STILL_DIFF = 1.0
-# How much of the screen has to differ before a press counts as done. Opening a
-# panel dims the whole page, which is worth far more than this; a press that was
-# eaten leaves the frame unchanged to the last pixel.
-MAZE_CHANGE_DIFF = 2.0
 # Its result page: 「VICTORY」 over the loot, 「点击屏幕」 at the bottom.
 MAZE_VICTORY_REGION = (0, 0, 1280, 300)
 # When the boss room is down the map shows 「完成」 over the head of the maze: the
@@ -79,13 +72,9 @@ class MazeAutoRun:
     Start the auto run and carry it to the end of the week.
 
     Mixed into `LostswordMaze`. The framework supplies `self.loop()`,
-    `self.device`, `ui_get_current_page()` and `ui_page_appear()`; these come
-    from the composed class:
-
-    - `maze_on_map()` - is the map of the maze on screen (in `maze.py`, next to
-      the entry and exit steps it belongs to)
-    - `maze_set_priorities()` - the panel settings, from `MazePriority`
-    - `tap_point()` / `handle_reward_popup()` - from `LostswordUI`
+    `self.device`, `ui_get_current_page()` and `ui_page_appear()`; the composed
+    class adds `maze_on_map()` (in `maze.py`), `maze_set_priorities()`
+    (`MazePriority`) and `tap_point()` / `handle_reward_popup()` (`LostswordUI`).
     """
 
     def maze_auto_start(self, timeout=12):
@@ -131,6 +120,7 @@ class MazeAutoRun:
         timeout = Timer(10).start()
         retry = Timer(2, count=2).start()
         while 1:
+            self.device.stuck_record_clear()
             self.device.screenshot()
             if not self.maze_panel_appear():
                 return True
@@ -148,13 +138,10 @@ class MazeAutoRun:
         The task may start while a previous run is still going: the map then
         shows 「正在自动进行...」 instead of its 「自动进行」 button, and the
         game may sit on a story line or a choice. None of those pages is one of
-        the known ones, so they are answered here - tapping the story arrow or
-        picking a card - until the map is back.
-
-        A normal page ends the wait immediately: most runs start on the lobby or
-        on the battle tab, and none of the overlays below can be there. Without
-        that check a bright page used to read as a choice screen and the loop
-        pressed a 「选择」 that did not exist until it was killed (2026-10-27).
+        the known ones, so they are answered here until the map is back. A
+        normal page ends the wait immediately - without that check a bright page
+        used to read as a choice screen and the loop answered a choice that did
+        not exist until it was killed (2026-10-27).
 
         Args:
             timeout (int, float): Seconds.
@@ -235,73 +222,80 @@ class MazeAutoRun:
         """
         return match(self.device.image, AFFECTION_TAP, MAZE_TALK_REGION) > 0.85
 
-    def maze_fight_boss(self):
+    def maze_fight_boss(self, timeout=240):
         """
-        Try to start the last room of the maze.
+        Fight the last room of the maze.
 
-        Called when the map has stopped moving. The round button at the bottom
-        right opens a 「体力状态」 panel, its 「确认」 goes back to the map, the
-        boss node asks 「是否移动?」 and the sortie page starts the fight. The
-        fight itself cannot be skipped, so it is left to the wait loop.
-
-        The sequence is only worth walking while every press is confirmed: the
-        map freezes for a second or two between two steps, and a press that
-        lands in such a gap is dropped, which would send the rest of the chain
-        onto the wrong page. So every step waits for its own screen change and
-        the chain aborts at the first step that does not move.
+        Called when the map has stopped moving in front of the Minotauros King
+        (the run reached floor 50 of 50 that way, 2026-11-04). The King node
+        asks 「是否移动?」, its 确认 moves the party in, the sortie page starts
+        the fight; the old party-check presses ahead of the node are gone, the
+        node works alone. Every step waits for its own screen instead of
+        trusting a press - the map's idle animation alone exceeds the "screen
+        moved" threshold, which let a stale chain "succeed" against nothing.
+        The fight cannot be skipped, so the victory page is waited for here:
+        the generic wait loop would read the static loading screen as "the run
+        is over".
 
         Returns:
-            bool: If the fight was started.
+            bool: If the fight was fought and its result page answered.
         """
-        # The round button only exists while the run has something left; on a
-        # finished map the press changes nothing, which ends the chain at once.
-        if not self.maze_tap_change(MAZE_BOSS_NEXT, 'party check'):
-            return False
-
         logger.hr('Start the last room', level=2)
-        if not self.maze_tap_change(MAZE_BOSS_CONFIRM, 'stamina panel'):
-            return False
-        if not self.maze_tap_change(MAZE_BOSS_NODE, 'boss room'):
-            return False
-        # 「是否移动?」 - the box only silences the question for the rest of the
-        # session, so it is pressed without a check; the confirm next to it is
-        # what moves the party and is verified like the rest.
-        self.tap_point(*MAZE_MOVE_CHECKBOX)
-        if not self.maze_tap_change(MAZE_MOVE_CONFIRM, 'move confirm'):
-            return False
-        if not self.maze_tap_change(MAZE_BOSS_START, 'sortie'):
-            return False
+        # Press the King node until the move dialog asks or the sortie page is
+        # already up (the checkbox silences the question for the session).
+        asked = False
+        timer = Timer(12).start()
+        retry = Timer(2, count=2).start()
+        while 1:
+            self.device.stuck_record_clear()
+            self.device.screenshot()
+            if '是否移动' in read_text(self.device.image, MAZE_MOVE_ASK_AREA):
+                asked = True
+                break
+            if '出发' in read_text(self.device.image, MAZE_SORTIE_AREA):
+                break
+            if retry.reached():
+                retry.reset()
+                self.tap_point(*MAZE_BOSS_NODE)
+            if timer.reached():
+                logger.warning('The boss node does not answer')
+                return False
+
+        if asked:
+            # The box only silences the question for the rest of the session,
+            # so it is pressed without a check.
+            self.tap_point(*MAZE_MOVE_CHECKBOX)
+            self.tap_point(*MAZE_MOVE_CONFIRM)
+
+        # The party walks into the room and the sortie page comes up.
+        timer = Timer(15).start()
+        while 1:
+            self.device.stuck_record_clear()
+            self.device.screenshot()
+            if '出发' in read_text(self.device.image, MAZE_SORTIE_AREA):
+                break
+            if asked and '是否移动' in read_text(self.device.image, MAZE_MOVE_ASK_AREA):
+                # The confirm was eaten, the dialog is still there.
+                self.tap_point(*MAZE_MOVE_CONFIRM)
+            if timer.reached():
+                logger.warning('The sortie page did not come up')
+                return False
+        self.tap_point(*MAZE_BOSS_START)
         logger.info('The last room is running')
-        return True
 
-    def maze_tap_change(self, point, name, timeout=8, tries=2):
-        """
-        Press a point and wait until the screen really changed.
-
-        Args:
-            point (tuple): (x, y) to press.
-            name (str): What the press is for, for the log.
-            timeout (int, float): Seconds to wait after one press.
-            tries (int): How many presses may be spent.
-
-        Returns:
-            bool: If the screen changed.
-        """
-        for attempt in range(tries):
-            before = np.array(self.device.image).astype(np.int16)
-            self.tap_point(*point)
-            timer = Timer(timeout).start()
-            while 1:
-                self.device.stuck_record_clear()
-                self.device.screenshot()
-                after = np.array(self.device.image).astype(np.int16)
-                if float(np.abs(after - before).mean()) > MAZE_CHANGE_DIFF:
-                    logger.info(f'Press {name}: the screen moved')
-                    return True
-                if timer.reached():
-                    break
-            logger.info(f'Press {name} did nothing, press again ({attempt + 1}/{tries})')
-        return False
+        timer = Timer(timeout).start()
+        while 1:
+            self.device.stuck_record_clear()
+            self.device.screenshot()
+            if self.maze_victory_appear():
+                logger.info('The last room is won')
+                self.tap_point(*MAZE_VICTORY_TAP)
+                return True
+            if self.maze_finished() or self.maze_on_map():
+                return True
+            if timer.reached():
+                logger.warning('The boss fight did not finish in time')
+                return False
 
     def maze_choice_appear(self):
         """
@@ -360,6 +354,7 @@ class MazeAutoRun:
             self.tap_point(MAZE_CHOICE_CARDS[pick], MAZE_CHOICE_CARD_Y)
             timeout = Timer(3).start()
             while 1:
+                self.device.stuck_record_clear()
                 self.device.screenshot()
                 if self.reward_appear() or not self.maze_choice_appear():
                     break
@@ -376,6 +371,7 @@ class MazeAutoRun:
             self.tap_point(*MAZE_CHOICE_CONFIRM)
             timeout = Timer(3).start()
             while 1:
+                self.device.stuck_record_clear()
                 self.device.screenshot()
                 if self.reward_appear():
                     self.handle_reward_popup()
@@ -417,6 +413,10 @@ class MazeAutoRun:
             logger.info('The last room is won')
             self.tap_point(*MAZE_VICTORY_TAP)
             return True
+        if self.reward_appear():
+            logger.info('Reward popup in the maze')
+            self.handle_reward_popup()
+            return True
         if self.maze_talk_appear():
             self.tap_point(*MAZE_TALK_TAP)
             return True
@@ -424,11 +424,11 @@ class MazeAutoRun:
 
     def maze_wait_finish(self, timeout=1800):
         """
-        Wait until the auto run stops moving.
+        Wait until the auto run stops moving, then answer whatever stopped it.
 
         The map pans while the run goes on and freezes the moment it ends, so a
-        run of identical frames is the end. The panel is pressed again if it
-        shows up in the middle (the game asks for a new run after some events).
+        run of identical frames is the end; the boss chain owns the fight once
+        the map stops in front of the King (see `maze_fight_boss`).
 
         Args:
             timeout (int, float): Seconds, a safety net only.

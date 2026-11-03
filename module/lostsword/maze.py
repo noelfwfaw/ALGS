@@ -23,8 +23,9 @@ from module.lostsword.utils import match
 # The maze card once the list is dragged to its end.
 MAZE_LAST_CARD = (1096, 416)
 # The card art of that slot, used as a position check only (see
-# `maze_at_list_end()`): 0.74 when the card is there, 0.04 when it is not.
-MAZE_CARD_SIMILARITY = 0.5
+# `maze_at_list_end()`): 0.97 at the end, 0.39 with the cut-off 星辰轮回 card
+# sitting in the window instead, 0.04 anywhere else.
+MAZE_CARD_SIMILARITY = 0.65
 
 
 class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
@@ -35,26 +36,20 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
             out: page_main
         """
         logger.hr('Maze', level=1)
-        # Starting on the map of a cleared maze: the week is spent, there is
-        # nothing to open and nothing to press.
-        self.device.screenshot()
-        if self.maze_finished():
-            logger.info('The maze is already complete')
-            self.maze_exit()
-            self.ui_goto_main()
-            self.maze_delay()
-            return
-
+        # There is no early 「完成」 check here on purpose: the OCR of that word
+        # runs on whatever screen the game happens to show, and a false hit
+        # would silently spend the whole week (the maze map itself is checked
+        # after `maze_enter()`, where the word can only come from the map).
         if not self.maze_settle():
             logger.warning('The game is on a screen the maze task cannot leave')
-            self.maze_delay()
+            self.maze_retry_delay()
             return
         self.ui_ensure(page_battle)
         self.battle_goto_normal()
         if not self.maze_enter():
             logger.warning('Could not open the maze')
             self.ui_goto_main()
-            self.maze_delay()
+            self.maze_retry_delay()
             return
 
         if self.maze_finished():
@@ -72,9 +67,52 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
         else:
             logger.info('The auto run is not available today')
 
+        # The map decides before it is closed: 「完成」 = the week is spent,
+        # anything else = the run is not confirmed and comes back in a few
+        # hours (an auto run that stopped early can be continued the same way).
+        spent = self.maze_finished()
         self.maze_exit()
         self.ui_goto_main()
-        self.maze_delay()
+        if spent:
+            self.maze_delay()
+        else:
+            logger.warning('The maze run could not be confirmed as complete')
+            self.maze_retry_delay()
+
+    def maze_delay(self):
+        """
+        Postpone the task to next Monday 00:00.
+
+        The maze is a weekly mode, not a daily one: the reset is Sunday 11:00 in
+        Korea, which is Monday 00:00 here, and the run spends everything the week
+        allows - after it the map shows 「完成」 and the 「自动进行」 button does
+        nothing until the reset. The date arithmetic lives in
+        `module/lostsword/schedule.py`, reached through
+        `LostswordUI.delay_next_week()`, because 星辰轮回 runs on the same clock.
+
+        Only call this once the week is really spent - a confirmed 「完成」 on
+        the map. Entry failures go to `maze_retry_delay()`, or one bad night
+        would cost the whole week (measured 2026-11-04: the entry check failed
+        three times and the task booked itself off until the next reset without
+        ever opening the maze).
+        """
+        self.delay_next_week(label='Maze next reset')
+
+    def maze_retry_delay(self, minutes=180):
+        """
+        Postpone the task by a few hours when the maze could not be confirmed.
+
+        A weekly task that delays a week on an unconfirmed run loses the week's
+        rewards; a few hours keep it inside the same week in every case - even a
+        failure on Sunday evening retries after the Monday reset, where the fresh
+        week's maze simply runs. The map state then decides between this and
+        `maze_delay()` again.
+
+        Args:
+            minutes (int): How long to stay away.
+        """
+        self.config.task_delay(minute=minutes)
+        logger.info(f'Maze retry scheduled in {minutes} minutes')
 
     def maze_delay(self):
         """
@@ -131,10 +169,18 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
                         f'({attempt + 1}/2)')
         return False
 
-    def maze_goto_last_card(self, tries=3):
+    def maze_goto_last_card(self, tries=4):
         """
         Drag the card list to its end and check that the maze is in the last
         slot.
+
+        The behaviour clamp of `battle_scroll()` can lie: a drag that the page
+        eats during the tab switch reads as "no movement = at the end" while the
+        list never left the start (2026-11-04: three rounds of exactly three
+        drags each, and the first drag of the next round moved the list again -
+        the maze was never opened and the task delayed itself a week). The card
+        check is the only truth here, so every failed check buys one more raw
+        drag; only `tries` rounds of both may be spent.
 
         Args:
             tries (int): How many rounds of drags may be spent.
@@ -144,6 +190,13 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
         """
         for _ in range(tries):
             self.battle_scroll(forward=True)
+            if self.maze_at_list_end():
+                return True
+            # One drag that ignores the clamp verdict: harmless when the list
+            # really is at its end, decisive when the clamp was a eaten drag.
+            self.device.swipe(p1=(1000, 400), p2=(300, 400))
+            self.wait_until_still((0, 140, 1280, 660), timeout=3)
+            self.device.click_record_clear()
             if self.maze_at_list_end():
                 return True
             logger.info('The maze card is not in the last slot yet')
@@ -156,14 +209,15 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
 
         The card art is a position check only, never a state check: the game
         writes 可进入 / 探险完成 under it and neither is part of the template.
-        Measured 0.74 with the list at its end and 0.04 anywhere else, so the
-        threshold sits between them with room on both sides.
+        The window is wider than the card on purpose - the whole row drifted
+        about 30 px with V1.610.x and the best match inside the window sits on
+        the card in every frame seen (0.971 at the end, 0.04 anywhere else).
 
         Returns:
             bool: If the last slot holds the maze.
         """
         return match(self.device.image, MAZE_CARD,
-                     (1040, 545, 1145, 640)) > MAZE_CARD_SIMILARITY
+                     (990, 510, 1280, 690)) > MAZE_CARD_SIMILARITY
 
     def maze_on_map(self):
         """
