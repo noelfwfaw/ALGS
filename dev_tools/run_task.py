@@ -9,6 +9,7 @@ Usage:
     ./toolkit/python.exe -m dev_tools.run_task LostswordShop
     ./toolkit/python.exe -m dev_tools.run_task LostswordAffection --no-boot
     ./toolkit/python.exe -m dev_tools.run_task ChaoszeroMain --serial 127.0.0.1:16448
+    ./toolkit/python.exe -m dev_tools.run_task ChaoszeroSimulation --config chaoszero
 
 The game is taken from the task name (`Lostsword*` / `Hazeworld*`), so the
 namespace and the package are right without being repeated on the command line.
@@ -32,12 +33,14 @@ def main():
     parser.add_argument('task', help='Task name as written in task.yaml')
     parser.add_argument('--no-boot', action='store_true',
                         help='Do not launch the game, assume it is on screen')
+    parser.add_argument('--config', default='alas',
+                        help='config instance to use, e.g. the config of another emulator')
     parser.add_argument('--serial', default=None,
                         help='Emulator serial to use instead of the one in the config, '
                              'e.g. the adb port of another MuMu instance')
     args = parser.parse_args()
 
-    algs = AlGS()
+    algs = AlGS(config_name=args.config)
     task = args.task
 
     game = algs.task_game(task)

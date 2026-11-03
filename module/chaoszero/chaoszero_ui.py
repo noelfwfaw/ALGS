@@ -29,13 +29,23 @@
 等真机跑过一天再往里加，不预先猜。
 """
 
+import numpy as np
+
 from module.base.button import Button
 from module.base.timer import Timer
-from module.chaoszero.assets import BOOT_CONNECT_FAILED, BOOT_TOUCH_START
+from module.chaoszero.assets import (ARK_TITLE, BOOT_CONNECT_FAILED, BOOT_TOUCH_START,
+                                     CAFE_TITLE, PANEL_CLOSE, POLICY_TITLE,
+                                     RESULT_CONFIRM, SIM_PAGE, TEAM_TITLE,
+                                     TRAINING_TABS, TRAINING_TITLE)
 from module.chaoszero.page import page_main
 from module.exception import GameStuckError
 from module.logger import logger
 from module.ui.ui import UI
+
+# 方舟都市那一片（方舟都市 / 政策室 / 咖啡廳）共用的返回箭头。它们的返回键
+# 时灵时不灵（政策室首页实测按不动），而这个白底箭头一直在。
+CHAOSZERO_BACK = Button(area=(20, 12, 86, 58), color=(0, 0, 0),  # alas-lint: allow - a point to tap, there is no image to match
+                        button=(20, 12, 86, 58), name='CHAOSZERO_BACK')
 
 # 点画面中间那一下用的坐标。标题页、连接失败提示、闲置立绘这三种屏都吃
 # "点任意处"，而画面正中永远不会落在「資源修復」或右上角那排系统键上。
@@ -45,6 +55,10 @@ CHAOSZERO_TAP_CENTRE = Button(area=(540, 300, 740, 420), color=(0, 0, 0),  # ala
 # 冷启动到主界面：实机 logo + 校验补丁 + 标题约 25 秒。留到 5 分钟是为了
 # 客户端更新后第一次启动要校验整个补丁包，那一步能停一两分钟。
 CHAOSZERO_BOOT_TIMEOUT = 300
+
+# 战斗页左上角那条血量条的判定区与阈值（实测战斗 1865，其它页 0）。
+CHAOSZERO_HP_BAR = (0, 0, 360, 30)
+CHAOSZERO_HP_GREEN = 500
 
 # "什么都不认识"时隔多久点一下画面。闲置立绘只认得出"没有 UI"，没有正面判据，
 # 所以这个节流就是它的处理方式；8 秒足够让游戏的转场动画先走完。
@@ -61,6 +75,75 @@ class ChaoszeroUI(UI):
     # 自己那套页面。`Page.all_pages` 是全局注册表，多游戏场景下必须只遍历
     # 本游戏的（硬约束 36），否则切到别的游戏后匹配本游戏的判据会 KeyError。
     pages = (page_main,)
+
+    def tap_point(self, x, y, name=None):
+        """
+        Press one point of the screen.
+
+        模擬 里有几个按不出来的元素只能按坐标点：主界面右侧那行菜单、模擬页
+        四张卡、战斗训练的行和页签、难度数字。它们都是"位置固定、图案会变"
+        的东西（卡片立绘每期换、难度数字跟着选中项缩放），做模板只会把
+        "换了一期"变成"认不出来"。
+
+        全游戏只有这一份（硬约束 60），以后别的任务要用坐标点也走这里。
+
+        Args:
+            x (int): Pixel x.
+            y (int): Pixel y.
+            name (str): Button name used by the click record, defaults to the point.
+        """
+        button = Button(area=(x - 6, y - 6, x + 6, y + 6), color=(0, 0, 0),
+                        button=(x - 6, y - 6, x + 6, y + 6),
+                        name=name or f'CHAOSZERO_TAP_{x}_{y}')
+        self.device.click(button)  # alas-lint: allow - the caller checks the page first; a coordinate point has no template to guard with
+
+    def ui_green_count(self, area):
+        """
+        Count the pixels of an area that are clearly the HP-bar green.
+
+        战斗页最稳的判据是左上角那条血量条：一整条亮绿色，实测 1865 个像素，
+        而其它所有页面（配置队伍 / 战斗训练 / 模擬 / 主界面 / 结算）那块都是 0。
+        圆形的 ✕ 按钮反而不能当判据 —— 模板里带着战斗背景，换个场景就掉到阈值
+        以下（2026-10-30 卡在战斗里五分钟，就是因为没认出战斗页、也没开自动）。
+
+        Args:
+            area (tuple): x1, y1, x2, y2.
+
+        Returns:
+            int: Number of green pixels.
+        """
+        image = self.image_crop(area)
+        r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
+        return int(np.count_nonzero((g > 110) & (r < 110) & (b < 120)))
+
+    def ui_battle_appear(self):
+        """
+        Whether the battle screen is on screen.
+
+        Returns:
+            bool: True if the HP bar is there.
+        """
+        return self.ui_green_count(CHAOSZERO_HP_BAR) > CHAOSZERO_HP_GREEN
+
+    def ui_cyan_count(self, area):
+        """
+        Count the pixels of an area that are clearly cyan.
+
+        The auto-battle button is the same icon in both states - crossed swords
+        inside a ring of arrows - and only the ring changes: lit cyan when auto
+        is on, plain white when it is off. Measured on the real client, cyan
+        pixels in that box: 121 / 126 with auto on, 0 / 9 with it off, so a
+        threshold well above zero separates them without reading the icon.
+
+        Args:
+            area (tuple): x1, y1, x2, y2.
+
+        Returns:
+            int: Number of cyan pixels.
+        """
+        image = self.image_crop(area)
+        r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
+        return int(np.count_nonzero((b > 150) & (g > 130) & (r < 160)))
 
     def app_start(self):
         """
@@ -110,6 +193,7 @@ class ChaoszeroUI(UI):
         timeout = Timer(CHAOSZERO_BOOT_TIMEOUT, count=3).start()
         # 未启动的 Timer 第一次 reached() 就是 True，第一次不用干等。
         tap = Timer(CHAOSZERO_TAP_INTERVAL)
+        back = Timer(2)
 
         while 1:
             if skip_first_screenshot:
@@ -138,6 +222,48 @@ class ChaoszeroUI(UI):
             # Title screen
             if self.appear_then_click(BOOT_TOUCH_START, offset=(20, 20), interval=3):
                 logger.info('Title screen, touch to start')
+                continue
+
+            # 游戏停在模擬那几张页里（上一个任务退出时留的、或者手动点进去的）：
+            # 那里点画面正中只会点开一张卡片，返回键才是出路。
+            # 结算页：按「確認」回配置队伍。返回键在这一屏时灵时不灵（实测同一
+            # 个页面 13:41 一次就退出去、14:08 连按四次都留在原地），按钮反而稳。
+            if self.appear(RESULT_CONFIRM, offset=(20, 20)):
+                if back.reached():
+                    back.reset()
+                    logger.info('Result page, press 確認')
+                    self.device.click_record_clear()
+                    self.device.click(RESULT_CONFIRM)
+                continue
+
+            # 方舟都市那一片：政策室、咖啡廳、批准页、方舟都市首页。它们的返回
+            # 键不一定按得动（政策室首页实测按不动），统一点左上那颗白箭头。
+            if self.appear(ARK_TITLE, offset=(20, 20)) \
+                    or self.appear(POLICY_TITLE, offset=(20, 20)) \
+                    or self.appear(CAFE_TITLE, offset=(20, 20)):
+                if back.reached():
+                    back.reset()
+                    logger.info('Inside 方舟都市, tap the back arrow')
+                    self.device.click(CHAOSZERO_BACK)
+                continue
+
+            if self.appear(SIM_PAGE, offset=(20, 20)) \
+                    or self.appear(TRAINING_TITLE, offset=(20, 20)) \
+                    or self.appear(TRAINING_TABS, offset=(20, 20)) \
+                    or self.appear(TEAM_TITLE, offset=(20, 20)):
+                if back.reached():
+                    back.reset()
+                    logger.info('Inside 模擬, press back')
+                    self.device.adb_shell(['input', 'keyevent', '4'])
+                continue
+
+            # 全屏面板（作戰总览、日常任務、其它整页菜单）：这些页的返回键不管用，
+            # 只有右上角那颗 ✕ 关得掉。
+            if self.appear(PANEL_CLOSE, offset=(20, 20)):
+                if back.reached():
+                    back.reset()
+                    logger.info('A full-screen panel is open, press its X')
+                    self.device.click(PANEL_CLOSE)
                 continue
 
             # 什么都不认识。这里可能是 logo、补丁校验、点完之后的黑屏，或者
@@ -189,6 +315,49 @@ class ChaoszeroUI(UI):
             return True
 
         return False
+
+    def ui_quit_to_main(self):
+        """
+        Walk back to the lobby: three back keys, then the boot loop.
+
+        模擬 / 政策室 / 咖啡廳 这些页之间没有 link，`ui_goto` 走不了，只能按返回键。
+        主界面**不**在这个循环里判：停手二十秒后游戏会把整个 UI 收起来只剩一张
+        全屏立绘，那在判据眼里就是"什么页面都不是"，再按一次返回键它会问要不要
+        退出客户端。`handle_app_boot()` 认识那一屏（点醒它、停在大厅），所以最后
+        一步交给它。
+
+        Pages:
+            in: any
+            out: page_main
+
+        Returns:
+            bool: True when the lobby is back.
+        """
+        for _ in range(3):
+            if self.ui_page_appear(page_main):
+                logger.info('Back at page_main')
+                return True
+            # 结算页按「確認」比按返回键稳（同一个页面见过返回键失效）。
+            if self.appear(RESULT_CONFIRM, offset=(20, 20)):
+                logger.info('Result page, press 確認')
+                self.device.click_record_clear()
+                self.device.click(RESULT_CONFIRM)
+                self.wait_until_disappear(RESULT_CONFIRM, offset=(20, 20), timeout=15, settle=2)
+                continue
+            # **只有认出"确实在模擬那几张页里"才按返回键**。认不出来的时候很可能是
+            # 主界面的闲置态（UI 全收起来了，`page_main` 也不成立），在那里按返回键
+            # 游戏会问"要不要退出客户端"。
+            if not (self.appear(SIM_PAGE, offset=(20, 20))
+                    or self.appear(TRAINING_TITLE, offset=(20, 20))
+                    or self.appear(TRAINING_TABS, offset=(20, 20))
+                    or self.appear(TEAM_TITLE, offset=(20, 20))):
+                break
+            self.device.adb_shell(['input', 'keyevent', '4'])
+            self.wait_until_still((0, 0, 1280, 720), timeout=3)
+
+        logger.info('Walk the boot screens to make sure the lobby is up')
+        self.handle_app_boot()
+        return True
 
     def ui_additional(self):
         """

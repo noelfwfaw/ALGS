@@ -566,5 +566,62 @@
     "Storage": {
       "Storage": {}
     }
+  },
+  "ChaoszeroSimulation": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ChaoszeroSimulation",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ChaoszeroSimulation": {
+      "TrainingGrowth": true,
+      "TrainingMember": false,
+      "TrainingPartner": false,
+      "TrainingPotential": true,
+      "TrainingMemory": false,
+      "TrainingChallenge": false,
+      "TrainingStage": 1,
+      "TrainingDifficulty": 0,
+      "TrainingEfficiency": 6,
+      "TrainingTimes": 0
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ChaoszeroArk": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ChaoszeroArk",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ChaoszeroArk": {
+      "PolicyEnable": true,
+      "PolicyTimes": 0,
+      "PolicySide": "auto",
+      "CafeOrder": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ChaoszeroDaily": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ChaoszeroDaily",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
   }
 }

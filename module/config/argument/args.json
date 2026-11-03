@@ -2044,5 +2044,205 @@
         "display": "disabled"
       }
     }
+  },
+  "ChaoszeroSimulation": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ChaoszeroSimulation",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "ChaoszeroSimulation": {
+      "TrainingGrowth": {
+        "type": "checkbox",
+        "value": true
+      },
+      "TrainingMember": {
+        "type": "checkbox",
+        "value": false
+      },
+      "TrainingPartner": {
+        "type": "checkbox",
+        "value": false
+      },
+      "TrainingPotential": {
+        "type": "checkbox",
+        "value": true
+      },
+      "TrainingMemory": {
+        "type": "checkbox",
+        "value": false
+      },
+      "TrainingChallenge": {
+        "type": "checkbox",
+        "value": false
+      },
+      "TrainingStage": {
+        "type": "input",
+        "value": 1
+      },
+      "TrainingDifficulty": {
+        "type": "input",
+        "value": 0
+      },
+      "TrainingEfficiency": {
+        "type": "input",
+        "value": 6
+      },
+      "TrainingTimes": {
+        "type": "input",
+        "value": 0
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ChaoszeroArk": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ChaoszeroArk",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "ChaoszeroArk": {
+      "PolicyEnable": {
+        "type": "checkbox",
+        "value": true
+      },
+      "PolicyTimes": {
+        "type": "input",
+        "value": 0
+      },
+      "PolicySide": {
+        "type": "select",
+        "value": "auto",
+        "option": [
+          "auto",
+          "left",
+          "right"
+        ]
+      },
+      "CafeOrder": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ChaoszeroDaily": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ChaoszeroDaily",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
   }
 }

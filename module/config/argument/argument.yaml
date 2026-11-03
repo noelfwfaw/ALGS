@@ -224,3 +224,37 @@ BrowndustHunt:
   CaveWind: 2
   CaveLight: 2
   CaveDark: 2
+
+# ==================== Chaos Zero Nightmare (卡厄思梦境) ====================
+
+ChaoszeroSimulation:
+  # 战斗训练左侧那六个页签，从上到下。全开就六个都刷一遍，顺序就是这里的顺序。
+  TrainingGrowth: true
+  TrainingMember: false
+  TrainingPartner: false
+  TrainingPotential: true
+  TrainingMemory: false
+  TrainingChallenge: false
+  # 每个页签打第几项：右侧列表从上往下数，一屏四行（1-4），往下还有行就接着数
+  # 5、6…（記憶碎片 11 行、戰鬥員/夥伴 6 行、潛力 5 行、成長 3 行、挑戰 2 行）。
+  # 四个页签共用这一个序号；哪个页签没这么多行就跳过它。
+  TrainingStage: 1
+  # 难度 1-6；0 = 不动它，用游戏里当前选中的那个。
+  TrainingDifficulty: 0
+  # 战斗效率 1-6：一次打几场，消耗 = 单场体力 × 效率。清体力用 6。
+  TrainingEfficiency: 6
+  # 每个页签打几轮，0 = 一直打到体力不够或次数用完为止。
+  TrainingTimes: 0
+
+ChaoszeroArk:
+  # 政策室开关。
+  PolicyEnable: true
+  # 批准几份政策：0 = 能批多少批多少（批到卡叠空为止），N = 最多 N 份。
+  # **每批准一份消耗一天**（左上「倒數」会减 1），所以批光会很快烧天数。
+  PolicyTimes: 0
+  # 两份文件里盖哪一份。auto = 按奖励挑：额外奖励多的优先（政策點數不算数）。
+  PolicySide:
+    value: auto
+    option: [ auto, left, right ]
+  # 咖啡廳：每天点一次餐（內用 +120 體力）。今天点过了菜单就不再弹出，正常退出。
+  CafeOrder: true

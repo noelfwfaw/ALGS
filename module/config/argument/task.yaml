@@ -128,3 +128,11 @@ Chaoszero:
   tasks:
     ChaoszeroMain:
       - Scheduler
+    ChaoszeroSimulation:
+      - Scheduler
+      - ChaoszeroSimulation
+    ChaoszeroArk:
+      - Scheduler
+      - ChaoszeroArk
+    ChaoszeroDaily:
+      - Scheduler

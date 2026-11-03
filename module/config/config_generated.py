@@ -125,5 +125,23 @@ class GeneratedConfig:
     BrowndustHunt_CaveLight = 2
     BrowndustHunt_CaveDark = 2
 
+    # Group `ChaoszeroSimulation`
+    ChaoszeroSimulation_TrainingGrowth = True
+    ChaoszeroSimulation_TrainingMember = False
+    ChaoszeroSimulation_TrainingPartner = False
+    ChaoszeroSimulation_TrainingPotential = True
+    ChaoszeroSimulation_TrainingMemory = False
+    ChaoszeroSimulation_TrainingChallenge = False
+    ChaoszeroSimulation_TrainingStage = 1
+    ChaoszeroSimulation_TrainingDifficulty = 0
+    ChaoszeroSimulation_TrainingEfficiency = 6
+    ChaoszeroSimulation_TrainingTimes = 0
+
+    # Group `ChaoszeroArk`
+    ChaoszeroArk_PolicyEnable = True
+    ChaoszeroArk_PolicyTimes = 0
+    ChaoszeroArk_PolicySide = 'auto'  # auto, left, right
+    ChaoszeroArk_CafeOrder = True
+
     # Group `Storage`
     Storage_Storage = {}

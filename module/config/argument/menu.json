@@ -62,7 +62,10 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
-      "ChaoszeroMain"
+      "ChaoszeroMain",
+      "ChaoszeroSimulation",
+      "ChaoszeroArk",
+      "ChaoszeroDaily"
     ]
   }
 }

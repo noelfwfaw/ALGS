@@ -165,6 +165,18 @@
     "ChaoszeroMain": {
       "name": "ゲーム起動",
       "help": "コールドスタート・タイトル画面・放置中の立ち絵からメイン画面まで進める。報酬は受け取らない"
+    },
+    "ChaoszeroSimulation": {
+      "name": "戦闘訓練（スタミナ消費）",
+      "help": "模擬 → 戦闘訓練でチェックしたタブを順に周回する"
+    },
+    "ChaoszeroArk": {
+      "name": "方舟都市のデイリー",
+      "help": "方舟都市で二つ：政策室で政策を設定分だけ承認（1 件につき 1 日消費）、庭園カフェで 1 回注文してスタミナ 120 回復。今日すでに注文済みならメニューが開かず、そのまま終了"
+    },
+    "ChaoszeroDaily": {
+      "name": "デイリー受取（ミッション + メール）",
+      "help": "右上のメニューから二つ：① 日常任務 →「當日行程」の「全部領取」で報酬をまとめて回収；② メニューを開くと右端に出る縦並びボタンの封筒 →「信箱」で添付のあるメールを全部受け取る。どちらもオレンジ＝未受取、グレー＝受取済み。受取専用で、ミッション自体は 模擬 / 方舟都市 がこなす"
     }
   },
   "Scheduler": {
@@ -695,6 +707,77 @@
     "CaveDark": {
       "name": "BrowndustHunt.CaveDark.name",
       "help": "BrowndustHunt.CaveDark.help"
+    }
+  },
+  "ChaoszeroSimulation": {
+    "_info": {
+      "name": "戦闘訓練設定",
+      "help": "タブごとのスイッチと、行・難易度・効率・回数"
+    },
+    "TrainingGrowth": {
+      "name": "成長",
+      "help": "「成長」タブを周回"
+    },
+    "TrainingMember": {
+      "name": "戦闘員",
+      "help": "「戦闘員」タブを周回"
+    },
+    "TrainingPartner": {
+      "name": "パートナー",
+      "help": "「夥伴」タブを周回"
+    },
+    "TrainingPotential": {
+      "name": "潜在",
+      "help": "「潛力」タブを周回"
+    },
+    "TrainingMemory": {
+      "name": "記憶の欠片",
+      "help": "「記憶碎片」タブを周回（1 回 60）"
+    },
+    "TrainingChallenge": {
+      "name": "挑戦",
+      "help": "「挑戰」タブを周回（1 日 3 回）"
+    },
+    "TrainingStage": {
+      "name": "何番目",
+      "help": "リストの上から数えた行番号。一画面 4 行（1-4）、続きはスクロールして 5、6…。4 つのタブで共通（記憶碎片 11 行、戰鬥員/夥伴 6 行、潛力 5 行、成長 3 行、挑戰 2 行）。行数が足りないタブは飛ばす"
+    },
+    "TrainingDifficulty": {
+      "name": "難易度",
+      "help": "1-6。0 ならゲームの選択のまま"
+    },
+    "TrainingEfficiency": {
+      "name": "戦闘効率",
+      "help": "1-6。消費 = 1 回のスタミナ × 効率"
+    },
+    "TrainingTimes": {
+      "name": "タブごとの回数",
+      "help": "0 = スタミナが尽きるまで"
+    }
+  },
+  "ChaoszeroArk": {
+    "_info": {
+      "name": "方舟都市の設定",
+      "help": "承認する件数と左右どちらを承認するか、カフェで注文するか"
+    },
+    "PolicyEnable": {
+      "name": "政策室",
+      "help": "政策室で政策を承認するか"
+    },
+    "PolicyTimes": {
+      "name": "承認する件数",
+      "help": "0 = 出せるだけ全部（カードが尽きるまで）、N = 最大 N 件。1 件ごとに 1 日消費する（左上の「倒數」が減る）ので注意"
+    },
+    "PolicySide": {
+      "name": "どちらを承認",
+      "help": "auto = 報酬で選ぶ：追加報酬が多いほう（政策點數は数えない、同数なら左）。left / right = 固定",
+      "auto": "auto",
+      "left": "left",
+      "right": "right"
+    },
+    "CafeOrder": {
+      "name": "カフェで注文",
+      "help": "1 日 1 回：內用で 120 スタミナ回復。注文済みの日はメニューが開かない"
     }
   },
   "Storage": {

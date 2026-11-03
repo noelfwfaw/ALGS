@@ -165,6 +165,18 @@
     "ChaoszeroMain": {
       "name": "Launch game",
       "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"
+    },
+    "ChaoszeroSimulation": {
+      "name": "Battle training (spend stamina)",
+      "help": "Walks 模擬 → 戰鬥訓練 and farms the ticked tabs in order: open the stage, apply difficulty and battle efficiency, fight, make sure auto-battle is on, take the result, and repeat until the stamina or the daily attempts run out"
+    },
+    "ChaoszeroArk": {
+      "name": "Ark City dailies",
+      "help": "Two things in 方舟都市: approve a few policies in 政策室 (each one costs a day), and order once at 庭院咖啡廳 for 120 stamina. If the cafe already served you today it is skipped, not treated as a failure"
+    },
+    "ChaoszeroDaily": {
+      "name": "Daily claim (missions + mailbox)",
+      "help": "Opens the top-right menu and does two things: (1) 日常任務 → the 全部領取 button of 當日行程; (2) the envelope in the vertical column that appears on the right edge once the menu is open → 信箱, then 全部領取 there. Both buttons are orange while something is left and grey once done. It only claims - the missions themselves are done by the 模擬 and 方舟都市 tasks"
     }
   },
   "Scheduler": {
@@ -695,6 +707,77 @@
     "CaveDark": {
       "name": "BrowndustHunt.CaveDark.name",
       "help": "BrowndustHunt.CaveDark.help"
+    }
+  },
+  "ChaoszeroSimulation": {
+    "_info": {
+      "name": "Battle training",
+      "help": "One switch per tab, plus which row, difficulty, efficiency and rounds"
+    },
+    "TrainingGrowth": {
+      "name": "Growth",
+      "help": "Farm the 成長 tab (unit coins and upgrade materials)"
+    },
+    "TrainingMember": {
+      "name": "Fighters",
+      "help": "Farm the 戰鬥員 tab (ascension materials)"
+    },
+    "TrainingPartner": {
+      "name": "Partners",
+      "help": "Farm the 夥伴 tab (ascension materials)"
+    },
+    "TrainingPotential": {
+      "name": "Potential",
+      "help": "Farm the 潛力 tab (fire / order / instinct / void)"
+    },
+    "TrainingMemory": {
+      "name": "Memory shards",
+      "help": "Farm the 記憶碎片 tab, 60 stamina per run"
+    },
+    "TrainingChallenge": {
+      "name": "Challenge",
+      "help": "Farm the 挑戰 tab, 3 attempts a day, no stamina"
+    },
+    "TrainingStage": {
+      "name": "Row",
+      "help": "Counted from the top of the list, four rows per screen: 1-4, then 5, 6… as you scroll. One number for all tabs (記憶碎片 has 11 rows, 戰鬥員/夥伴 6, 潛力 5, 成長 3, 挑戰 2); a tab with fewer rows is skipped"
+    },
+    "TrainingDifficulty": {
+      "name": "Difficulty",
+      "help": "1-6. 0 leaves whatever the game has selected"
+    },
+    "TrainingEfficiency": {
+      "name": "Battle efficiency",
+      "help": "1-6 runs per entry; cost = stamina per run x efficiency"
+    },
+    "TrainingTimes": {
+      "name": "Rounds per tab",
+      "help": "0 = keep going until the stamina runs out"
+    }
+  },
+  "ChaoszeroArk": {
+    "_info": {
+      "name": "Ark City",
+      "help": "How many policies to approve, which side, and whether to order at the cafe"
+    },
+    "PolicyEnable": {
+      "name": "Policy room",
+      "help": "Whether to approve policies at all"
+    },
+    "PolicyTimes": {
+      "name": "How many",
+      "help": "0 = approve every proposal the deck offers, N = at most N. Each approval spends one day (the 倒數 counter drops), so approving everything burns the season fast"
+    },
+    "PolicySide": {
+      "name": "Which proposal",
+      "help": "auto = pick by reward: the one with more extra rewards wins, and 政策點數 does not count (tie goes to the left). left / right = always that one",
+      "auto": "auto",
+      "left": "left",
+      "right": "right"
+    },
+    "CafeOrder": {
+      "name": "Order at the cafe",
+      "help": "Once a day: 內用 restores 120 stamina right away. After that the menu stops opening and the task ends normally"
     }
   },
   "Storage": {

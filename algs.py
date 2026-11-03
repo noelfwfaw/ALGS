@@ -196,6 +196,21 @@ class AlGS(GameScheduler):
         from module.chaoszero.main import ChaoszeroMain
         ChaoszeroMain(config=self.config, device=self.device).run()
 
+    def chaoszero_simulation(self):
+        # 战斗训练：把每天的体力刷掉。
+        from module.chaoszero.simulation import ChaoszeroSimulation
+        ChaoszeroSimulation(config=self.config, device=self.device).run()
+
+    def chaoszero_ark(self):
+        # 方舟都市：政策室批政策 + 咖啡廳领体力。
+        from module.chaoszero.ark import ChaoszeroArk
+        ChaoszeroArk(config=self.config, device=self.device).run()
+
+    def chaoszero_daily(self):
+        # 日常任務：當日行程的「全部領取」。
+        from module.chaoszero.daily import ChaoszeroDaily
+        ChaoszeroDaily(config=self.config, device=self.device).run()
+
 
 if __name__ == '__main__':
     logger.hr('AlGS', level=0)
