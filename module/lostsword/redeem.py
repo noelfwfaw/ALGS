@@ -417,5 +417,12 @@ class LostswordRedeem(LostswordUI, CouponInput):
             return True
 
         # 退不出去也绝不在设置页上调 `ui_goto_main()`：那一下是整个进程 exit(1)。
-        logger.warning('The coupon flow could not walk back to the lobby')
-        return False
+        # 但把游戏留在这里同样不行 —— 下一个任务连 `ui_ensure(page_main)` 都过不
+        # 去（2026-11-04 实机：兑换按下去没反应、退出循环撞上中间态四轮全空，
+        # 游戏停在设置页，邮箱任务当场 GamePageUnknownError）。冷重启兜底：
+        # boot 循环认识标题屏和它路上的一切弹窗，落回大厅是确定的。
+        logger.warning('The coupon flow could not walk back to the lobby, restart the game')
+        self.device.app_stop()
+        self.device.app_start()
+        self.handle_app_boot()
+        return True

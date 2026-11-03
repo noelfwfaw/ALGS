@@ -1,9 +1,14 @@
+import cv2
+import numpy as np
+
 from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (BOSS_VICTORY, DUNGEON_BTN_BACK,
                                      DUNGEON_CLEAR, LOGIN_CHECK, MAIN_DEFEAT,
                                      REWARD_POPUP_TITLE, SUMMON_SKIP)
+from module.lostsword.event_pass import EventPassPopup
+from module.lostsword.lobby_hide import LobbyHide
 from module.lostsword.offer import OfferPopup
 from module.lostsword.page import *  # noqa: F401,F403 - the pages, re-exported for the tasks
 from module.lostsword.page import BOSS_RESULT_TAP, MAIN_DEFEAT_BACK
@@ -19,7 +24,7 @@ from module.ui.ui import UI
 BOOT_TIMEOUT = 300
 
 
-class LostswordUI(OfferPopup, SignIn, UI):
+class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
     page_main = page_main
 
     # Own pages, in the order they are declared above. The registry is shared
@@ -169,6 +174,25 @@ class LostswordUI(OfferPopup, SignIn, UI):
             if self.handle_offer_popup():
                 continue
 
+            # 活动期的签到通行证弹窗（万圣节那版）同上。它关掉后会先弹
+            # 「已获得道具」再把带勾的面板弹回来，所以下面还要有一支
+            # reward popup，舞步才能一圈圈走完。
+            if self.handle_event_pass():
+                continue
+
+            # 「已获得道具」是所有领奖的公共弹窗（登录奖励、通行证 ✕、
+            # 各任务的领取都弹它），点一下就过。boot 循环里原本没有它 ——
+            # 没有任务会在 boot 中途领奖，直到通行证的 ✕ 打破了这个假设。
+            if self.appear(REWARD_POPUP_TITLE, offset=30, interval=2):
+                logger.info('Reward popup during boot, dismiss it')
+                self.device.click(REWARD_POPUP_CLOSE)
+                continue
+
+            # 影院模式（V1.610.1 闲置/登录完就藏 UI）：冷启动落到它上面就是
+            # 300 秒白等，点画面 → 眼睛 → UI 回来。
+            if self.handle_lobby_hide():
+                continue
+
             if timeout.reached():
                 logger.warning('Wait game boot timeout')
                 raise GameStuckError('Game did not reach page_main after launch')
@@ -260,6 +284,10 @@ class LostswordUI(OfferPopup, SignIn, UI):
         if self.handle_offer_popup():
             return True
 
+        # 活动期的签到通行证弹窗跑到一半撞上同款处理。
+        if self.handle_event_pass():
+            return True
+
         if self.appear(SUMMON_SKIP, offset=30, interval=2):
             logger.info('Summon cutscene, skip it')
             self.tap_asset(SUMMON_SKIP)
@@ -299,6 +327,11 @@ class LostswordUI(OfferPopup, SignIn, UI):
             return True
         if self.appear_then_click(BOSS_DIALOG_CLOSE, offset=30, interval=2):
             logger.info('Sweep confirm dialog, close it')
+            return True
+
+        # 影院模式放在最后：它是"什么页面都不是"时的最后猜一手，判据里
+        # 自带 page_main 不在场的拦截，正常大厅永远轮不到它。
+        if self.handle_lobby_hide():
             return True
 
         return False
@@ -352,14 +385,22 @@ class LostswordUI(OfferPopup, SignIn, UI):
                 logger.warning('Cannot switch the battle page back to 普通')
                 return False
 
-    def battle_scroll(self, forward, swipes=3):
+    def battle_scroll(self, forward, swipes=4):
         """
-        Scroll the card list of the battle page to one of its ends.
+        Scroll the card list of the battle page until it clamps at one of its ends.
 
         The list holds more cards than fit on screen (领主突袭 / 竞技场 / 小队副本 /
         星辰轮回 / 迷宫) and the game remembers where it was left: after a drag the
         cards sit at different x positions, and every card asset is anchored to
         its position. Scrolling to an end makes the layout predictable again.
+
+        **到头与否只认行为判据：再拖一下、卡片带一动不动 = clamp**（2026-11-04
+        实机）。别拿卡片素材当尽头判据 —— 它们只能证明"卡片在它被裁的位置"，
+        而那个位置本身就会随版本漂（V1.610.x 起点 +31px / 尽头 -25px）；也别信
+        `wait_until_still(页签)`，页签不随卡片带滚动，三连拖惯性叠加后列表完全
+        可能停在中间 —— 星辰轮回的点按落进领主突袭的卡里，出口判据再把人捞回来，
+        两个按钮互殴到 `GameTooManyClickError`（当晚 Star 就这么死的）。实测从
+        中间到 clamp 最多四拖，给 `swipes` 上限，拖完还在动就抛给 Restart。
 
         Pages:
             in: page_battle
@@ -368,26 +409,40 @@ class LostswordUI(OfferPopup, SignIn, UI):
         Args:
             forward (bool): True to drag towards the end of the list (later
                 cards), False to drag back to the first card.
-            swipes (int): How many drags to make at most. The list is short,
-                three always reach the end from anywhere.
+            swipes (int): How many drags to make at most.
+
+        Raises:
+            GameStuckError: If the list never clamps.
         """
+        from module.exception import GameStuckError
+
         if forward:
             p1, p2 = (1000, 400), (300, 400)
         else:
             p1, p2 = (300, 400), (1000, 400)
+        band = (0, 140, 1280, 660)
+        clamped = False
         for _ in range(swipes):
+            self.device.screenshot()
+            before = self.image_crop(band, copy=True)
             self.device.swipe(p1=p1, p2=p2)
-            # The list snaps with an animation that has no check point, so wait
-            # for the card band to stop moving instead of pausing a fixed time:
-            # dragging again mid-snap stacks the momentum and overshoots.
-            if not self.wait_until_still(BATTLE_TAB_NORMAL.area, timeout=2):
-                logger.info('Card list did not settle, stop dragging')
+            # 静止判据直接盯卡片带：页签不随卡片滚，盯页签等于没等 —— snap 动画
+            # 还在飞就把"后帧"截下来，diff 永远大（2026-11-04 实测四拖全 19~34）。
+            # 卡片带的闲置动画抖不出 wait_until_still 的阈值，snap 一完它就返回。
+            self.wait_until_still(band, timeout=3)
+            self.device.screenshot()
+            after = self.image_crop(band, copy=True)
+            # 这一拖前后卡片带整段一致 = 没有产生任何位移 = 已经顶在尽头。
+            # 阈值放宽到 1：立绘的闲置动画抖不出这个量，滚动位移远大于它。
+            if float(np.mean(cv2.absdiff(after, before))) < 1.0:
+                clamped = True
                 break
-        self.device.screenshot()
         # Every drag here is deliberate and its result is checked by the caller;
         # counting them towards "too many click for a button" only means a task
         # that scrolls twice dies halfway (measured 2026-10-27 in the maze).
         self.device.click_record_clear()
+        if not clamped:
+            raise GameStuckError(f'Card list did not clamp after {swipes} swipe(s)')
 
     def wait_overlay(self, button, timeout=5):
         """
