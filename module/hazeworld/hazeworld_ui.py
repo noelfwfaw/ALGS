@@ -1,6 +1,7 @@
 import cv2
 from module.base.timer import Timer
 from module.base.utils import crop, get_color
+from module.config.deep import deep_get
 from module.exception import GameStuckError
 from module.hazeworld.assets import (LOADING_TEXT,
                                      EXIT_CONFIRM,
@@ -175,9 +176,12 @@ class HazeworldUI(Claim, UI):
         worth nothing compared to the tasks the user queued, and claiming them
         first would park the whole session behind them.
 
-        Both also keep a slot of their own in the scheduler, last in the
-        priority list, which covers the long sessions where the queue never runs
-        dry and this hook is not reached.
+        A panel whose task is enabled in the scheduler is skipped here: the
+        scheduled `HazeworldTask` / `HazeworldPass` run covers it on their own
+        cadence (the four CLAIM_TIMES), and claiming it again at the end of
+        every session would re-walk the same panels right after the scheduler
+        just did. The hook only backs the panels up when the user has their
+        tasks turned off - then there is nothing else that would claim them.
 
         A failure here is logged and swallowed: both panels are entered from the
         lobby again next session.
@@ -190,18 +194,24 @@ class HazeworldUI(Claim, UI):
 
         logger.hr('Session claims', level=2)
         ok = True
-        try:
-            claimed = HazeworldTask(config=self.config, device=self.device).task_claim()
-            logger.info(f'Tasks claimed: {claimed}')
-        except Exception as e:
-            logger.warning(f'Task claim failed, ignored: {e}')
-            ok = False
-        try:
-            claimed = HazeworldPass(config=self.config, device=self.device).pass_claim()
-            logger.info(f'Pass claimed: {claimed}')
-        except Exception as e:
-            logger.warning(f'Battle pass claim failed, ignored: {e}')
-            ok = False
+        if deep_get(self.config.data, 'HazeworldTask.Scheduler.Enable', default=False):
+            logger.info('HazeworldTask is scheduled, session claim skips the mission list')
+        else:
+            try:
+                claimed = HazeworldTask(config=self.config, device=self.device).task_claim()
+                logger.info(f'Tasks claimed: {claimed}')
+            except Exception as e:
+                logger.warning(f'Task claim failed, ignored: {e}')
+                ok = False
+        if deep_get(self.config.data, 'HazeworldPass.Scheduler.Enable', default=False):
+            logger.info('HazeworldPass is scheduled, session claim skips the battle pass')
+        else:
+            try:
+                claimed = HazeworldPass(config=self.config, device=self.device).pass_claim()
+                logger.info(f'Pass claimed: {claimed}')
+            except Exception as e:
+                logger.warning(f'Battle pass claim failed, ignored: {e}')
+                ok = False
         return ok
 
     def handle_app_boot(self, skip_first_screenshot=True):
