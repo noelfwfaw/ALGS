@@ -94,6 +94,14 @@ PASS_CARD_DX = -70
 PASS_CLAIM_LUMA = 200
 PASS_CLAIM_PIXELS = 500
 
+# 卡片切换的监视区。**不能只盯「全部获得」那一小块**：两张卡的按钮都是灰色
+# 同一位置时（比如上一张刚领完、下一张奖励页本来就没东西），按钮区的像素
+# 几乎不变，`pass_wait_repaint` 会误判"卡片本来就选中了"——2026-11-03 实机，
+# Loyal Maid 切到艾瑞克时就是这样，点击被吞了也发现不了。改看右侧页签栏
+# 那条竖带（PASS_TAB 区 + 面板右缘）：页签的选中色跟通行证主色走，真切换
+# 必然在那里变色；又不含奖励列表的道具闲置动画，选中的卡停着不会乱报。
+PASS_PANEL = (1090, 130, 1160, 580)
+
 # 右侧竖栏那两枚页签：上面是等级奖励，下面是每日任务。**两页都有「全部获得」**，
 # 位置一模一样，只是内容不同 —— 所以"这张卡还有没有东西"必须两页都问一遍。
 # 任务页比奖励页要紧得多：通行证的红「!」常常整枚挂在任务上（2026-10-29 实测，
@@ -190,6 +198,12 @@ class BrowndustPass(BrowndustUI):
         # 那张卡的红点照样在（任务每天解锁一批），所以不能拿"红点还在"当"没领到"
         # 反复重试，否则会在这张卡上打转到轮数上限。
         done = set()
+        # 按了「全部获得」却没弹结算页的卡。不在这里原地死磕（PASS_CARD_TRIES
+        # 用完就先放着），等别的卡都走完、页面数据重新拉过一遍之后收尾再试一轮
+        # ——2026-11-04 实机：艾瑞克 PASS 的每日任务（经营管理的餐馆一结算才
+        # 完成）按两次都没弹结算页，几分钟后手动再按就弹了。只补一轮，仍然
+        # 有界，不会跟"红点不灭"死循环。
+        failed = []
 
         for _ in range(PASS_ROUNDS_MAX):
             self.device.screenshot()
@@ -198,13 +212,23 @@ class BrowndustPass(BrowndustUI):
                 break
 
             badge = badges[0]
+            ok = False
             for i in range(PASS_CARD_TRIES):
                 count = self.pass_claim_one(badge)
                 if count:
                     claimed += count
+                    ok = True
                     break
                 logger.warning(f'The pass at {badge[1]} was not claimed ({i + 1}/{PASS_CARD_TRIES})')
             done.add(badge[1])
+            if not ok:
+                failed.append(badge)
+
+        for badge in failed:
+            logger.info(f'Retry the pass at {badge[1]}')
+            count = self.pass_claim_one(badge)
+            if count:
+                claimed += count
 
         logger.info(f'[Pass claimed] {claimed}')
         return claimed
@@ -259,6 +283,15 @@ class BrowndustPass(BrowndustUI):
             bool: If a reward screen was opened and then closed.
         """
         if not self.pass_claim_ready():
+            return False
+
+        # 页签刚切过来时页面还在转场（`pass_goto_tab` 一确认页签变色就返回），
+        # 这个时候按「全部获得」会被动画吞掉 —— 2026-11-04 实机，艾瑞克 PASS 的
+        # 每日任务连按两次都没反应，几分钟后手动按就弹了（硬约束 40）。等按钮
+        # 一带静止再按；页面本来就停着时这一步立刻返回，没有代价。
+        self.wait_until_still(PASS_CLAIM.area, timeout=3)
+        if not self.pass_claim_ready():
+            # 静止之后再看一眼：转场前读到的是上一页的亮度。
             return False
 
         logger.info('Press 全部获得')
@@ -344,8 +377,16 @@ class BrowndustPass(BrowndustUI):
         """
         point = (badge[0] + PASS_CARD_DX, badge[1])
         logger.info(f'Open the pass at {point}')
-        self.device.click_minitouch(point[0], point[1])  # alas-lint: allow - a card press in the list, verified by the badge check in pass_claim_one()
-        return self.pass_wait_repaint()
+        for i in range(2):
+            self.device.click_minitouch(point[0], point[1])  # alas-lint: allow - a card press in the list, verified by the badge check in pass_claim_one()
+            if self.pass_wait_repaint():
+                return True
+            if i == 0:
+                # 没重画有两种可能：卡片本来就选中，或者这一下被上一张卡的
+                # 结算页淡出吞掉了（硬约束 40）。补一下没副作用 —— 点在选中
+                # 的卡上画面不变 —— 而真被吞掉的点击只有这一下能救回来。
+                logger.info('The card press may be eaten, press it again')
+        return False
 
     def pass_wait_repaint(self, timeout=PASS_CARD_TIMEOUT):
         """
@@ -362,15 +403,21 @@ class BrowndustPass(BrowndustUI):
         点了本来就选中的那张卡时不会有变化，超时放行 —— 那不是错误，调用方接着
         读亮度就行。
 
+        监视区是 `PASS_PANEL`（右侧整条，页签栏 + 按钮列）而不是按钮那一小块：
+        两张卡的「全部获得」都是灰色同位置时（上一张刚领完、下一张奖励页本来就
+        没东西），按钮区几乎不变化，盯按钮会把真切换误判成"本来就选中" ——
+        2026-11-04 实机，Loyal Maid 切到艾瑞克时就是这样，点击被吞了也发现不了。
+        页签栏的选中色跟通行证主色走，真切换必然在那里变色。
+
         Returns:
             bool: If a repaint was seen and it settled.
         """
         timeout = Timer(timeout).start()
-        previous = self.image_crop(PASS_CLAIM.area, copy=True)
+        previous = self.image_crop(PASS_PANEL, copy=True)
         moved = False
 
         for _ in self.loop():
-            current = self.image_crop(PASS_CLAIM.area, copy=True)
+            current = self.image_crop(PASS_PANEL, copy=True)
             diff = np.mean(np.abs(current.astype(np.int16) - previous.astype(np.int16)))
             previous = current
             if diff >= 1.0:
