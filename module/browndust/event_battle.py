@@ -52,6 +52,7 @@ Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
 import re
 
 from module.base.button import Button
+from module.base.timer import Timer
 from module.browndust.assets import (BATTLE_PANEL, EVENT_AP_SHORT, EVENT_AUTO_STOP,
                                      EVENT_AUTO_TITLE, EVENT_RESULT_BACK,
                                      EVENT_TAB_CHALLENGE, EVENT_TAB_NORMAL)
@@ -107,6 +108,9 @@ AUTO_TIMES_TIMEOUT = 3
 # 跑马灯，右下角还有加载百分比），实测 14~17 秒，给 30 秒。
 BATTLE_ENTER_TIMEOUT = 30
 RESULT_BACK_TIMEOUT = 30
+# 「战斗 N」按下去之后，次数面板还亮着多久算"开打被挡了"。正常开打一两秒就进
+# 转场；被「支付失败」挡住时面板会一直亮。2026-11-04 实机。
+EVENT_PANEL_REPRESS = 5
 # 关卡列表的面积，用来等重载画完。
 LEVEL_PANEL_AREA = (490, 70, 1010, 600)
 
@@ -313,19 +317,38 @@ class EventBattle:
         同时在场，所以判据只有一条：**看见「返回」就是打完了**。战斗中、转场中
         两颗都不在，继续等。
 
+        商店客户端什么时候想连就什么时候连，「支付失败 / GetProducts」弹窗开打
+        那一刻最常见（2026-11-04 实机：按完「战斗 N」60 秒后弹出来，把开打挡住，
+        面板原样停在弹窗后面）。所以这个循环里还要做两件事：先关弹窗；关完之后
+        面板若还亮着，就是战斗没被接受，补按一次「战斗 N」——补按有 5 秒节流，
+        正常开打的转场动画不会被判成"没打上"。
+
         Returns:
             bool: 有没有等到。
         """
         running = False
+        # 面板连续可见的计时。进循环就启动：battle_auto 刚按完「战斗 N」面板
+        # 还有一瞬在场上，靠它挡住补按；真正被弹窗挡住时面板会一直亮，5 秒后补。
+        panel = Timer(EVENT_PANEL_REPRESS).start()
         for _ in self.loop(timeout=BATTLE_TIMEOUT):
             # 连打四场要好几分钟，中间一个按钮都不点。框架的看门狗把"60 秒没
             # 点击"当成卡死 —— 2026-10-30 实测，第 60 秒准时掐在连打中间，而
             # 那时游戏正打得好好的。这里等的是游戏自己打完，先说清楚（硬约束 13）；
             # 真卡住由上面的 BATTLE_TIMEOUT 收场。
             self.device.stuck_record_clear()
+            # 「支付失败」不归结果页管，先认它：不关掉，返回键永远出不来。
+            if self.handle_payment_error():
+                panel.reset()
+                continue
             if self.appear(EVENT_RESULT_BACK, offset=(20, 20)):
                 logger.info('[Event battle] this round is over')
                 return True
+            # 开打被弹窗挡住：次数面板还停在原地。补按一次，再给它 5 秒。
+            if self.appear(EVENT_AUTO_TITLE, offset=(20, 20)) and panel.reached():
+                logger.warning('The auto battle did not start, press 战斗 again')
+                self.device.click(AUTO_START)  # alas-lint: allow - the panel title is matched right above, the panel leaving is the proof it worked
+                panel.reset()
+                continue
             # `running` 只喂日志，不参与判断 —— 连打中间那颗「结束自动战斗」在
             # 每一场的结算页上都会闪一下，拿它当"打完了"会提前收工。
             if not running and self.appear(EVENT_AUTO_STOP, offset=(20, 20)):

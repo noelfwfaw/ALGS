@@ -567,6 +567,12 @@ class EventWorldBoss:
             # 一次点击就判卡死，硬约束 13）会把它当成卡死。这里明说"我在盯着屏幕"，
             # 真正的上限交给下面的 BATTLE_TIMEOUT。
             self.device.stuck_record_clear()
+            # 「支付失败」随时会弹（商店客户端拿不到商品列表，60 秒超时），
+            # 盖住结算页「返回」就没人是输家。先关它再谈战斗 —— 开打那一刻被
+            # 挡住的场景在活动战斗上是实机踩过的（2026-11-04），魔兽同一套
+            # 商店客户端，没有理由幸免。
+            if self.handle_payment_error():
+                continue
             if self.appear(WB_RESULT_BACK, offset=RESULT_BACK_OFFSET):
                 logger.info('[World boss] this fight is over')
                 return True

@@ -313,12 +313,26 @@ class BrowndustUI(UI):
         screen (normal cold start), the map page (first login of the day) or the
         lobby with its popups. All three are handled by the same state loop.
 
+        A running game on any *registered* page walks home with `ui_goto_main()`
+        instead of entering the boot loop: the loop only knows the screens
+        between launch and page_main, and a task left on the event page or the
+        battle level page (killed mid-flow, emulator rebooted under it) would
+        otherwise sit in the "Unknown screen, tap the blank strip" branch until
+        the timeout - the blank strip closes lobby popups, it does not navigate.
+        An unregistered screen (the auto battle panel, a level detail panel)
+        gets a cold restart, which lands on the title screen the loop does know.
+
         Pages:
             in: any
             out: page_main
         """
         if self.device.app_is_running():
-            logger.info('Game is already running, bring it to the front')
+            if self.ui_any_page_appear():
+                logger.info('Game is running, walk to page_main')
+                self.ui_goto_main()
+                return
+            logger.info('Game is running on an unknown page, restart it')
+            self.device.app_stop()
         self.device.app_start()
         self.handle_app_boot()
 
