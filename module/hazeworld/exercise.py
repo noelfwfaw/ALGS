@@ -253,10 +253,18 @@ class HazeworldExercise(HazeworldUI):
             if self.appear_then_click(EX_BTN_BATTLE_DONE, offset=(20, 20), interval=3):
                 continue
 
-            # Reward popup of the sweep, the hall behind it is readable so it
-            # is checked before the hall itself.
+            # 「扫荡结算」弹窗。**橙色「确认」自己认，不靠 EX_PROXY_SETTLE 把门**：
+            # 标题条是半透明的，后面是会动的立绘（还会换季），弹窗画稳之后
+            # SETTLE 只剩 0.718（2026-11-04 实机），只有淡入那几秒过得了 0.85 ——
+            # 第一次「确认」被吞掉之后，这个弹窗就没人认领了，循环空转 60 秒被
+            # 看门狗带走。确认键是实心的，弹窗上 0.866 / 大厅 0.619，单独成一支、
+            # 每 2 秒补按一次，吞几下都能救回来。
+            if self.appear_then_click(EX_PROXY_CONFIRM, offset=(20, 20), interval=2):
+                confirmed = True
+                continue
+
+            # 弹窗在、确认键还没画完（淡入中）：先记一笔，下一轮再按。
             if self.appear(EX_PROXY_SETTLE, offset=(20, 20)):
-                self.appear_then_click(EX_PROXY_CONFIRM, offset=(20, 20), interval=2)
                 confirmed = True
                 continue
 
