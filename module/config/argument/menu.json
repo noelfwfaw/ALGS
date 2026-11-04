@@ -19,7 +19,8 @@
       "HazeworldPass",
       "HazeworldSupport",
       "HazeworldCore",
-      "HazeworldShop"
+      "HazeworldShop",
+      "HazeworldLogistics"
     ]
   },
   "Lostsword": {

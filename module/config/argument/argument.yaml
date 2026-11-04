@@ -165,6 +165,16 @@ HazeworldShop:
       残响 > 调度券 > 自选水晶 > 核心 > 绝密报告 > 能量合剂
       !盾币
       !精英演习券
+HazeworldLogistics:
+  Filter:
+    type: select
+    value: 全部
+    option: [ 全部, 自定义, 不买 ]
+  Purchases:
+    type: textarea
+    value: |-
+      # 全部模式：除了下面排除的，货架上有什么买什么
+      !盾币
 
 # ==================== Lost Sword ====================
 

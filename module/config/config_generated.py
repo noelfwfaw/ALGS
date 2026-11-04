@@ -89,6 +89,10 @@ class GeneratedConfig:
     HazeworldShop_Filter = '自定义'  # 全部, 自定义, 不买
     HazeworldShop_Purchases = '残响 > 调度券 > 自选水晶 > 核心 > 绝密报告 > 能量合剂\n!盾币\n!精英演习券'
 
+    # Group `HazeworldLogistics`
+    HazeworldLogistics_Filter = '全部'  # 全部, 自定义, 不买
+    HazeworldLogistics_Purchases = '# 全部模式：除了下面排除的，货架上有什么买什么\n!盾币'
+
     # Group `LostswordTreasure`
     LostswordTreasure_Claim = True
     LostswordTreasure_Quick = True

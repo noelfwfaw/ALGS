@@ -89,6 +89,8 @@ TRANSLATIONS = {
                               'help': '在资源副本「核心制造」里扫荡核心材料，消耗体力'},
             'HazeworldShop': {'name': '精英商店',
                               'help': '在商城-兑换商店-精英商店按购买清单买道具，每周一次'},
+            'HazeworldLogistics': {'name': '后勤商店',
+                                   'help': '在商城-兑换商店-后勤商店买道具，默认除盾币外全买，每周一次'},
         },
         'HazeworldMail': {
             '_info': {'name': '邮件设置', 'help': ''},
@@ -172,6 +174,21 @@ TRANSLATIONS = {
                         '购买顺序是商店内从左到右、同列先上后下，每个道具每次买 1 个；已售罄或金币不够的自动跳过。',
             },
         },
+        'HazeworldLogistics': {
+            '_info': {'name': '后勤商店设置', 'help': ''},
+            'Filter': {
+                'name': '商店过滤器',
+                'help': '全部：买清单里没被 ! 排除的所有道具；自定义：按下面的购买清单买；不买：什么都不买。\n'
+                        '! 排除行在任何档位下都生效，所以盾币在任何档位下都不会被买。',
+            },
+            'Purchases': {
+                'name': '购买清单',
+                'help': '每行一条规则，按道具名的子串匹配；一行里用 > 分隔多个关键词，命中任意一个就买；'
+                        '! 开头的行表示不买；# 开头是注释。\n'
+                        '默认「全部」：货架上有什么买什么，只排除盾币（1 点换无限量的兑换券）。\n'
+                        '购买顺序是商店内从左到右、同列先上后下，每个道具每次买 1 个；已售罄或余额不够的自动跳过。',
+            },
+        },
     },
     'zh-TW': {
         'Menu': {
@@ -190,6 +207,24 @@ TRANSLATIONS = {
                               'help': '在資源副本「核心製造」裡掃蕩核心材料，消耗體力'},
             'HazeworldShop': {'name': '精英商店',
                               'help': '在商城-兌換商店-精英商店按購買清單買道具，每週一次'},
+            'HazeworldLogistics': {'name': '後勤商店',
+                                   'help': '在商城-兌換商店-後勤商店買道具，預設除盾幣外全買，每週一次'},
+        },
+        'HazeworldLogistics': {
+            '_info': {'name': '後勤商店設定', 'help': ''},
+            'Filter': {
+                'name': '商店過濾器',
+                'help': '全部：買清單裡沒被 ! 排除的所有道具；自訂：按下面的購買清單買；不買：什麼都不買。\n'
+                        '! 排除行在任何檔位下都生效，所以盾幣在任何檔位下都不會被買。',
+                '全部': '全部', '自定义': '自訂', '不买': '不買',
+            },
+            'Purchases': {
+                'name': '購買清單',
+                'help': '每行一條規則，按道具名的子串匹配；一行裡用 > 分隔多個關鍵詞，命中任意一個就買；'
+                        '! 開頭的行表示不買；# 開頭是註解。\n'
+                        '預設「全部」：貨架上有什么買什麼，只排除盾幣（1 點換無限量的兌換券）。\n'
+                        '購買順序是商店內從左到右、同列先上後下，每個道具每次買 1 個；已售罄或餘額不夠的自動跳過。',
+            },
         },
         'HazeworldMail': {
             '_info': {'name': '郵件設定', 'help': ''},
@@ -296,6 +331,27 @@ TRANSLATIONS = {
                               'help': 'Sweep core material stages in the resource dungeon, spends stamina'},
             'HazeworldShop': {'name': 'Elite shop',
                               'help': 'Buy from the elite shop of the mall exchange with a purchase list, weekly'},
+            'HazeworldLogistics': {'name': 'Logistics shop',
+                                   'help': 'Buy from the logistics shop of the exchange shop, everything but 盾币 by default, once a week'},
+        },
+        'HazeworldLogistics': {
+            '_info': {'name': 'Logistics shop settings', 'help': ''},
+            'Filter': {
+                'name': 'Shop filter',
+                'help': 'All: buy everything the list does not exclude with !; Custom: follow the purchase list below; '
+                        'None: buy nothing.\n'
+                        'The ! lines hold in every mode, so 盾币 is never bought whichever mode is selected.',
+                '全部': 'All', '自定义': 'Custom', '不买': 'None',
+            },
+            'Purchases': {
+                'name': 'Purchase list',
+                'help': 'One rule per line, matched as a substring of the item name; inside a line > separates '
+                        'alternatives and any hit buys; a line starting with ! excludes; # starts a comment.\n'
+                        'The default is All: buy whatever is on the shelf, 盾币 alone excepted (it is a 1 point '
+                        'conversion ticket with unlimited stock).\n'
+                        'The order is left to right, top card before bottom card, one of each per run; sold out or '
+                        'unaffordable cards are skipped.',
+            },
         },
         'HazeworldMail': {
             '_info': {'name': 'Mail settings', 'help': ''},
@@ -401,6 +457,26 @@ TRANSLATIONS = {
                               'help': '資源ダンジョンの「コア製造」でコア素材を掃討する（スタミナ消費）'},
             'HazeworldShop': {'name': 'エリートショップ',
                               'help': 'ショップの交換所にあるエリートショップで購入リストに従って購入する（毎週）'},
+            'HazeworldLogistics': {'name': '後勤ショップ',
+                                   'help': '商城-兌換商店-後勤商店でアイテムを購入する。既定では盾幣以外を全部買い、週 1 回'},
+        },
+        'HazeworldLogistics': {
+            '_info': {'name': '後勤ショップ設定', 'help': ''},
+            'Filter': {
+                'name': 'ショップフィルター',
+                'help': 'すべて：! で除外されていない全アイテムを購入；カスタム：下の購入リストに従う；'
+                        '購入しない：何も買わない。\n'
+                        '! の除外行はどのモードでも有効なので、盾幣はどのモードでも買わない。',
+                '全部': 'すべて', '自定义': 'カスタム', '不买': '購入しない',
+            },
+            'Purchases': {
+                'name': '購入リスト',
+                'help': '1 行 1 ルール、アイテム名の部分一致；行内の > は候補の区切りで、いずれかが一致すれば購入；'
+                        '! で始まる行は除外；# で始まる行はコメント。\n'
+                        '既定は「すべて」：棚にあるものを買い、盾幣だけは除外する（1 ポイントで無限に交換できる券）。\n'
+                        '購入順はショップ内の左から右、同じ列は上から下。1 回の実行で各アイテム 1 個。'
+                        '売り切れや残高不足のカードは自動で飛ばす。',
+            },
         },
         'HazeworldMail': {
             '_info': {'name': 'メール設定', 'help': ''},

@@ -26,6 +26,11 @@ EXIT_CONFIRM = Button(area={'hazeworld': (585, 292, 695, 325)}, color={'hazeworl
 # the left sidebar, 精英商店, also in its selected look (black plate with orange
 # corner brackets; 1.000 selected, 0.402 next to it on the mall home page).
 EXCHANGE_TAB_ELITE = Button(area={'hazeworld': (21, 209, 214, 266)}, color={'hazeworld': (21, 19, 18)}, button={'hazeworld': (21, 209, 214, 266)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXCHANGE_TAB_ELITE.png'})
+# 后勤商店, the third entry of the same sidebar, in its selected look (black
+# plate with orange corner brackets; 1.000 selected, 0.487 while 精英商店 is
+# the selected one). The sub shops listed above it keep their y, so this area
+# is the elite one moved down by the row pitch.
+EXCHANGE_TAB_LOGISTICS = Button(area={'hazeworld': (21, 386, 214, 436)}, color={'hazeworld': (54, 44, 35)}, button={'hazeworld': (21, 386, 214, 436)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXCHANGE_TAB_LOGISTICS.png'})
 MALL_TAB_EXCHANGE = Button(area={'hazeworld': (655, 95, 835, 170)}, color={'hazeworld': (83, 66, 58)}, button={'hazeworld': (655, 95, 835, 170)}, file={'hazeworld': './assets/hazeworld/hazeworld/MALL_TAB_EXCHANGE.png'})
 EXP_BTN_CANCEL = Button(area={'hazeworld': (1040, 568, 1185, 606)}, color={'hazeworld': (69, 68, 69)}, button={'hazeworld': (1040, 568, 1185, 606)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_CANCEL.png'})
 EXP_BTN_RECOMMEND = Button(area={'hazeworld': (860, 566, 1012, 608)}, color={'hazeworld': (67, 67, 67)}, button={'hazeworld': (860, 566, 1012, 608)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_RECOMMEND.png'})

@@ -66,6 +66,10 @@
       "name": "Elite shop",
       "help": "Buy from the elite shop of the mall exchange with a purchase list, weekly"
     },
+    "HazeworldLogistics": {
+      "name": "Logistics shop",
+      "help": "Buy from the logistics shop of the exchange shop, everything but 盾币 by default, once a week"
+    },
     "LostswordTreasure": {
       "name": "Treasure",
       "help": "Claim the idle rewards and use the free quick explore"
@@ -579,6 +583,23 @@
     "Purchases": {
       "name": "Purchase list",
       "help": "One rule per line, matched as a substring of the item name; inside a line > separates alternatives and any hit buys; a line starting with ! excludes; # starts a comment.\nThe default buys 残响, 调度券, 自选水晶, 核心, 绝密报告 and 能量合剂, and never 盾币 or 精英演习券. Leave it blank to buy nothing.\nThe order is the shop order, left to right and top to bottom within a column, one of each item per run; sold-out cards and cards the gold cannot cover are skipped."
+    }
+  },
+  "HazeworldLogistics": {
+    "_info": {
+      "name": "Logistics shop settings",
+      "help": ""
+    },
+    "Filter": {
+      "name": "Shop filter",
+      "help": "All: buy everything the list does not exclude with !; Custom: follow the purchase list below; None: buy nothing.\nThe ! lines hold in every mode, so 盾币 is never bought whichever mode is selected.",
+      "全部": "All",
+      "自定义": "Custom",
+      "不买": "None"
+    },
+    "Purchases": {
+      "name": "Purchase list",
+      "help": "One rule per line, matched as a substring of the item name; inside a line > separates alternatives and any hit buys; a line starting with ! excludes; # starts a comment.\nThe default is All: buy whatever is on the shelf, 盾币 alone excepted (it is a 1 point conversion ticket with unlimited stock).\nThe order is left to right, top card before bottom card, one of each per run; sold out or unaffordable cards are skipped."
     }
   },
   "LostswordTreasure": {

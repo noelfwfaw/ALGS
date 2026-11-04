@@ -206,6 +206,23 @@
       "Storage": {}
     }
   },
+  "HazeworldLogistics": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldLogistics",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldLogistics": {
+      "Filter": "全部",
+      "Purchases": "# 全部模式：除了下面排除的，货架上有什么买什么\n!盾币"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "LostswordTreasure": {
     "Scheduler": {
       "Enable": false,

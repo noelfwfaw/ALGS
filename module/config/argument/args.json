@@ -809,6 +809,66 @@
       }
     }
   },
+  "HazeworldLogistics": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "HazeworldLogistics",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "HazeworldLogistics": {
+      "Filter": {
+        "type": "select",
+        "value": "全部",
+        "option": [
+          "全部",
+          "自定义",
+          "不买"
+        ]
+      },
+      "Purchases": {
+        "type": "textarea",
+        "value": "# 全部模式：除了下面排除的，货架上有什么买什么\n!盾币"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "LostswordTreasure": {
     "Scheduler": {
       "Enable": {
