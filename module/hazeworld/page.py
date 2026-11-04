@@ -16,10 +16,12 @@ from module.hazeworld.assets import (BACK_ARROW, BATTLE_CORE_ENTRY,
                                      BATTLE_TAB_RESOURCE, BATTLE_TITLE,
                                      CORE_BTN_HOME, CORE_BTN_SWEEP,
                                      EX_TITLE_LABEL, FRIEND_TAB_LIST,
-                                     MAIL_BTN_CLAIM_ALL, MAIN_BTN_BATTLE,
+                                     MAIL_BTN_CLAIM_ALL, MALL_TITLE,
+                                     MAIN_BTN_BATTLE,
                                      MAIN_BTN_EXERCISE, MAIN_ICON_FRIEND,
                                      MAIN_ICON_MAIL, MAIN_ICON_PASS,
-                                     MAIN_ICON_ROOM, MAIN_ICON_TASK,
+                                     MAIN_ICON_ROOM, MAIN_ICON_SHOP,
+                                     MAIN_ICON_TASK,
                                      PASS_BTN_RESOURCE, PROFILE_MEMBER,
                                      ROOM_BTN_COLLECT_ALL,
                                      ROOM_BTN_EXPEDITION,
@@ -46,6 +48,10 @@ page_task = Page(TASK_POINT_LABEL)
 page_pass = Page(PASS_BTN_RESOURCE)
 page_friend = Page(FRIEND_TAB_LIST)
 page_mail = Page(MAIL_BTN_CLAIM_ALL)
+# The mall window covers the whole screen: its title is the only stable element
+# (the tabs switch, the goods scroll). The exchange shop is a tab of this page,
+# not a page of its own.
+page_mall = Page(MALL_TITLE)
 # The expedition panel is a modal, but it behaves like a page: its label stays
 # visible in every state, including under the result popup that covers the
 # panel title. It is declared before the room page because the two share the
@@ -83,6 +89,7 @@ page_main.link(button=MAIN_ICON_TASK, destination=page_task)
 page_main.link(button=MAIN_ICON_PASS, destination=page_pass)
 page_main.link(button=MAIN_ICON_FRIEND, destination=page_friend)
 page_main.link(button=MAIN_ICON_MAIL, destination=page_mail)
+page_main.link(button=MAIN_ICON_SHOP, destination=page_mall)
 page_main.link(button=MAIN_ICON_ROOM, destination=page_room)
 page_main.link(button=MAIN_BTN_EXERCISE, destination=page_exercise)
 page_main.link(button=SUPPORT_ENTRY, destination=page_profile)
@@ -97,8 +104,8 @@ page_battle_resource.link(button=BATTLE_CORE_ENTRY, destination=page_core)
 # chance to fire the next tap on a screen that is still fading.
 page_core.link(button=CORE_BTN_HOME, destination=page_main)
 
-for _page in [page_task, page_pass, page_friend, page_mail, page_room,
-              page_exercise, page_profile, page_battle, page_battle_resource]:
+for _page in [page_task, page_pass, page_friend, page_mail, page_mall,
+              page_room, page_exercise, page_profile, page_battle, page_battle_resource]:
     _page.link(button=BACK_ARROW, destination=page_main)
 page_expedition.link(button=BACK_ARROW, destination=page_room)
 page_support.link(button=BACK_ARROW, destination=page_profile)

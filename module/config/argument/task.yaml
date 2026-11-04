@@ -47,6 +47,9 @@ Hazeworld:
     HazeworldCore:
       - Scheduler
       - HazeworldCore
+    HazeworldShop:
+      - Scheduler
+      - HazeworldShop
 
 # ==================== Lost Sword ====================
 

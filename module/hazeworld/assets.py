@@ -21,6 +21,12 @@ CORE_TYPE_BURST = Button(area={'hazeworld': (1, 570, 10, 658)}, color={'hazeworl
 CORE_TYPE_CRIT = Button(area={'hazeworld': (1, 457, 10, 545)}, color={'hazeworld': (159, 136, 64)}, button={'hazeworld': (25, 465, 85, 515)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_TYPE_CRIT.png'})
 CORE_TYPE_LIFE = Button(area={'hazeworld': (1, 117, 10, 205)}, color={'hazeworld': (160, 133, 62)}, button={'hazeworld': (25, 135, 85, 185)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_TYPE_LIFE.png'})
 EXIT_CONFIRM = Button(area={'hazeworld': (585, 292, 695, 325)}, color={'hazeworld': (227, 227, 227)}, button={'hazeworld': (478, 373, 637, 432)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXIT_CONFIRM.png'})
+# The exchange shop of the mall: the top tab in its selected look (white text
+# over an orange underline; 1.000 selected, 0.631 not) and the first entry of
+# the left sidebar, 精英商店, also in its selected look (black plate with orange
+# corner brackets; 1.000 selected, 0.402 next to it on the mall home page).
+EXCHANGE_TAB_ELITE = Button(area={'hazeworld': (21, 209, 214, 266)}, color={'hazeworld': (21, 19, 18)}, button={'hazeworld': (21, 209, 214, 266)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXCHANGE_TAB_ELITE.png'})
+MALL_TAB_EXCHANGE = Button(area={'hazeworld': (655, 95, 835, 170)}, color={'hazeworld': (83, 66, 58)}, button={'hazeworld': (655, 95, 835, 170)}, file={'hazeworld': './assets/hazeworld/hazeworld/MALL_TAB_EXCHANGE.png'})
 EXP_BTN_CANCEL = Button(area={'hazeworld': (1040, 568, 1185, 606)}, color={'hazeworld': (69, 68, 69)}, button={'hazeworld': (1040, 568, 1185, 606)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_CANCEL.png'})
 EXP_BTN_RECOMMEND = Button(area={'hazeworld': (860, 566, 1012, 608)}, color={'hazeworld': (67, 67, 67)}, button={'hazeworld': (860, 566, 1012, 608)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_RECOMMEND.png'})
 EXP_BTN_START = Button(area={'hazeworld': (1040, 568, 1185, 606)}, color={'hazeworld': (50, 136, 234)}, button={'hazeworld': (1040, 568, 1185, 606)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_START.png'})
@@ -56,12 +62,18 @@ LOGIN_SIGN_IN = Button(area={'hazeworld': (1086, 614, 1222, 670)}, color={'hazew
 LOGIN_TOUCH_START = Button(area={'hazeworld': (525, 588, 775, 612)}, color={'hazeworld': (93, 90, 89)}, button={'hazeworld': (530, 592, 760, 628)}, file={'hazeworld': './assets/hazeworld/hazeworld/LOGIN_TOUCH_START.png'})
 MAIL_BTN_CLAIM = Button(area={'hazeworld': (1023, 628, 1177, 670)}, color={'hazeworld': (203, 118, 44)}, button={'hazeworld': (1023, 628, 1177, 670)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIL_BTN_CLAIM.png'})
 MAIL_BTN_CLAIM_ALL = Button(area={'hazeworld': (294, 645, 382, 670)}, color={'hazeworld': (93, 94, 91)}, button={'hazeworld': (294, 645, 382, 670)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIL_BTN_CLAIM_ALL.png'})
+# Title of the mall window, 「商城系统」 (1.000 on every mall tab, -0.06 on the
+# lobby) - the check button of page_mall.
+MALL_TITLE = Button(area={'hazeworld': (226, 16, 400, 66)}, color={'hazeworld': (60, 61, 58)}, button={'hazeworld': (226, 16, 400, 66)}, file={'hazeworld': './assets/hazeworld/hazeworld/MALL_TITLE.png'})
 MAIN_BTN_BATTLE = Button(area={'hazeworld': (1098, 650, 1145, 678)}, color={'hazeworld': (234, 147, 106)}, button={'hazeworld': (1068, 631, 1255, 692)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_BTN_BATTLE.png'})
 MAIN_BTN_EXERCISE = Button(area={'hazeworld': (1022, 566, 1175, 613)}, color={'hazeworld': (117, 151, 225)}, button={'hazeworld': (1022, 563, 1263, 613)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_BTN_EXERCISE.png'})
 MAIN_ICON_FRIEND = Button(area={'hazeworld': (1194, 361, 1232, 421)}, color={'hazeworld': (85, 79, 83)}, button={'hazeworld': (1194, 361, 1232, 421)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_ICON_FRIEND.png'})
 MAIN_ICON_MAIL = Button(area={'hazeworld': (1128, 25, 1154, 45)}, color={'hazeworld': (170, 167, 169)}, button={'hazeworld': (1128, 25, 1154, 45)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_ICON_MAIL.png'})
 MAIN_ICON_PASS = Button(area={'hazeworld': (1186, 88, 1226, 128)}, color={'hazeworld': (141, 120, 96)}, button={'hazeworld': (1186, 88, 1226, 128)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_ICON_PASS.png'})
 MAIN_ICON_ROOM = Button(area={'hazeworld': (37, 650, 85, 697)}, color={'hazeworld': (94, 94, 100)}, button={'hazeworld': (37, 650, 85, 697)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_ICON_ROOM.png'})
+# The mall entry of the bottom bar (1.000 on the lobby, -0.22 inside the mall,
+# where the bar is gone).
+MAIN_ICON_SHOP = Button(area={'hazeworld': (705, 656, 755, 690)}, color={'hazeworld': (114, 113, 118)}, button={'hazeworld': (700, 650, 760, 697)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_ICON_SHOP.png'})
 MAIN_ICON_TASK = Button(area={'hazeworld': (1201, 262, 1236, 302)}, color={'hazeworld': (160, 127, 123)}, button={'hazeworld': (1201, 262, 1236, 302)}, file={'hazeworld': './assets/hazeworld/hazeworld/MAIN_ICON_TASK.png'})
 PASS_BTN_RESOURCE = Button(area={'hazeworld': (900, 94, 1058, 137)}, color={'hazeworld': (57, 57, 58)}, button={'hazeworld': (900, 94, 1058, 137)}, file={'hazeworld': './assets/hazeworld/hazeworld/PASS_BTN_RESOURCE.png'})
 PASS_CLAIM_ALL = Button(area={'hazeworld': (1022, 634, 1225, 684)}, color={'hazeworld': (229, 132, 47)}, button={'hazeworld': (1022, 634, 1225, 684)}, file={'hazeworld': './assets/hazeworld/hazeworld/PASS_CLAIM_ALL.png'})
@@ -80,6 +92,11 @@ ROOM_EXP_CLAIM = Button(area={'hazeworld': (966, 576, 1078, 614)}, color={'hazew
 ROOM_EXP_PANEL_LABEL = Button(area={'hazeworld': (86, 88, 220, 116)}, color={'hazeworld': (154, 154, 152)}, button={'hazeworld': (86, 88, 220, 116)}, file={'hazeworld': './assets/hazeworld/hazeworld/ROOM_EXP_PANEL_LABEL.png'})
 ROOM_EXP_RESULT_CANCEL = Button(area={'hazeworld': (390, 566, 606, 615)}, color={'hazeworld': (61, 63, 61)}, button={'hazeworld': (390, 566, 606, 615)}, file={'hazeworld': './assets/hazeworld/hazeworld/ROOM_EXP_RESULT_CANCEL.png'})
 ROOM_TITLE_LABEL = Button(area={'hazeworld': (253, 26, 353, 56)}, color={'hazeworld': (169, 167, 185)}, button={'hazeworld': (253, 26, 353, 56)}, file={'hazeworld': './assets/hazeworld/hazeworld/ROOM_TITLE_LABEL.png'})
+# The purchase dialog of the shop: 「取消」 on the left, 「确认」 on the right.
+# Click-only buttons, nothing here is ever matched - the dialog itself is
+# detected by OCR over its title (shop.py).
+SHOP_DIALOG_CANCEL = Button(area={'hazeworld': (366, 479, 584, 521)}, color={'hazeworld': (170, 84, 87)}, button={'hazeworld': (366, 479, 584, 521)}, file=None)
+SHOP_DIALOG_CONFIRM = Button(area={'hazeworld': (685, 479, 903, 521)}, color={'hazeworld': (53, 53, 55)}, button={'hazeworld': (685, 479, 903, 521)}, file=None)
 SUPPORT_CARD = Button(area={'hazeworld': (45, 435, 130, 530)}, color={'hazeworld': (108, 92, 94)}, button={'hazeworld': (45, 435, 130, 530)}, file={'hazeworld': './assets/hazeworld/hazeworld/SUPPORT_CARD.png'})
 SUPPORT_CLAIM_1 = Button(area={'hazeworld': (248, 248, 356, 282)}, color={'hazeworld': (67, 68, 64)}, button={'hazeworld': (248, 248, 356, 282)}, file={'hazeworld': './assets/hazeworld/hazeworld/SUPPORT_CLAIM_1.png'})
 SUPPORT_CLAIM_2 = Button(area={'hazeworld': (248, 393, 356, 427)}, color={'hazeworld': (66, 66, 60)}, button={'hazeworld': (248, 393, 356, 427)}, file={'hazeworld': './assets/hazeworld/hazeworld/SUPPORT_CLAIM_2.png'})

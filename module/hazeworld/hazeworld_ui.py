@@ -46,8 +46,9 @@ class HazeworldUI(Claim, Boot, UI):
     # with every other game, and their check points only exist in their own
     # asset namespace.
     pages = (page_main, page_task, page_pass, page_friend, page_mail,
-             page_expedition, page_room, page_exercise, page_profile,
-             page_support, page_battle_resource, page_battle, page_core)
+             page_mall, page_expedition, page_room, page_exercise,
+             page_profile, page_support, page_battle_resource, page_battle,
+             page_core)
 
     def ui_loading_appear(self):
         """

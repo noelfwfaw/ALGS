@@ -154,6 +154,10 @@ HazeworldCore:
     value: None
     option: [ None, Life, Attack, Armor, Critical, Burst ]
   SweepCount: 0
+HazeworldShop:
+  Purchases:
+    type: input
+    value: 残响>调度券>自选水晶>核心>绝密报告>能量合剂>!盾币>!演习券
 
 # ==================== Lost Sword ====================
 

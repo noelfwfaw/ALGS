@@ -62,6 +62,10 @@
       "name": "Core material",
       "help": "Sweep core material stages in the resource dungeon, spends stamina"
     },
+    "HazeworldShop": {
+      "name": "Task.HazeworldShop.name",
+      "help": "Task.HazeworldShop.help"
+    },
     "LostswordTreasure": {
       "name": "Treasure",
       "help": "Claim the idle rewards and use the free quick explore"
@@ -558,6 +562,16 @@
     "SweepCount": {
       "name": "Sweep count",
       "help": "0 presses \"MAX\" and spends every bit of stamina, a positive number sweeps exactly that many runs. A count the stamina cannot pay for is reduced to what it pays for, and a run without a single run worth of stamina is skipped.\nThe stage is whatever the game has selected, pick it in game first, the script does not change it"
+    }
+  },
+  "HazeworldShop": {
+    "_info": {
+      "name": "Elite Shop",
+      "help": "Buys from Mall > Exchange Shop > Elite Shop once a week. Items are bought left to right, top before bottom within a column, one purchase each; sold-out cards are skipped. Most goods reset monthly, but a weekly visit catches weekly restocks."
+    },
+    "Purchases": {
+      "name": "Shopping List",
+      "help": "A filter like the AzurLane one: entries separated by >, matched as substrings of the item name; prefix an entry with ! to exclude it. By default it buys echoes, dispatch tickets, crystal boxes, core items, classified reports and energy mixtures, and skips Shield Coins and Elite Ladder Tickets. Leave empty to buy nothing."
     }
   },
   "LostswordTreasure": {

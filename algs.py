@@ -83,6 +83,10 @@ class AlGS(GameScheduler):
         from module.hazeworld.core import HazeworldCore
         HazeworldCore(config=self.config, device=self.device).run()
 
+    def hazeworld_shop(self):
+        from module.hazeworld.shop import HazeworldShop
+        HazeworldShop(config=self.config, device=self.device).run()
+
     # ==================== Lost Sword (失落之剑) ====================
 
     def lostsword_mail(self):

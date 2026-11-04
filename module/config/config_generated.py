@@ -85,6 +85,9 @@ class GeneratedConfig:
     HazeworldCore_Sunday = 'None'  # None, Life, Attack, Armor, Critical, Burst
     HazeworldCore_SweepCount = 0
 
+    # Group `HazeworldShop`
+    HazeworldShop_Purchases = '残响>调度券>自选水晶>核心>绝密报告>能量合剂>!盾币>!演习券'
+
     # Group `LostswordTreasure`
     LostswordTreasure_Claim = True
     LostswordTreasure_Quick = True
