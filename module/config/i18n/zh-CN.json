@@ -21,8 +21,8 @@
       "help": "卡厄思梦境的日常任务（目前只有「唤起」）"
     },
     "Crosscore": {
-      "name": "Menu.Crosscore.name",
-      "help": "Menu.Crosscore.help"
+      "name": "交错战线",
+      "help": "交错战线的日常任务（目前只有「启动游戏」）"
     }
   },
   "Task": {
@@ -859,8 +859,8 @@
       "help": "存放任务内部状态，任务异常时可以手动清除"
     },
     "Storage": {
-      "name": "Storage.Storage.name",
-      "help": "Storage.Storage.help"
+      "name": "状态存档",
+      "help": "任务运行时写入的内部状态，正常运行中不要手改；任务行为异常时清空它"
     }
   },
   "Gui": {

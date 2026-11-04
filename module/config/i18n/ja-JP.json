@@ -21,8 +21,8 @@
       "help": "カオスゼロナイトメアのデイリータスク（今は起動タスクのみ）"
     },
     "Crosscore": {
-      "name": "Menu.Crosscore.name",
-      "help": "Menu.Crosscore.help"
+      "name": "クロスコア",
+      "help": "クロスコアのデイリータスク（今は起動タスクのみ）"
     }
   },
   "Task": {
@@ -201,49 +201,49 @@
   },
   "Scheduler": {
     "_info": {
-      "name": "Scheduler._info.name",
-      "help": "Scheduler._info.help"
+      "name": "スケジューラー",
+      "help": ""
     },
     "Enable": {
-      "name": "Scheduler.Enable.name",
-      "help": "Scheduler.Enable.help",
-      "True": "True",
-      "False": "False"
+      "name": "このタスクを有効にする",
+      "help": "タスクをスケジューラーに登録します\n委託・研究・収穫タスクは強制的に有効です",
+      "True": "有効",
+      "False": "無効"
     },
     "NextRun": {
-      "name": "Scheduler.NextRun.name",
-      "help": "Scheduler.NextRun.help"
+      "name": "次回実行",
+      "help": "タスク完了後に次回実行時刻が自動で更新されます。通常は手動で変更する必要はありません\nテキストを空にすると即時実行になります"
     },
     "Command": {
-      "name": "Scheduler.Command.name",
-      "help": "Scheduler.Command.help"
+      "name": "コマンド",
+      "help": ""
     },
     "SuccessInterval": {
-      "name": "Scheduler.SuccessInterval.name",
-      "help": "Scheduler.SuccessInterval.help"
+      "name": "成功時の間隔",
+      "help": "成功後、次回実行を X 分延期します"
     },
     "FailureInterval": {
-      "name": "Scheduler.FailureInterval.name",
-      "help": "Scheduler.FailureInterval.help"
+      "name": "失敗時の間隔",
+      "help": "失敗後、次回実行を X 分延期します"
     },
     "ServerUpdate": {
-      "name": "Scheduler.ServerUpdate.name",
-      "help": "Scheduler.ServerUpdate.help"
+      "name": "サーバー更新時刻",
+      "help": "このタスクを次に実行するサーバー更新時刻です。タイムゾーンは自動で変換されるため、通常は変更不要です"
     }
   },
   "Emulator": {
     "_info": {
-      "name": "Emulator._info.name",
-      "help": "Emulator._info.help"
+      "name": "エミュレーター設定",
+      "help": ""
     },
     "Serial": {
-      "name": "Emulator.Serial.name",
-      "help": "Emulator.Serial.help"
+      "name": "エミュレーターの Serial",
+      "help": "よく使うエミュレーターの Serial は下の一覧で確認できます\n\"auto\" で自動検出しますが、複数のエミュレーターが起動している場合や自動検出に未対応のエミュレーターでは \"auto\" は使えず、手動で入力する必要があります\n\n既定の Serial：\n- BlueStacks 127.0.0.1:5555\n- BlueStacks4 Hyper-V は \"bluestacks4-hyperv\"、マルチインスタンスは \"bluestacks4-hyperv-2\" のように指定\n- BlueStacks5 Hyper-V は \"bluestacks5-hyperv\"、マルチインスタンスは \"bluestacks5-hyperv-1\" のように指定\n- NoxPlayer 127.0.0.1:62001\n- NoxPlayer64bit 127.0.0.1:59865\n- MuMuPlayer/MuMuPlayer X 127.0.0.1:7555\n- MuMuPlayer12 127.0.0.1:16384\n- MEmuPlayer 127.0.0.1:21503\n- LDPlayer emulator-5554 または 127.0.0.1:5555\nマルチインスタンスで起動している場合、Serial は既定値と異なります。console.bat で `adb devices` を実行するか、エミュレーターの公式手順に従って確認してください"
     },
     "PackageName": {
-      "name": "Emulator.PackageName.name",
-      "help": "起動時に最初に開くゲーム。以降はスケジューラがタスクに応じて自動で切り替えるため、インストール済みのものを1つ選べばよい（複数入っていると「自動検出」は判断できない）",
-      "auto": "auto",
+      "name": "ゲーム（起動するクライアント）",
+      "help": "起動時に最初に開くゲームです。以降はスケジューラーがタスクごとに自動で切り替えるため、インストール済みのものを1つ選べば十分です。複数のクライアントが入っていると「自動検出」では判断できません",
+      "auto": "自動検出",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
       "com.neowizgames.game.browndust2": "BROWNDUST",
@@ -251,9 +251,9 @@
       "com.megagame.crosscore": "CROSSCORE"
     },
     "ServerName": {
-      "name": "Emulator.ServerName.name",
-      "help": "Emulator.ServerName.help",
-      "disabled": "disabled",
+      "name": "ゲーム内サーバー",
+      "help": "ゲーム内のサーバーを選択するとサーバー状態の監視が有効になります\nメンテナンス中やネットワーク不通のときは復旧まで待機します",
+      "disabled": "検出しない",
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
       "browndust-0": "[BROWNDUST] default",
@@ -261,9 +261,9 @@
       "crosscore-0": "[CROSSCORE] default"
     },
     "ScreenshotMethod": {
-      "name": "Emulator.ScreenshotMethod.name",
-      "help": "Emulator.ScreenshotMethod.help",
-      "auto": "auto",
+      "name": "スクリーンショット方式",
+      "help": "自動選択では一度ベンチマークを実行し、最速の方式に切り替えます\n一般的な速度: DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB\nツール - パフォーマンステスト で最速の方式を確認できます",
+      "auto": "最速を自動選択",
       "ADB": "ADB",
       "ADB_nc": "ADB_nc",
       "uiautomator2": "uiautomator2",
@@ -275,8 +275,8 @@
       "ldopengl": "ldopengl"
     },
     "ControlMethod": {
-      "name": "Emulator.ControlMethod.name",
-      "help": "Emulator.ControlMethod.help",
+      "name": "操作方式",
+      "help": "速度: minitouch > Hermit >>> uiautomator2 ~= ADB\nminitouch を推奨。vmos 以外では Hermit は非推奨",
       "ADB": "ADB",
       "uiautomator2": "uiautomator2",
       "minitouch": "minitouch",
@@ -284,23 +284,23 @@
       "MaaTouch": "MaaTouch"
     },
     "ScreenshotDedithering": {
-      "name": "Emulator.ScreenshotDedithering.name",
-      "help": "Emulator.ScreenshotDedithering.help"
+      "name": "画像のディザリングを除去",
+      "help": "スマートフォンで実行する場合に有効にします"
     },
     "AdbRestart": {
-      "name": "Emulator.AdbRestart.name",
-      "help": "Emulator.AdbRestart.help"
+      "name": "デバイスが見つからないとき adb を再起動する",
+      "help": ""
     }
   },
   "EmulatorInfo": {
     "_info": {
-      "name": "EmulatorInfo._info.name",
-      "help": "EmulatorInfo._info.help"
+      "name": "エミュレーター設定",
+      "help": "以下の値は Serial から自動入力されます。分からない場合は変更しないでください"
     },
     "Emulator": {
-      "name": "EmulatorInfo.Emulator.name",
-      "help": "EmulatorInfo.Emulator.help",
-      "auto": "auto",
+      "name": "エミュレーターの種類",
+      "help": "",
+      "auto": "自動検出",
       "NoxPlayer": "NoxPlayer",
       "NoxPlayer64": "NoxPlayer64",
       "BlueStacks4": "BlueStacks4",
@@ -317,69 +317,69 @@
       "MEmuPlayer": "MEmuPlayer"
     },
     "name": {
-      "name": "EmulatorInfo.name.name",
-      "help": "EmulatorInfo.name.help"
+      "name": "エミュレーターのインスタンス名",
+      "help": ""
     },
     "path": {
-      "name": "EmulatorInfo.path.name",
-      "help": "EmulatorInfo.path.help"
+      "name": "エミュレーターのインストール先",
+      "help": ""
     }
   },
   "Error": {
     "_info": {
-      "name": "Error._info.name",
-      "help": "Error._info.help"
+      "name": "デバッグ設定",
+      "help": ""
     },
     "HandleError": {
-      "name": "Error.HandleError.name",
-      "help": "Error.HandleError.help"
+      "name": "例外処理を有効にする",
+      "help": "一部の例外を処理します。戦闘中なら撤退します"
     },
     "SaveError": {
-      "name": "Error.SaveError.name",
-      "help": "Error.SaveError.help"
+      "name": "例外発生時にログとスクリーンショットを保存",
+      "help": ""
     },
     "OnePushConfig": {
-      "name": "Error.OnePushConfig.name",
-      "help": "Error.OnePushConfig.help"
+      "name": "エラー通知の設定",
+      "help": "処理できない例外が発生したとき、Onepush でエラーを通知します。設定方法: https://github.com/LmeSzinc/AzurLaneAutoScript/wiki/Onepush-configuration-%5BEN%5D"
     },
     "ScreenshotLength": {
-      "name": "Error.ScreenshotLength.name",
-      "help": "Error.ScreenshotLength.help"
+      "name": "例外発生時に残すスクリーンショットの枚数",
+      "help": ""
     }
   },
   "Optimization": {
     "_info": {
-      "name": "Optimization._info.name",
-      "help": "Optimization._info.help"
+      "name": "最適化設定",
+      "help": ""
     },
     "ScreenshotInterval": {
-      "name": "Optimization.ScreenshotInterval.name",
-      "help": "Optimization.ScreenshotInterval.help"
+      "name": "スクリーンショットの間隔（秒）",
+      "help": "2 回のスクリーンショットの最小間隔。0.1〜0.3 の範囲で指定でき、高性能な PC では CPU 負荷を下げられます"
     },
     "CombatScreenshotInterval": {
-      "name": "Optimization.CombatScreenshotInterval.name",
-      "help": "Optimization.CombatScreenshotInterval.help"
+      "name": "戦闘中のスクリーンショット間隔（秒）",
+      "help": "2 回のスクリーンショットの最小間隔。0.3〜1.0 の範囲で指定でき、戦闘中の CPU 負荷を下げられます"
     },
     "TaskHoardingDuration": {
-      "name": "Optimization.TaskHoardingDuration.name",
-      "help": "Optimization.TaskHoardingDuration.help"
+      "name": "タスクを X 分溜めてから実行",
+      "help": "実行可能なタスクをあえて保留し、まとめて実行します\nAlas を操作する頻度を減らせます"
     },
     "WhenTaskQueueEmpty": {
-      "name": "Optimization.WhenTaskQueueEmpty.name",
-      "help": "Optimization.WhenTaskQueueEmpty.help",
-      "stay_there": "stay_there",
-      "goto_main": "goto_main",
-      "close_game": "close_game"
+      "name": "タスクキューが空になったら",
+      "help": "実行待ちのタスクがないときにゲームを閉じます。CPU 負荷を下げられます",
+      "stay_there": "そのまま",
+      "goto_main": "メイン画面へ",
+      "close_game": "ゲームを閉じる"
     }
   },
   "DropRecord": {
     "_info": {
-      "name": "DropRecord._info.name",
-      "help": "DropRecord._info.help"
+      "name": "ドロップ記録の設定",
+      "help": ""
     },
     "SaveFolder": {
-      "name": "DropRecord.SaveFolder.name",
-      "help": "DropRecord.SaveFolder.help"
+      "name": "ドロップの保存先",
+      "help": ""
     }
   },
   "HazeworldTask": {
@@ -855,12 +855,12 @@
   },
   "Storage": {
     "_info": {
-      "name": "Storage._info.name",
-      "help": "Storage._info.help"
+      "name": "タスク状態",
+      "help": "タスクの内部状態を保存します。タスクが異常なときは手動でクリアしてください"
     },
     "Storage": {
-      "name": "Storage.Storage.name",
-      "help": "Storage.Storage.help"
+      "name": "状態ストレージ",
+      "help": "タスク実行中に書き込まれる内部状態。異常時以外は手で編集しないでください"
     }
   },
   "Gui": {

@@ -21,8 +21,8 @@
       "help": "卡厄思夢境的日常任務（目前只有「喚起」）"
     },
     "Crosscore": {
-      "name": "Menu.Crosscore.name",
-      "help": "Menu.Crosscore.help"
+      "name": "交錯戰線",
+      "help": "交錯戰線的日常任務（目前只有「啟動遊戲」）"
     }
   },
   "Task": {
@@ -251,8 +251,8 @@
       "com.megagame.crosscore": "CROSSCORE"
     },
     "ServerName": {
-      "name": "Emulator.ServerName.name",
-      "help": "Emulator.ServerName.help",
+      "name": "遊戲內伺服器",
+      "help": "選擇遊戲內所在的伺服器以啟用伺服器狀態檢測\n當伺服器維護或網路不可用時掛起直到恢復",
       "disabled": "不使用檢測",
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
@@ -859,8 +859,8 @@
       "help": "存放任務內部狀態，任務異常時可以手動清除"
     },
     "Storage": {
-      "name": "Storage.Storage.name",
-      "help": "Storage.Storage.help"
+      "name": "狀態存檔",
+      "help": "任務執行時寫入的內部狀態，正常執行中不要手改；任務行為異常時清空它"
     }
   },
   "Gui": {

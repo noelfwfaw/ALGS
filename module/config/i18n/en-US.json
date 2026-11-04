@@ -21,8 +21,8 @@
       "help": "Daily tasks of Chaos Zero Nightmare (only the launch task so far)"
     },
     "Crosscore": {
-      "name": "Menu.Crosscore.name",
-      "help": "Menu.Crosscore.help"
+      "name": "Cross Core",
+      "help": "Daily tasks of Cross Core (only the launch task so far)"
     }
   },
   "Task": {
@@ -859,8 +859,8 @@
       "help": "Store internal status of the task. Clear manually when the task is abnormal"
     },
     "Storage": {
-      "name": "Storage.Storage.name",
-      "help": "Storage.Storage.help"
+      "name": "State storage",
+      "help": "Internal state written while the task runs; do not edit it by hand, clear it if the task misbehaves"
     }
   },
   "Gui": {
