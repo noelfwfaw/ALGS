@@ -73,15 +73,15 @@ LostswordTask:
 LostswordSummon:
   Scheduler:
     ServerUpdate: 00:00
-# 兑换码 runs on the wiki's clock, not the game's: the site posts new codes in the
-# morning (KST), so the task reads it at 10:00 and then not again until tomorrow.
+# 兑换码 follows the game day like every other task of this game (user,
+# 2026-11-04: align it with the daily reset). The code list only ever returns
+# codes that have not expired yet, so the hour only decides how soon a new code
+# is noticed - the reset hour is the earliest sensible slot.
 LostswordRedeem:
   Scheduler:
-    # Quoted on purpose: YAML reads a bare `10:00` as the sexagesimal number 600,
-    # and the generator then refuses it as "not a string". Other tasks of this
-    # file all start with a zero (`00:00`, `05:00`), which is why this never
-    # showed up before.
-    ServerUpdate: '10:00'
+    # Quoted on purpose: a bare `10:00` is read as the sexagesimal number 600,
+    # and the generator then refuses it as "not a string".
+    ServerUpdate: '00:00'
 
 # ==================== Brown Dust II (棕色尘埃2) ====================
 
@@ -110,7 +110,7 @@ BrowndustPass:
     ServerUpdate: 08:00
 BrowndustRedeem:
   Scheduler:
-    # Quoted on purpose: YAML reads a bare `10:30` as the sexagesimal number 630,
-    # and the generator then refuses it as "not a string". 10:30 keeps this task
-    # off the daily-reset rush and an hour after the 失落之剑 one.
-    ServerUpdate: '10:30'
+    # Follows the 08:00 reset of this game like the other tasks (user,
+    # 2026-11-04). Quoted for the same reason as above: a bare `08:00` is fine
+    # but a bare `10:30` would not be.
+    ServerUpdate: '08:00'

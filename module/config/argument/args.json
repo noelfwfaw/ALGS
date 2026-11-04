@@ -1615,7 +1615,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "10:00",
+        "value": "00:00",
         "display": "hide"
       }
     },
@@ -2047,7 +2047,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "10:30",
+        "value": "08:00",
         "display": "hide"
       }
     },
