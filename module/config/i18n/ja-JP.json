@@ -19,6 +19,10 @@
     "Chaoszero": {
       "name": "カオスゼロナイトメア",
       "help": "カオスゼロナイトメアのデイリータスク（今は起動タスクのみ）"
+    },
+    "Crosscore": {
+      "name": "Menu.Crosscore.name",
+      "help": "Menu.Crosscore.help"
     }
   },
   "Task": {
@@ -189,6 +193,10 @@
     "ChaoszeroDaily": {
       "name": "デイリー受取（ミッション + メール）",
       "help": "右上のメニューから二つ：① 日常任務 →「當日行程」の「全部領取」で報酬をまとめて回収；② メニューを開くと右端に出る縦並びボタンの封筒 →「信箱」で添付のあるメールを全部受け取る。どちらもオレンジ＝未受取、グレー＝受取済み。受取専用で、ミッション自体は 模擬 / 方舟都市 がこなす"
+    },
+    "CrosscoreMain": {
+      "name": "ゲーム起動",
+      "help": "コールドスタート・タイトル画面・サブ画面からメイン画面まで進める。報酬は受け取らない"
     }
   },
   "Scheduler": {
@@ -239,7 +247,8 @@
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
       "com.neowizgames.game.browndust2": "BROWNDUST",
-      "com.smilegate.chaoszero.stove.google": "CHAOSZERO"
+      "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
+      "com.megagame.crosscore": "CROSSCORE"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
@@ -248,7 +257,8 @@
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
       "browndust-0": "[BROWNDUST] default",
-      "chaoszero-0": "[CHAOSZERO] default"
+      "chaoszero-0": "[CHAOSZERO] default",
+      "crosscore-0": "[CROSSCORE] default"
     },
     "ScreenshotMethod": {
       "name": "Emulator.ScreenshotMethod.name",

@@ -19,6 +19,10 @@
     "Chaoszero": {
       "name": "卡厄思夢境",
       "help": "卡厄思夢境的日常任務（目前只有「喚起」）"
+    },
+    "Crosscore": {
+      "name": "Menu.Crosscore.name",
+      "help": "Menu.Crosscore.help"
     }
   },
   "Task": {
@@ -189,6 +193,10 @@
     "ChaoszeroDaily": {
       "name": "日常領取（日常任務 + 信箱）",
       "help": "點主畫面右上角選單，做兩件事：① 日常任務 →「當日行程」把能領的獎勵一次領完；② 選單打開後最右側那列直排按鈕裡的信封 →「信箱」，把有附件的信全部領掉。兩處都是橘色沒領完、灰白表示今天領完了。只領不做：清單裡的任務由 模擬 / 方舟都市 去完成"
+    },
+    "CrosscoreMain": {
+      "name": "啟動遊戲",
+      "help": "把客戶端從冷啟動、標題畫面或二級頁面帶到主畫面，不領取任何獎勵。後面所有任務都從這一頁開始"
     }
   },
   "Scheduler": {
@@ -239,7 +247,8 @@
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
       "com.neowizgames.game.browndust2": "BROWNDUST",
-      "com.smilegate.chaoszero.stove.google": "CHAOSZERO"
+      "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
+      "com.megagame.crosscore": "CROSSCORE"
     },
     "ServerName": {
       "name": "Emulator.ServerName.name",
@@ -248,7 +257,8 @@
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
       "browndust-0": "[BROWNDUST] default",
-      "chaoszero-0": "[CHAOSZERO] default"
+      "chaoszero-0": "[CHAOSZERO] default",
+      "crosscore-0": "[CROSSCORE] default"
     },
     "ScreenshotMethod": {
       "name": "模擬器截圖方案",

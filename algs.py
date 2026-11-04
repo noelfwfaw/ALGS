@@ -28,6 +28,7 @@ class AlGS(GameScheduler):
         'lostsword': ('module.lostsword.lostsword_ui', 'LostswordUI'),
         'browndust': ('module.browndust.browndust_ui', 'BrowndustUI'),
         'chaoszero': ('module.chaoszero.chaoszero_ui', 'ChaoszeroUI'),
+        'crosscore': ('module.crosscore.crosscore_ui', 'CrosscoreUI'),
     }
 
     @property
@@ -222,6 +223,13 @@ class AlGS(GameScheduler):
         # 日常任務：當日行程的「全部領取」。
         from module.chaoszero.daily import ChaoszeroDaily
         ChaoszeroDaily(config=self.config, device=self.device).run()
+
+    # ==================== Cross Core (交错战线) ====================
+
+    def crosscore_main(self):
+        # 唤起：把客户端从任意一屏带到主界面。这个游戏的其它任务都排在它后面。
+        from module.crosscore.main import CrosscoreMain
+        CrosscoreMain(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

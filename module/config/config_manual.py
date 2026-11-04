@@ -52,6 +52,7 @@ class ManualConfig:
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
     > ChaoszeroSimulation > ChaoszeroArk > ChaoszeroDaily > ChaoszeroMain
+    > CrosscoreMain
     """
 
     """

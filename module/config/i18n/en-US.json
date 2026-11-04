@@ -19,6 +19,10 @@
     "Chaoszero": {
       "name": "Chaos Zero Nightmare",
       "help": "Daily tasks of Chaos Zero Nightmare (only the launch task so far)"
+    },
+    "Crosscore": {
+      "name": "Menu.Crosscore.name",
+      "help": "Menu.Crosscore.help"
     }
   },
   "Task": {
@@ -189,6 +193,10 @@
     "ChaoszeroDaily": {
       "name": "Daily claim (missions + mailbox)",
       "help": "Opens the top-right menu and does two things: (1) 日常任務 → the 全部領取 button of 當日行程; (2) the envelope in the vertical column that appears on the right edge once the menu is open → 信箱, then 全部領取 there. Both buttons are orange while something is left and grey once done. It only claims - the missions themselves are done by the 模擬 and 方舟都市 tasks"
+    },
+    "CrosscoreMain": {
+      "name": "Launch game",
+      "help": "Bring the client from a cold start, the title screen or a sub page to the main page, claiming nothing. Every other task of this game starts from there"
     }
   },
   "Scheduler": {
@@ -239,7 +247,8 @@
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
       "com.neowizgames.game.browndust2": "BROWNDUST",
-      "com.smilegate.chaoszero.stove.google": "CHAOSZERO"
+      "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
+      "com.megagame.crosscore": "CROSSCORE"
     },
     "ServerName": {
       "name": "Server in Game Client",
@@ -248,7 +257,8 @@
       "hazeworld-0": "[HAZEWORLD] default",
       "lostsword-0": "[LOSTSWORD] default",
       "browndust-0": "[BROWNDUST] default",
-      "chaoszero-0": "[CHAOSZERO] default"
+      "chaoszero-0": "[CHAOSZERO] default",
+      "crosscore-0": "[CROSSCORE] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",

@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -31,6 +31,9 @@ VALID_PACKAGE = {
     # 卡厄思梦境 (Chaos Zero Nightmare), Smilegate / SUPER CREATIVE, STOVE 客户端.
     # 中文社区也写作「卡厄思梦镜」，同一个包。
     'com.smilegate.chaoszero.stove.google': 'chaoszero',
+    # 交错战线 (Cross Core), MegaGame / 广州米茹科技. 广告上写「交错战线」，包名带
+    # crosscore，`adb shell pm list packages` 读出来的，不是猜的。
+    'com.megagame.crosscore': 'crosscore',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -42,6 +45,7 @@ VALID_SERVER_LIST = {
     'lostsword': ['default'],
     'browndust': ['default'],
     'chaoszero': ['default'],
+    'crosscore': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

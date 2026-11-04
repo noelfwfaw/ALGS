@@ -145,3 +145,12 @@ Chaoszero:
       - ChaoszeroArk
     ChaoszeroDaily:
       - Scheduler
+
+# ==================== Cross Core (交错战线) ====================
+
+Crosscore:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    CrosscoreMain:
+      - Scheduler

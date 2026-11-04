@@ -70,5 +70,12 @@
       "ChaoszeroArk",
       "ChaoszeroDaily"
     ]
+  },
+  "Crosscore": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "CrosscoreMain"
+    ]
   }
 }
