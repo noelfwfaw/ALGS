@@ -176,6 +176,17 @@ HazeworldLogistics:
       # 全部模式：除了下面排除的，货架上有什么买什么
       !盾币
 
+HazeworldHonor:
+  Filter:
+    type: select
+    value: 自定义
+    option: [ 全部, 自定义, 不买 ]
+  Purchases:
+    type: textarea
+    value: |-
+      # 只买货架第一格，正常是定向调度券；名字对不上就不买
+      定向调度券
+
 # ==================== Lost Sword ====================
 
 LostswordTreasure:

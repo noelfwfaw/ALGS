@@ -32,6 +32,10 @@ EXCHANGE_TAB_ELITE = Button(area={'hazeworld': (21, 209, 214, 266)}, color={'haz
 # is the elite one moved down by the row pitch.
 EXCHANGE_TAB_LOGISTICS = Button(area={'hazeworld': (21, 386, 214, 436)}, color={'hazeworld': (54, 44, 35)}, button={'hazeworld': (21, 386, 214, 436)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXCHANGE_TAB_LOGISTICS.png'})
 MALL_TAB_EXCHANGE = Button(area={'hazeworld': (655, 95, 835, 170)}, color={'hazeworld': (83, 66, 58)}, button={'hazeworld': (655, 95, 835, 170)}, file={'hazeworld': './assets/hazeworld/hazeworld/MALL_TAB_EXCHANGE.png'})
+# The tab one seat right of 兑换商店; its selected look carries the orange
+# underline at y 173-176, which the area includes so it can not be mistaken
+# for the neighbouring tabs.
+MALL_TAB_HONOR = Button(area={'hazeworld': (835, 95, 1011, 176)}, color={'hazeworld': (78, 56, 45)}, button={'hazeworld': (835, 95, 1011, 176)}, file={'hazeworld': './assets/hazeworld/hazeworld/MALL_TAB_HONOR.png'})
 EXP_BTN_CANCEL = Button(area={'hazeworld': (1040, 568, 1185, 606)}, color={'hazeworld': (69, 68, 69)}, button={'hazeworld': (1040, 568, 1185, 606)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_CANCEL.png'})
 EXP_BTN_RECOMMEND = Button(area={'hazeworld': (860, 566, 1012, 608)}, color={'hazeworld': (67, 67, 67)}, button={'hazeworld': (860, 566, 1012, 608)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_RECOMMEND.png'})
 EXP_BTN_START = Button(area={'hazeworld': (1040, 568, 1185, 606)}, color={'hazeworld': (50, 136, 234)}, button={'hazeworld': (1040, 568, 1185, 606)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXP_BTN_START.png'})

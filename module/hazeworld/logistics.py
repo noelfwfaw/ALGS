@@ -13,7 +13,7 @@ Prices are read off the same white strip as in the elite shop; the card grid,
 the OCR and the filter are the shared engine.
 """
 
-from module.hazeworld.assets import EXCHANGE_TAB_LOGISTICS
+from module.hazeworld.assets import EXCHANGE_TAB_LOGISTICS, MALL_TAB_EXCHANGE
 from module.hazeworld.shop_base import HazeworldShopBase
 
 # The balance of the logistics currency, in the top bar right of the gold slot.
@@ -29,7 +29,7 @@ class HazeworldLogistics(HazeworldShopBase):
     """商城 → 兑换商店 → 后勤商店，每周一次。"""
 
     SHOP_TITLE = 'Logistics shop'
-    TAB = EXCHANGE_TAB_LOGISTICS
+    SHOP_PATH = (MALL_TAB_EXCHANGE, EXCHANGE_TAB_LOGISTICS)
     CONFIG_TASK = 'HazeworldLogistics'
     CURRENCY_AREA = SHOP_LOGISTICS_BALANCE
     CURRENCY_UNITS = SHOP_LOGISTICS_UNITS

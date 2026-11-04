@@ -223,6 +223,23 @@
       "Storage": {}
     }
   },
+  "HazeworldHonor": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "HazeworldHonor",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "HazeworldHonor": {
+      "Filter": "自定义",
+      "Purchases": "# 只买货架第一格，正常是定向调度券；名字对不上就不买\n定向调度券"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "LostswordTreasure": {
     "Scheduler": {
       "Enable": false,

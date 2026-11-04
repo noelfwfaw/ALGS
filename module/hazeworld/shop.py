@@ -12,7 +12,7 @@ the titles, the filter, the purchase dialog - is the shared engine in
 月更，但精英演习券一类每周补货，所以本任务每周跑一次（下周一 05:00）。
 """
 
-from module.hazeworld.assets import EXCHANGE_TAB_ELITE
+from module.hazeworld.assets import EXCHANGE_TAB_ELITE, MALL_TAB_EXCHANGE
 from module.hazeworld.shop_base import HazeworldShopBase
 
 
@@ -20,7 +20,7 @@ class HazeworldShop(HazeworldShopBase):
     """商城 → 兑换商店 → 精英商店，每周一次。"""
 
     SHOP_TITLE = 'Elite shop'
-    TAB = EXCHANGE_TAB_ELITE
+    SHOP_PATH = (MALL_TAB_EXCHANGE, EXCHANGE_TAB_ELITE)
     CONFIG_TASK = 'HazeworldShop'
 
     def run(self):

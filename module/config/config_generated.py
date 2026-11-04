@@ -93,6 +93,10 @@ class GeneratedConfig:
     HazeworldLogistics_Filter = '全部'  # 全部, 自定义, 不买
     HazeworldLogistics_Purchases = '# 全部模式：除了下面排除的，货架上有什么买什么\n!盾币'
 
+    # Group `HazeworldHonor`
+    HazeworldHonor_Filter = '自定义'  # 全部, 自定义, 不买
+    HazeworldHonor_Purchases = '# 只买货架第一格，正常是定向调度券；名字对不上就不买\n定向调度券'
+
     # Group `LostswordTreasure`
     LostswordTreasure_Claim = True
     LostswordTreasure_Quick = True

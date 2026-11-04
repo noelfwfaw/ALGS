@@ -1,12 +1,12 @@
-"""The engine behind the sub shops of the exchange shop (商城 → 兑换商店).
+"""The engine behind the shops of 商城 (商城系统 → 兑换商店 / 荣誉凭证).
 
-Every sub shop of the mall is the same screen with a different left sidebar
-entry selected: 精英商店, 调度商店, 后勤商店 and so on. They all show a two-row
-grid that scrolls sideways and they all sell through the same purchase dialog.
-Only three things differ between them, and that is exactly what a subclass
-sets:
+The shops of the mall are all the same screen with a different tab and sidebar
+entry selected: 精英商店 and 后勤商店 behind 兑换商店, and 荣誉凭证 one tab to
+their right. They all show a two-row grid that scrolls sideways and they all
+sell through the same purchase dialog. Only these things differ between them,
+and that is exactly what a subclass sets:
 
-- `TAB`: the sidebar entry that selects the shop (its selected look).
+- `SHOP_PATH`: the tabs to press to reach the shop, outermost first.
 - `CONFIG_TASK`: the task whose `Filter` / `Purchases` settings are read.
 - `CURRENCY_*`: where the balance of the currency the prices are paid in sits
   in the top bar, and whether the game abbreviates it (后勤商店 shows 1366K).
@@ -24,8 +24,8 @@ import re
 from module.base.button import Button
 from module.base.timer import Timer
 from module.coupon.text import read_text
-from module.hazeworld.assets import (MALL_TAB_EXCHANGE, REWARD_POPUP,
-                                     SHOP_DIALOG_CANCEL, SHOP_DIALOG_CONFIRM)
+from module.hazeworld.assets import (REWARD_POPUP, SHOP_DIALOG_CANCEL,
+                                     SHOP_DIALOG_CONFIRM)
 from module.hazeworld.hazeworld_ui import HazeworldUI
 from module.hazeworld.page import page_mall
 from module.hazeworld.schedule import next_week_refresh
@@ -48,10 +48,13 @@ SHOP_PRICE_THRESHOLD = 200
 
 class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
     """
-    Shared engine of the exchange sub shops. A subclass only names the shop:
+    Shared engine of the mall shops. A subclass only names the shop:
 
     - `SHOP_TITLE`: how the shop is called in the log.
-    - `TAB`: the sidebar entry of the shop, in its selected look.
+    - `SHOP_PATH`: the tabs that lead to the shop, outermost first, each as its
+      selected look. 兑换商店 opens on 精英商店 by itself today, but the default
+      moves between versions, so the sidebar entry is pressed too whenever the
+      path has one.
     - `CONFIG_TASK`: task whose `Filter` / `Purchases` are the buy list.
     - `CURRENCY_AREA` / `CURRENCY_LETTER` / `CURRENCY_THRESHOLD` / `CURRENCY_UNITS`:
       where the balance of the price currency is drawn and whether the game
@@ -59,7 +62,14 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
     """
 
     SHOP_TITLE = 'shop'
-    TAB = None
+    SHOP_PATH = ()
+    # Tabs of `SHOP_PATH` whose selected look is the same drawing as the grey
+    # unselected one, so a shape match can not tell them apart and the area
+    # colour has to agree too. 荣誉凭证 is one: on the mall home page its grey
+    # tab scores 1.000 against the selected template (measured 2026-11-04).
+    # Leaving the other tabs out keeps them working through the open animation,
+    # which moves their average colour around by 15.
+    SHOP_TAB_COLOR_CHECK = ()
     CONFIG_TASK = None
     CURRENCY_AREA = (890, 26, 968, 62)
     CURRENCY_LETTER = (255, 255, 255)
@@ -146,23 +156,40 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
 
     # ==================== navigation ====================
 
+    def shop_tab_selected(self, tab):
+        """
+        Whether `tab` is on screen in its selected look.
+
+        A shape match alone is not enough for every tab: `appear` with an
+        offset compares the drawing only, so the grey unselected honour tab
+        scores 1.000 against its selected version (measured 2026-11-04 on the
+        mall home page) and the shop would be "reached" without ever pressing
+        it. Tabs listed in `SHOP_TAB_COLOR_CHECK` are therefore checked on
+        their area colour as well.
+        """
+        if self.appear(tab, offset=(20, 20)):
+            if tab.name not in [button.name for button in self.SHOP_TAB_COLOR_CHECK]:
+                return True
+            return tab.appear_on(self.device.image)
+        return False
+
     def shop_goto_tab(self):
         """
-        Open 兑换商店 and make sure this shop's sidebar entry is selected.
+        Open the mall and press every tab of `SHOP_PATH` in turn.
 
-        Both levels are pressed until their selected look is on screen instead
-        of assuming a default: the game lands on 精英商店 by itself today, but
+        Every level is pressed until its selected look is on screen instead of
+        assuming a default: 兑换商店 lands on 精英商店 by itself today, but
         defaults move between versions, and every sub shop lives behind the
         same tab.
         """
-        for check in (MALL_TAB_EXCHANGE, self.TAB):
+        for check in self.SHOP_PATH:
             timeout = Timer(8).start()
             press_timer = Timer(2.5).start()
             pressed = 0
             while 1:
                 self.device.stuck_record_clear()
                 self.device.screenshot()
-                if self.appear(check, offset=(20, 20)):
+                if self.shop_tab_selected(check):
                     break
                 if timeout.reached():
                     logger.warning(f'{check} did not become selected')
@@ -170,11 +197,11 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
                 if press_timer.reached() and pressed < 3:
                     press_timer.reset()
                     pressed += 1
-                    # The press is retried until the appear(check) above holds.
-                    self.device.click(check)  # alas-lint: allow - verified by appear(check) in this loop
+                    # The press is retried until the check above holds.
+                    self.device.click(check)  # alas-lint: allow - verified by shop_tab_selected in this loop
         # The grid fades in after the tabs settle; the first profile on a
         # half-drawn frame finds nothing and would read as the list end.
-        self.wait_until_settled(self.TAB, timeout=5)
+        self.wait_until_settled(self.SHOP_PATH[-1], timeout=5)
 
     # ==================== buying ====================
 

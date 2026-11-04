@@ -91,6 +91,8 @@ TRANSLATIONS = {
                               'help': '在商城-兑换商店-精英商店按购买清单买道具，每周一次'},
             'HazeworldLogistics': {'name': '后勤商店',
                                    'help': '在商城-兑换商店-后勤商店买道具，默认除盾币外全买，每周一次'},
+            'HazeworldHonor': {'name': '荣誉凭证',
+                               'help': '在商城-荣誉凭证里只买第一格的定向调度券，每周一次'},
         },
         'HazeworldMail': {
             '_info': {'name': '邮件设置', 'help': ''},
@@ -189,6 +191,20 @@ TRANSLATIONS = {
                         '购买顺序是商店内从左到右、同列先上后下，每个道具每次买 1 个；已售罄或余额不够的自动跳过。',
             },
         },
+        'HazeworldHonor': {
+            '_info': {'name': '荣誉凭证设置', 'help': ''},
+            'Filter': {
+                'name': '商店过滤器',
+                'help': '全部：买清单里没被 ! 排除的道具；自定义：按下面的购买清单核对名字；不买：什么都不买。\n'
+                        '本任务只买货架第一格，所以这里实际是「买不买」的总开关。',
+            },
+            'Purchases': {
+                'name': '购买清单',
+                'help': '用来核对货架第一格是不是要买的那个：名字匹配不上就不买，免得游戏换了商品时误买。\n'
+                        '每行一条规则，按道具名的子串匹配；一行里用 > 分隔多个关键词；! 开头的行表示不买；# 开头是注释。\n'
+                        '默认「定向调度券」；买到该格售罄（或余额不够）为止，限购数量由游戏决定。',
+            },
+        },
     },
     'zh-TW': {
         'Menu': {
@@ -209,6 +225,8 @@ TRANSLATIONS = {
                               'help': '在商城-兌換商店-精英商店按購買清單買道具，每週一次'},
             'HazeworldLogistics': {'name': '後勤商店',
                                    'help': '在商城-兌換商店-後勤商店買道具，預設除盾幣外全買，每週一次'},
+            'HazeworldHonor': {'name': '榮譽憑證',
+                               'help': '在商城-榮譽憑證裡只買第一格的定向調度券，每週一次'},
         },
         'HazeworldLogistics': {
             '_info': {'name': '後勤商店設定', 'help': ''},
@@ -309,6 +327,21 @@ TRANSLATIONS = {
                         '購買順序是商店內從左到右、同列先上後下，每個道具每次買 1 個；已售罄或金幣不夠的自動跳過。',
             },
         },
+        'HazeworldHonor': {
+            '_info': {'name': '榮譽憑證設定', 'help': ''},
+            'Filter': {
+                'name': '商店過濾器',
+                'help': '全部：買清單裡沒被 ! 排除的道具；自訂：按下面的購買清單核對名字；不買：什麼都不買。\n'
+                        '本任務只買貨架第一格，所以這裡實際是「買不買」的總開關。',
+                '全部': '全部', '自定义': '自訂', '不买': '不買',
+            },
+            'Purchases': {
+                'name': '購買清單',
+                'help': '用來核對貨架第一格是不是要買的那個：名字對不上就不買，免得遊戲換了商品時誤買。\n'
+                        '每行一條規則，按道具名的子串匹配；一行裡用 > 分隔多個關鍵詞；! 開頭的行表示不買；# 開頭是註解。\n'
+                        '預設「定向調度券」；買到該格售罄（或餘額不夠）為止，限購數量由遊戲決定。',
+            },
+        },
     },
     'en-US': {
         'Menu': {
@@ -333,6 +366,8 @@ TRANSLATIONS = {
                               'help': 'Buy from the elite shop of the mall exchange with a purchase list, weekly'},
             'HazeworldLogistics': {'name': 'Logistics shop',
                                    'help': 'Buy from the logistics shop of the exchange shop, everything but 盾币 by default, once a week'},
+            'HazeworldHonor': {'name': 'Honor shop',
+                               'help': 'Buy only the first card (定向调度券) of the honour shop in the mall, once a week'},
         },
         'HazeworldLogistics': {
             '_info': {'name': 'Logistics shop settings', 'help': ''},
@@ -438,6 +473,25 @@ TRANSLATIONS = {
                         'item per run; sold-out cards and cards the gold cannot cover are skipped.',
             },
         },
+        'HazeworldHonor': {
+            '_info': {'name': 'Honor shop settings', 'help': ''},
+            'Filter': {
+                'name': 'Shop filter',
+                'help': 'All: buy everything the list does not exclude with !; Custom: check the first card against '
+                        'the list below; None: buy nothing.\n'
+                        'This task only ever buys the first card of the shelf, so this is really an on/off switch.',
+                '全部': 'All', '自定义': 'Custom', '不买': 'None',
+            },
+            'Purchases': {
+                'name': 'Purchase list',
+                'help': 'Used to check that the first card really is the wanted item: when the name does not match, '
+                        'nothing is bought, so a week in which the game puts something else first is left alone.\n'
+                        'One rule per line, matched as a substring of the item name; inside a line > separates '
+                        'alternatives; a line starting with ! excludes; # starts a comment.\n'
+                        'The default is 定向调度券. It buys until the card is sold out or the balance runs out; how '
+                        'many are on offer is up to the game.',
+            },
+        },
     },
     'ja-JP': {
         'Menu': {
@@ -459,6 +513,8 @@ TRANSLATIONS = {
                               'help': 'ショップの交換所にあるエリートショップで購入リストに従って購入する（毎週）'},
             'HazeworldLogistics': {'name': '後勤ショップ',
                                    'help': '商城-兌換商店-後勤商店でアイテムを購入する。既定では盾幣以外を全部買い、週 1 回'},
+            'HazeworldHonor': {'name': '栄誉ショップ',
+                               'help': '商城-栄誉証で 1 番目のカード（定向調度券）だけを購入する（毎週）'},
         },
         'HazeworldLogistics': {
             '_info': {'name': '後勤ショップ設定', 'help': ''},
@@ -561,6 +617,24 @@ TRANSLATIONS = {
                         '空欄なら何も買わない。\n'
                         '購入順はショップ内の左から右、同じ列は上から下。1 回の実行で各アイテム 1 個。'
                         '売り切れやゴールド不足のカードは自動で飛ばす。',
+            },
+        },
+        'HazeworldHonor': {
+            '_info': {'name': '栄誉ショップ設定', 'help': ''},
+            'Filter': {
+                'name': 'ショップフィルター',
+                'help': 'すべて：! で除外されていないアイテムを購入；カスタム：下の購入リストと名前を照合；'
+                        '購入しない：何も買わない。\n'
+                        'このタスクは棚の 1 番目のカードしか買わないので、実質は購入のオン・オフ。',
+                '全部': 'すべて', '自定义': 'カスタム', '不买': '購入しない',
+            },
+            'Purchases': {
+                'name': '購入リスト',
+                'help': '棚の 1 番目が本当に欲しいアイテムかを照合するためのもの：名前が一致しなければ何も買わない。'
+                        'ゲーム側で 1 番目が別のアイテムに変わった週に誤って買わないようにするため。\n'
+                        '1 行 1 ルール、アイテム名の部分一致；行内の > は候補の区切り；! で始まる行は除外；'
+                        '# で始まる行はコメント。\n'
+                        '既定は「定向調度券」。売り切れるか残高が足りなくなるまで買う。販売数はゲーム次第。',
             },
         },
     },

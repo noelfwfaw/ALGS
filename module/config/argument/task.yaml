@@ -53,6 +53,9 @@ Hazeworld:
     HazeworldLogistics:
       - Scheduler
       - HazeworldLogistics
+    HazeworldHonor:
+      - Scheduler
+      - HazeworldHonor
 
 # ==================== Lost Sword ====================
 

@@ -70,6 +70,10 @@
       "name": "Logistics shop",
       "help": "Buy from the logistics shop of the exchange shop, everything but 盾币 by default, once a week"
     },
+    "HazeworldHonor": {
+      "name": "Honor shop",
+      "help": "Buy only the first card (定向调度券) of the honour shop in the mall, once a week"
+    },
     "LostswordTreasure": {
       "name": "Treasure",
       "help": "Claim the idle rewards and use the free quick explore"
@@ -600,6 +604,23 @@
     "Purchases": {
       "name": "Purchase list",
       "help": "One rule per line, matched as a substring of the item name; inside a line > separates alternatives and any hit buys; a line starting with ! excludes; # starts a comment.\nThe default is All: buy whatever is on the shelf, 盾币 alone excepted (it is a 1 point conversion ticket with unlimited stock).\nThe order is left to right, top card before bottom card, one of each per run; sold out or unaffordable cards are skipped."
+    }
+  },
+  "HazeworldHonor": {
+    "_info": {
+      "name": "Honor shop settings",
+      "help": ""
+    },
+    "Filter": {
+      "name": "Shop filter",
+      "help": "All: buy everything the list does not exclude with !; Custom: check the first card against the list below; None: buy nothing.\nThis task only ever buys the first card of the shelf, so this is really an on/off switch.",
+      "全部": "All",
+      "自定义": "Custom",
+      "不买": "None"
+    },
+    "Purchases": {
+      "name": "Purchase list",
+      "help": "Used to check that the first card really is the wanted item: when the name does not match, nothing is bought, so a week in which the game puts something else first is left alone.\nOne rule per line, matched as a substring of the item name; inside a line > separates alternatives; a line starting with ! excludes; # starts a comment.\nThe default is 定向调度券. It buys until the card is sold out or the balance runs out; how many are on offer is up to the game."
     }
   },
   "LostswordTreasure": {
