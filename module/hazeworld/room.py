@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+
+from module.config.deep import deep_get
 from module.hazeworld.assets import BACK_ARROW, ROOM_BTN_COLLECT_ALL
 from module.hazeworld.hazeworld_ui import (HazeworldUI, page_expedition,
                                            page_room)
@@ -8,6 +11,10 @@ from module.logger import logger
 # Come back a little after the expedition should be over, the finish time is
 # rounded up to the second on the server.
 EXPEDITION_MARGIN = 5
+
+# Small buffer before a pull is worth it: a task that runs anyway within the
+# next few minutes is not dragged to now for the sake of it.
+PULL_MARGIN = 5
 
 
 class HazeworldRoom(RoomExpedition, HazeworldUI):
@@ -40,6 +47,7 @@ class HazeworldRoom(RoomExpedition, HazeworldUI):
             self.room_expedition_close()
 
         self.ui_goto_main()
+        self.room_pull_claim_tasks()
 
         if delay is not None:
             # An expedition is not a daily task: it comes back after the number
@@ -56,6 +64,36 @@ class HazeworldRoom(RoomExpedition, HazeworldUI):
             self.config.task_delay(minute=delay.total_seconds() / 60 + EXPEDITION_MARGIN)
         else:
             self.config.task_delay(server_update=True)
+
+    def room_pull_claim_tasks(self):
+        """
+        Pull the mission list and the battle pass forward to now.
+
+        Collecting the room and dispatching the expeditions completes missions
+        and grants pass experience, so both panels hold fresh claims right
+        after this run - letting them sit until their next opening throws that
+        away for hours (measured 2026-11-04: a morning room run left both
+        panels unclaimed until noon).
+
+        Only tasks that are enabled and scheduled further out than
+        `PULL_MARGIN` minutes are pulled: a disabled task stays disabled, and
+        one that runs anyway soon is not dragged to now for the sake of it.
+        The pull is one-way - the two tasks never touch this task's schedule.
+
+        Pages:
+            in: page_main
+            out: page_main
+        """
+        now = datetime.now()
+        for task in ('HazeworldTask', 'HazeworldPass'):
+            if not deep_get(self.config.data, f'{task}.Scheduler.Enable', default=False):
+                logger.info(f'{task} is disabled, the pull skips it')
+                continue
+            next_run = deep_get(self.config.data, f'{task}.Scheduler.NextRun')
+            if next_run is None or next_run < now + timedelta(minutes=PULL_MARGIN):
+                logger.info(f'{task} runs anyway at {next_run}, the pull skips it')
+                continue
+            self.config.task_delay(target=now, task=task)
 
     def room_collect_all(self, skip_first_screenshot=True):
         """

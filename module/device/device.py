@@ -305,6 +305,11 @@ class Device(Screenshot, Control, AppControl):
             logger.critical('Please enable Alas.Error.HandleError or manually login to AzurLane')
             raise RequestHumanTakeover
         super().app_start()
+        # The cached frame shows whatever was on screen before the launch, and
+        # a boot loop that trusts it may read the old page as its target while
+        # the game is still starting (measured: a restart declared page_main
+        # 10ms in, from the frame taken before the app was killed).
+        self.image = None
         self.stuck_record_clear()
         self.click_record_clear()
 
@@ -314,5 +319,6 @@ class Device(Screenshot, Control, AppControl):
             logger.critical('Please enable Alas.Error.HandleError or manually login to AzurLane')
             raise RequestHumanTakeover
         super().app_stop()
+        self.image = None
         self.stuck_record_clear()
         self.click_record_clear()
