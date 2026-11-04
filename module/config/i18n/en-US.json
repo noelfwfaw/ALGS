@@ -569,9 +569,16 @@
       "name": "Elite Shop",
       "help": "Buys from Mall > Exchange Shop > Elite Shop once a week. Items are bought left to right, top before bottom within a column, one purchase each; sold-out cards are skipped. Most goods reset monthly, but a weekly visit catches weekly restocks."
     },
+    "Filter": {
+      "name": "Shop filter",
+      "help": "All: buy everything the list does not exclude with !; Custom: follow the list below; None: buy nothing.",
+      "全部": "全部",
+      "自定义": "自定义",
+      "不买": "不买"
+    },
     "Purchases": {
-      "name": "Shopping List",
-      "help": "A filter like the AzurLane one: entries separated by >, matched as substrings of the item name; prefix an entry with ! to exclude it. By default it buys echoes, dispatch tickets, crystal boxes, core items, classified reports and energy mixtures, and skips Shield Coins and Elite Ladder Tickets. Leave empty to buy nothing."
+      "name": "Purchase list",
+      "help": "One rule per line, matched as a substring of the item name; inside a line > separates alternatives and any hit buys; a line starting with ! excludes; # starts a comment. Default buys 残响, 调度券, 自选水晶, 核心, 绝密报告, 能量合剂 and never 盾币 or 精英演习券. Leave blank to buy nothing."
     }
   },
   "LostswordTreasure": {

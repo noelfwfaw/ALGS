@@ -17,12 +17,13 @@ tolerate one missing character (调度券 hides inside the misread 调渡券 as 
 as the whole character set but one is there); exclusions stay strict, a fuzzy
 exclusion would tar neighbours such as 精英调度券 with 演习券's brush.
 
-Purchases (config `HazeworldShop.Purchases`) are a filter in the style of the
-AzurLane one: entries separated by `>`, each entry matched as a substring of
-the OCR'd name, an entry prefixed with `!` excludes. A card is bought when it
-matches at least one entry and no exclusion, so monthly renames survive as
-long as one keyword does. The default leaves out 盾币 (a one-gold currency
-conversion without a purchase limit) and 精英演习券.
+Purchases are a filter in the style of the AzurLane event shop: a switch
+`HazeworldShop.Filter` (全部 / 自定义 / 不买) and a list
+`HazeworldShop.Purchases`, one rule per line, in which `>` separates
+alternatives and a leading `!` excludes. A card is bought when one line hits
+the OCR'd name and no exclusion does, so monthly renames survive as long as
+one keyword does. The default leaves out 盾币 (a one-gold currency conversion
+without a purchase limit) and 精英演习券, in 全部 mode as well.
 
 购买顺序 = 商店内从左到右、同一列先上后下；每个道具每次买 1 个。已售罄跳过；
 买之前先 OCR 金币余额和价签，买不起就跳过（更便宜的后面的仍会试）。商品多
@@ -108,24 +109,76 @@ class HazeworldShop(HazeworldUI):
 
     def shop_filter_init(self):
         """
-        Split `HazeworldShop.Purchases` into include and exclude substrings.
+        Load `HazeworldShop.Filter` and `HazeworldShop.Purchases`.
 
-        An empty include list buys nothing - a filter the user blanked must
-        not turn into "buy everything on sight".
+        Filter is a switch in the style of the AzurLane event shop: 全部 buys
+        every card left after the `!` lines, 不买 buys nothing, 自定义 follows
+        the list. The `!` lines hold in every mode, so 盾币 and 精英演习券 stay
+        unbought even when the switch is flipped to 全部.
+
+        The list is one rule per line, `#` starts a comment. Inside a line
+        `>` separates alternatives and any of them matching the OCR'd name
+        buys the card. A line starting with `!` excludes; an entry starting
+        with `!` excludes too, which is how one-line lists of older configs
+        are written - they are rewritten into the one-rule-per-line form on
+        first sight, so the settings page shows the shape the list has.
         """
+        mode = str(self.config.HazeworldShop_Filter or '自定义')
         raw = str(self.config.HazeworldShop_Purchases or '')
+        normalized = self.shop_normalize_filter(raw)
+        if normalized != raw:
+            logger.info('Shop filter rewritten in the one-rule-per-line form')
+            self.config.HazeworldShop_Purchases = normalized
+            raw = normalized
+
         self.shop_include = []
         self.shop_exclude = []
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            excluded = line.startswith('!')
+            body = line[1:] if excluded else line
+            for part in re.split(r'[>＞]', body):
+                part = part.strip()
+                if not part:
+                    continue
+                if excluded or part.startswith('!'):
+                    part = part[1:].strip()
+                    if part:
+                        self.shop_exclude.append(part)
+                else:
+                    self.shop_include.append(part)
+
+        if mode == '不买':
+            self.shop_include = []
+        elif mode == '全部':
+            # An empty keyword sits inside every name.
+            self.shop_include = ['']
+        logger.attr('Shop filter', f'{mode}: {len(self.shop_include)} include, '
+                                   f'{len(self.shop_exclude)} exclude')
+
+    @staticmethod
+    def shop_normalize_filter(raw):
+        """
+        Rewrite an old one-line list (`A>B>!C`) as one rule per line. Lists
+        that already use lines, or that carry no `!` at all, are left as the
+        user wrote them.
+        """
+        if '\n' in raw or '!' not in raw:
+            return raw
+        include, exclude = [], []
         for part in re.split(r'[>＞]', raw):
             part = part.strip()
             if not part:
                 continue
             if part.startswith('!'):
-                self.shop_exclude.append(part[1:])
+                exclude.append(part[1:].strip())
             else:
-                self.shop_include.append(part)
-        logger.attr('Shop filter', f'{len(self.shop_include)} include, '
-                                   f'{len(self.shop_exclude)} exclude')
+                include.append(part)
+        lines = [' > '.join(include)] if include else []
+        lines += [f'!{word}' for word in exclude if word]
+        return '\n'.join(lines)
 
     def shop_filter_match(self, card):
         """

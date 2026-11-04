@@ -86,7 +86,8 @@ class GeneratedConfig:
     HazeworldCore_SweepCount = 0
 
     # Group `HazeworldShop`
-    HazeworldShop_Purchases = '残响>调度券>自选水晶>核心>绝密报告>能量合剂>!盾币>!演习券'
+    HazeworldShop_Filter = '自定义'  # 全部, 自定义, 不买
+    HazeworldShop_Purchases = '残响 > 调度券 > 自选水晶 > 核心 > 绝密报告 > 能量合剂\n!盾币\n!精英演习券'
 
     # Group `LostswordTreasure`
     LostswordTreasure_Claim = True
