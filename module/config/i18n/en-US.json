@@ -63,8 +63,8 @@
       "help": "Sweep core material stages in the resource dungeon, spends stamina"
     },
     "HazeworldShop": {
-      "name": "Task.HazeworldShop.name",
-      "help": "Task.HazeworldShop.help"
+      "name": "Elite shop",
+      "help": "Buy from the elite shop of the mall exchange with a purchase list, weekly"
     },
     "LostswordTreasure": {
       "name": "Treasure",
@@ -566,19 +566,19 @@
   },
   "HazeworldShop": {
     "_info": {
-      "name": "Elite Shop",
-      "help": "Buys from Mall > Exchange Shop > Elite Shop once a week. Items are bought left to right, top before bottom within a column, one purchase each; sold-out cards are skipped. Most goods reset monthly, but a weekly visit catches weekly restocks."
+      "name": "Elite shop settings",
+      "help": ""
     },
     "Filter": {
       "name": "Shop filter",
-      "help": "All: buy everything the list does not exclude with !; Custom: follow the list below; None: buy nothing.",
-      "全部": "全部",
-      "自定义": "自定义",
-      "不买": "不买"
+      "help": "All: buy everything the list does not exclude with !; Custom: follow the purchase list below; None: buy nothing.\nThe ! lines hold in every mode, so 盾币 and 精英演习券 are never bought whichever mode is selected.",
+      "全部": "All",
+      "自定义": "Custom",
+      "不买": "None"
     },
     "Purchases": {
       "name": "Purchase list",
-      "help": "One rule per line, matched as a substring of the item name; inside a line > separates alternatives and any hit buys; a line starting with ! excludes; # starts a comment. Default buys 残响, 调度券, 自选水晶, 核心, 绝密报告, 能量合剂 and never 盾币 or 精英演习券. Leave blank to buy nothing."
+      "help": "One rule per line, matched as a substring of the item name; inside a line > separates alternatives and any hit buys; a line starting with ! excludes; # starts a comment.\nThe default buys 残响, 调度券, 自选水晶, 核心, 绝密报告 and 能量合剂, and never 盾币 or 精英演习券. Leave it blank to buy nothing.\nThe order is the shop order, left to right and top to bottom within a column, one of each item per run; sold-out cards and cards the gold cannot cover are skipped."
     }
   },
   "LostswordTreasure": {
@@ -722,12 +722,12 @@
       "help": "Sacred stone cave, wind. 0 = skip. The five caves share the torch, 10 in total"
     },
     "CaveLight": {
-      "name": "BrowndustHunt.CaveLight.name",
-      "help": "BrowndustHunt.CaveLight.help"
+      "name": "Light Cave runs",
+      "help": "Sacred stone cave, light. 0 = skip. The five caves share the torch, 10 in total"
     },
     "CaveDark": {
-      "name": "BrowndustHunt.CaveDark.name",
-      "help": "BrowndustHunt.CaveDark.help"
+      "name": "Dark Cave runs",
+      "help": "Sacred stone cave, dark. 0 = skip. The five caves share the torch, 10 in total"
     }
   },
   "ChaoszeroSimulation": {
