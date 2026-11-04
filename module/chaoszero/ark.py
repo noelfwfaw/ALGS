@@ -70,10 +70,12 @@ POLICY_MAX_PER_RUN = 10
 CAFE_ORDER_POINT = (1088, 634)     # 右下角「點餐」
 CAFE_DINEIN_POINT = (805, 195)     # 菜單里的「內用」
 CAFE_CONFIRM = (940, 628)          # 菜單底部的「點餐」
-# 菜单底部那枚「點餐」：没选东西时是灰白（蓝色像素 0%），选中「內用」以后整枚
-# 变蓝（实测 92%）。用它判"选没选中"。
+# 菜单底部那枚「點餐」：没选东西时是灰白（均值 158,158,158，橙色像素 0%），选中
+# 「內用」以后整枚变橙（实测均值 240,134,61，橙色像素 88.8%）。用它判"选没选中"。
+# 2026-11-04 之前这里判的是**蓝色** —— 旧版菜单确实是变蓝，改版后整枚变橙，
+# 于是一直判"没选中"，`cafe_order()` 在 20 秒里对着「內用」连点了 100 次。
 CAFE_CONFIRM_AREA = (830, 615, 1050, 645)
-CAFE_CONFIRM_BLUE = 0.4
+CAFE_CONFIRM_ORANGE = 0.4
 
 
 class ChaoszeroArk(ChaoszeroUI):
@@ -115,15 +117,15 @@ class ChaoszeroArk(ChaoszeroUI):
 
     def ui_cafe_confirm_ready(self):
         """
-        Whether the menu's 點餐 button has gone blue, i.e. a dish is selected.
+        Whether the menu's 點餐 button has gone orange, i.e. a dish is selected.
 
         Returns:
             bool: If the button is active.
         """
         image = self.image_crop(CAFE_CONFIRM_AREA).astype(int)
         r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
-        blue = np.count_nonzero((b > 140) & (b - r > 50))
-        return bool(blue > CAFE_CONFIRM_BLUE * image.shape[0] * image.shape[1])
+        orange = np.count_nonzero((r > 200) & (g > 90) & (g < 180) & (b < 110))
+        return bool(orange > CAFE_CONFIRM_ORANGE * image.shape[0] * image.shape[1])
 
     # ---------------------------------------------------------------- 走去方舟都市
 
@@ -483,14 +485,16 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If the order went through and the cafe is back.
         """
         logger.info('Choose 內用')
-        picked = Timer(20, count=3).start()
-        while not picked.reached():
+        # 1.5 秒一下：菜单是滑进来的，刚打开那一下常被转场吃掉；而每帧都点会在
+        # 判据失灵时变成狂点（2026-11-04 旧判据下 20 秒点了 100 次）。
+        press = Timer(1.5, count=2)
+        for _ in self.loop(timeout=20):
             if self.ui_cafe_confirm_ready():
                 break
-            self.device.click_record_clear()
-            self.tap_point(*CAFE_DINEIN_POINT)
-            self.device.screenshot()
-            self.device.stuck_record_clear()
+            if press.reached():
+                press.reset()
+                self.device.click_record_clear()
+                self.tap_point(*CAFE_DINEIN_POINT)
         else:
             logger.warning('The 內用 dish did not get selected')
             return False
@@ -498,6 +502,12 @@ class ChaoszeroArk(ChaoszeroUI):
         logger.info('Order it')
         self.device.click_record_clear()
         self.tap_point(*CAFE_CONFIRM)
+
+        # 菜单先关掉才算点中了「點餐」。`cafe_appear()` 只看左上角的页面标题，而
+        # 菜单是盖在咖啡廳页面上的浮层 —— 标题一直露在外面，所以菜单开着的时候
+        # 它也是 True（2026-11-04：点完 0.2 秒就报「Stamina claimed」，其实订单
+        # 才刚开始过场，点空了也看不出来）。
+        self.wait_until_disappear(CAFE_DINEIN, offset=(20, 20), timeout=10, settle=2)
 
         # 过场 + 获得道具 + 回到咖啡廳，都在这一段里。
         timeout = Timer(timeout, count=3).start()

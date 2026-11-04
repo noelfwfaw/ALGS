@@ -52,6 +52,11 @@ CHAOSZERO_BACK = Button(area=(20, 12, 86, 58), color=(0, 0, 0),  # alas-lint: al
 CHAOSZERO_TAP_CENTRE = Button(area=(540, 300, 740, 420), color=(0, 0, 0),  # alas-lint: allow - a point to tap, there is no image to match
                               button=(540, 300, 740, 420), name='CHAOSZERO_TAP_CENTRE')
 
+# 唤醒闲置立绘用的点：画面顶部中间。停手二十秒后整个 UI 会收起来只剩一张全屏
+# 立绘，这时候点哪儿都只是"唤醒"，但**正中是人物**，点上去会进角色互动，界面
+# 反而更回不来；顶部那条永远是空的。
+CHAOSZERO_WAKE = (640, 96)
+
 # 冷启动到主界面：实机 logo + 校验补丁 + 标题约 25 秒。留到 5 分钟是为了
 # 客户端更新后第一次启动要校验整个补丁包，那一步能停一两分钟。
 CHAOSZERO_BOOT_TIMEOUT = 300
@@ -268,13 +273,17 @@ class ChaoszeroUI(UI):
 
             # 什么都不认识。这里可能是 logo、补丁校验、点完之后的黑屏，或者
             # 闲置立绘 —— 前三者点了没反应，后者点了就回主界面，所以点一下是
-            # 唯一安全的动作；节流由 `tap` 负责，点击记录每轮清一次，不然同一
-            # 个"按钮"点满 12 次会撞 `GameTooManyClickError`。
+            # 唯一安全的动作。
+            #
+            # 点的是**画面顶部**而不是正中：闲置立绘那一下点正中会落到人物身上，
+            # 那是"和角色互动"，界面不会回来（2026-11-04 实测：信箱面板关掉后
+            # 大厅闲着，正中连点三十多次，一路点进角色对话、再点进道具详情，
+            # 五分钟超时失败）。顶部那条永远是空的，和 `ark.py` 的唤醒点同一个。
             if tap.reached():
                 tap.reset()
-                logger.info('Unknown screen, tap the centre')
+                logger.info('Unknown screen, tap the top to wake the lobby')
                 self.device.click_record_clear()
-                self.device.click(CHAOSZERO_TAP_CENTRE)  # alas-lint: allow - tapping an unknown screen on purpose, there is no button to verify against
+                self.tap_point(*CHAOSZERO_WAKE)  # alas-lint: allow - waking an unknown screen on purpose, a blind tap is the only action that moves it
                 continue
 
             if timeout.reached():

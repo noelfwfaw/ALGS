@@ -84,9 +84,16 @@ class ChaoszeroDaily(ChaoszeroUI):
 
     # ---------------------------------------------------------------- 通用
 
-    def claim_and_close(self, button, timeout=30):
+    def claim_and_close(self, button, area, timeout=30):
         """
-        Press one 全部領取 and close the 「獲得道具」 window it pops.
+        Press one 全部領取 and settle whatever it opens.
+
+        當日行程 does **not** raise a 「獲得道具」 window: the milestone icons just
+        get their ticks and the button turns grey (measured 2026-11-04). The
+        mailbox does pop the window. So the claim counts as done on either
+        signal - the window showing up, or the button going grey - and a press
+        that changes nothing is repeated instead of being taken for a claim
+        (the first of two taps was eaten that day).
 
         Pages:
             in: 有那个按钮的面板
@@ -94,15 +101,14 @@ class ChaoszeroDaily(ChaoszeroUI):
 
         Args:
             button (Button): The 全部領取 button of the page.
+            area (tuple): x1, y1, x2, y2 of that button, for the orange check.
             timeout (int): Seconds.
 
         Returns:
-            bool: If the reward window showed up and got closed.
+            bool: If the claim went through.
         """
-        self.device.click_record_clear()
-        self.device.click(button)  # alas-lint: allow - the caller checked the page and the button with appear() before handing it over
-
         timeout = Timer(timeout, count=3).start()
+        press = Timer(2.5, count=2)
         tap = Timer(2, count=2)
         seen = False
 
@@ -116,9 +122,16 @@ class ChaoszeroDaily(ChaoszeroUI):
             if seen:
                 logger.info('Reward window closed')
                 return True
+            if not self.ui_claimable(area):
+                logger.info('Claim took, the 全部領取 button is grey now')
+                return True
+            if press.reached():
+                press.reset()
+                self.device.click_record_clear()
+                self.device.click(button)  # alas-lint: allow - the caller checked the page and the button, and the orange check above re-runs every frame
         else:
             if not seen:
-                logger.warning('No reward window after the claim')
+                logger.warning('The claim did not take, the button is still orange')
                 return False
             logger.info('The reward window stayed open, but the claim went through')
             return True
@@ -231,7 +244,8 @@ class ChaoszeroDaily(ChaoszeroUI):
 
         if self.appear(DAILY_CLAIM, offset=(20, 20)):
             logger.info('Claim the daily track')
-            return self.claim_and_close(DAILY_CLAIM, timeout=timeout)
+            return self.claim_and_close(DAILY_CLAIM, DAILY_CLAIM_AREA,
+                                        timeout=timeout)
 
         logger.warning('The 全部領取 button is not on screen')
         return False
@@ -300,7 +314,8 @@ class ChaoszeroDaily(ChaoszeroUI):
 
         if self.appear(MAIL_CLAIM, offset=(20, 20)):
             logger.info('Claim all mail')
-            return self.claim_and_close(MAIL_CLAIM, timeout=timeout)
+            return self.claim_and_close(MAIL_CLAIM, MAIL_CLAIM_AREA,
+                                        timeout=timeout)
 
         logger.warning('The mail 全部領取 button is not on screen')
         return False
