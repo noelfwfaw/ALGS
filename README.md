@@ -212,6 +212,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 - 游戏卡死、掉线或停留在弹窗时，脚本会保存最近 60 张截图与日志，随后重启游戏继续执行。
 - 无法识别维护公告页，维护期间会按各游戏的启动上限等待；同一任务连续失败 3 次后调度器停止，需要手动重新开始。
+- 错误推送：无法处理的异常（脚本错误、需要人工接管、认不出页面、配置或设备初始化失败、同一任务连续失败 3 次、工具进程崩溃）会按 `Alas → Error → OnePushConfig` 里的 Onepush 配置推送一条消息，之后脚本仍按原有逻辑停止。卡死、掉线这类能自动重启恢复的错误不推送，避免刷屏。没填 `provider` 时（默认 `provider: null`）不推送；配置方法见 [Onepush 配置](https://github.com/LmeSzinc/AzurLaneAutoScript/wiki/Onepush-configuration-%5BCN%5D)。
 - 客户端更新与资源下载提示只记录并停止，不会代为操作；苍雾世界的资源包是例外，脚本会确认并等待下载完成。
 - 失落之剑闲置约 3 分钟后会隐藏界面，脚本会自动恢复后再继续。
 

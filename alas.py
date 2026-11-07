@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import inflection
 from cached_property import cached_property
 
-from module.base.decorator import del_cached_property
+from module.base.decorator import del_cached_property, has_cached_property
 from module.config.config import AlasConfig, TaskEnd
 from module.config.deep import deep_get, deep_set
 from module.exception import *
@@ -69,11 +69,13 @@ class GameScheduler:
         try:
             config = AlasConfig(config_name=self.config_name)
             return config
-        except RequestHumanTakeover:
+        except RequestHumanTakeover as e:
             logger.critical('Request human takeover')
+            self.notify(f'配置加载失败：{e or "RequestHumanTakeover"}')
             exit(1)
         except Exception as e:
             logger.exception(e)
+            self.notify(f'配置加载失败：{e}')
             exit(1)
 
     @cached_property
@@ -82,11 +84,13 @@ class GameScheduler:
             from module.device.device import Device
             device = Device(config=self.config)
             return device
-        except RequestHumanTakeover:
+        except RequestHumanTakeover as e:
             logger.critical('Request human takeover')
+            self.notify(f'设备连接失败：{e or "RequestHumanTakeover"}')
             exit(1)
         except Exception as e:
             logger.exception(e)
+            self.notify(f'设备连接失败：{e}')
             exit(1)
 
     def run(self, command, skip_first_screenshot=False):
@@ -130,18 +134,101 @@ class GameScheduler:
         except ScriptError as e:
             logger.exception(e)
             logger.critical('This is likely to be a mistake of developers, but sometimes just random issues')
+            self.notify(f'ScriptError: {e}', task=self.current_task())
             exit(1)
-        except RequestHumanTakeover:
+        except RequestHumanTakeover as e:
             logger.critical('Request human takeover')
+            self.notify(f'RequestHumanTakeover: {e or "需要人工处理"}', task=self.current_task())
             exit(1)
-        except GamePageUnknownError:
+        except GamePageUnknownError as e:
             logger.critical('Game page unknown')
             self.save_error_log()
+            self.notify(f'GamePageUnknownError: {e or "认不出当前游戏页面"}', task=self.current_task())
             exit(1)
         except Exception as e:
             logger.exception(e)
             self.save_error_log()
+            self.notify(f'{type(e).__name__}: {e}', task=self.current_task())
             exit(1)
+
+    def current_task(self):
+        """
+        Name of the task the config is bound to, None when the config itself is
+        broken. Used to label error pushes, never raises.
+        """
+        try:
+            return self.config.task.command
+        except Exception:
+            return None
+
+    def error_push_config(self):
+        """
+        Text of `Error.OnePushConfig`, read without re-entering `self.config`.
+
+        `notify()` is called from the `config` property itself when the config
+        fails to load. Touching `self.config` there would re-run the same failing
+        constructor and recurse until the stack dies, so only a config that was
+        already built successfully is used here; None means "read the json file
+        directly" (see `module.notify.read_onepush_config`).
+
+        Returns:
+            str: The yaml text, or None.
+        """
+        if has_cached_property(self, 'config'):
+            try:
+                return self.config.Error_OnePushConfig
+            except Exception:
+                return None
+        return None
+
+    def error_message(self, message, task=None):
+        """
+        Body of an error push: instance, task, error, time and log file.
+
+        ❗The body starts with `AlGS` and the title is fixed to `Alas推送` in
+        `notify()`: the DingTalk connector in use filters on keywords and drops
+        anything containing neither, while answering HTTP 200 as usual.
+
+        Args:
+            message (str): What went wrong.
+            task (str): Task name, None to omit.
+
+        Returns:
+            str:
+        """
+        lines = ['AlGS 发生无法处理的异常，脚本已停止。',
+                 f'实例：{self.config_name}']
+        if task:
+            lines.append(f'任务：{task}')
+        lines.append(f'错误：{message}')
+        lines.append(f'时间：{datetime.now():%Y-%m-%d %H:%M:%S}')
+        log_file = getattr(logger, 'log_file', None)
+        if log_file:
+            lines.append(f'日志：{log_file}')
+        return '\n'.join(lines)
+
+    def notify(self, message, task=None, title='Alas推送'):
+        """
+        Push one error message with `Error.OnePushConfig`.
+
+        Never raises: this runs while another error is being handled, and a
+        broken notifier must not replace the real exception with its own.
+
+        Returns:
+            bool: If a message was actually sent.
+        """
+        try:
+            from module.notify import notify_error
+
+            return notify_error(
+                self.config_name,
+                self.error_message(message, task=task),
+                title=title,
+                raw_config=self.error_push_config(),
+            )
+        except Exception as e:
+            logger.warning(f'Push notify failed: {e}')
+            return False
 
     def save_error_log(self):
         """
@@ -526,7 +613,20 @@ class GameScheduler:
     def loop(self):
         """
         Scheduler main loop: pick the next task, run it, record the result.
+
+        Fatal errors inside a task are pushed and turned into `exit(1)` by
+        `run()`. Everything that escapes it - a config that cannot be reloaded,
+        a game that cannot be switched, the "no task enabled" takeover - lands
+        here, gets the same push, and then takes the process down as before.
         """
+        try:
+            self._loop()
+        except Exception as e:
+            logger.exception(e)
+            self.notify(f'调度器异常退出：{type(e).__name__}: {e}', task=self.current_task())
+            raise
+
+    def _loop(self):
         logger.set_file_logger(self.config_name)
         logger.info(f'Start scheduler loop: {self.config_name}')
 
@@ -577,6 +677,7 @@ class GameScheduler:
                 logger.critical("Possible reason #2: There is a problem with this task. "
                                 "Please contact developers or try to fix it yourself.")
                 logger.critical('Request human takeover')
+                self.notify(f'任务 `{task}` 连续失败 {failed} 次，调度器已停止，请人工处理。', task=task)
                 exit(1)
 
             if success:
@@ -586,6 +687,10 @@ class GameScheduler:
                 del_cached_property(self, 'config')
                 continue
             else:
+                # Error.HandleError is off and the task failed: the scheduler is
+                # about to stop on its own, which is exactly what the user asked
+                # to be told about.
+                self.notify(f'任务 `{task}` 失败，且 Error.HandleError 已关闭，调度器停止。', task=task)
                 break
 
 

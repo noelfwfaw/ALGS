@@ -181,6 +181,18 @@ class ProcessManager:
             logger.info(f"[{config_name}] exited. Reason: Finish\n")
         except Exception as e:
             logger.exception(e)
+            # 兜底：调度器自己推过的致命错误会在 `notify_error()` 里被去重，
+            # 这里只覆盖还没进到调度器的异常（导入失败、MOD 崩溃、工具跑挂）。
+            try:
+                from module.notify import notify_error
+                notify_error(
+                    config_name,
+                    f'AlGS 进程异常退出（{config_name}）\n'
+                    f'入口：{func}\n'
+                    f'错误：{type(e).__name__}: {e}',
+                )
+            except Exception as push_error:
+                logger.warning(f"Push notify failed: {push_error}")
 
     @classmethod
     def running_instances(cls) -> List["ProcessManager"]:

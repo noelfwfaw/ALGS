@@ -32,12 +32,12 @@ import threading
 import time
 
 import numpy as np
-import yaml
 
 from module.base.button import Button
 from module.base.timer import Timer
 from module.exception import ScriptError
 from module.logger import logger
+from module.notify import load_onepush_conf
 from module.starsavior.assets import (
     E_4_2,    E_100_1, E_101_1, E_102_1, E_103_1, E_104_1,
     E_105_1, E_106_1, E_107_1, E_108_1, E_109_1,
@@ -424,54 +424,6 @@ VERIFY = (
 # 游戏里写的是「重置服务器**帐**号」（帐），而界面上的选项叫「重置服务器**账**号」（账）。
 # 真机 2026-11-06 22:52 输入「账号」版本，点确认**照样重置成功** —— 游戏不做字面校验。
 RESET_WORD = '重置服务器账号'
-
-
-def load_onepush_conf(raw):
-    """把 `Error.OnePushConfig` 解析成 onepush 的参数字典，**容忍整段多缩进**。
-
-    GUI 里那段是 `mode: yaml` 的手填文本框，从文档复制时很容易除第一行外
-    每行都多带一个前导空格（本机 2026-11-07 的配置就是这样：
-    `provider: custom\\n url: https://...`）。YAML 会把 ` url:` 当成
-    `provider` 的续行，抛 `ScannerError: mapping values are not allowed here`
-    —— 结果就是推送永远发不出去，而日志只说「没配 provider」，看不出原因。
-
-    所以先按原样解析，失败再把**第一行之后**的行统一去掉公共缩进重试。
-    第一行不动：它本来就该在顶格，多缩进的情况交给 YAML 自己处理。
-
-    Returns:
-        tuple: `(dict, str)` —— 参数字典 + 规整后的 YAML 文本。
-        第二项必须回传给 `handle_notify()`，因为它在内部还要自己再解析一遍，
-        给它原始那份照样会失败。
-    """
-    raw = (raw or '').replace('\r\n', '\n').replace('\r', '\n')
-
-    def parse(text):
-        data = {}
-        for item in yaml.safe_load_all(text):
-            if isinstance(item, dict):
-                data.update(item)
-        return data
-
-    try:
-        data = parse(raw)
-        if data:
-            return data, raw
-    except Exception:
-        pass
-
-    lines = raw.split('\n')
-    head, tail = lines[:1], lines[1:]
-    widths = [len(line) - len(line.lstrip(' ')) for line in tail if line.strip()]
-    if widths:
-        pad = min(widths)
-        if pad:
-            tail = [line[pad:] if line.strip() else line for line in tail]
-    text = '\n'.join(head + tail)
-
-    try:
-        return parse(text), text
-    except Exception:
-        return {}, text
 
 
 class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
@@ -1963,33 +1915,23 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 else:
                     main_stable.reset()
 
-    @staticmethod
-    def reset_input_typed(image):
-        """确认语**真的输进去了**没有：输入框内侧有没有白字。
-
-        空框 bright=0.0000、输进中文 bright=0.2547（真机 01:08 量）；
-        用内侧 (480,388)-(800,412) 避开边框/光标，别像 01:04 那样
-        拿框边亮像素当"有字"就点了确认。
-        """
-        if image is None:
-            return False
-        a = np.asarray(image[388:412, 480:800], dtype=np.int32)
-        return float((a.mean(axis=2) > 120).mean()) > 0.02
-
     def type_text(self, text):
         """把**中文**送进当前聚焦的输入框。
 
         ❗不能用 `device.adb_shell`：真机 2026-11-07 01:08 逐项测过
-          · list 形式 `['input','text','重置服务器账号']` → 中文字全丢，
-            输入框 bright 仍是 0.0000；
+          · list 形式 `['input','text','重置服务器账号']` → 中文字全丢；
           · str 形式 `"input text '重置服务器账号'"` → 报
             `/system/bin/sh: no closing quote`，引号被编码弄坏。
           只有 `subprocess` 直接调 adb.exe、把 UTF-8 参数交给 CreateProcess
-          才进得去（bright=0.2547，截图里能看到「重置服务器账号」）。
+          才送得出去。
 
-        ❗❗**并且必须先把输入法全禁掉**（见 `ime_off`）：只要默认还是搜狗，
-          `input text` 的中文就会停在搜狗的候选栏里，游戏的自绘输入框一个字
-          都收不到 —— 23:19 连丢 4 次就是这么来的，日志里却是「已输入确认语」。
+        ❗❗**调用前必须把输入法禁掉**（`ime_off`）。输入法活着的时候，
+          `input text` 的中文会被它接走停在候选条里，游戏的框一个字都收不到。
+          2026-11-08 00:22 抓图坐实：框里是灰色占位提示「重置服务器账号」，
+          字躺在屏幕底部搜狗那条编辑条里（右边一个「确定」）；同屏
+          `ime disable` 后再注入，白字立刻进框（实测）。
+          `input text` 不论字去哪都返回成功，所以日志的「已输入」不算数 ——
+          要靠 `read_reset_input` 回读。
         """
         result = subprocess.run(
             [self.device.adb_binary, '-s', self.device.serial,
@@ -2013,14 +1955,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     def ime_off(self):
         """临时禁掉所有输入法，返回原来的列表（交给 `ime_on` 恢复）。
 
-        ❗**不禁掉就输不进中文**。搜狗（`com.sohu.inputmethod.sogou.chuizi`）
-        会把 `input text` 送进来的中文吞在自己的候选栏里 —— 字明明出现在屏幕
-        底部的输入法编辑区，游戏的自绘输入框还是空的。真机 2026-11-07 23:19
-        连丢 4 次，OCR 只读到光标和边框的乱码，最后「重输 4 次都没通过校验」。
-        禁掉之后 `input text` 走 InputManager 直接注入，中文立刻进框（实测）。
-
+        ❗**不禁掉，中文就进不了框**。搜狗（`com.sohu.inputmethod.sogou.chuizi`）
+        会把 `input text` 送进来的中文接在自己的候选条里 —— 字明明显示在屏幕
+        底部那条白条上，游戏的深灰输入框还是灰色占位提示。
+        2026-11-08 00:22 真机截图为证；同屏 `ime disable` 后再注入一次，
+        白字立刻进框。11-07 23:19 那次连丢 4 次也是同一个原因。
         也不用 FastInputIME 顶替：它同样只把字留在自己的编辑区，没有
-        InputConnection 可提交。这个游戏的输入框是真自绘的，只吃注入事件。
+        InputConnection 可提交 —— 这个游戏的输入框是真自绘的，只吃注入事件。
         """
         imes = self.ime_list()
         for ime in imes:
@@ -2028,16 +1969,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         return imes
 
     def ime_on(self, imes):
-        """把 `ime_off` 禁掉的输入法重新启用。"""
+        """把 `ime_off` 禁掉的输入法重新启用（别把用户的键盘弄丢）。"""
         for ime in imes:
             self.device.adb_shell(['ime', 'enable', ime])
-
-    def clear_reset_input(self):
-        """清空确认语输入框：点框 → 光标移到末尾 → 连按退格。"""
-        self.tap_at(640, 401, '点输入框（清空重输）')
-        self.device.adb_shell(['input', 'keyevent', 'KEYCODE_MOVE_END'])
-        self.device.adb_shell(['input', 'keyevent'] + ['KEYCODE_DEL'] * 20)
-        time.sleep(0.3)
 
     @staticmethod
     def reset_word_ok(seen):
@@ -2057,65 +1991,63 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         return same >= len(want) - 1
 
     def finish_reset_input(self):
-        """输入确认语 -> **回读核对** -> 点确认 -> 等回标题页。
+        """输入确认语 -> 点确认 -> 等回标题页；没过就重输。
 
         单独一个方法，方便从「输入弹窗」这个状态接着跑（本轮中断时）。
 
-        ❗**只看"框里有白字"不够**。游戏有这个 bug：7 个字会乱序
-          （「重置服务器账号」→「重置务服器账号」），人手动打字也会触发。
-          字确实在框里、确认键也亮着，点下去就是不生效，整段卡在
-          「点了确认但没回到标题页」（用户 2026-11-07 22:40 报的）。
-          所以这里 OCR 回读内容，对不上就清空重输，最多 4 次。
+        ❗**脚本不清空输入框**。字不对时点确认后，游戏会自己把框清空
+          （用户 2026-11-08 明确要求）。自己按 20 下退格是多余动作，
+          还多两次 adb 往返。
 
-        ❗整个输入过程**必须禁着输入法**：搜狗会把 `input text` 的中文吞在
-          候选栏里（见 `ime_off`），框里始终是空的。禁掉后 `input text`
-          直接注入，中文立刻进框。用完不管成败都恢复。
+        ❗**OCR 回读不当闸门，只用来记录**。00:22 那轮 4 次全卡在
+          「框里读到 '（十)' / '重一)》入}'」→ 一次都没点确认，用户看到的
+          就是「一直点黑框，不知道在干嘛」。现在读到什么都不影响点确认：
+          游戏校验不过会自己清框，下一轮重输。
+
+        ❗整个输入过程**必须禁着输入法**（`ime_off`），否则中文全被输入法
+          接走，框里永远是灰色占位提示 —— 这才是 23:19 / 00:04 / 00:22
+          三次连丢的共同原因。
         """
         imes = self.ime_off()
         try:
-            return self._finish_reset_input()
+            for attempt in range(1, 5):
+                # 弹窗还在淡入时点框会点空（00:04 那轮 537ms 抢跑），先等画面静止
+                self.wait_until_still((0, 300, 1280, 720), timeout=3, threshold=3.0)
+                self.tap_at(640, 401, '点输入框')
+                self.type_text(RESET_WORD)
+                # 回读只为了在日志里留下框里到底是什么，不参与判断：
+                # 读准了就提前收，读不准就等满 3 秒再拿最后一帧。
+                seen = ''
+                for _ in self.loop(timeout=3):
+                    self.device.stuck_record_clear()
+                    seen = read_reset_input(self.device.image)
+                    if self.reset_word_ok(seen):
+                        break
+                if self.reset_word_ok(seen):
+                    logger.info('重置：第 %d 次输入，框里读到 %s' % (attempt, seen))
+                else:
+                    logger.warning('重置：第 %d 次框里读到 %r（要 %r），照样点确认'
+                                   % (attempt, seen, RESET_WORD))
+
+                self.tap_at(735, 468, '确认')
+                # ❗校验不过时游戏**不报错、弹窗不关、只把输入框清空**。
+                #   真机 2026-11-07 22:40 现场：点完确认原样干等 120 秒，
+                #   弹窗还杵着、框里已经空了。所以「弹窗还在」就是这次没过。
+                for _ in self.loop(timeout=10):
+                    self.device.stuck_record_clear()
+                    if self.appear(E_1_1, offset=CHAIN_OFFSET):
+                        logger.info('重置完成，回到标题页')
+                        return True
+                self.device.screenshot()
+                if not self.reset_input_ready(self.device.image):
+                    logger.info('重置：输入弹窗已经关了，等加载回标题页')
+                    break
+                logger.warning('重置：第 %d 次点确认没生效（弹窗还在），重输' % attempt)
+            else:
+                logger.warning('重置：重输 4 次都没通过校验，停下')
+                return False
         finally:
             self.ime_on(imes)
-
-    def _finish_reset_input(self):
-        for attempt in range(1, 5):
-            if attempt > 1:
-                self.clear_reset_input()
-            self.tap_at(640, 401, '点输入框')
-            self.wait_until_still((0, 300, 1280, 720), timeout=3, threshold=3.0)
-            self.type_text(RESET_WORD)
-            seen = ''
-            for _ in self.loop(timeout=5):
-                self.device.stuck_record_clear()
-                if not self.reset_input_typed(self.device.image):
-                    continue
-                seen = read_reset_input(self.device.image)
-                if seen:
-                    break
-            if not self.reset_word_ok(seen):
-                logger.warning('重置：确认语不对（要 %r，框里是 %r），清空重输（第 %d 次）'
-                               % (RESET_WORD, seen, attempt))
-                continue
-
-            logger.info('重置：已输入确认语 %s' % seen)
-            self.tap_at(735, 468, '确认（已输入）')
-            # ❗校验不过时游戏**不报错、弹窗不关、只把输入框清空**。
-            #   真机 2026-11-07 22:40 现场：点完确认原样干等 120 秒，弹窗还杵着、
-            #   框里已经空了。所以看到「弹窗还在」就判这次没过，清空重输。
-            for _ in self.loop(timeout=25):
-                self.device.stuck_record_clear()
-                if self.appear(E_1_1, offset=CHAIN_OFFSET):
-                    logger.info('重置完成，回到标题页')
-                    return True
-            self.device.screenshot()
-            if not self.reset_input_ready(self.device.image):
-                logger.info('重置：输入弹窗已经关了，等加载回标题页')
-                break
-            logger.warning('重置：第 %d 次点了确认没生效（弹窗还在、框已清空），重输'
-                           % attempt)
-        else:
-            logger.warning('重置：重输 4 次都没通过校验，停下')
-            return False
 
         # 弹窗已关 = 校验通过，剩下的只是加载，慢一点也值得等。
         for _ in self.loop(timeout=120):
@@ -2654,12 +2586,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
           `E_200_1` 输入框是纯色，永远不能当判据。
 
         ❗中文输入走 `type_text()`（`subprocess` 直调 adb.exe 传 UTF-8 参数），
-          `adb_shell(['input','text',...])` 的中文字会全丢。
-          ❗❗**而且必须先把输入法全禁掉**（`ime_off`）：默认的搜狗会把
-          `input text` 的中文吞在自己的候选栏里 —— 字出现在屏幕底部的输入法
-          编辑区，游戏的自绘输入框还是空的。2026-11-07 23:19 连丢 4 次就是这么
-          来的，日志还写着「已输入确认语」。切 FastInputIME 也没用，它同样只把
-          字留在自己的编辑区，没有 InputConnection 可提交。
+          `adb_shell(['input','text',...])` 的中文字会全丢。而且**必须先把
+          输入法禁掉**（`ime_off`）：输入法活着时中文全被它接在候选条里，
+          游戏的框收不到 —— 23:19 / 00:04 / 00:22 三次连丢都是这个原因
+          （00:22 真机抓图为证：框里是灰色占位提示，字在屏幕底部搜狗那条
+          编辑条里）。日志写着「已输入」不算数，只认 `read_reset_input` 回读。
         """
         logger.hr('重置账号', level=2)
 
