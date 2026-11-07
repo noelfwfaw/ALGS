@@ -11,7 +11,7 @@ MIN_COUNT = 1
 MAX_COUNT = 4
 
 # 达标条件（`Starsavior2.TargetMode`）。
-TARGET_MODE_ANY = 'any'   # 任意一只凑够就停（默认，刷初始最常用）
+TARGET_MODE_ANY = 'any'   # 任意一个角色凑够它自己的数量就停（默认，刷初始最常用）
 TARGET_MODE_ALL = 'all'   # 挂上的每一只都要凑够各自的数量
 TARGET_MODES = (TARGET_MODE_ANY, TARGET_MODE_ALL)
 
@@ -78,7 +78,7 @@ def check_targets(accounts, targets, mode=TARGET_MODE_ANY):
 
     accounts: `scan_rescuers()` 的返回，每项 {label, dups, count}。
     targets: [{'label': '名字@团', 'count': 要几只}]，GUI 最多挂 7 只。
-    mode: `any` = 任意一只凑够数量就达标；`all` = 每一只都要凑够各自的数量。
+    mode: `any` = 任意一个角色凑够它自己的数量就达标；`all` = 每一只都要凑够各自的数量。
     returns: (ok, detail)，detail 每项 {label, need, got, hit}。
 
     ❗`any` 是刷初始的常规用法（挂 7 只候选 = 把这 7 只的概率加起来）；

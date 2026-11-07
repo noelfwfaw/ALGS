@@ -866,7 +866,7 @@
   "Starsavior2": {
     "_info": {
       "name": "Reroll settings",
-      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character(s) set (up to 7): reroll round after round. \"Win condition\" decides what counts: \"any one\" stops on the first hit, \"all\" needs every selected target. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Both empty: run exactly one round, stop after the roster check, no reset."
+      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character(s) set (up to 7): reroll round after round. \"Win condition\" decides what counts: \"any one character\" stops once a single listed character reaches its own count, \"all\" needs every selected target. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Both empty: run exactly one round, stop after the roster check, no reset."
     },
     "Nickname": {
       "name": "Nickname",
@@ -874,8 +874,8 @@
     },
     "TargetMode": {
       "name": "Win condition",
-      "help": "How the targets are counted as a hit.\n- Any one: any of the seven dropping with enough copies is a hit (default, fastest).\n- All: every selected target must reach its own count, otherwise reset and reroll. E.g. 4 copies of A plus 1 of B needs both.",
-      "any": "Any one is enough",
+      "help": "How the targets are counted as a hit.\n- Any one character: a single listed character reaching its own count is a hit (default, fastest).\n- All: every selected target must reach its own count, otherwise reset and reroll. E.g. 4 copies of A plus 1 of B needs both.",
+      "any": "Any one character reaches its count",
       "all": "All selected must drop"
     },
     "Target": {

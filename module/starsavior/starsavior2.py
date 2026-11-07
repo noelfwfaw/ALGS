@@ -136,7 +136,7 @@ STOP_VERIFY = 'verify'          # 节点3：一直跑到验号
 STOP_CHOICES = (STOP_NONE, STOP_NICKNAME, STOP_GUIDE, STOP_VERIFY)
 
 # 目标角色最多挂 7 只（`argument.yaml` 里是 `Target` + `Target2`~`Target7`）。
-# ❗判定是**任意一只达标就停**，不是七只凑齐 —— 见 `target.check_targets()`。
+# ❗判定是**任意一个角色凑够它自己的数量就停**，不是七只凑齐 —— 见 `target.check_targets()`。
 TARGET_FIELDS = (
     'Target', 'Target2', 'Target3', 'Target4',
     'Target5', 'Target6', 'Target7',
@@ -167,6 +167,9 @@ TEXT_INPUT = {
 #       点图标/数字都不算点框）。
 #   用户 16:15：「优先级应该是点下面那个确认，当点确认没用（游戏bug）
 #   才去点偏移，现在一直点偏移本不会过结算」。
+#   ❗重试计数按「**连着**几次点不动」算：点掉一次就清零（press 里
+#   `tries.pop`），否则同一段里第二次出现就直接跳到点列 —— 16:32 的
+#   「最终旅程结果」屏就是这么被跳过的（点中心本来 0.3 秒就过）。
 #   真机 2026-11-07 14:12 的旧教训：中心连点 12 次都没推进 —— 那时是
 #   **只点中心**、没有偏移；15:5x 左端 (520,415) 又点到了**祝福**，所以
 #   点列只留**右端空白**（距右缘留 8px）。
@@ -310,11 +313,16 @@ AUTO_BATTLE_AREA = (1140, 105, 1280, 180)
 AUTO_BATTLE_ON = 0.05
 
 # 一段 press 里倍速补档最多点几下。1x→3x 只要 2 下；旅程里「跳过新手教学」
-# 和进新关卡会让倍速自己掉回 1x（用户 2026-11-06 20:28），留 4 下余量。
+# 和进新关卡会让倍速自己掉回 1x（用户 2026-11-06 20:28），留余量。
 # ❗没有这个上限就会像 2026-11-07 02:41 那样：VICTORY 页上把一片纯暗块
 #   读成 1x，每 2 秒补点一次、连点 60 多次，quiet 被每次补档 reset，
 #   journey 段再也退不出去。
-SPEED_PRESS_CLICKS = 4
+# ❗从 4 提到 8：过场里**点击会被吞**（档位条还亮着 1x，点了没反应）。
+#   真机 2026-11-07 17:01 就是这样：引导段在过场里收工、旅程提前开跑，
+#   补档连点两下都没验收 → 永久关掉 → 训练门禁挡着 → 整段旅程空转。
+#   8 下 × 约 4 秒间隔 ≈ 30 秒，够熬过开场过场；仍然是有上限的，
+#   不会回到 02:41 那种连点 60 次的局面。
+SPEED_PRESS_CLICKS = 8
 
 # 评鉴战说明（page_127~134，最后一步 E_134_1）点完之前，AUTO 最多每 20 秒
 # 试一次。真机 2026-11-07 03:38:39 点早了：说明覆盖层挡着，游戏不接；
@@ -420,7 +428,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     nickname = ''
     input_enabled = True       # 节点1：点开昵称输入框但不打字
     targets = None             # None = 没设目标，跑一轮就停
-    target_mode = TARGET_MODE_ANY   # any = 任意一只够了就停 / all = 全都要
+    target_mode = TARGET_MODE_ANY   # any = 任意一个角色凑够就停 / all = 全都要
     stop_at = STOP_NONE
     target_hit = False
 
@@ -521,7 +529,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                                      for row in self.targets)
             target_note = '%s（%s）' % (
                 target_note,
-                '任意一只凑够就停' if self.target_mode == TARGET_MODE_ANY
+                '任意一个角色凑够就停' if self.target_mode == TARGET_MODE_ANY
                 else '每一只都要凑够')
         else:
             target_note = '不指定（跑一轮就停）'
@@ -568,12 +576,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         return min(max(count, MIN_COUNT), MAX_COUNT)
 
     def read_mode(self):
-        """`TargetMode`：`any` = 任意一只够了就停，`all` = 挂上的全都要凑够。"""
+        """`TargetMode`：`any` = 任意一个角色凑够就停，`all` = 挂上的全都要凑够。"""
         if not hasattr(self.config, 'Starsavior2_TargetMode'):
             return TARGET_MODE_ANY
         mode = str(self.config.Starsavior2_TargetMode or TARGET_MODE_ANY).strip()
         if mode not in TARGET_MODES:
-            logger.warning('未知的达标条件 %r，按「任意一只」处理' % mode)
+            logger.warning('未知的达标条件 %r，按「任意一个角色」处理' % mode)
             return TARGET_MODE_ANY
         return mode
 
@@ -655,7 +663,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                                       for row in self.targets),
                            '已达成' if self.target_hit else '未达成'))
             logger.info('达标条件：%s'
-                        % ('任意一只凑够' if self.target_mode == TARGET_MODE_ANY
+                        % ('任意一个角色凑够' if self.target_mode == TARGET_MODE_ANY
                            else '挂上的全都要凑够'))
         else:
             logger.info('目标：不指定（只跑一轮）')
@@ -981,9 +989,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         speed_fails += 1
                         logger.warning('%s：倍速 %d→%d 没验收到（第 %d 次）'
                                        % (note, level, expect, speed_fails))
-                        if speed_fails >= 2:
+                        # ❗不因为「连两次没验收」就永久关掉：过场里点击
+                        #   会被吞（档位条还亮着 1x），而 story 一结束就
+                        #   该补上了。真机 17:01 就是两下没验收 → 本段不再
+                        #   补 → 训练门禁永远挡着 → 旅程整段空转。
+                        #   改成连失败 5 次（约 20 秒）才放弃。
+                        if speed_fails >= 5:
                             speed_ok = False
-                            logger.warning(f'{note}：本段不再补倍速')
+                            logger.warning(f'{note}：倍速补了 5 次都没验收，本段不再补')
                     speed_low = 0
                     advance.reset()
                     quiet.reset()
@@ -1237,6 +1250,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                                        '消失了' if vanished else '还在'))
                         if vanished:
                             cooldown[button.name] = time.time() + 2
+                            # ❗点掉过一次就把重试计数清零：`tries` 只该数
+                            #   「连着几次点不动」，不能把同一段里前面点过的
+                            #   次数带进下一次出现 —— 真机 16:32 的 `E_139_1`
+                            #   前两次点掉了，第三次一出现就按 retry=3 直接走
+                            #   偏移点列，其实点中心就能过（用户：「这里应该
+                            #   没有bug，有办法让它不调用偏移吗？」）。
+                            tries.pop(button.name, None)
                     if page is not None:
                         wait = None
                         if last_done is not None:
@@ -1605,7 +1625,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #    那边的引导全是"点这个按钮"，表里都有；而几何找框在普通 UI 上会误判
         #    （20:20 在抽卡页连点 7 次假框），开了就是乱点。
         #    视频仍然照跳（那是 SKIP，不是点画面）。
-        self.press(NICK, '昵称', timeout=90)
+        # ❗`idle=6`（默认 12）：昵称只有 2 页，打完字确认键一出现就点掉了；
+        #   真机 2026-11-07 17:01 遇到一次截图超时，输入框 3 秒没消失，
+        #   后面又干等满 12 秒才收工（用户：「昵称输入会卡一下」）。
+        #   这里提前收工也不亏：下一段「引导（进旅程之前）」扫的是
+        #   `GUIDE_A + NICK + GUIDE_B` 合表，`E_60_2` / `E_61_1` 都在里面，
+        #   真没点完下一段会接手。
+        self.press(NICK, '昵称', timeout=90, idle=6)
         # ❗`frames=True`：教学战里有"怪物的亮圆框"，那是引导要求点的目标，
         #   表里没有对应素材，只能靠几何找框。用户 2026-11-06 22:54 确认「加」。
         #   只开 `frames`、**不开 `dialogue`** —— 仍然是"点框"不"点中央"，
@@ -1675,17 +1701,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         右上四格从第一页起就可见（真机 11:49:52 实测 0.995），加了这个 stop
         会刚起步就收工，等于没改。
         """
-        self.press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40,
-                   stop_after_page=168)
-        # ❗第二遍只在「还没回到主界面」时才跑。原来那句「第二遍没东西可点的话
-        #   就是空转 12 秒，不亏」是错的：真机 2026-11-07 10:26 实测，`E_168_1`
-        #   一过就已经在主界面了，第二遍整整 12 秒**一页都没点到**
-        #   （用户：「168_1 的引导走完，等半天才去领奖励抽卡」）。
-        #   判据用主界面右上角四格 `E_171_1` —— 它在就说明结算已经走完了。
-        self.device.screenshot()
-        # 这里的"看不见四格"不是转场误判：判据是**正面**的（主界面四格在 = 结算完了），
-        # 只有"看不见"才需要再扫一遍，而且这一分支本身就是那一步。宁可按旧行为多扫一遍
-        # （多花 40 秒），也不要漏掉第二个「跳过新手教学」。
+        # ❗只跑一遍，别复制成两个 press：16:46 那轮就是因为这里多出一份
+        #   不带 `hit_out` 的 press，第一遍 168 收工后又从头扫了一遍，
+        #   点掉两个教学却没有收工判据，硬等满 40 秒。
         hit1 = []
         self.press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40,
                    stop_after_page=168, hit_out=hit1)
@@ -1706,36 +1724,36 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
         # ❗兜底：结算阶段一共有**两个**「跳过新手教学」（用户 15:5x：
         #   「旅程里有一个教学。后面还有两个教学，一共三个」），它们都在
-        #   page_168 点掉**之后**隔几秒才弹 —— 上面两遍谁先点掉 168 谁先收工
-        #   （真机 15:49:22 一收工，两个弹窗全没人点）。所以只要两遍都没点到
-        #   过 119，就在这里**等**它：最多 40 秒；点掉一层窗口续上，第二层
-        #   紧跟着弹也接得住。已经在两遍里点过就跳过，不白等。
+        #   page_168 点掉**之后**隔几秒才弹 —— 上面两遍谁先点掉 168 谁先收工，
+        #   第二遍又会在点掉第一个教学时 `stop_after_button` 收工（真机
+        #   16:34:24 就是这样，只点掉一个就跑去开邮箱，后面全被第二个弹窗挡住）。
+        #   所以这里**不管两遍点没点过都要守**：按「点掉几个」计数，
+        #   两遍里点过几个先算进 `clicked`，凑满两个再说。
         # ❗收工判据是**正面**的：两个教学都点过、主界面四格连续 3 秒可见，
         #   就立刻交棒领奖 —— 只靠「40 秒窗口到期」会点完再白等 40 秒
         #   （真机 16:18:39 点完第二个教学、16:19:19 才进邮箱）。
-        if 'E_119_1' not in hit1 and 'E_119_1' not in hit2:
-            wait_teach = Timer(40).start()
-            main_stable = Timer(3)   # 点过两个教学之后，四格连续 3 秒 = 回主界面了
-            clicked = 0
-            for _ in self.loop(timeout=55):
-                if wait_teach.reached():
-                    break
-                # 过场是游戏自己播的，别让看门狗把这段等待判成卡死（硬约束 152）
-                self.device.stuck_record_clear()
-                if self.appear(E_119_1, offset=CHAIN_OFFSET):
-                    self.click_button(E_119_1, '跳过新手教学（结算兜底）')
-                    self.wait_until_disappear(E_119_1, offset=CHAIN_OFFSET, timeout=3)
-                    wait_teach.reset()   # 第二个教学可能紧接着弹，窗口续上
-                    clicked += 1
+        clicked = hit1.count('E_119_1') + hit2.count('E_119_1')
+        wait_teach = Timer(40).start()
+        main_stable = Timer(3)   # 点过两个教学之后，四格连续 3 秒 = 回主界面了
+        for _ in self.loop(timeout=55):
+            if wait_teach.reached():
+                break
+            # 过场是游戏自己播的，别让看门狗把这段等待判成卡死（硬约束 152）
+            self.device.stuck_record_clear()
+            if self.appear(E_119_1, offset=CHAIN_OFFSET):
+                self.click_button(E_119_1, '跳过新手教学（结算兜底）')
+                self.wait_until_disappear(E_119_1, offset=CHAIN_OFFSET, timeout=3)
+                wait_teach.reset()   # 第二个教学可能紧接着弹，窗口续上
+                clicked += 1
+                main_stable.reset()
+                continue
+            # 两个教学都点过、主界面四格连续 3 秒可见 → 立刻收工，别空等 40 秒
+            if clicked >= 2:
+                if self.appear(E_171_1, offset=CHAIN_OFFSET):
+                    if main_stable.reached():
+                        break
+                else:
                     main_stable.reset()
-                    continue
-                # 两个教学都点过、主界面四格连续 3 秒可见 → 立刻收工，别空等 40 秒
-                if clicked >= 2:
-                    if self.appear(E_171_1, offset=CHAIN_OFFSET):
-                        if main_stable.reached():
-                            break
-                    else:
-                        main_stable.reset()
 
     @staticmethod
     def reset_input_typed(image):
@@ -2137,7 +2155,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # 下面 `back_to_list()` 负责退回来。
         # ❗`restore_after=2`：只有 8 页、一页约 1 秒，等 8 秒才重扫太久
         #   （用户 16:2x：「不用8秒那么久」）。
-        self.press(VERIFY, '救援者引导', timeout=600, restore_after=2)
+        # ❗`idle=5`（默认 12）：8 页点完就是尾巴，真机 16:49 记到的最长间隔
+        #   只有 page_187 → page_188 的 2.4s，12 秒纯属白等（用户 16:5x：
+        #   「是这里等了12秒吧。缩短」）。
+        self.press(VERIFY, '救援者引导', timeout=600, idle=5, restore_after=2)
         # 引导最后一步可能是点左上返回。press 的 12 秒静默已经等过了，
         # 这里再兜一次「回列表」，免得带着详情页进去扫。
         self.back_to_list()
@@ -2168,7 +2189,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.target_hit = hit
         if hit:
             logger.info('验号：%s，这一轮停在号上不重置'
-                        % ('任意一只凑够' if self.target_mode == TARGET_MODE_ANY
+                        % ('任意一个角色凑够' if self.target_mode == TARGET_MODE_ANY
                            else '挂上的目标全部凑够'))
         return True
 
