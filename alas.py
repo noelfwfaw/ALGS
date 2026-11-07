@@ -111,8 +111,17 @@ class GameScheduler:
             return True
         except TaskEnd:
             return True
+        except TaskFailed as e:
+            # The task itself says it failed (a tool stopping on a failed step).
+            # Not a crash and not a developer mistake: push, report the run as
+            # failed, and let the caller decide (the loop retries, a single run
+            # ends as `Reason: Error`).
+            logger.warning(e or 'Task stopped on failure')
+            self.notify(f'{e or "任务主动中止"}', task=self.task_label(command))
+            return False
         except GameNotRunningError as e:
             logger.warning(e)
+            self.notify_warning(f'GameNotRunningError: {e or "游戏不在运行"}', task=self.task_label(command))
             self.config.task_call('Restart')
             return False
         except (GameStuckError, GameTooManyClickError) as e:
@@ -120,6 +129,7 @@ class GameScheduler:
             self.save_error_log()
             logger.warning(f'Game stuck, {self.device.package} will be restarted in 10 seconds')
             logger.warning('If you are playing by hand, please stop the script')
+            self.notify_warning(f'{type(e).__name__}: {e}', task=self.task_label(command))
             self.config.task_call('Restart')
             self.device.sleep(10)
             return False
@@ -128,27 +138,28 @@ class GameScheduler:
             self.save_error_log()
             logger.warning('An error has occurred in game client, unable to handle')
             logger.warning(f'Restarting {self.device.package} to fix it')
+            self.notify_warning(f'GameBugError: {e or "游戏客户端异常"}', task=self.task_label(command))
             self.config.task_call('Restart')
             self.device.sleep(10)
             return False
         except ScriptError as e:
             logger.exception(e)
             logger.critical('This is likely to be a mistake of developers, but sometimes just random issues')
-            self.notify(f'ScriptError: {e}', task=self.current_task())
+            self.notify(f'ScriptError: {e}', task=self.task_label(command))
             exit(1)
         except RequestHumanTakeover as e:
             logger.critical('Request human takeover')
-            self.notify(f'RequestHumanTakeover: {e or "需要人工处理"}', task=self.current_task())
+            self.notify(f'RequestHumanTakeover: {e or "需要人工处理"}', task=self.task_label(command))
             exit(1)
         except GamePageUnknownError as e:
             logger.critical('Game page unknown')
             self.save_error_log()
-            self.notify(f'GamePageUnknownError: {e or "认不出当前游戏页面"}', task=self.current_task())
+            self.notify(f'GamePageUnknownError: {e or "认不出当前游戏页面"}', task=self.task_label(command))
             exit(1)
         except Exception as e:
             logger.exception(e)
             self.save_error_log()
-            self.notify(f'{type(e).__name__}: {e}', task=self.current_task())
+            self.notify(f'{type(e).__name__}: {e}', task=self.task_label(command))
             exit(1)
 
     def current_task(self):
@@ -160,6 +171,29 @@ class GameScheduler:
             return self.config.task.command
         except Exception:
             return None
+
+    def task_label(self, command):
+        """
+        Task name to show in an error push.
+
+        `config.task` is only set by `get_next_task()`, i.e. inside the scheduler
+        loop. A single task or a tool run (`AlGS.run('starsavior2')` from the
+        WebUI) still keeps the `Alas` bound at start up, so the command it was
+        called with is the only real answer there.
+
+        Args:
+            command (str): Snake case task name, e.g. `hazeworld_shop`.
+
+        Returns:
+            str: `HazeworldShop`, `Starsavior2`, or `command` when that fails.
+        """
+        task = self.current_task()
+        if task and task != 'Alas':
+            return task
+        try:
+            return inflection.camelize(command)
+        except Exception:
+            return command
 
     def error_push_config(self):
         """
@@ -181,35 +215,35 @@ class GameScheduler:
                 return None
         return None
 
-    def error_message(self, message, task=None):
+    def error_message(self, message, task=None, headline=None):
         """
         Body of an error push: instance, task, error, time and log file.
 
-        ❗The body starts with `AlGS` and the title is fixed to `Alas推送` in
-        `notify()`: the DingTalk connector in use filters on keywords and drops
-        anything containing neither, while answering HTTP 200 as usual.
+        The format itself lives in `module.notify.format_error_message` so the
+        tools push in the same shape. ❗Keep `AlGS` in the body and `Alas推送`
+        as the title: the DingTalk connector filters on keywords.
 
         Args:
             message (str): What went wrong.
             task (str): Task name, None to omit.
+            headline (str): First line, None for the default "脚本已停止".
 
         Returns:
             str:
         """
-        lines = ['AlGS 发生无法处理的异常，脚本已停止。',
-                 f'实例：{self.config_name}']
-        if task:
-            lines.append(f'任务：{task}')
-        lines.append(f'错误：{message}')
-        lines.append(f'时间：{datetime.now():%Y-%m-%d %H:%M:%S}')
-        log_file = getattr(logger, 'log_file', None)
-        if log_file:
-            lines.append(f'日志：{log_file}')
-        return '\n'.join(lines)
+        from module.notify.notify import format_error_message
+
+        extra = {'headline': headline} if headline else {}
+        return format_error_message(
+            self.config_name, message, task=task,
+            log_file=getattr(logger, 'log_file', None), **extra)
 
     def notify(self, message, task=None, title='Alas推送'):
         """
-        Push one error message with `Error.OnePushConfig`.
+        Push one **fatal** error with `Error.OnePushConfig`.
+
+        Sent at most once per process: the WebUI process wrapper catches the very
+        same exception right after this one and must not send a second message.
 
         Never raises: this runs while another error is being handled, and a
         broken notifier must not replace the real exception with its own.
@@ -217,12 +251,36 @@ class GameScheduler:
         Returns:
             bool: If a message was actually sent.
         """
-        try:
-            from module.notify import notify_error
+        return self._notify(message, task=task, title=title, fatal=True)
 
-            return notify_error(
+    def notify_warning(self, message, task=None, title='Alas推送'):
+        """
+        Push one **recoverable** error: game stuck, too many clicks, game client
+        bug, game not running.
+
+        Those do not stop the script - the game is restarted and the task is
+        retried - so this must not take the once-per-process slot of `notify()`,
+        otherwise the fatal error that really ends the process would be skipped.
+
+        Returns:
+            bool: If a message was actually sent.
+        """
+        return self._notify(message, task=task, title=title, fatal=False)
+
+    def _notify(self, message, task=None, title='Alas推送', fatal=True):
+        try:
+            from module.notify import notify_error, notify_warning
+
+            headline = None
+            push = notify_error
+            if not fatal:
+                from module.notify.notify import RECOVERABLE_HEADLINE
+                headline = RECOVERABLE_HEADLINE
+                push = notify_warning
+
+            return push(
                 self.config_name,
-                self.error_message(message, task=task),
+                self.error_message(message, task=task, headline=headline),
                 title=title,
                 raw_config=self.error_push_config(),
             )
@@ -618,9 +676,14 @@ class GameScheduler:
         `run()`. Everything that escapes it - a config that cannot be reloaded,
         a game that cannot be switched, the "no task enabled" takeover - lands
         here, gets the same push, and then takes the process down as before.
+
+        Returns:
+            bool: False when the loop stopped because a task failed and
+                `Error.HandleError` is off. The WebUI reads this to show the
+                instance as failed instead of "exited. Reason: Finish".
         """
         try:
-            self._loop()
+            return self._loop()
         except Exception as e:
             logger.exception(e)
             self.notify(f'调度器异常退出：{type(e).__name__}: {e}', task=self.current_task())
@@ -691,7 +754,10 @@ class GameScheduler:
                 # about to stop on its own, which is exactly what the user asked
                 # to be told about.
                 self.notify(f'任务 `{task}` 失败，且 Error.HandleError 已关闭，调度器停止。', task=task)
-                break
+                return False
+
+        # Reached only through the `stop_event` break: a normal, asked for stop.
+        return True
 
 
 

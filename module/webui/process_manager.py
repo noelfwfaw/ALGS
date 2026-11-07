@@ -157,17 +157,22 @@ class ProcessManager:
 
         AlasConfig.stop_event = e
         try:
-            # Run alas
+            # Run alas. `failed` turns a run that gave up - a tool or a single
+            # task whose `run()` returned False (game stuck, page unknown, game
+            # not running) - into `Reason: Error`, so the WebUI sidebar shows it
+            # as failed instead of "exited. Reason: Finish".
+            failed = False
             if func == "alas":
                 from algs import AlGS
 
                 if e is not None:
                     AlGS.stop_event = e
-                AlGS(config_name=config_name).loop()
+                failed = AlGS(config_name=config_name).loop() is False
             elif func in get_available_func():
                 from algs import AlGS
 
-                AlGS(config_name=config_name).run(inflection.underscore(func), skip_first_screenshot=True)
+                failed = not AlGS(config_name=config_name).run(
+                    inflection.underscore(func), skip_first_screenshot=True)
             elif func in get_available_mod():
                 mod = load_mod(func)
 
@@ -178,7 +183,10 @@ class ProcessManager:
                 getattr(load_mod(get_func_mod(func)), inflection.underscore(func))(config_name)
             else:
                 logger.critical(f"No function matched: {func}")
-            logger.info(f"[{config_name}] exited. Reason: Finish\n")
+            if failed:
+                logger.info(f"[{config_name}] exited. Reason: Error\n")
+            else:
+                logger.info(f"[{config_name}] exited. Reason: Finish\n")
         except Exception as e:
             logger.exception(e)
             # 兜底：调度器自己推过的致命错误会在 `notify_error()` 里被去重，

@@ -35,6 +35,14 @@ class ScriptEnd(Exception):
     pass
 
 
+class TaskFailed(Exception):
+    # The task decided it cannot go on, but nothing crashed. Unlike ScriptError
+    # this is an expected outcome - a tool stopping on a failed step - so the
+    # run is reported as failed instead of "exited. Reason: Finish", without the
+    # "mistake of developers" wording.
+    pass
+
+
 class GameStuckError(Exception):
     pass
 

@@ -14,3 +14,9 @@ def notify_error(config_name, message, title='Alas推送', raw_config=None):
     # Lazy import onepush
     from module.notify.notify import notify_error
     return notify_error(config_name, message, title=title, raw_config=raw_config)
+
+
+def notify_warning(config_name, message, title='Alas推送', raw_config=None):
+    # Lazy import onepush
+    from module.notify.notify import notify_warning
+    return notify_warning(config_name, message, title=title, raw_config=raw_config)

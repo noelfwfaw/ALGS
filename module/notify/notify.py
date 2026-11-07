@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 
 import onepush.core
 import yaml
@@ -12,6 +13,11 @@ from requests import Response
 from module.logger import logger
 
 onepush.core.log = logger
+
+# Headline of a push for an error the script recovers from itself: game stuck,
+# too many clicks, game client bug, game not running. All four schedule a
+# `Restart`, so the script may go on; fatal errors use the "脚本已停止" headline.
+RECOVERABLE_HEADLINE = 'AlGS 运行出错，已安排重启游戏。'
 
 # Whether a fatal error has already been pushed in this process.
 #
@@ -91,6 +97,35 @@ def read_onepush_config(config_name='alas'):
         return ''
 
 
+def format_error_message(config_name, message, task=None, log_file=None,
+                         headline='AlGS 发生无法处理的异常，脚本已停止。'):
+    """统一的错误推送正文：实例 / 任务 / 错误 / 时间 / 日志。
+
+    ❗首行带 `AlGS`，标题固定 `Alas推送`：钉钉连接器的 flow 挂了关键词过滤，
+    两处都不含关键词时消息会被丢掉，而 HTTP 照样 200。改文案别删这两个词。
+
+    Args:
+        config_name (str): 实例名。
+        message (str): 出错内容，多行也可以。
+        task (str): 任务名，None 表示不带。
+        log_file (str): 日志文件路径，None 表示不带。
+        headline (str): 首行。默认是「脚本已停止」；可恢复的错误用
+            `RECOVERABLE_HEADLINE`。
+
+    Returns:
+        str:
+    """
+    lines = [headline,
+             f'实例：{config_name}']
+    if task:
+        lines.append(f'任务：{task}')
+    lines.append(f'错误：{message}')
+    lines.append(f'时间：{datetime.now():%Y-%m-%d %H:%M:%S}')
+    if log_file:
+        lines.append(f'日志：{log_file}')
+    return '\n'.join(lines)
+
+
 def push_message(raw_config, title, content):
     """解析一段 onepush YAML 并推一条消息。
 
@@ -135,6 +170,28 @@ def notify_error(config_name, message, title='Alas推送', raw_config=None):
         return False
     _error_pushed = True
 
+    if raw_config is None:
+        raw_config = read_onepush_config(config_name)
+
+    logger.hr('Notify', level=1)
+    return push_message(raw_config, title=title, content=message)
+
+
+def notify_warning(config_name, message, title='Alas推送', raw_config=None):
+    """推送一条**可恢复**的错误（卡死 / 误点过多 / 客户端异常 / 游戏不在运行）。
+
+    ❗**不碰** `_error_pushed`：这些错误脚本会自己 `Restart` 接着跑，如果占用
+    致命错误的去重名额，之后真正让进程退出的那条反而推不出去。
+
+    Args:
+        config_name (str): 实例名，`raw_config` 为空时用它去读配置文件。
+        message (str): 推送正文。
+        title (str): 推送标题。
+        raw_config (str): 已经拿到的 `Error.OnePushConfig` 原文，None 表示现读。
+
+    Returns:
+        bool: 是否真的发出去了。
+    """
     if raw_config is None:
         raw_config = read_onepush_config(config_name)
 
