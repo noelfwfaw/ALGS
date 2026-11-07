@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -34,6 +34,10 @@ VALID_PACKAGE = {
     # 交错战线 (Cross Core), MegaGame / 广州米茹科技. 广告上写「交错战线」，包名带
     # crosscore，`adb shell pm list packages` 读出来的，不是猜的。
     'com.megagame.crosscore': 'crosscore',
+    # 星之救援者 (Star Savior), STUDIOBSIDE. 包名 `com.studiobside.starMain`，
+    # `adb shell pm list packages` 读出来的（同机还装着 BlueArchive，名字相近，
+    # 别抄错）。
+    'com.studiobside.starMain': 'starsavior',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -46,6 +50,7 @@ VALID_SERVER_LIST = {
     'browndust': ['default'],
     'chaoszero': ['default'],
     'crosscore': ['default'],
+    'starsavior': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

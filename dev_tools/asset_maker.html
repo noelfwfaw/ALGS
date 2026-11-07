@@ -2,6 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<!-- python -m http.server sends Last-Modified but no Cache-Control, so Chrome is
+     free to reuse a stale copy without asking. Keep this page out of the cache:
+     edits to the file must show up on a plain refresh. -->
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>AlGS Asset Maker - 截图标注与素材导出</title>
 <style>
   :root{
@@ -17,12 +23,15 @@
     overflow:hidden;
   }
   header{
-    display:flex; align-items:center; gap:12px; padding:8px 14px;
-    background:var(--panel); border-bottom:1px solid var(--line); flex:none;
+    display:flex; align-items:center; gap:6px 12px; padding:8px 14px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex:none; flex-wrap:wrap;
   }
-  header h1{font-size:14px; margin:0; font-weight:600}
-  header .hint{color:var(--sub); font-size:12px}
+  header h1{font-size:14px; margin:0; font-weight:600; white-space:nowrap}
+  header .hint{color:var(--sub); font-size:12px; white-space:nowrap}
+  header label{display:inline-flex; align-items:center; gap:4px}
   header .spacer{flex:1}
+  header select{max-width:190px}
+  #dirLabel{max-width:200px; overflow:hidden; text-overflow:ellipsis}
   input,select,textarea,button{font:inherit; color:inherit}
   input[type=text],select,textarea{
     border:1px solid var(--line); border-radius:5px; padding:3px 6px; background:#fff; outline:none;
@@ -30,6 +39,7 @@
   input[type=text]:focus,select:focus,textarea:focus{border-color:var(--accent)}
   button{
     border:1px solid var(--line); background:#fff; border-radius:5px; padding:4px 10px; cursor:pointer;
+    white-space:nowrap;
   }
   button:hover{background:#f0f2f5}
   button.primary{background:var(--accent); border-color:var(--accent); color:#fff}
@@ -92,9 +102,11 @@
   <span class="hint">Ctrl+V 贴截图 · 拖框标注 · 名字随便写（中文随意，改名由 AI 做）</span>
   <span class="spacer"></span>
   <label class="hint">命名空间</label>
-  <input type="text" id="ns" size="10" placeholder="hazeworld">
+  <select id="ns" title="导出到 assets/&lt;命名空间&gt;/&lt;模块&gt;/"></select>
+  <input type="text" id="nsFree" size="9" placeholder="自定义命名空间" hidden>
   <label class="hint">模块</label>
-  <input type="text" id="mod" size="10" placeholder="hazeworld">
+  <select id="mod" title="命名空间下的模块目录，一般和命名空间同名"></select>
+  <input type="text" id="modFree" size="9" placeholder="自定义模块" hidden>
   <label class="hint" title="把原始截图一起写到 screenshots/&lt;命名空间&gt;/，AI 可以离线跑 asset_check 核对"><input type="checkbox" id="dumpShots" checked> 附带截图</label>
   <button id="btnPickDir" class="mini" title="选一次仓库根目录，之后素材和截图都按命名空间/模块自动分目录写">导出到…</button>
   <span class="hint" id="dirLabel" title="当前导出目标">未选目录</span>
@@ -176,6 +188,20 @@ const KINDS = {
   color:    { label: '颜色 NAME.COLOR',      color: '#10b981', suffix: '.COLOR' },
   template: { label: '模板 TEMPLATE_NAME',   color: '#eab308', suffix: '', prefix: 'TEMPLATE_' },
 };
+
+// Namespaces offered by the picker: [folder under assets/, Chinese game name].
+// Add a line when a new game gets module/<game>/ + assets/<game>/<game>/; the
+// folder name is what actually goes into the path, the label is only a hint.
+const NAMESPACES = [
+  ['browndust', '棕色尘埃2'],
+  ['chaoszero', '卡厄思梦境'],
+  ['crosscore', '交错战线'],
+  ['hazeworld', '苍雾世界'],
+  ['lostsword', '失落之剑'],
+  ['starsavior', 'Star Savior'],
+];
+// Picking anything else is still possible: each select ends with 自定义…
+const CUSTOM = '__custom__';
 
 const state = {
   shots: [],       // {id, name, note, img, pixels, boxes:[]}
@@ -693,8 +719,8 @@ window.addEventListener('resize', render);
 
 /* ---------------- export ---------------- */
 function buildFiles() {
-  const ns = (document.getElementById('ns').value || '').trim();
-  const mod = (document.getElementById('mod').value || '').trim();
+  const ns = pickValue('ns', 'nsFree');
+  const mod = pickValue('mod', 'modFree');
   const files = [];
   const issues = [];
   const manifest = { namespace: ns, module: mod, exported_at: new Date().toISOString(), shots: [] };
@@ -753,7 +779,7 @@ function buildFiles() {
       issues.push({ level: 'err', text: `${name}: 类型 ${[...new Set(dupKind)].join('/')} 重复` });
     }
   }
-  if (!ns) issues.push({ level: 'warn', text: '没填命名空间，导出路径需要你自己放到 assets/<namespace>/<module>/' });
+  if (!ns) issues.push({ level: 'warn', text: '没选命名空间，导出路径需要你自己放到 assets/<namespace>/<module>/' });
   if (!state.shots.length) issues.push({ level: 'err', text: '没有截图' });
 
   return { files, manifest, issues, ns, mod };
@@ -1037,10 +1063,78 @@ function escapeHtml(s) {
 }
 
 /* ---------------- init ---------------- */
-document.getElementById('ns').value = localStorage.getItem('algs.ns') || 'hazeworld';
-document.getElementById('mod').value = localStorage.getItem('algs.mod') || 'hazeworld';
-document.getElementById('ns').oninput = e => localStorage.setItem('algs.ns', e.target.value);
-document.getElementById('mod').oninput = e => localStorage.setItem('algs.mod', e.target.value);
+// The export target is picked, not typed. A select keeps the shipped namespaces
+// one click away and makes a typo impossible — a wrong folder name silently
+// exports to a directory nothing reads. The trailing 自定义… option swaps in a
+// text field for the cases the list does not cover yet (brand new game).
+function pickValue(selId, freeId) {
+  const sel = document.getElementById(selId);
+  if (sel.value !== CUSTOM) return (sel.value || '').trim();
+  return (document.getElementById(freeId).value || '').trim();
+}
+
+function fillPick(selId, freeId, list, value) {
+  const sel = document.getElementById(selId);
+  const free = document.getElementById(freeId);
+  sel.innerHTML = '';
+  for (const [v, label] of list) {
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = label ? `${v} · ${label}` : v;
+    sel.appendChild(o);
+  }
+  const o = document.createElement('option');
+  o.value = CUSTOM;
+  o.textContent = '自定义…';
+  sel.appendChild(o);
+
+  const known = list.some(([v]) => v === value);
+  sel.value = known ? value : CUSTOM;
+  free.value = known ? '' : (value || '');
+  free.hidden = known;
+}
+
+// Every game currently ships exactly one module, named after the namespace, so
+// the module picker follows the namespace until the user overrides it.
+function moduleList(ns) {
+  return ns ? [[ns, '']] : [];
+}
+
+function saveTargets() {
+  localStorage.setItem('algs.ns', pickValue('ns', 'nsFree'));
+  localStorage.setItem('algs.mod', pickValue('mod', 'modFree'));
+}
+
+function onCustomToggle(selId, freeId) {
+  const free = document.getElementById(freeId);
+  free.hidden = document.getElementById(selId).value !== CUSTOM;
+  if (!free.hidden) free.focus();
+  saveTargets();
+}
+
+// A module only makes sense under its own namespace, so any namespace change
+// re-follows it: pick the namespace first, then override the module if needed.
+function refreshMod() {
+  const ns = pickValue('ns', 'nsFree');
+  fillPick('mod', 'modFree', moduleList(ns), ns);
+}
+
+document.getElementById('ns').onchange = () => {
+  onCustomToggle('ns', 'nsFree');
+  refreshMod();
+  saveTargets();
+};
+document.getElementById('mod').onchange = () => onCustomToggle('mod', 'modFree');
+document.getElementById('nsFree').oninput = () => {
+  refreshMod();
+  saveTargets();
+};
+document.getElementById('modFree').oninput = saveTargets;
+
+const savedNs = localStorage.getItem('algs.ns') || 'hazeworld';
+fillPick('ns', 'nsFree', NAMESPACES, savedNs);
+fillPick('mod', 'modFree', moduleList(pickValue('ns', 'nsFree')),
+  localStorage.getItem('algs.mod') || savedNs);
 refreshAll();
 </script>
 </body>

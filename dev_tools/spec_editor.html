@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ALAS 页面卡编辑器</title>
+<style>
+:root{
+  --bg:#f7f7f5; --panel:#ffffff; --line:#e3e2dd; --ink:#2c2c2a; --dim:#6b6a64;
+  --accent:#185fa5; --accent-bg:#e6f1fb; --warn:#ba7517; --warn-bg:#faeeda;
+  --ok:#3b6d11; --ok-bg:#eaf3de; --danger:#a32d2d;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:13px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+input[type=text],input[type=number],select,textarea{
+  background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 6px;width:100%;outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+button{background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:#c9c8c1}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:#134f8a}
+.layout{display:grid;grid-template-columns:210px minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr) auto;height:100vh}
+header{grid-column:1/-1;display:flex;gap:10px;align-items:center;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line)}
+header .f{display:flex;align-items:center;gap:5px}
+header .f label{color:var(--dim);white-space:nowrap}
+header input[type=text]{width:120px}
+header .sp{flex:1}
+aside{background:#fff;border-right:1px solid var(--line);overflow:auto;padding:10px}
+aside h3,.card h3{font-size:12px;color:var(--dim);font-weight:500;margin:0 0 6px}
+.pg{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.pg:hover{background:#fafaf8}
+.pg.on{background:var(--accent-bg);border-color:#c3dcf3}
+.pg b{font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg code{font-size:11px;color:var(--dim)}
+.pg .del{opacity:0;padding:0 5px;font-size:13px;line-height:1;color:var(--dim);
+  background:none;border:none;cursor:pointer;flex:none}
+.pg:hover .del{opacity:1}
+.pg .del:hover{color:#c0392b;background:#fbeaea;border-radius:4px}
+.stage{position:relative;display:flex;flex-direction:column;min-height:0;background:#e9e9e6}
+.ztools{display:flex;align-items:center;gap:6px;padding:5px 10px;background:#f2f2ef;border-bottom:1px solid var(--line);flex:none}
+.ztools button{padding:2px 9px;font-size:12px}
+.cwrap{flex:1;min-height:0;overflow:auto;padding:12px;position:relative}
+.cwrap canvas{display:block;width:100%;max-width:1280px;height:auto;margin:0 auto;background:#111;border-radius:6px;cursor:crosshair}
+.hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#8a8a84;text-align:center;pointer-events:none}
+.card{background:#fff;border-left:1px solid var(--line);overflow:auto;padding:12px 14px}
+.card section{padding:10px 0;border-top:1px solid var(--line)}
+.card section:first-of-type{border-top:0}
+.row{display:flex;gap:6px;align-items:center}
+.row>*{min-width:0}
+.tag{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;background:var(--accent-bg);color:var(--accent)}
+.el{display:flex;gap:6px;align-items:center;padding:4px 6px;border-radius:6px;border:1px solid transparent;cursor:pointer}
+.el.on{border-color:#c3dcf3;background:var(--accent-bg)}
+.el .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.el code{font-size:11px;color:var(--dim)}
+.step{border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;background:#fcfcfa}
+.step .line{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.step .line:last-child{margin-bottom:0}
+.step label{font-size:11px;color:var(--dim);white-space:nowrap;width:44px;flex:none}
+.step .line span{white-space:nowrap}
+body.nocode pre{display:none}
+pre{grid-column:1/-1;margin:0;padding:10px 12px;background:#1f2023;color:#d7d8d2;font:12px/1.55 Consolas,"Courier New",monospace;overflow:auto;max-height:250px;border-top:1px solid #000}
+pre .k{color:#8ab4f8}pre .s{color:#a5d6a7}pre .c{color:#7f8288}
+.empty{color:var(--dim);font-size:12px;padding:6px 0}
+#filewarn{display:none;position:sticky;top:0;z-index:30;background:#faeeda;color:#7a5205;
+  border-bottom:1px solid #f0d9ae;padding:6px 12px;font-size:12.5px;line-height:1.5}
+#filewarn b{font-weight:500}
+#help{display:none;position:fixed;inset:0;background:rgba(30,30,30,.42);z-index:20;padding:36px 20px}
+#help .panel{max-width:780px;margin:0 auto;background:#fff;border-radius:12px;padding:18px 22px;max-height:84vh;overflow:auto}
+#help h2{font-size:15px;margin:0 0 4px}
+#help p{font-size:12px;color:var(--dim);margin:0 0 12px}
+#help table{width:100%;border-collapse:collapse;font-size:12.5px}
+#help td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+#help td:first-child{width:38%;color:#2c2c2a}
+#help code{background:var(--accent-bg);color:var(--accent);border-radius:4px;padding:0 4px;font-size:11.5px}
+#help .rules{margin-top:14px;font-size:12.5px;color:#444}
+#help .rules li{margin:4px 0}
+.warnbox{background:var(--warn-bg);border:1px solid #f0d9ae;color:#7a5205;border-radius:6px;padding:6px 8px;font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="filewarn">
+  ⚠ 现在是用 <b>file://</b> 打开的：浏览器会丢掉本地自动存档，关掉页面就没了。
+  请改用 <b>dev_tools\serve_spec_editor.bat</b> 打开（同一个文件，地址变成 127.0.0.1），
+  或者在关掉之前点右上角<b>「导出 spec.json」</b>手动备份。
+</div>
+
+<div class="layout">
+  <header>
+    <div class="f"><label>游戏</label><select id="game" style="width:126px"></select></div>
+    <div class="f"><label>命名空间</label><select id="ns" style="width:126px"></select></div>
+    <div class="f"><label>任务名</label><input type="text" id="taskTitle" placeholder="中文，随便写" style="width:118px"></div>
+    <div class="f"><label>代码名</label><input type="text" id="task" placeholder="HazeworldMail" style="width:132px"></div>
+    <div class="f" title="一条线性的引导：每页一步、按顺序点，不需要每页都有结束条件">
+      <label><input type="checkbox" id="chainMode" style="width:auto;margin-right:4px">串联链</label></div>
+    <span class="sp"></span>
+    <span id="saved" style="font-size:11px;color:var(--dim);margin-left:4px"></span>
+    <button id="btnCode">代码 ▾</button>
+    <button id="btnHelp">场景速查</button>
+    <button id="btnSample">载入示例</button>
+    <button id="btnImport">导入 spec</button>
+    <button class="primary" id="btnExport">导出 spec.json</button>
+    <input type="file" id="fileSpec" accept=".json" hidden>
+  </header>
+
+  <aside>
+    <h3>页面（一个页面一张卡）</h3>
+    <div id="pages"></div>
+    <button id="btnAddPage" style="width:100%;margin-top:8px">+ 新建页面</button>
+  </aside>
+
+  <div class="stage" id="stage">
+    <div class="ztools">
+      <button id="zOut" title="缩小">−</button>
+      <span id="zLabel" style="min-width:44px;text-align:center;font-size:12px;color:var(--dim)">适应</span>
+      <button id="zIn" title="放大">+</button>
+      <button id="zFit">适应宽度</button>
+      <button id="zOne">1:1</button>
+      <span style="font-size:11px;color:var(--dim);margin-left:6px">Ctrl + 滚轮也能缩放</span>
+    </div>
+    <div class="cwrap" id="cwrap">
+      <canvas id="cv" width="1280" height="720"></canvas>
+      <div class="hint" id="hint">把游戏截图拖进来，或 Ctrl+V 粘贴<br><span style="font-size:12px">然后按住左键框出「这个东西」</span></div>
+    </div>
+  </div>
+
+  <div class="card" id="card"></div>
+
+  <pre id="code"></pre>
+</div>
+
+<div id="help">
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2>场景速查：你想做的事 → 怎么填</h2>
+      <button id="btnHelpClose">关闭</button>
+    </div>
+    <p>一张卡 = 一个页面。下面左列是你要做的事，右列是对应的填法。</p>
+    <table>
+      <tr><td>点一下就拿完（签到、邮件、领奖）</td><td>看到 <code>领取按钮</code> → 点它 → 留本页 → 最多 3；再加一行 <code>变灰的那个</code> → 不点</td></tr>
+      <tr><td>点完弹个窗</td><td>这行选「点完会：弹个窗要关掉」再选弹窗；<b>并在它上面</b>加一行「看到弹窗 → 点它」</td></tr>
+      <tr><td>按钮有亮 / 灰两种样子</td><td>两个元素都建成 <code>颜色</code>；亮的点，灰的那行选「不点」当结束条件；灰的记得把「连续」填 3</td></tr>
+      <tr><td>图标是镂空的、背景会变</td><td>类型选 <code>镂空图标</code>，再选笔画是亮还是暗</td></tr>
+      <tr><td>判据在 A，要点的是 B</td><td>看到 A → 然后「点另一个东西」→ 选 B</td></tr>
+      <tr><td>看到弹窗，点空白处关掉</td><td>看到弹窗 → 然后「点屏幕某处」→ 去画布上点一下</td></tr>
+      <tr><td>数字够才做（体力、次数、金币）</td><td>类型选 <code>数字</code>，填条件和阈值（如 ≥ 30）</td></tr>
+      <tr><td>一天做 N 遍（刷图、十连）</td><td>④ 这一页重复 N 次</td></tr>
+      <tr><td>刷到成功为止（初始号）</td><td>④ 选「刷到目标为止」</td></tr>
+      <tr><td>只是一小段过场，认不出任何东西</td><td>在 ⑤ 备注里写清楚，让 AI 用「等画面不动」</td></tr>
+      <tr><td>一条线的引导：一串按钮依次点</td><td>顶部勾上 <code>串联链</code>：生成一条循环遍历所有按钮，不再一页一个循环</td></tr>
+      <tr><td>SKIP / 跳过 / 关闭，一直都在</td><td>类型选 <code>常驻按钮</code>，框住它、填占比区间；它会被提到链条最前面单独点，不会抢后面的步骤</td></tr>
+      <tr><td>过完引导才许点某个按钮</td><td>把「过引导」写在前面的行，再在「点自动战斗」那行勾上 <code>分段</code>：上一段没做完，下面一段根本不会开始</td></tr>
+      <tr><td>要输入文字（昵称、兑换码）</td><td>框住输入框 → 然后「输入文字」→ 填内容（只能英文数字）→ 最多 1 次；再框一下输入后变亮的「确认」</td></tr>
+      <tr><td>要滚动列表、要比价、要记账</td><td>这些卡片表达不了，写进 ⑤ 备注</td></tr>
+    </table>
+    <ul class="rules">
+      <li><b>行的先后 = 优先级</b>：弹窗那一行要放在「点按钮」上面，否则窗开着也会去点按钮。</li>
+      <li><b>「不点」那一行 = 这一页的结束条件</b>，生成时会自动提到循环最前面。</li>
+      <li><b>判据越专一越好</b>：只在这个页面出现的东西才拿来认页面，别用页签和通用按钮。</li>
+      <li><b>行序 ≠ 先后</b>：行序只决定"同时成立时先做谁"。要"必须先做完 A 才能做 B"，只能用<code>分段</code>。</li>
+      <li><b>框到纯色等于没框</b>：模板匹配对纯色块会给任何画面 1.00 分，脚本就会"永远认为它在"。生成时会检查 std，低于 2 直接报错。</li>
+      <li><b>SKIP 不要用图、也不要用 OCR</b>：它的背景一直在变，图会被带偏；OCR 慢且认不了日韩。用<code>常驻按钮</code>数白色像素占比，实测有 2.8~13.5%、没有 0.0%。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const W=1280,H=720;
+/* GAMES:BEGIN 由 dev_tools/spec_games.py 扫描仓库生成，加了新游戏后跑一次 */
+const GAMES=["browndust", "chaoszero", "crosscore", "hazeworld", "lostsword", "starsavior"];
+const NAMESPACES=["browndust", "chaoszero", "crosscore", "hazeworld", "lostsword", "starsavior"];
+/* GAMES:END */
+const TYPES={image:'图（模板）',color:'颜色（纯色块）',hollow:'镂空图标（背景会变）',
+             ratio:'常驻按钮（SKIP/跳过，一直都在）',text:'文字（OCR）',digit:'数字（OCR）'};
+const ACTS={click:'点它',other:'点另一个东西',tap:'点屏幕某处',type:'输入文字',
+            none:'不点（这是结束条件）'};
+const THENS={stay:'留在本页',popup:'弹个窗要关掉',goto:'跳到别的页'};
+const DELAYS={server_update:'每天服务器刷新后',half_day:'12 小时后',day:'24 小时后',
+              retry:'刷到目标为止（没成就马上再来一轮）',once:'只做一次，不再来'};
+
+let spec={game:'',namespace:'',task:'',task_title:'',pages:[]};
+let cur=-1, sel=-1, drag=null, pickFor=null, pickEl=false, zoom=0, img=new Image();
+
+function fillSelects(){
+  const g=document.getElementById('game'),n=document.getElementById('ns');
+  g.innerHTML=GAMES.map(x=>`<option ${x===spec.game?'selected':''}>${x}</option>`).join('');
+  n.innerHTML=NAMESPACES.map(x=>`<option ${x===spec.namespace?'selected':''}>${x}</option>`).join('');
+  if(!g.value&&GAMES.length)g.value=GAMES.includes('hazeworld')?'hazeworld':GAMES[0];
+  if(!n.value)n.value=NAMESPACES.includes(g.value)?g.value:NAMESPACES[0];
+  g.onchange=()=>{if(NAMESPACES.includes(g.value))n.value=g.value;renderCode()};
+  n.onchange=()=>renderCode();
+}
+
+/* ---------------- 页面 ---------------- */
+function newPage(){
+  return {title:'新页面',name:'page_'+(spec.pages.length+1),shot:'',img:null,
+          elements:[],check:'',steps:[],exit:{button:'',to:''},delay:'server_update',note:''};
+}
+function P(){return spec.pages[cur]}
+function api(){return (document.getElementById('game').value||'hazeworld').trim()}
+function nsf(){return (document.getElementById('ns').value||api()).trim()}
+
+/* ---------------- 渲染 ---------------- */
+// 弹窗常常是另一张卡上框的（"获得奖励"不属于当前这一页），所以这个下拉要列全部
+// 页面的元素，按页面分组。`self` 是当前页，排在最前面。
+// 放在全局是因为 renderSteps 也要用 —— 定义在 renderCard 里面会 ReferenceError。
+function optAllEls(self, value){
+  const order=[self].concat(spec.pages.filter(x=>x!==self)).filter(x=>x&&x.elements&&x.elements.length);
+  const groups=order.map(pg=>'<optgroup label="'+esc(pg.title||pg.name)+'">'
+    + pg.elements.map(e=>'<option value="'+esc(e.name)+'"'+(e.name===value?' selected':'')+'>'+esc(e.name)+'</option>').join('')
+    + '</optgroup>');
+  const known=spec.pages.some(pg=>pg.elements&&pg.elements.some(e=>e.name===value));
+  const orphan=(value&&!known)?'<option selected>'+esc(value)+'（已删除）</option>':'';
+  return orphan+groups.join('');
+}
+
+function renderPages(){
+  const box=document.getElementById('pages');box.innerHTML='';
+  spec.pages.forEach((p,i)=>{
+    const d=document.createElement('div');
+    d.className='pg'+(i===cur?' on':'');
+    // 加了 × 之后页面名会被挤窄，title 留一份完整的，鼠标停上去能看到
+    d.innerHTML=`<b title="${esc(p.title||'未命名')}">${p.title||'未命名'}</b>`
+      + `<code>${p.name}</code>`
+      + `<button class="del" title="删除这一页">×</button>`;
+    d.onclick=()=>{cur=i;sel=-1;loadShot();renderAll()};
+    d.querySelector('.del').onclick=(ev)=>{
+      // 别让点删除顺带把这一页切到前台，否则删完画面还停在被删的那页上
+      ev.stopPropagation();
+      const nEl=p.elements.length, nSt=(p.steps||[]).length;
+      const detail = (nEl||nSt) ? `\n这一页有 ${nEl} 个元素、${nSt} 个步骤。` : '';
+      if(!confirm(`删除「${p.title||p.name}」？${detail}`))return;
+      spec.pages.splice(i,1);
+      if(cur>=spec.pages.length)cur=spec.pages.length-1;
+      if(cur<0)cur=-1;
+      sel=-1;
+      loadShot();renderAll();
+    };
+    box.appendChild(d);
+  });
+  if(!spec.pages.length)box.innerHTML='<div class="empty">还没有页面，点下面新建</div>';
+}
+
+function renderCard(){
+  const c=document.getElementById('card');
+  const p=P();
+  if(!p){c.innerHTML='<div class="empty">左上角新建一个页面开始</div>';return}
+  const optEls=(v)=>p.elements.map((e,i)=>`<option value="${e.name}" ${e.name===v?'selected':''}>${e.name}</option>`).join('');
+
+  const optPages=(v)=>['page_main',...spec.pages.map(x=>x.name)].filter((x,i,a)=>a.indexOf(x)===i)
+       .map(n=>`<option ${n===v?'selected':''}>${n}</option>`).join('');
+
+  c.innerHTML=`
+  <section>
+    <div class="row">
+      <div style="flex:1"><h3>这个页面叫什么（用你的话）</h3>
+        <input type="text" id="pTitle" value="${esc(p.title)}"></div>
+      <div style="width:130px"><h3>变量名</h3><input type="text" id="pName" value="${p.name}"></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>① 怎么认出它 <span style="font-weight:400">（只在这个页面出现的东西）</span></h3>
+    <div class="row"><select id="pCheck"><option value="">— 先框一个元素 —</option>${optEls(p.check)}</select></div>
+    ${p.elements.length?'':'<div class="warnbox">还没框任何东西。先在右边截图上拖一个框。</div>'}
+  </section>
+
+  <section>
+    <h3>元素（框出来的东西）</h3>
+    <div id="elSet"></div>
+    <div id="els"></div>
+  </section>
+
+  <section>
+    <h3>② 依次做这些 <span style="font-weight:400">（从上往下试，命中就从头再来）</span></h3>
+    <div id="steps"></div>
+    <button id="btnAddStep" style="width:100%;margin-top:4px">+ 一件事</button>
+  </section>
+
+  <section>
+    <h3>③ 出口 / 入口 <span style="font-weight:400">（点它 → 到哪一页，可以多条）</span></h3>
+    <div id="exits"></div>
+    <button id="btnAddExit" style="width:100%;margin-top:4px">+ 一条</button>
+  </section>
+
+  <section>
+    <h3>④ 做几次、什么时候再来</h3>
+    <div class="row" style="margin-bottom:6px">
+      <span style="font-size:11px;color:var(--dim);white-space:nowrap">这一页重复</span>
+      <input type="number" id="pRepeat" value="${p.repeat||1}" min="1" max="99" style="width:64px">
+      <span style="font-size:11px;color:var(--dim)">次（1 = 只做一遍）</span>
+    </div>
+    <select id="pDelay">${Object.entries(DELAYS).map(([k,v])=>`<option value="${k}" ${k===p.delay?'selected':''}>${v}</option>`).join('')}</select>
+    <button id="btnApplyAll" style="width:100%;margin-top:6px">把这两个设置应用到所有页</button>
+  </section>
+
+  <section>
+    <h3>⑤ 人话备注 <span style="font-weight:400">（描述不清的写这里，AI 会自己想办法）</span></h3>
+    <textarea id="pNote" rows="3" placeholder="例：这里点完要等一下，游戏会自己播一段动画，期间点哪都没用。">${esc(p.note)}</textarea>
+  </section>`;
+
+  renderEls();renderSteps();
+  bind('pTitle',v=>{p.title=v;renderPages()});
+  bind('pName',v=>{p.name=v.trim();suggestTask();renderPages();renderCode()});
+  document.getElementById('pName').onchange=()=>renderCard();
+  bind('pCheck',v=>{p.check=v;draw()});
+  renderExits();
+  document.getElementById('btnAddExit').onclick=()=>{
+    const list=exitsOf(p);
+    list.push({button:(p.elements[0]||{}).name||'',to:'page_main'});
+    renderCard();
+  };
+  bind('pDelay',v=>p.delay=v);
+  bind('pRepeat',v=>p.repeat=Math.max(1,parseInt(v)||1));
+  document.getElementById('btnApplyAll').onclick=()=>{
+    spec.pages.forEach(q=>{q.delay=p.delay;q.repeat=p.repeat||1});
+    alert(`已应用到 ${spec.pages.length} 个页面`);
+  };
+  bind('pNote',v=>p.note=v);
+  document.getElementById('btnAddStep').onclick=()=>{
+    if(!p.elements.length){alert('先框一个元素');return}
+    p.steps.push({when:p.elements[0].name,action:'click',then:'stay',to:'',max:3});
+    renderSteps();renderCode();
+  };
+}
+
+function renderElSettings(){
+  const p=P(),box=document.getElementById('elSet');
+  if(!p||sel<0||!p.elements[sel]){box.innerHTML='';return}
+  const e=p.elements[sel];
+  box.innerHTML=`
+    <div class="step" style="background:var(--accent-bg);border-color:#c3dcf3">
+      <div class="line"><label>类型</label>
+        <select data-k="type">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${k===e.type?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="line"><label>点哪里</label>
+        <span style="font-size:11px;color:var(--dim)">向外扩</span>
+        <input type="number" data-k="pad" value="${e.pad||0}" style="width:56px" ${e.tap?'disabled':''}>
+        <span style="font-size:11px;color:var(--dim)">像素</span></div>
+      <div class="line"><label></label>
+        <button data-act="pickTap" style="flex:1">${e.tap?'点的位置：'+e.tap:'判据和点击不在同一处？在图上点一下'}</button>
+        ${e.tap?'<button data-act="clearTap">×</button>':''}</div>
+      <div class="line"><label></label><span style="font-size:11px;color:var(--dim)">
+        ${e.tap?'识别用这个框，点击点在标出来的地方（虚线圆）':'默认点和框是同一处'}</span></div>
+      <div class="line"><label>连续</label>
+        <input type="number" data-k="stable" value="${e.stable||1}" style="width:56px" min="1" max="10">
+        <span style="font-size:11px;color:var(--dim)">帧都成立才算（动画帧不算就填 3）</span></div>
+      ${e.type==='text'?`<div class="line"><label>原文</label>
+        <input type="text" data-k="text" value="${esc(e.text)}" placeholder="屏幕上写的字，如 當日行程"></div>`:''}
+      ${e.type==='digit'?`<div class="line"><label>条件</label>
+        <select data-k="cmp" style="width:70px">${['>=','<=','==','>','<'].map(x=>`<option ${x===(e.cmp||'>=')?'selected':''}>${x}</option>`).join('')}</select>
+        <input type="number" data-k="num" value="${e.num===undefined?0:e.num}" style="width:80px">
+        <span style="font-size:11px;color:var(--dim)">读到这个数才继续</span></div>`:''}
+      ${e.type==='ratio'?`<div class="line"><label>笔画</label>
+        <select data-k="ink"><option value="light" ${e.ink!=='dark'?'selected':''}>亮色（白字）</option>
+        <option value="dark" ${e.ink==='dark'?'selected':''}>深色</option></select></div>
+        <div class="line"><label>占比</label>
+        <input type="number" data-k="ratio_lo" step="0.01" min="0" max="1" value="${e.ratio_lo===undefined?0.02:e.ratio_lo}" style="width:70px">
+        <span style="color:var(--dim)">~</span>
+        <input type="number" data-k="ratio_hi" step="0.01" min="0" max="1" value="${e.ratio_hi===undefined?0.45:e.ratio_hi}" style="width:70px"></div>
+        <div class="line"><label></label><span style="font-size:11px;color:var(--dim)">
+        ${(()=>{const r=measureRatio(e);if(r===null)return '先拖入这张页面截图才能量';
+          return '这张图上量到 '+(r*100).toFixed(1)+'% ，所以判定区间要把这个数包进去';})()}</span></div>`:''}
+      ${e.type==='hollow'?`<div class="line"><label>笔画</label>
+        <select data-k="ink"><option value="light" ${e.ink!=='dark'?'selected':''}>亮色（白字/金边）</option>
+        <option value="dark" ${e.ink==='dark'?'selected':''}>深色</option></select></div>
+        <div class="line"><label></label><span style="font-size:11px;color:var(--dim)">
+        ${(()=>{const m=measureInk(e);return m?'量到：颜色 '+m.color.join(',')+' · '+m.count+' 像素 → 运行时要求 ≥'+Math.max(10,Math.round(m.count*0.5)):'先拖入这张页面截图才能量'})()}</span></div>`:''}
+    </div>`;
+  box.querySelectorAll('[data-k]').forEach(el=>{
+    el.oninput=el.onchange=()=>{
+      e[el.dataset.k]=el.type==='number'?+el.value:el.value;
+      if(el.dataset.k==='type'){renderCard();return}
+      draw();renderCode();
+    };
+  });
+  const pt=box.querySelector('[data-act=pickTap]');
+  if(pt)pt.onclick=()=>{pickEl=!pickEl;pickFor=null;renderElSettings()};
+  const ct=box.querySelector('[data-act=clearTap]');
+  if(ct)ct.onclick=()=>{delete e.tap;draw();renderElSettings();renderCode()};
+}
+
+function exitsOf(p){
+  if(!p.exits){
+    p.exits=(p.exit&&p.exit.button)?[{button:p.exit.button,to:p.exit.to||'page_main'}]:[];
+    delete p.exit;
+  }
+  return p.exits;
+}
+
+function renderExits(){
+  const p=P();if(!p)return;
+  const box=document.getElementById('exits');if(!box)return;
+  const list=exitsOf(p);
+  const pages=['page_main',...spec.pages.map(x=>x.name)].filter((x,i,a)=>a.indexOf(x)===i);
+  if(!list.length){box.innerHTML='<div class="empty">没有出口？主界面那种什么都不用写。</div>';return}
+  box.innerHTML='';
+  list.forEach((e,i)=>{
+    const d=document.createElement('div');
+    d.className='row';d.style.marginBottom='4px';
+    d.innerHTML=`<select data-i="${i}" data-k="button" style="flex:1">
+        <option value="">— 选个按钮 —</option>
+        ${p.elements.map(x=>`<option ${x.name===e.button?'selected':''}>${x.name}</option>`).join('')}
+      </select><span style="color:var(--dim)">→</span>
+      <select data-i="${i}" data-k="to" style="flex:1">
+        ${pages.map(n=>`<option ${n===e.to?'selected':''}>${n}</option>`).join('')}
+      </select><button data-i="${i}" data-k="del">×</button>`;
+    d.querySelectorAll('[data-k]').forEach(el=>{
+      if(el.dataset.k==='del'){
+        el.onclick=()=>{list.splice(i,1);renderCard();renderCode()};
+        return;
+      }
+      el.onchange=()=>{list[i][el.dataset.k]=el.value;renderCode()};
+    });
+    box.appendChild(d);
+  });
+}
+
+function renderEls(){
+  const p=P();if(!p)return;
+  const box=document.getElementById('els');box.innerHTML='';
+  if(!p.elements.length){box.innerHTML='<div class="empty">截图上拖一个框 = 一个元素</div>';return}
+  p.elements.forEach((e,i)=>{
+    const d=document.createElement('div');
+    d.className='el'+(i===sel?' on':'');
+    d.innerHTML=`<span class="tag">${TYPES[e.type]||e.type}</span>
+      <input type="text" class="n" value="${esc(e.name)}" style="border:0;background:transparent;padding:0">
+      <code>${e.box.join(',')}</code>
+      <button title="删掉">×</button>`;
+    d.onclick=(ev)=>{if(ev.target.tagName!=='INPUT'){sel=i;renderAll()}};
+    const nm=d.querySelector('input');
+    nm.oninput=()=>{const old=e.name;e.name=nm.value.trim();
+      p.steps.forEach(st=>{if(st.when===old)st.when=e.name});if(p.check===old)p.check=e.name;
+      draw();renderCode()};
+    nm.onblur=()=>renderCard();
+    d.querySelector('button').onclick=(ev)=>{
+      ev.stopPropagation();
+      p.elements.splice(i,1);
+      p.steps=p.steps.filter(s=>p.elements.some(x=>x.name===s.when));
+      if(p.check===e.name)p.check='';
+      sel=-1;renderAll();
+    };
+    box.appendChild(d);
+  });
+  renderElSettings();
+}
+
+function renderSteps(){
+  const p=P();if(!p)return;
+  const box=document.getElementById('steps');box.innerHTML='';
+  if(!p.steps.length){box.innerHTML='<div class="empty">这个页面什么都不用做？那就加一条结束条件</div>';return}
+  p.steps.forEach((s,i)=>{
+    const d=document.createElement('div');d.className='step';
+    const opts=(v,list)=>list.map(n=>`<option ${n===v?'selected':''}>${n}</option>`).join('');
+    d.innerHTML=`
+      <div class="line"><label>看到</label>
+        <select data-k="when">${opts(s.when,p.elements.map(e=>e.name))}</select>
+        <button data-act="del" title="删掉">×</button></div>
+      <div class="line"><label>然后</label>
+        <select data-k="action">${Object.entries(ACTS).map(([k,v])=>`<option value="${k}" ${k===s.action?'selected':''}>${v}</option>`).join('')}</select></div>
+      ${s.action==='type'?`<div class="line"><label>输入</label>
+        <input type="text" data-k="text" value="${esc(s.text||'')}" placeholder="英文或数字，如 savior2026"></div>`:''}
+      ${s.action==='other'?`<div class="line"><label>点</label>
+        <select data-k="target">${opts(s.target,p.elements.map(e=>e.name))}</select>
+        <span style="font-size:11px;color:var(--dim)">判据在左，点这里</span></div>`:''}
+      ${s.action==='tap'?`<div class="line"><label>点</label>
+        <button data-act="pick">${s.target?'改：'+s.target:'在图上点一下'}</button>
+        <span style="font-size:11px;color:var(--dim)">${pickFor===i?'←现在去画布上点':'判据在左，点这儿'}</span></div>`:''}
+      <div class="line"><label>点完会</label>
+        <select data-k="then">${Object.entries(THENS).map(([k,v])=>`<option value="${k}" ${k===s.then?'selected':''}>${v}</option>`).join('')}</select>
+        ${s.then==='goto'?`<select data-k="to">${opts(s.to||'page_main',['page_main',...spec.pages.map(x=>x.name)].filter((x,j,a)=>a.indexOf(x)===j))}</select>`:''}
+      </div>
+      ${s.then==='popup'?`<div class="line"><label>弹窗</label>
+        <select data-k="popup"><option value="">— 哪个窗长什么样 —</option>${optAllEls(p, s.popup||'')}</select></div>`:''}
+      <div class="line"><label>最多</label>
+        <input type="number" data-k="max" value="${s.max===undefined?3:s.max}" style="width:64px">
+        <span style="font-size:11px;color:var(--dim)">次，0 = 不限</span></div>
+      <div class="line"><label>分段</label>
+        <input type="checkbox" data-k="seg" ${s.seg?'checked':''} style="width:auto;margin-right:4px">
+        <span style="font-size:11px;color:var(--dim)">从这行起是新的一段，上一段做完才轮到</span></div>`;
+    d.querySelectorAll('[data-k]').forEach(el=>{
+      el.onchange=()=>{
+        s[el.dataset.k]=el.type==='checkbox'?el.checked:(el.type==='number'?+el.value:el.value);
+        if(el.dataset.k==='action'&&el.value==='tap'&&!s.target)s.target='640,360';
+        if(el.dataset.k==='action'&&el.value==='other'&&!s.target)s.target=(p.elements.find(x=>x.name!==s.when)||{}).name||'';
+        renderSteps();renderCode();draw();
+      };
+    });
+    d.querySelector('[data-act=del]').onclick=()=>{p.steps.splice(i,1);renderSteps();renderCode();draw()};
+    const pick=d.querySelector('[data-act=pick]');
+    if(pick)pick.onclick=()=>{pickFor=(pickFor===i?null:i);renderSteps()};
+    box.appendChild(d);
+  });
+}
+
+function applyZoom(){
+  const cv=document.getElementById('cv'),label=document.getElementById('zLabel');
+  if(!zoom){
+    cv.style.maxWidth='1280px';cv.style.width='100%';
+    label.textContent='适应';
+  }else{
+    cv.style.maxWidth='none';cv.style.width=Math.round(W*zoom)+'px';
+    label.textContent=Math.round(zoom*100)+'%';
+  }
+}
+function setZoom(z){
+  zoom=Math.max(0.25,Math.min(4,z));
+  if(Math.abs(zoom-1)<0.001)zoom=1;
+  applyZoom();
+}
+document.getElementById('zIn').onclick=()=>setZoom(zoom?zoom+0.25:1);
+document.getElementById('zOut').onclick=()=>setZoom(zoom?zoom-0.25:0.75);
+document.getElementById('zFit').onclick=()=>{zoom=0;applyZoom()};
+document.getElementById('zOne').onclick=()=>setZoom(1);
+document.getElementById('cwrap').addEventListener('wheel',ev=>{
+  if(!ev.ctrlKey)return;
+  ev.preventDefault();
+  setZoom((zoom||1)*(ev.deltaY<0?1.15:1/1.15));
+},{passive:false});
+
+function loadShot(){
+  const p=P();
+  if(p&&p.shot){img=new Image();img.onload=()=>{p.img=img;draw();renderCard();renderCode()};img.src=p.shot}
+  else{p&&(p.img=null);draw()}
+}
+function draw(){
+  const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+  const p=P();
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  document.getElementById('hint').style.display=(p&&p.shot)?'none':'block';
+  if(p&&p.img)ctx.drawImage(p.img,0,0);
+  if(!p)return;
+  if(p.img&&p.shot_kind==='composed'){
+    ctx.fillStyle='rgba(186,117,23,.85)';
+    ctx.fillRect(12,H-40,236,28);
+    ctx.fillStyle='#fff';ctx.font='16px sans-serif';
+    ctx.fillText('素材拼图（不是真截图）',22,H-19);
+  }
+  (p.elements||[]).forEach((e,i)=>{
+    const [x1,y1,x2,y2]=e.box, isCheck=(e.name===p.check), on=(i===sel);
+    ctx.lineWidth=on?3:2;
+    ctx.strokeStyle=isCheck?'#ef9f27':(on?'#e24b4a':'#85b7eb');
+    ctx.strokeRect(x1+.5,y1+.5,x2-x1,y2-y1);
+    const label=e.name;
+    ctx.font='16px sans-serif';
+    const w=ctx.measureText(label).width+10;
+    ctx.fillStyle=isCheck?'#ef9f27':(on?'#e24b4a':'#378add');
+    ctx.fillRect(x1,y1-20,w,20);
+    ctx.fillStyle='#fff';ctx.fillText(label,x1+5,y1-4);
+  });
+  (p.elements||[]).forEach(el=>{
+    if(!el.tap||!el.tap.includes(','))return;
+    const [tx,ty]=el.tap.split(',').map(Number);
+    ctx.strokeStyle='#d1467a';ctx.lineWidth=2;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.arc(tx,ty,10,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(tx-13,ty);ctx.lineTo(tx+13,ty);
+    ctx.moveTo(tx,ty-13);ctx.lineTo(tx,ty+13);ctx.stroke();
+  });
+  (p.steps||[]).forEach(st=>{
+    if(st.action!=='tap'||!st.target||!st.target.includes(','))return;
+    const [tx,ty]=st.target.split(',').map(Number);
+    ctx.strokeStyle='#3b6d11';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(tx-14,ty);ctx.lineTo(tx+14,ty);
+    ctx.moveTo(tx,ty-14);ctx.lineTo(tx,ty+14);ctx.stroke();
+    ctx.beginPath();ctx.arc(tx,ty,7,0,Math.PI*2);ctx.stroke();
+  });
+  if(drag&&drag.w){
+    const{x,y,w,h}=drag;
+    ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeStyle='#fff';
+    ctx.strokeRect(x+.5,y+.5,w,h);ctx.setLineDash([]);
+  }
+}
+
+/* ---------------- 交互 ---------------- */
+const cv=document.getElementById('cv');
+function pos(ev){
+  const r=cv.getBoundingClientRect();
+  return [Math.round((ev.clientX-r.left)*W/r.width),Math.round((ev.clientY-r.top)*H/r.height)];
+}
+cv.addEventListener('mousedown',ev=>{
+  const p=P();if(!p)return alert('先新建一个页面');
+  if(pickEl){
+    const [x,y]=pos(ev),e=p.elements[sel];
+    if(e){e.tap=x+','+y;pickEl=false;draw();renderElSettings();renderCode()}
+    return;
+  }
+  if(pickFor!==null){
+    const [x,y]=pos(ev);
+    p.steps[pickFor].target=x+','+y;
+    pickFor=null;renderSteps();renderCode();draw();
+    return;
+  }
+  if(!p.shot)return alert('先载入这张页面的截图');
+  const [x,y]=pos(ev);drag={x,y,w:0,h:0};draw();
+});
+window.addEventListener('mousemove',ev=>{
+  if(!drag)return;const [x,y]=pos(ev);
+  drag.w=x-drag.x;drag.h=y-drag.y;draw();
+});
+window.addEventListener('mouseup',ev=>{
+  if(!drag)return;
+  const p=P();const{x,y,w,h}=drag;drag=null;
+  const x1=Math.min(x,x+w),x2=Math.max(x,x+w),y1=Math.min(y,y+h),y2=Math.max(y,y+h);
+  if(x2-x1<6||y2-y1<6){draw();return}
+  const n=p.elements.length+1;
+  const e={name:(p.name.replace(/^page_/,'').toUpperCase()||'ELEM')+'_'+n,
+           box:[x1,y1,x2,y2],type:'image',pad:8,text:''};
+  p.elements.push(e);
+  if(!p.check)p.check=e.name;
+  sel=p.elements.length-1;
+  renderAll();
+  const inp=document.querySelector('.el.on input');if(inp){inp.focus();inp.select()}
+});
+
+/* 拖拽 / 粘贴截图 */
+const stage=document.getElementById('stage');
+stage.addEventListener('dragover',e=>e.preventDefault());
+stage.addEventListener('drop',e=>{
+  e.preventDefault();
+  const f=e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(f)readShot(f);
+});
+window.addEventListener('paste',e=>{
+  for(const it of (e.clipboardData||{}).items||[]){
+    if(it.type.startsWith('image/')){readShot(it.getAsFile());break}
+  }
+});
+function readShot(file){
+  if(!P())spec.pages.push(newPage()),cur=spec.pages.length-1;
+  const r=new FileReader();
+  r.onload=()=>{P().shot=r.result;dirtyShots.add(P().name);loadShot();renderAll()};
+  r.readAsDataURL(file);
+}
+
+/* ---------------- 代码预览 ---------------- */
+function up(s){let v=(s||'').toUpperCase().replace(/[^A-Z0-9_]/g,'_');if(v&&!/[A-Z_]/.test(v[0]))v='E_'+v;return v}
+function pascal(s){return (s||'').replace(/[^A-Za-z0-9]+/g,' ').trim().split(/\s+/).map(x=>x.charAt(0).toUpperCase()+x.slice(1).toLowerCase()).join('')}
+
+function label(p){return (p.title||'').trim()||p.name.replace(/^page_/,'').replace(/_/g,' ')}
+function chainPresses(){
+  const out=[];
+  spec.pages.forEach(p=>(p.steps||[]).forEach(s=>{
+    if(s.action==='none')return;
+    const e=(p.elements||[]).find(x=>x.name===s.when);
+    if(e)out.push({p,e,s});
+  }));
+  return out;
+}
+function genChain(){
+  const all=chainPresses();
+  const guide=all.filter(x=>x.e.type!=='ratio');
+  const keys=all.filter(x=>x.e.type==='ratio');
+  const L=[],mod=api();
+  L.push('# 串联链：一条循环走完整个引导。没有页面导航，也不需要每页都有结束条件。');
+  L.push('');
+  L.push('# 允许按钮偏离框选位置多少像素。开得越大越慢：');
+  L.push('# 64 个模板全屏扫一遍要 1 秒，外扩 60 像素只要 50 毫秒。');
+  L.push('CHAIN_OFFSET = 60');
+  keys.forEach(k=>L.push(`${up(k.e.name)}_AREA = ${tup(k.e.box)}`));
+  if(keys.length){
+    L.push('');
+    L.push('# 常驻键点一次之后歇多久，防止连点把刚弹出来的窗点掉。');
+    L.push('INTERRUPT_COOLDOWN = 2');
+  }
+  L.push('');
+  L.push('# 按卡片顺序。顺序就是优先级：两个同时出现时，点上面的那个。');
+  L.push('GUIDE_CHAIN = (');
+  guide.forEach(g=>L.push(`    ${up(g.e.name)},        # ${label(g.p)}`));
+  L.push(')');
+  if(keys.length){
+    L.push('');
+    L.push('# 常驻键：一直都在，不属于链条的一步，每帧单独判一次。');
+    L.push('INTERRUPTS = (');
+    keys.forEach(k=>L.push(`    ${up(k.e.name)},        # ${label(k.p)}`));
+    L.push(')');
+  }
+  L.push('');
+  L.push(`class ${spec.task||'GeneratedTask'}(${pascal(api())}UI):`);
+  L.push('    def run(self):');
+  L.push(`        logger.hr('${spec.task_title||'引导链'}', level=1)`);
+  L.push('        self.guide_chain()');
+  L.push('        self.config.task_delay(minute=1)   # 刷初始：1 分钟后再来一轮');
+  L.push('');
+  L.push('    def guide_chain(self, timeout=900, idle=20):');
+  L.push('        quiet = Timer(idle).start()');
+  L.push('        stubborn = {}');
+  L.push('        for _ in self.loop(timeout=timeout):');
+  if(keys.length)L.push('            if self._interrupt():     # SKIP / 跳过 排最前');
+  if(keys.length)L.push('                quiet.reset(); continue');
+  L.push('            for button in GUIDE_CHAIN:');
+  L.push('                if stubborn.get(button.name, 0) >= 2: continue   # 点两次不走就跳过');
+  L.push('                if self.appear(button, offset=CHAIN_OFFSET):');
+  L.push('                    self.device.click(button)');
+  L.push('                    quiet.reset()');
+  L.push('                    self.wait_until_disappear(button, offset=CHAIN_OFFSET, timeout=4, settle=2)');
+  L.push('                    break');
+  L.push('            else:');
+  L.push('                if quiet.reached(): return True   # 静默 20 秒 = 引导走完了');
+  L.push('');
+  L.push(`# ${guide.length} 步 + ${keys.length} 个常驻键；卡片只用来记"框在哪、什么样子"`);
+  return L.join('\n');
+}
+function suggestTask(){
+  const t=document.getElementById('task'),p=P();
+  if(!p||t.value.trim())return;
+  t.value=pascal(api())+pascal(p.name.replace(/^page_/,''));
+}
+function genCode(){
+  if(spec.chain)return genChain();
+  const live=spec.pages.filter(x=>x.check);
+  if(!live.length)return '// 还没有带判据的页面';
+  const game=api(),mod=game;
+  const L=[];
+  const used=new Set();
+  live.forEach(p=>p.elements.forEach(e=>used.add(up(e.name))));
+  live.forEach(p=>{if(p.check)used.add(up(p.check));exitsOf(p).forEach(e=>{if(e.button)used.add(up(e.button))})});
+
+  L.push('# 下面这些是工具按你的表生成的，AI 拿到的就是它们');
+  L.push('');
+  L.push('# ---- 1) assets.py 里会多出来的条目（图片由工具裁好） ----');
+  live.forEach(p=>p.elements.forEach(e=>{
+    const A=up(e.name);
+    L.push(`${A} = Button(area={'${nsf()}': ${tup(e.box)}}, color={'${nsf()}': (…, …, …)}, button={'${nsf()}': ${clickBox(e)}}, file={'${nsf()}': './assets/${nsf()}/${mod}/${A}.png'})`);
+    if(e.type==='text'||e.type==='digit')L.push(`${A}_AREA = ${tup(e.box)}   # OCR 区域`);
+  }));
+
+  L.push('');
+  L.push('# ---- 2) page.py 里会多出来的页面 ----');
+  L.push(`from module.${mod}.assets import ${[...used].sort().join(', ')}`);
+  live.forEach(p=>L.push(`${p.name} = Page(${up(p.check||'TODO_CHECK')})`));
+  live.forEach(p=>{
+    exitsOf(p).forEach(e=>{
+      if(e.button)L.push(`${p.name}.link(button=${up(e.button)}, destination=${e.to||'page_main'})`);
+    });
+  });
+
+  L.push('');
+  L.push('# ---- 3) 任务骨架 ----');
+  const taps=[...new Set(spec.pages.flatMap(p=>p.steps.filter(s=>s.action==='tap'&&s.target).map(s=>s.target)))];
+  const hasDigit=spec.pages.some(p=>p.elements.some(e=>e.type==='digit'));
+  const hasText=spec.pages.some(p=>p.elements.some(e=>e.type==='text'));
+  const imps=[`from module.${mod}.assets import ${[...used].sort().join(', ')}`,
+              `from module.${mod}.page import ${live.map(x=>x.name).join(', ')}`,
+              `from module.${mod}.${mod}_ui import ${pascal(game)}UI`,
+              'from module.logger import logger'];
+  if(taps.length)imps.push('from module.base.button import Button');
+  if(hasText)imps.push('from module.coupon.text import read_text');
+  if(hasDigit)imps.push('from module.ocr.ocr import Digit');
+  imps.sort().forEach(x=>L.push(x));
+  L.push('');
+  taps.forEach(t=>{
+    const [x,y]=t.split(',').map(Number);
+    L.push(`TAP_${x}_${y} = Button(area=(${x-6}, ${y-6}, ${x+6}, ${y+6}), color=(0, 0, 0),`);
+    L.push(`                     button=(${x-6}, ${y-6}, ${x+6}, ${y+6}), name='TAP_${x}_${y}')`);
+  });
+  live.forEach(p=>p.elements.forEach(e=>{
+    if(e.type==='digit')L.push(`${up(e.name)}_DIGIT = Digit(${up(e.name)})`);
+    else if(e.type==='text')L.push(`${up(e.name)}_AREA = ${tup(e.box)}`);
+  }));
+  L.push('');
+  L.push('');
+  L.push(`class ${spec.task||'GeneratedTask'}(${pascal(game)}UI):`);
+  if(spec.task_title)L.push(`    # ${spec.task_title}`);
+  L.push('    def run(self):');
+  L.push(`        logger.hr('${label(live[0])}', level=1)`);
+  live.forEach(p=>{
+    const body=[`        self.ui_ensure(${p.name})`,`        self.${p.name.replace(/^page_/,'')}_loop()`];
+    const rp=p.repeat||1;
+    if(rp>1){L.push(`        for _ in range(${rp}):`);body.forEach(x=>L.push('    '+x));}
+    else body.forEach(x=>L.push(x));
+  });
+  L.push('        self.ui_goto_main()');
+  const dl=live[0].delay;
+  if(dl==='once'){
+    L.push('        # 只做一次：关掉自己再结束。只 task_stop() 是不够的，');
+    L.push('        # NextRun 还停在过去，调度器下一轮立刻又会捡回来。');
+    L.push('        self.config.Scheduler_Enable = False');
+    L.push("        self.config.task_stop('done once')");
+  }
+  else if(dl==='retry'){
+    L.push('        # 刷到目标为止：这一轮没成，1 分钟后再排一次。');
+    L.push('        # TODO: 达成目标时改成下面两行，而且两行都要——');
+    L.push('        #       只 task_stop() 会让 NextRun 停在过去，立刻又刷一轮。');
+    L.push('        #       self.config.Scheduler_Enable = False');
+    L.push("        #       self.config.task_stop('goal reached')");
+    L.push('        self.config.task_delay(minute=1)');
+  }
+  else if(dl==='half_day')L.push('        self.config.task_delay(minute=720)');
+  else if(dl==='day')L.push('        self.config.task_delay(minute=1440)');
+  else L.push('        self.config.task_delay(server_update=True)');
+
+  live.forEach(p=>{
+    const segs=[];let curSeg=[];
+    p.steps.forEach(s=>{if(s.seg&&curSeg.length){segs.push(curSeg);curSeg=[];}curSeg.push(s);});
+    if(curSeg.length)segs.push(curSeg);
+    L.push('');
+    L.push(`    def ${p.name.replace(/^page_/,'')}_loop(self, skip_first_screenshot=True):`);
+    L.push(`        logger.hr('${label(p)}', level=2)`);
+    p.steps.filter(x=>x.action!=='none'&&(x.max||0)>0).forEach(x=>L.push(`        count_${x.when.toLowerCase()} = 0`));
+    segs.forEach((seg,si)=>{
+      const ends=seg.filter(x=>x.action==='none');
+      const acts=seg.filter(x=>x.action!=='none');
+      if(si===0){
+        L.push('        for _ in self.loop(timeout=30, skip_first=skip_first_screenshot):');
+      }else{
+        L.push('        # 上一段做完了才走到这里：段与段是先后关系，不是优先级。');
+        L.push('        for _ in self.loop(timeout=30, skip_first=False):');
+      }
+      if(!ends.length)L.push('            # TODO: 这一段没有「不点」的结束条件，只能等 30 秒超时');
+      ends.forEach(s=>{
+        const e=p.elements.find(x=>x.name===s.when)||{type:'image',stable:1};
+        const off=e.type==='color'?'None':'(20, 20)', st=e.stable||1, A=up(s.when);
+        if(e.type==='hollow'){
+          const ink=measureInk(e)||{color:[255,255,255],count:0};
+          L.push(`            if self.image_color_count(${A}, color=(${ink.color.join(', ')}), threshold=60, count=${Math.max(10,Math.round(ink.count*0.5))}):  # End`);
+          L.push('                break');
+          return;
+        }
+        if(st>1){
+          L.push(`            # End：连续 ${st} 帧成立才算（动画帧不算）`);
+          L.push(`            if self.appear(${A}, offset=${off}):`);
+          L.push(`                if self.wait_until_appear(${A}, offset=${off}, timeout=2, settle=${st}):`);
+          L.push('                    break');
+        }else{
+          L.push(`            if self.appear(${A}, offset=${off}):  # End`);
+          L.push('                break');
+        }
+      });
+      acts.forEach(s=>{
+        const e=p.elements.find(x=>x.name===s.when)||{type:'image'};
+        const A=up(s.when);
+        const cap=s.max||0, ctr=`count_${s.when.toLowerCase()}`;
+        const pre=cap?`${ctr} < ${cap} and `:'';
+        const bump=cap?[`                    ${ctr} += 1`]:[];
+        if(e.type==='text'||e.type==='digit'){
+          L.push(`            if self.appear(${A}, offset=(20, 20)):`);
+          L.push('                # OCR 前先用模板确认这块在，OCR 每帧都跑要几十毫秒');
+          if(e.type==='digit'){
+            L.push(`                value = ${A}_DIGIT.ocr(self.device.image)`);
+            L.push(`                if ${pre}value and value ${e.cmp||'>='} ${e.num||0}:  # 0 = 读不到`);
+          }else{
+            L.push(`                text = read_text(self.device.image, ${A}_AREA)`);
+            L.push(`                if ${pre}${e.text?`'${e.text}' in text`:'text'}:`);
+          }
+          const t=(s.action==='other')?up(s.target||A):A;
+          L.push(`                    self.device.click(${t})`);
+          bump.forEach(w=>L.push(w));
+          L.push('                    continue');
+          return;
+        }
+        const wait=[];
+        if(s.then==='popup'){
+          if(s.popup){
+            const pe=p.elements.find(x=>x.name===s.popup)||{};
+            const poff=pe.type==='color'?'None':'(20, 20)';
+            wait.push('                # 点完会弹窗：等它真的出来再回头，');
+            wait.push('                # 否则下一帧又判到同一个按钮，一按就把刚开的窗点掉了。');
+            wait.push(`                self.wait_until_appear(${up(s.popup)}, offset=${poff},`);
+            wait.push('                                        timeout=4, settle=2)');
+          }else{
+            L.push('            # TODO: 这一行点完会弹窗，但没指定弹窗长什么样。');
+          }
+        }
+        const off=e.type==='color'?'None':'(20, 20)';
+        const b16=cap?[`                ${ctr} += 1`]:[];
+        if(e.type==='hollow'){
+          const ink=measureInk(e)||{color:[255,255,255],count:0};
+          const t=(s.action==='other')?up(s.target||A):A;
+          L.push(`            if ${pre}self.image_color_count(${A}, color=(${ink.color.join(', ')}), threshold=60, count=${Math.max(10,Math.round(ink.count*0.5))}):`);
+          L.push(`                self.device.click(${t})`);
+          b16.forEach(w=>L.push(w));wait.forEach(w=>L.push(w));
+          L.push('                continue');
+          return;
+        }
+        if(s.action==='type'){
+          L.push(`            if ${pre}self.appear(${A}, offset=${off}):`);
+          L.push(`                self.device.click(${A})   # 先点一下聚焦`);
+          L.push(`                self.device.adb_shell(['input', 'text', '${s.text||''}'])`);
+          b16.forEach(w=>L.push(w));wait.forEach(w=>L.push(w));
+          L.push('                continue');
+          return;
+        }
+        if(s.action==='other'){
+          L.push(`            if ${pre}self.appear(${A}, offset=${off}):   # 判据`);
+          L.push(`                self.device.click(${up(s.target||'TODO_TARGET')})   # 点的是另一个`);
+          b16.forEach(w=>L.push(w));wait.forEach(w=>L.push(w));
+          L.push('                continue');
+          return;
+        }
+        if(s.action==='tap'){
+          const xy=(s.target||'640,360').split(',').map(Number);
+          L.push(`            if ${pre}self.appear(${A}, offset=${off}):   # 判据`);
+          L.push(`                self.device.click(TAP_${xy[0]}_${xy[1]})   # 点的是坐标`);
+          b16.forEach(w=>L.push(w));wait.forEach(w=>L.push(w));
+          L.push('                continue');
+          return;
+        }
+        L.push(`            if ${pre}self.appear_then_click(${A}, offset=${off}, interval=3):`);
+        b16.forEach(w=>L.push(w));wait.forEach(w=>L.push(w));
+        L.push('                continue');
+      });
+      if(si<segs.length-1){
+        L.push('        else:');
+        L.push('            # 上一段没做完就不许往下走：段与段之间是前置条件，不是优先级');
+        L.push(`            logger.warning('${label(p)}: segment ${si+1} did not finish, skip the rest')`);
+        L.push('            return');
+      }
+    });
+    if(p.note)L.push(`            # 备注：${p.note.replace(/\n/g,' ')}`);
+  });
+  return L.join('\n');
+}
+function measureInk(e){
+  const p=P();if(!p||!p.img)return null;
+  const key=e.box.join(',')+'|'+(e.ink||'light');
+  if(e._inkKey===key&&e._ink)return e._ink;
+  const w=e.box[2]-e.box[0],h=e.box[3]-e.box[1];
+  if(w<1||h<1)return null;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');g.drawImage(p.img,e.box[0],e.box[1],w,h,0,0,w,h);
+  const d=g.getImageData(0,0,w,h).data,n=w*h;
+  const lums=new Float32Array(n);
+  for(let i=0,k=0;i<d.length;i+=4,k++)lums[k]=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+  const sorted=Array.from(lums).sort((a,b)=>a-b), dark=e.ink==='dark';
+  const thr=sorted[dark?Math.floor(n*0.05):Math.floor(n*0.95)];
+  let rs=0,gs=0,bs=0,cnt=0;
+  for(let i=0,k=0;i<d.length;i+=4,k++){
+    if(dark?lums[k]<=thr:lums[k]>=thr){rs+=d[i];gs+=d[i+1];bs+=d[i+2];cnt++;}
+  }
+  const out=cnt?{color:[Math.round(rs/cnt),Math.round(gs/cnt),Math.round(bs/cnt)],count:cnt}
+                :{color:[255,255,255],count:0};
+  e._ink=out;e._inkKey=key;return out;
+}
+function measureRatio(e){
+  const p=P();if(!p||!p.img)return null;
+  const key=e.box.join(',')+'|'+(e.ink||'light');
+  if(e._rKey===key&&e._r!==undefined)return e._r;
+  const w=e.box[2]-e.box[0],h=e.box[3]-e.box[1];
+  if(w<1||h<1)return null;
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const g=c.getContext('2d');g.drawImage(p.img,e.box[0],e.box[1],w,h,0,0,w,h);
+  const d=g.getImageData(0,0,w,h).data,n=w*h,dark=e.ink==='dark';
+  const thr=dark?55:200;let hit=0;
+  for(let i=0;i<d.length;i+=4){
+    const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    if(dark?lum<thr:lum>thr)hit++;
+  }
+  e._r=hit/n;e._rKey=key;return e._r;
+}
+function tup(a){return '('+a.join(', ')+')'}
+function clickBox(e){
+  const [x1,y1,x2,y2]=e.box,pad=e.pad||0;
+  return `(${x1-pad}, ${y1-pad}, ${x2+pad}, ${y2+pad})`;
+}
+function renderCode(){document.getElementById('code').textContent=genCode();markSave()}
+function renderAll(){renderPages();renderCard();draw();renderCode()}
+
+/* ---------------- 表单绑定 ---------------- */
+function bind(id,k){
+  const el=document.getElementById(id);if(!el)return;
+  el.oninput=el.onchange=()=>{k(el.value);renderCode()};
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+
+/* ---------------- 导入导出 ---------------- */
+document.getElementById('btnAddPage').onclick=()=>{
+  spec.pages.push(newPage());cur=spec.pages.length-1;sel=-1;suggestTask();loadShot();renderAll();
+};
+document.getElementById('btnExport').onclick=()=>{
+  spec.game=api();spec.namespace=nsf();
+  spec.task=document.getElementById('task').value.trim()||'GeneratedTask';
+  spec.task_title=document.getElementById('taskTitle').value.trim();
+  spec.chain=document.getElementById('chainMode').checked;
+  const out={...spec,pages:spec.pages.map(p=>({...p,img:undefined}))};
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(spec.game+'_'+spec.task+'.spec.json').replace(/\s/g,'');
+  a.click();
+};
+document.getElementById('btnImport').onclick=()=>document.getElementById('fileSpec').click();
+document.getElementById('fileSpec').onchange=(ev)=>{
+  const f=ev.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const j=JSON.parse(r.result);
+      spec=j;cur=spec.pages.length?0:-1;sel=-1;
+      fillSelects();
+      if(spec.game)document.getElementById('game').value=spec.game;
+      if(spec.namespace)document.getElementById('ns').value=spec.namespace;
+      document.getElementById('task').value=spec.task||'';
+      document.getElementById('taskTitle').value=spec.task_title||'';
+      document.getElementById('chainMode').checked=!!spec.chain;
+      spec.pages.forEach(p=>{p.img=null;dirtyShots.add(p.name)});
+      loadShot();renderAll();markSave();
+    }catch(e){alert('读不了这个文件：'+e.message)}
+  };
+  r.readAsText(f);
+};
+
+/* ---------------- 示例 ---------------- */
+document.getElementById('btnSample').onclick=()=>{
+  spec={game:'hazeworld',namespace:'hazeworld',task:'HazeworldMailX',task_title:'领取邮箱奖励',pages:[
+    {title:'邮箱',name:'page_mail',shot:'',img:null,check:'MAIL_TITLE',
+     elements:[
+       {name:'MAIL_TITLE',box:[144,66,246,98],type:'text',pad:0,text:'郵件'},
+       {name:'MAIL_CLAIM_ALL',box:[294,645,382,670],type:'color',pad:20,stable:1,text:''},
+       {name:'MAIL_REWARD',box:[540,300,740,340],type:'image',pad:0,stable:1,text:''},
+       {name:'MAIL_CLAIM_GREY',box:[294,645,382,670],type:'color',pad:20,stable:3,text:''},
+       {name:'BACK_ARROW',box:[12,18,40,52],type:'image',pad:10,stable:1,text:''}],
+     steps:[
+       {when:'MAIL_REWARD',action:'tap',target:'640,360',then:'stay',to:'',max:5},
+       {when:'MAIL_CLAIM_GREY',action:'none',then:'stay',to:'',max:0},
+       {when:'MAIL_CLAIM_ALL',action:'click',then:'popup',popup:'MAIL_REWARD',to:'',max:3}],
+     exit:{button:'BACK_ARROW',to:'page_main'},
+     delay:'server_update',
+     note:'这个按钮有三种样子：橙=还有、灰=领完了、中间一帧是动画。灰色要连续看 3 帧才算数。'}]};
+  cur=0;sel=-1;fillSelects();
+  document.getElementById('game').value=spec.game;
+  document.getElementById('ns').value=spec.namespace;
+  document.getElementById('task').value=spec.task;
+  document.getElementById('taskTitle').value=spec.task_title;
+  loadShot();renderAll();
+};
+
+/* ---------------- 本地自动存档（IndexedDB） ---------------- */
+let idbPromise=null,saveTimer=null,restoring=false;
+const dirtyShots=new Set();
+
+function idb(){
+  if(!idbPromise)idbPromise=new Promise((res,rej)=>{
+    const req=indexedDB.open('spec_editor',1);
+    req.onupgradeneeded=()=>{const d=req.result;
+      if(!d.objectStoreNames.contains('cards'))d.createObjectStore('cards');
+      if(!d.objectStoreNames.contains('shots'))d.createObjectStore('shots');};
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+  return idbPromise;
+}
+function idbReq(mode,store,fn){
+  return idb().then(d=>new Promise((res,rej)=>{
+    const tx=d.transaction(store,mode);
+    const r=fn(tx.objectStore(store));
+    tx.oncomplete=()=>res(r?r.result:undefined);
+    tx.onerror=()=>rej(tx.error);
+    tx.onabort=()=>rej(tx.error);
+  }));
+}
+const shotKey=name=>`${spec.namespace||''}/${name}`;
+const savedLabel=t=>{const el=document.getElementById('saved');if(el)el.textContent=t};
+
+function markSave(){
+  if(restoring)return;
+  savedLabel('未保存…');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(doSave,900);
+}
+
+async function doSave(){
+  try{
+    const cards={game:spec.game,namespace:spec.namespace,task:spec.task,task_title:spec.task_title,
+      pages:spec.pages.map(p=>{const c={...p};delete c.img;delete c.shot;delete c._ink;delete c._inkKey;return c;})};
+    await idbReq('readwrite','cards',s=>s.put(cards,'current'));
+    if(dirtyShots.size){
+      const d=await idb();
+      await new Promise((res,rej)=>{
+        const tx=d.transaction('shots','readwrite'),st=tx.objectStore('shots');
+        spec.pages.forEach(p=>{if(dirtyShots.has(p.name))st.put(p.shot||'',shotKey(p.name));});
+        tx.oncomplete=res;tx.onerror=()=>rej(tx.error);
+      });
+      dirtyShots.clear();
+    }
+    const keys=await idbReq('readonly','shots',s=>s.getAllKeys());
+    const alive=new Set(spec.pages.map(p=>shotKey(p.name)));
+    const dead=(keys||[]).filter(k=>!alive.has(k));
+    if(dead.length){
+      const d=await idb();
+      await new Promise((res,rej)=>{
+        const tx=d.transaction('shots','readwrite'),st=tx.objectStore('shots');
+        dead.forEach(k=>st.delete(k));
+        tx.oncomplete=res;tx.onerror=()=>rej(tx.error);
+      });
+    }
+    const t=new Date();
+    savedLabel('已保存 '+t.toTimeString().slice(0,8));
+  }catch(e){
+    savedLabel('存档失败：'+(e&&e.message||e));
+  }
+}
+
+async function restore(){
+  let cards=null;
+  try{cards=await idbReq('readonly','cards',s=>s.get('current'));}catch(e){return false}
+  if(!cards||!cards.pages||!cards.pages.length)return false;
+  restoring=true;
+  spec={game:cards.game||'',namespace:cards.namespace||'',task:cards.task||'',
+        task_title:cards.task_title||'',pages:cards.pages};
+  try{
+    const d=await idb();
+    for(const p of spec.pages){
+      p.img=null;
+      p.shot=await new Promise(res=>{
+        const r=d.transaction('shots','readonly').objectStore('shots').get(shotKey(p.name));
+        r.onsuccess=()=>res(r.result||'');r.onerror=()=>res('');
+      });
+    }
+  }catch(e){}
+  fillSelects();
+  document.getElementById('game').value=spec.game||'';
+  document.getElementById('ns').value=spec.namespace||'';
+  document.getElementById('task').value=spec.task||'';
+  document.getElementById('taskTitle').value=spec.task_title||'';
+  cur=spec.pages.length?0:-1;sel=-1;
+  loadShot();renderAll();
+  restoring=false;
+  savedLabel('已恢复上次编辑');
+  return true;
+}
+
+/* ---------------- 启动 ---------------- */
+spec.pages=[];fillSelects();renderAll();
+if(location.protocol==='file:')document.getElementById('filewarn').style.display='block';
+restore().then(ok=>{if(!ok)savedLabel('')});
+function setCode(show){
+  document.body.classList.toggle('nocode',!show);
+  document.getElementById('btnCode').textContent=show?'代码 ▾':'代码 ▸';
+  try{localStorage.setItem('specCodeHidden',show?'0':'1')}catch(e){}
+}
+document.getElementById('btnCode').onclick=()=>setCode(document.body.classList.contains('nocode'));
+try{if(localStorage.getItem('specCodeHidden')==='1')setCode(false)}catch(e){}
+
+document.getElementById('btnHelp').onclick=()=>{document.getElementById('help').style.display='block'};
+document.getElementById('btnHelpClose').onclick=()=>{document.getElementById('help').style.display='none'};
+document.getElementById('help').onclick=(ev)=>{if(ev.target.id==='help')ev.currentTarget.style.display='none'};
+document.getElementById('task').oninput=()=>renderCode();
+document.getElementById('chainMode').onchange=(ev)=>{spec.chain=ev.target.checked;renderCode()};
+document.getElementById('taskTitle').oninput=()=>renderCode();
+</script>
+</body>
+</html>

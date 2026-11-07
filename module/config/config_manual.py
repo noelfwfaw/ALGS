@@ -55,6 +55,15 @@ class ManualConfig:
     > CrosscoreMain
     """
 
+    # 工具页（`task.yaml` 里 `page: 'tool'`）能**单独启动**的任务。
+    #
+    # 这些不是任务，不进 `SCHEDULER_PRIORITY`：调度器永远不挑它们，
+    # 只有 WebUI「工具」页点 Start 才会跑一次（`ProcessManager.run_process` 会先在这里查名字），
+    # 跑完进程就结束，不排 NextRun。
+    TOOL_TASKS = """
+    Starsavior2
+    """
+
     """
     module.assets
     """

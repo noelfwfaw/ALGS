@@ -797,6 +797,13 @@ class AlasGUI(Frame):
         )
 
         config = self.alas_config.read_file(self.alas_name)
+        # 工具页也要能看到任务说明（测试状态、已知限制都写在 Task.<name>.help 里）。
+        # `alas_set_group()` 本来就有这一句，工具页以前没有 —— 工具大多还在试验阶段，
+        # 说明比参数本身更重要。
+        task_help = t(f"Task.{task}.help")
+        if task_help:
+            with use_scope("groups"):
+                put_text(task_help).style("font-size: 1rem")
         for group, arg_dict in deep_iter(self.ALAS_ARGS[task], depth=1):
             if group[0] == "Storage":
                 continue

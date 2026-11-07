@@ -23,6 +23,10 @@
     "Crosscore": {
       "name": "Cross Core",
       "help": "Daily tasks of Cross Core (only the launch task so far)"
+    },
+    "Starsavior": {
+      "name": "Star Savior",
+      "help": "Reroll tool. Start it from the Tools page; it never joins the task queue"
     }
   },
   "Task": {
@@ -197,6 +201,10 @@
     "CrosscoreMain": {
       "name": "Launch game",
       "help": "Bring the client from a cold start, the title screen or a sub page to the main page, claiming nothing. Every other task of this game starts from there"
+    },
+    "Starsavior2": {
+      "name": "Reroll",
+      "help": "Warning: this tool is still in testing. Behaviour may change, and it may contain bugs.\nTested on: MuMu emulator 12, Asia server, in-game Simplified Chinese, lowest graphics. Other emulators / resolutions / languages / graphics settings are untested.\nStutters and dead clicks caused by the game itself (e.g. a ~15s freeze after the journey settlement) are not worked around; the script just waits them out."
     }
   },
   "Scheduler": {
@@ -248,7 +256,8 @@
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
       "com.neowizgames.game.browndust2": "BROWNDUST",
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
-      "com.megagame.crosscore": "CROSSCORE"
+      "com.megagame.crosscore": "CROSSCORE",
+      "com.studiobside.starMain": "STARSAVIOR"
     },
     "ServerName": {
       "name": "Server in Game Client",
@@ -258,7 +267,8 @@
       "lostsword-0": "[LOSTSWORD] default",
       "browndust-0": "[BROWNDUST] default",
       "chaoszero-0": "[CHAOSZERO] default",
-      "crosscore-0": "[CROSSCORE] default"
+      "crosscore-0": "[CROSSCORE] default",
+      "starsavior-0": "[STARSAVIOR] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",
@@ -851,6 +861,79 @@
     "CafeOrder": {
       "name": "Order at the cafe",
       "help": "Once a day: 內用 restores 120 stamina right away. After that the menu stops opening and the task ends normally"
+    }
+  },
+  "Starsavior2": {
+    "_info": {
+      "name": "Reroll settings",
+      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character set: reroll round after round until it drops. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Both empty: run exactly one round, stop after the roster check, no reset."
+    },
+    "Nickname": {
+      "name": "Nickname",
+      "help": "Leave empty for a random \"Savior + 4 digits\" name each round. ASCII letters and digits only (the game input box cannot take Chinese), 4-16 characters; other characters are stripped, and a result shorter than 4 falls back to a random name."
+    },
+    "Target": {
+      "name": "Target character",
+      "help": "Stop as soon as this character drops and keep the account; otherwise reset and keep rerolling. \"Not set\" runs a single round only. Warning: mutually exclusive with \"Stop at\".",
+      "none": "Not set (one round, stop after the roster check)",
+      "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
+      "露娜@航行者救援团": "露娜@航行者救援团",
+      "卡奈莉亚@流浪者": "卡奈莉亚@流浪者",
+      "赛拉@梦魇": "赛拉@梦魇",
+      "艾莉莎@莫诺利斯教团": "艾莉莎@莫诺利斯教团",
+      "莉迪亚@西部收复部队": "莉迪亚@西部收复部队",
+      "莱希@流浪者": "莱希@流浪者",
+      "亚瑟菈@星光华尔兹": "亚瑟菈@星光华尔兹",
+      "阿莫拉@斯特拉尼斯伯爵家": "阿莫拉@斯特拉尼斯伯爵家",
+      "罗莎莉亚@堕落之鹰": "罗莎莉亚@堕落之鹰",
+      "亚瑟菈@航行者救援团": "亚瑟菈@航行者救援团",
+      "微笑@航行者救援团": "微笑@航行者救援团",
+      "贝尔·莉丝@烛光广场": "贝尔·莉丝@烛光广场",
+      "埃米莉@烛光广场": "埃米莉@烛光广场",
+      "夏尔@莫纳斯提尔骑士团": "夏尔@莫纳斯提尔骑士团",
+      "卡蜜@莫纳斯提尔骑士团": "卡蜜@莫纳斯提尔骑士团",
+      "芙蕾@莫纳斯提尔骑士团": "芙蕾@莫纳斯提尔骑士团",
+      "崔瑞丝@阿塞卢斯协会": "崔瑞丝@阿塞卢斯协会",
+      "凌@风月堂": "凌@风月堂",
+      "克莉丝特@莫雷尔海运商会": "克莉丝特@莫雷尔海运商会",
+      "艾黛@莫雷尔海运商会": "艾黛@莫雷尔海运商会",
+      "瑟乐芬@风月堂": "瑟乐芬@风月堂",
+      "达娜@卡诺普斯警备队": "达娜@卡诺普斯警备队",
+      "缪莉尔@莫诺利斯教团": "缪莉尔@莫诺利斯教团",
+      "缇莉雅@执行者": "缇莉雅@执行者",
+      "萝贝塔@轨道搜索队": "萝贝塔@轨道搜索队",
+      "卢格@轨道搜索队": "卢格@轨道搜索队",
+      "霏@流浪者": "霏@流浪者",
+      "艾芬黛尔@奥尔兰家族": "艾芬黛尔@奥尔兰家族",
+      "奥米嘉@航行者救援团": "奥米嘉@航行者救援团",
+      "夏尔@莫纳斯提尔之心": "夏尔@莫纳斯提尔之心",
+      "瑟莱丝@西部收复部队": "瑟莱丝@西部收复部队",
+      "M教授@兰帕迪斯": "M教授@兰帕迪斯",
+      "哈莉@地狱救援者": "哈莉@地狱救援者",
+      "佩特拉@佩特拉联合": "佩特拉@佩特拉联合",
+      "丝卡蕾@小暴君": "丝卡蕾@小暴君",
+      "克莱儿@无瑕蓝玫瑰": "克莱儿@无瑕蓝玫瑰",
+      "露娜@白珍珠": "露娜@白珍珠",
+      "微笑@阳光猫娘": "微笑@阳光猫娘",
+      "塔妮娅@佩特拉联合": "塔妮娅@佩特拉联合",
+      "莉莉@兰帕迪斯": "莉莉@兰帕迪斯",
+      "绮拉@绮拉根本没有朋友": "绮拉@绮拉根本没有朋友",
+      "艾芬黛尔@花绽祝福": "艾芬黛尔@花绽祝福",
+      "芙蕾@贵族公主": "芙蕾@贵族公主",
+      "希尔德@芬里尔小队": "希尔德@芬里尔小队",
+      "刘米娜@芬里尔小队": "刘米娜@芬里尔小队"
+    },
+    "TargetCount": {
+      "name": "Target count",
+      "help": "1 = base (0 star), 4 = max star. Ignored when no target is set."
+    },
+    "StopAt": {
+      "name": "Stop at",
+      "help": "For step-by-step runs and debugging: stop right after this checkpoint, without resetting. Warning: mutually exclusive with \"Target character\".",
+      "none": "Not set (run all the way to the roster check)",
+      "nickname": "Checkpoint 1: before entering the nickname",
+      "guide": "Checkpoint 2: guides finished (no reward, no gacha)",
+      "verify": "Checkpoint 3: all the way to the roster check"
     }
   },
   "Storage": {

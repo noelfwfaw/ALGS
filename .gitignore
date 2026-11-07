@@ -264,5 +264,11 @@ pyrightconfig.json
 # WorkBuddy local workspace data (never commit)
 .workbuddy/
 
+# CodeBuddy: the skills dir is a junction into .workbuddy/skills, and junctions
+# make git walk the target as real files. Keep the link out of the index.
+.codebuddy/skills/
+.codebuddy/settings.local.json
+
 # Asset maker export list: handwritten labels, rewritten on every export
 assets/*/*/manifest.json
+dev_tools/.tool_last.json

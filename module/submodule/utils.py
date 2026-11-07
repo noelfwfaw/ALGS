@@ -6,7 +6,20 @@ MOD_CONFIG_DICT = {}
 
 
 def get_available_func():
-    return ()
+    """工具页能单独启动的任务名（`config_manual.TOOL_TASKS`）。
+
+    这些不是调度任务：它们不在 `SCHEDULER_PRIORITY` 里、也没有 `Scheduler` 组，
+    只由 WebUI 的「工具」页点 Start 手动跑一次。
+    `ProcessManager.run_process()` 先用这个判断该走 `AlGS.run(<task>)` 的单任务分支，
+    还是走 mod / mod_func 分支 —— 返回空元组的话，工具页点 Start 只会打出
+    `No function matched`。
+
+    ❗延迟导入：本模块在 WebUI 启动时就被 `process_manager` 拉进来，
+    而 `module.config.config_manual` 会连带 `module.config.server` 与一堆资源。
+    """
+    from module.config.config_manual import ManualConfig
+
+    return tuple(ManualConfig.TOOL_TASKS.split())
 
 
 def get_available_mod():

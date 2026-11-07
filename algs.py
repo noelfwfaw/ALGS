@@ -29,6 +29,7 @@ class AlGS(GameScheduler):
         'browndust': ('module.browndust.browndust_ui', 'BrowndustUI'),
         'chaoszero': ('module.chaoszero.chaoszero_ui', 'ChaoszeroUI'),
         'crosscore': ('module.crosscore.crosscore_ui', 'CrosscoreUI'),
+        'starsavior': ('module.starsavior.starsavior_ui', 'StarsaviorUI'),
     }
 
     @property
@@ -230,6 +231,40 @@ class AlGS(GameScheduler):
         # 唤起：把客户端从任意一屏带到主界面。这个游戏的其它任务都排在它后面。
         from module.crosscore.main import CrosscoreMain
         CrosscoreMain(config=self.config, device=self.device).run()
+
+    # ==================== Star Savior (星之救援者) ====================
+    #
+    # ❗这是**工具**不是任务（`task.yaml` 里 `page: 'tool'`、没有 `Scheduler` 组）：
+    #   调度器的 `loop()` 永远挑不到它，只有 WebUI「工具」页点 Start
+    #   → `ProcessManager.run_process('Starsavior2')` → 这里，跑完进程即退出。
+
+    def starsavior2(self):
+        """刷初始：登录 → 引导 → 旅程 → 结算 → 领奖 → 抽卡 → 验号（按配置决定停在哪）。"""
+        from module.config.server import set_server
+
+        # 工具是手动启动的，没有调度器 `loop()` 那套兜底，这几步顺序不能错：
+        #
+        # 1. 先把 `Device` 建出来。它的 `__init__` 会按 `Emulator_PackageName`
+        #    把命名空间设成**包名对应的游戏**（这台机子上是 `hazeworld`），
+        #    所以要先建、后切，否则它会把第 2 步切好的又改回去。
+        # 2. `set_server('starsavior')`：`switch_game()` 只在"游戏真的换了"
+        #    时才切命名空间，模拟器本来就停在星之救援者上时它直接返回，
+        #    命名空间还留在 `hazeworld`，`game_ui()` 会拿成 `HazeworldUI`。
+        # 3. `switch_game('starsavior')`：停掉别的游戏、把 `device.package`
+        #    指到星之救援者、冷启动。
+        # 4. ❗`Starsavior2` 必须在 `set_server()` **之后**才 import：`assets.py`
+        #    在模块导入时就展开 `Button.file`，命名空间还是 hazeworld 时会
+        #    `KeyError: 'hazeworld'`。
+        # 5. `config.bind('Starsavior2')`：不 bind 的话 `self.config.Starsavior2_Nickname`
+        #    读到的是 `config_generated.py` 里的默认值，用户在 GUI 里填的昵称白填。
+        device = self.device
+        set_server('starsavior')
+        self.switch_game('starsavior')
+
+        from module.starsavior.starsavior2 import Starsavior2
+
+        self.config.bind('Starsavior2')
+        Starsavior2(config=self.config, device=device).run()
 
 
 if __name__ == '__main__':

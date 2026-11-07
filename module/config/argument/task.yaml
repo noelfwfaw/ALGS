@@ -154,3 +154,19 @@ Crosscore:
   tasks:
     CrosscoreMain:
       - Scheduler
+
+
+# ==================== Star Savior (星之救援者) ====================
+
+# ❗`page: 'tool'`：这是一个**工具**，不是任务。
+#   - WebUI 走 `alas_daemon_overview`，只有 Start / Stop，没有排队和 NextRun；
+#   - 不带 `Scheduler` 组：`Function.enable` 读不到 `Scheduler.Enable` 就恒为 False，
+#     调度器永远不会自己挑到它（`get_next_task()` 里被 `if not func.enable: continue` 跳过）；
+#   - 名字也不写进 `config_manual.TOOL_TASKS` 以外的地方，
+#     `SCHEDULER_PRIORITY` 里没有它。
+Starsavior:
+  menu: 'collapse'
+  page: 'tool'
+  tasks:
+    Starsavior2:
+      - Starsavior2

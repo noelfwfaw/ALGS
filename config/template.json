@@ -687,5 +687,16 @@
     "Storage": {
       "Storage": {}
     }
+  },
+  "Starsavior2": {
+    "Starsavior2": {
+      "Nickname": "",
+      "Target": "none",
+      "TargetCount": 1,
+      "StopAt": "none"
+    },
+    "Storage": {
+      "Storage": {}
+    }
   }
 }
