@@ -87,7 +87,14 @@ from module.starsavior.journey import JourneySpeed, TrainFail, SPEED_BOX
 from module.starsavior.ocr import RESET_DIALOG, RESET_ENTRY, RESET_TAB
 from module.starsavior.scan import RescuerScan
 from module.starsavior.starsavior_ui import StarsaviorUI
-from module.starsavior.target import MAX_COUNT, MIN_COUNT, check_targets
+from module.starsavior.target import (
+    MAX_COUNT,
+    MIN_COUNT,
+    TARGET_MODE_ALL,
+    TARGET_MODE_ANY,
+    TARGET_MODES,
+    check_targets,
+)
 
 # 允许按钮偏离框选位置多少像素。引导气泡位置会变，所以不能按固定坐标点；
 # 但开得越大越慢：两百个模板全屏扫一遍要三秒，外扩 60 像素只要几十毫秒。
@@ -399,6 +406,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     nickname = ''
     input_enabled = True       # 节点1：点开昵称输入框但不打字
     targets = None             # None = 没设目标，跑一轮就停
+    target_mode = TARGET_MODE_ANY   # any = 任意一只够了就停 / all = 全都要
     stop_at = STOP_NONE
     target_hit = False
 
@@ -478,8 +486,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 return
 
     def load_plan(self):
-        """把 GUI 的三项配置落成实例状态：昵称 / 目标 / 停节点。"""
+        """把 GUI 的配置落成实例状态：昵称 / 达标条件 / 目标 / 停节点。"""
         self.nickname = self.make_nickname(self.config.Starsavior2_Nickname)
+        self.target_mode = self.read_mode()
         self.targets = self.read_targets()
         self.stop_at = self.read_stop()
 
@@ -496,6 +505,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if self.targets:
             target_note = ' / '.join('%s × %d 只' % (row['label'], row['count'])
                                      for row in self.targets)
+            target_note = '%s（%s）' % (
+                target_note,
+                '任意一只凑够就停' if self.target_mode == TARGET_MODE_ANY
+                else '每一只都要凑够')
         else:
             target_note = '不指定（跑一轮就停）'
         logger.info('本轮配置：昵称 %s / 目标 %s / 停节点 %s'
@@ -504,21 +517,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     def read_targets(self):
         """GUI 的七个「目标角色」→ `check_targets()` 要的列表；一个都没选返回 None。
 
-        ❗最多 7 只（`TARGET_FIELDS`），判定是**任意一只达标就停**：
-          想刷的角色通常不止一个，挂满七个等于把这七只的概率加起来；
-          要求七只同时出（AND）概率低到没有意义。
-        七个位里重复选同一只的，只算一次。
+        ❗最多 7 只（`TARGET_FIELDS`），**每一只各自带自己的数量**
+          （`TargetCount` / `TargetCount2` ... `TargetCount7`）。
+        怎么算达标由 `TargetMode` 决定，这里只负责把配置读成列表。
+        七个位里重复选同一只的，只算一次（后面那几位的数量不叠加）。
         """
-        try:
-            count = int(self.config.Starsavior2_TargetCount or 1)
-        except (TypeError, ValueError):
-            logger.warning('目标数量不是数字，按 1 只算')
-            count = 1
-        count = min(max(count, MIN_COUNT), MAX_COUNT)
-
         targets = []
         seen = set()
-        for field in TARGET_FIELDS:
+        for index, field in enumerate(TARGET_FIELDS, start=1):
             # `getattr` 兜底：`config_generated.py` 还没重新生成时不会 AttributeError。
             label = str(getattr(self.config, 'Starsavior2_' + field, 'none') or 'none').strip()
             if label in ('', 'none'):
@@ -527,11 +533,35 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 logger.info('目标角色 %s 填了不止一次，只算一次' % label)
                 continue
             seen.add(label)
-            targets.append({'label': label, 'count': count})
+            targets.append({'label': label, 'count': self.read_count(index)})
 
         if not targets:
             return None
         return targets
+
+    def read_count(self, index):
+        """第 `index` 个目标要几只（1~4）。字段名 `TargetCount` + 序号，第 1 个没有后缀。"""
+        field = 'TargetCount' if index == 1 else 'TargetCount%d' % index
+        if not hasattr(self.config, 'Starsavior2_' + field):
+            # 旧配置（`config_generated.py` 没重新生成）只有 TargetCount 一个，退回用它。
+            field = 'TargetCount'
+        raw = getattr(self.config, 'Starsavior2_' + field, 1)
+        try:
+            count = int(raw or 1)
+        except (TypeError, ValueError):
+            logger.warning('%s 不是数字，按 1 只算' % field)
+            count = 1
+        return min(max(count, MIN_COUNT), MAX_COUNT)
+
+    def read_mode(self):
+        """`TargetMode`：`any` = 任意一只够了就停，`all` = 挂上的全都要凑够。"""
+        if not hasattr(self.config, 'Starsavior2_TargetMode'):
+            return TARGET_MODE_ANY
+        mode = str(self.config.Starsavior2_TargetMode or TARGET_MODE_ANY).strip()
+        if mode not in TARGET_MODES:
+            logger.warning('未知的达标条件 %r，按「任意一只」处理' % mode)
+            return TARGET_MODE_ANY
+        return mode
 
     def read_stop(self):
         stop = str(self.config.Starsavior2_StopAt or STOP_NONE).strip()
@@ -610,6 +640,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         % (' / '.join('%s × %d 只' % (row['label'], row['count'])
                                       for row in self.targets),
                            '已达成' if self.target_hit else '未达成'))
+            logger.info('达标条件：%s'
+                        % ('任意一只凑够' if self.target_mode == TARGET_MODE_ANY
+                           else '挂上的全都要凑够'))
         else:
             logger.info('目标：不指定（只跑一轮）')
         logger.info('账号：%s' % ('已留在游戏里，没有重置' if not self.targets or self.target_hit
@@ -1936,16 +1969,18 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             logger.info('验号：读到 %d 个 SSR' % len(accounts))
             return True
 
-        hit, detail = check_targets(accounts, targets)
+        hit, detail = check_targets(accounts, targets, self.target_mode)
         self.save_scan(accounts, targets, detail, hit)
         logger.info('验号：读到 %d 个 SSR' % len(accounts))
         for row in detail:
             logger.info('验号目标 %s：需要 %d 只，实际 %d 只 → %s'
                         % (row['label'], row['need'], row['got'],
-                           '达成' if row['hit'] else '未达成'))
+                           '凑够' if row['hit'] else '不够'))
         self.target_hit = hit
         if hit:
-            logger.info('验号：命中目标（挂了几只只看任意一只），这一轮停在号上不重置')
+            logger.info('验号：%s，这一轮停在号上不重置'
+                        % ('任意一只凑够' if self.target_mode == TARGET_MODE_ANY
+                           else '挂上的目标全部凑够'))
         return True
 
     def save_scan(self, accounts, targets=None, target_detail=None, target_hit=False):

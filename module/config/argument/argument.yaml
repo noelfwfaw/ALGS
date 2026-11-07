@@ -303,12 +303,18 @@ Starsavior2:
   Nickname:
     value: ''
     valuetype: str
+  # 达标条件：挂上的目标要「任意一只够了就停」，还是「选上的全都要刷出来才算」。
+  #   any = 任意一只：挂七个等于把这七只的概率加起来，出哪只都算，最省时间（默认）
+  #   all = 全部都要：每一只都得凑够各自的数量，缺一只就重置重来
+  #         例：4 只 A + 1 只 B，两个条件同时满足才停。
+  TargetMode:
+    value: any
+    option: [ any, all ]
   # 目标角色：卡池 SSR 名单，抄自 `assets/starsavior/roster.txt`（46 只）。
   #
-  # ❗**最多可以挂 7 只**（`Target` + `Target2`~`Target7`），判定是**任意一只达标就停**
-  #   —— 想刷的角色通常不止一个，挂满七个等于把这七个的概率加起来，不是七个都凑齐
-  #   （七只指定 SSR 同时出，概率低到没有意义）。
-  # 挂了任意一只就一轮轮刷到出为止（达标停下、把号留在游戏里；全都没出就自动重置再刷）；
+  # ❗**最多可以挂 7 只**（`Target` + `Target2`~`Target7`），判定方式跟着上面的
+  #   `TargetMode` 走：`any` 只看有没有一只凑够数量，`all` 要求每一只都凑够。
+  # 挂了目标就一轮轮刷到为止（达标停下、把号留在游戏里；没达标就自动重置再刷）；
   # 七只全留「不指定」就只跑一轮，验号完停下、**不重置**。
   Target:
     value: none
@@ -381,9 +387,16 @@ Starsavior2:
   Target7:
     value: none
     option: *ssr_pool
-  # 目标要几只：**每个挂上的目标各自都要这么多只**（1 = 本体 0 星，4 = 满星）。
-  # 一只目标都没挂时不起作用。
+  # 每个目标各自要几只（1 = 本体 0 星，4 = 满星）。
+  # `TargetCount` 配第 1 个目标，`TargetCount2`~`TargetCount7` 依次配后面的；
+  # 没挂目标的位填了也不起作用。`all` 模式下这里是硬条件（4 只就是真有 4 只）。
   TargetCount: 1
+  TargetCount2: 1
+  TargetCount3: 1
+  TargetCount4: 1
+  TargetCount5: 1
+  TargetCount6: 1
+  TargetCount7: 1
   # 停节点：调试 / 分段跑用，**和「目标角色」只能填一个**（两个都填按目标角色跑）。
   #   none     = 不中途停（默认；没选目标就跑到验号完停）
   #   nickname = 节点1：到昵称输入框停下（不输入昵称）

@@ -866,15 +866,21 @@
   "Starsavior2": {
     "_info": {
       "name": "Reroll settings",
-      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character(s) set (up to 7): reroll round after round until ANY of them drops. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Both empty: run exactly one round, stop after the roster check, no reset."
+      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character(s) set (up to 7): reroll round after round. \"Win condition\" decides what counts: \"any one\" stops on the first hit, \"all\" needs every selected target. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Both empty: run exactly one round, stop after the roster check, no reset."
     },
     "Nickname": {
       "name": "Nickname",
       "help": "Leave empty for a random \"Savior + 4 digits\" name each round. ASCII letters and digits only (the game input box cannot take Chinese), 4-16 characters; other characters are stripped, and a result shorter than 4 falls back to a random name."
     },
+    "TargetMode": {
+      "name": "Win condition",
+      "help": "How the targets are counted as a hit.\n- Any one: any of the seven dropping with enough copies is a hit (default, fastest).\n- All: every selected target must reach its own count, otherwise reset and reroll. E.g. 4 copies of A plus 1 of B needs both.",
+      "any": "Any one is enough",
+      "all": "All selected must drop"
+    },
     "Target": {
       "name": "Target character",
-      "help": "Up to 7 targets can be set (this is #1; \"Target 2\" to \"Target 7\" follow). Stop as soon as ANY of them drops and keep the account; otherwise reset and keep rerolling. All seven set to \"Not set\" runs a single round only. Warning: mutually exclusive with \"Stop at\".",
+      "help": "Up to 7 targets can be set (this is #1; \"Target 2\" to \"Target 7\" follow). See \"Win condition\" above; each target has its own count. All seven set to \"Not set\" runs a single round only. Warning: mutually exclusive with \"Stop at\".",
       "none": "Not set (one round, stop after the roster check)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -925,7 +931,7 @@
     },
     "Target2": {
       "name": "Target 2",
-      "help": "Optional. Up to 7 targets; any one of them stops the reroll.",
+      "help": "Optional. Up to 7 targets; see \"Win condition\" above.",
       "none": "Not set (leave this slot empty)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -976,7 +982,7 @@
     },
     "Target3": {
       "name": "Target 3",
-      "help": "Optional. Up to 7 targets; any one of them stops the reroll.",
+      "help": "Optional. Up to 7 targets; see \"Win condition\" above.",
       "none": "Not set (leave this slot empty)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -1027,7 +1033,7 @@
     },
     "Target4": {
       "name": "Target 4",
-      "help": "Optional. Up to 7 targets; any one of them stops the reroll.",
+      "help": "Optional. Up to 7 targets; see \"Win condition\" above.",
       "none": "Not set (leave this slot empty)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -1078,7 +1084,7 @@
     },
     "Target5": {
       "name": "Target 5",
-      "help": "Optional. Up to 7 targets; any one of them stops the reroll.",
+      "help": "Optional. Up to 7 targets; see \"Win condition\" above.",
       "none": "Not set (leave this slot empty)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -1129,7 +1135,7 @@
     },
     "Target6": {
       "name": "Target 6",
-      "help": "Optional. Up to 7 targets; any one of them stops the reroll.",
+      "help": "Optional. Up to 7 targets; see \"Win condition\" above.",
       "none": "Not set (leave this slot empty)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -1180,7 +1186,7 @@
     },
     "Target7": {
       "name": "Target 7",
-      "help": "Optional. Up to 7 targets; any one of them stops the reroll.",
+      "help": "Optional. Up to 7 targets; see \"Win condition\" above.",
       "none": "Not set (leave this slot empty)",
       "瑟莱丝@锐利甜心": "瑟莱丝@锐利甜心",
       "露娜@航行者救援团": "露娜@航行者救援团",
@@ -1230,8 +1236,32 @@
       "刘米娜@芬里尔小队": "刘米娜@芬里尔小队"
     },
     "TargetCount": {
-      "name": "Target count",
-      "help": "How many copies each target needs. 1 = base (0 star), 4 = max star. Ignored when no target is set."
+      "name": "Target 1 count",
+      "help": "How many copies target #1 needs (1 = base / 0 star, 4 = max star). Every target has its own count field."
+    },
+    "TargetCount2": {
+      "name": "Target 2 count",
+      "help": "How many copies target #2 needs (1 = base, 4 = max star)."
+    },
+    "TargetCount3": {
+      "name": "Target 3 count",
+      "help": "How many copies target #3 needs (1 = base, 4 = max star)."
+    },
+    "TargetCount4": {
+      "name": "Target 4 count",
+      "help": "How many copies target #4 needs (1 = base, 4 = max star)."
+    },
+    "TargetCount5": {
+      "name": "Target 5 count",
+      "help": "How many copies target #5 needs (1 = base, 4 = max star)."
+    },
+    "TargetCount6": {
+      "name": "Target 6 count",
+      "help": "How many copies target #6 needs (1 = base, 4 = max star)."
+    },
+    "TargetCount7": {
+      "name": "Target 7 count",
+      "help": "How many copies target #7 needs (1 = base, 4 = max star)."
     },
     "StopAt": {
       "name": "Stop at",

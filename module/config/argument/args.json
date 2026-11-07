@@ -2481,6 +2481,14 @@
         "value": "",
         "valuetype": "str"
       },
+      "TargetMode": {
+        "type": "select",
+        "value": "any",
+        "option": [
+          "any",
+          "all"
+        ]
+      },
       "Target": {
         "type": "select",
         "value": "none",
@@ -2853,6 +2861,30 @@
         ]
       },
       "TargetCount": {
+        "type": "input",
+        "value": 1
+      },
+      "TargetCount2": {
+        "type": "input",
+        "value": 1
+      },
+      "TargetCount3": {
+        "type": "input",
+        "value": 1
+      },
+      "TargetCount4": {
+        "type": "input",
+        "value": 1
+      },
+      "TargetCount5": {
+        "type": "input",
+        "value": 1
+      },
+      "TargetCount6": {
+        "type": "input",
+        "value": 1
+      },
+      "TargetCount7": {
         "type": "input",
         "value": 1
       },
