@@ -40,7 +40,7 @@ TEXT = {
             '① 挂了「目标角色」（最多 7 只）= 一轮轮刷到出为止。怎么算达标由「达标条件」决定：'
             '「任意一个角色」是名单里某一个角色凑够它自己的数量就停，「全都要」是选上的都凑够才停；达标就把号留在游戏里不重置，没达标就自动重置接着刷。\n'
             '② 选了「停节点」= 跑到那个节点就停下。\n'
-            '③ 两个都留空 = 只跑一轮，验号完停下，不重置。',
+            '③ 目标角色和停节点都留空 = 只跑一轮，验号完停下，不重置。',
 
         'Starsavior2.Nickname.name': '自定义昵称',
         'Starsavior2.Nickname.help':
@@ -69,8 +69,10 @@ TEXT = {
 
         'Starsavior2.StopAt.name': '停节点',
         'Starsavior2.StopAt.help':
-            '分段跑 / 调试用，跑到这个节点就停下，不重置账号。⚠ 和「目标角色」只能填一个。',
-        'Starsavior2.StopAt.none': '不设置（一直跑到验号完）',
+            '分段跑 / 调试用，跑到这个节点就停下，不重置账号。\n'
+            '不设置 = 不停下，正常刷：挂了「目标角色」就一轮轮重复刷到出为止，没挂就只跑一轮。\n'
+            '⚠ 填了节点就按节点跑，「目标角色」会被忽略。',
+        'Starsavior2.StopAt.none': '不设置（不停下，有目标就重复刷）',
         'Starsavior2.StopAt.nickname': '节点1：昵称输入前停下',
         'Starsavior2.StopAt.guide': '节点2：引导走完停下（没领奖、没抽卡）',
         'Starsavior2.StopAt.verify': '节点3：一直跑到验号',
@@ -92,7 +94,7 @@ TEXT = {
             '① 掛了「目標角色」（最多 7 隻）= 一輪輪刷到出為止。怎樣算達標由「達標條件」決定：'
             '「任意一個角色」是名單裡某一個角色湊夠它自己的數量就停，「全都要」是選上的都湊夠才停；達標就把號留在遊戲裡不重置，沒達標就自動重置繼續刷。\n'
             '② 選了「停節點」= 跑到那個節點就停下。\n'
-            '③ 兩個都留空 = 只跑一輪，驗號完停下，不重置。',
+            '③ 目標角色和停節點都留空 = 只跑一輪，驗號完停下，不重置。',
 
         'Starsavior2.Nickname.name': '自訂暱稱',
         'Starsavior2.Nickname.help':
@@ -121,8 +123,10 @@ TEXT = {
 
         'Starsavior2.StopAt.name': '停節點',
         'Starsavior2.StopAt.help':
-            '分段跑 / 除錯用，跑到這個節點就停下，不重置帳號。⚠ 和「目標角色」只能填一個。',
-        'Starsavior2.StopAt.none': '不設定（一直跑到驗號完）',
+            '分段跑 / 除錯用，跑到這個節點就停下，不重置帳號。\n'
+            '不設定 = 不停下，正常刷：掛了「目標角色」就一輪輪重複刷到出為止，沒掛就只跑一輪。\n'
+            '⚠ 填了節點就按節點跑，「目標角色」會被忽略。',
+        'Starsavior2.StopAt.none': '不設定（不停下，有目標就重複刷）',
         'Starsavior2.StopAt.nickname': '節點1：暱稱輸入前停下',
         'Starsavior2.StopAt.guide': '節點2：引導走完停下（沒領獎、沒抽卡）',
         'Starsavior2.StopAt.verify': '節點3：一直跑到驗號',
@@ -148,7 +152,7 @@ TEXT = {
             '"all" needs every selected target. '
             'On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n'
             '2) Stop-at set: stop right after that checkpoint.\n'
-            '3) Both empty: run exactly one round, stop after the roster check, no reset.',
+            '3) Target character and Stop-at both empty: run exactly one round, stop after the roster check, no reset.',
 
         'Starsavior2.Nickname.name': 'Nickname',
         'Starsavior2.Nickname.help':
@@ -181,9 +185,11 @@ TEXT = {
 
         'Starsavior2.StopAt.name': 'Stop at',
         'Starsavior2.StopAt.help':
-            'For step-by-step runs and debugging: stop right after this checkpoint, without resetting. '
-            'Warning: mutually exclusive with "Target character".',
-        'Starsavior2.StopAt.none': 'Not set (run all the way to the roster check)',
+            'For step-by-step runs and debugging: stop right after this checkpoint, without resetting.\n'
+            'Not set = no checkpoint, normal rerolling: with a target character it keeps repeating '
+            'until the target drops, without one it runs a single round.\n'
+            'Warning: when a checkpoint is set, "Target character" is ignored.',
+        'Starsavior2.StopAt.none': 'Not set (no checkpoint; repeat while a target is set)',
         'Starsavior2.StopAt.nickname': 'Checkpoint 1: before entering the nickname',
         'Starsavior2.StopAt.guide': 'Checkpoint 2: guides finished (no reward, no gacha)',
         'Starsavior2.StopAt.verify': 'Checkpoint 3: all the way to the roster check',
@@ -208,7 +214,7 @@ TEXT = {
             '「全部そろえる」は選んだすべてが揃うまで続行。'
             '達成ならアカウントを残して停止、未達成ならリセットして次周へ。\n'
             '②「停止ポイント」を設定 = そのポイントで停止。\n'
-            '③ 両方空 = 1 周だけ実行し、検品後に停止（リセットなし）。',
+            '③「目標キャラ」も「停止ポイント」も空 = 1 周だけ実行し、検品後に停止（リセットなし）。',
 
         'Starsavior2.Nickname.name': 'ニックネーム',
         'Starsavior2.Nickname.help':
@@ -237,9 +243,11 @@ TEXT = {
 
         'Starsavior2.StopAt.name': '停止ポイント',
         'Starsavior2.StopAt.help':
-            '分割実行 / デバッグ用。そのポイントで停止し、アカウントはリセットしません。'
-            '⚠「目標キャラ」とは排他です。',
-        'Starsavior2.StopAt.none': '設定しない（検品まで通しで実行）',
+            '分割実行 / デバッグ用。そのポイントで停止し、アカウントはリセットしません。\n'
+            '設定しない = 途中で止めず通常実行：「目標キャラ」を設定していれば出るまで周回、'
+            '未設定なら 1 周だけ。\n'
+            '⚠ ポイントを設定すると「目標キャラ」は無視されます。',
+        'Starsavior2.StopAt.none': '設定しない（止めずに通常実行、目標があれば周回）',
         'Starsavior2.StopAt.nickname': 'ポイント1：ニックネーム入力前に停止',
         'Starsavior2.StopAt.guide': 'ポイント2：チュートリアル終了後に停止（受け取り・ガチャ前）',
         'Starsavior2.StopAt.verify': 'ポイント3：検品まで通しで実行',

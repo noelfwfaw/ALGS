@@ -866,7 +866,7 @@
   "Starsavior2": {
     "_info": {
       "name": "Reroll settings",
-      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character(s) set (up to 7): reroll round after round. \"Win condition\" decides what counts: \"any one character\" stops once a single listed character reaches its own count, \"all\" needs every selected target. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Both empty: run exactly one round, stop after the roster check, no reset."
+      "help": "Set the package name and resolution in \"Settings -> Emulator\" first, then press Start here. Only one of the three modes takes effect:\n1) Target character(s) set (up to 7): reroll round after round. \"Win condition\" decides what counts: \"any one character\" stops once a single listed character reaches its own count, \"all\" needs every selected target. On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n2) Stop-at set: stop right after that checkpoint.\n3) Target character and Stop-at both empty: run exactly one round, stop after the roster check, no reset."
     },
     "Nickname": {
       "name": "Nickname",
@@ -1265,8 +1265,8 @@
     },
     "StopAt": {
       "name": "Stop at",
-      "help": "For step-by-step runs and debugging: stop right after this checkpoint, without resetting. Warning: mutually exclusive with \"Target character\".",
-      "none": "Not set (run all the way to the roster check)",
+      "help": "For step-by-step runs and debugging: stop right after this checkpoint, without resetting.\nNot set = no checkpoint, normal rerolling: with a target character it keeps repeating until the target drops, without one it runs a single round.\nWarning: when a checkpoint is set, \"Target character\" is ignored.",
+      "none": "Not set (no checkpoint; repeat while a target is set)",
       "nickname": "Checkpoint 1: before entering the nickname",
       "guide": "Checkpoint 2: guides finished (no reward, no gacha)",
       "verify": "Checkpoint 3: all the way to the roster check"

@@ -1893,7 +1893,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if self.appear(E_171_2, offset=(10, 10)):
             self.click_button(E_171_2, '打开邮箱')
             self.wait_until_disappear(E_171_2, offset=(10, 10), timeout=3, settle=2)
-        self.press(MAIL, '邮箱', timeout=180)
+        # ❗`idle=5`（默认 12）：邮箱里点掉「全部领取」之后就没有可点的了，
+        #   12 秒纯属白等（真机 2026-11-07 17:22「邮箱：12 秒没有可点的按钮」，
+        #   用户：「缩短时间」）。
+        self.press(MAIL, '邮箱', timeout=180, idle=5)
         self.claim_task()
 
     def claim_task(self):
@@ -2159,7 +2162,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   只有 page_187 → page_188 的 2.4s，12 秒纯属白等（用户 16:5x：
         #   「是这里等了12秒吧。缩短」）。
         self.press(VERIFY, '救援者引导', timeout=600, idle=5, restore_after=2)
-        # 引导最后一步可能是点左上返回。press 的 12 秒静默已经等过了，
+        # 引导最后一步可能是点左上返回。press 的静默（现在 idle=5）已经等过了，
         # 这里再兜一次「回列表」，免得带着详情页进去扫。
         self.back_to_list()
 
