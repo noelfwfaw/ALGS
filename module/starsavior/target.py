@@ -69,16 +69,19 @@ def valid_target(label, count):
 
 
 def check_targets(accounts, targets):
-    """这一轮刷到的 SSR 是否满足全部目标。
+    """这一轮刷到的 SSR 是否命中了目标（**任意一只**命中就算）。
 
     accounts: `scan_rescuers()` 的返回，每项 {label, dups, count}。
+    targets: [{'label': '名字@团', 'count': 要几只}]，GUI 最多挂 7 只。
     returns: (ok, detail)，detail 每项 {label, need, got, hit}。
 
+    ❗判定是 **OR** 不是 AND：挂 7 只候选时，出其中任意一只就停
+      （刷初始想的是"这几只里随便来一只"，不是"七只同时出"）。
     ❗同名异角色必须靠「团」区分：亚瑟菈@星光华尔兹（光奶）和
-    亚瑟菈@航行者救援团是两个角色，只比名字会把后者误判成达标。
+      亚瑟菈@航行者救援团是两个角色，只比名字会把后者误判成达标。
     """
     detail = []
-    ok = True
+    any_hit = False
     for target in targets:
         want_name, want_troupe = norm_label(target['label'])
         need = int(target.get('count', 1))
@@ -91,12 +94,12 @@ def check_targets(accounts, targets):
                 continue
             got += acc.get('count') or 1
         hit = got >= need
-        if not hit:
-            ok = False
+        if hit:
+            any_hit = True
         detail.append({
             'label': target['label'],
             'need': need,
             'got': got,
             'hit': hit,
         })
-    return bool(accounts) and ok, detail
+    return bool(accounts) and any_hit, detail

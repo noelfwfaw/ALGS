@@ -37,7 +37,7 @@ TEXT = {
         'Starsavior2._info.name': '刷初始设置',
         'Starsavior2._info.help':
             '先在「设置 → 模拟器」把包名、分辨率配好，再回这一页点「启动」。三种模式只能生效一种：\n'
-            '① 填了「目标角色」= 一轮轮刷到出为止；出了停在号上不重置，没出自动重置接着刷。\n'
+            '① 挂了「目标角色」（最多 7 只）= 一轮轮刷到出为止；这七只里任意一只出了就停在号上不重置，一只都没出就自动重置接着刷。\n'
             '② 选了「停节点」= 跑到那个节点就停下。\n'
             '③ 两个都留空 = 只跑一轮，验号完停下，不重置。',
 
@@ -48,12 +48,14 @@ TEXT = {
 
         'Starsavior2.Target.name': '目标角色',
         'Starsavior2.Target.help':
-            '出了这只就停下，把号留在游戏里不重置；没出就重置账号接着刷。'
-            '留「不指定」只跑一轮。⚠ 和「停节点」只能填一个，两个都填按这里跑。',
+            '最多挂 7 只（这一栏是第 1 只，下面还有「目标角色 2」~「目标角色 7」）。'
+            '刷到其中任意一只就停下，把号留在游戏里不重置；一只都没出就重置账号接着刷。'
+            '七个位全留「不指定」= 只跑一轮。⚠ 和「停节点」只能填一个，两个都填按这里跑。',
         'Starsavior2.Target.none': '不指定（只跑一轮，验号完停）',
 
         'Starsavior2.TargetCount.name': '目标数量',
-        'Starsavior2.TargetCount.help': '1 = 本体（0 星），4 = 满星。没选目标角色时不生效。',
+        'Starsavior2.TargetCount.help':
+            '每个挂上的目标各自都要这么多只。1 = 本体（0 星），4 = 满星。没挂目标时不生效。',
 
         'Starsavior2.StopAt.name': '停节点',
         'Starsavior2.StopAt.help':
@@ -77,7 +79,7 @@ TEXT = {
         'Starsavior2._info.name': '刷初始設定',
         'Starsavior2._info.help':
             '先在「設定 → 模擬器」把包名、解析度設好，再回這一頁點「啟動」。三種模式只會生效一種：\n'
-            '① 填了「目標角色」= 一輪輪刷到出為止；出了停在號上不重置，沒出就自動重置繼續刷。\n'
+            '① 掛了「目標角色」（最多 7 隻）= 一輪輪刷到出為止；這七隻裡任意一隻出了就停在號上不重置，一隻都沒出就自動重置繼續刷。\n'
             '② 選了「停節點」= 跑到那個節點就停下。\n'
             '③ 兩個都留空 = 只跑一輪，驗號完停下，不重置。',
 
@@ -88,12 +90,14 @@ TEXT = {
 
         'Starsavior2.Target.name': '目標角色',
         'Starsavior2.Target.help':
-            '出了這隻就停下，把號留在遊戲裡不重置；沒出就重置帳號繼續刷。'
-            '留「不指定」只跑一輪。⚠ 和「停節點」只能填一個，兩個都填以這裡為準。',
+            '最多掛 7 隻（這一欄是第 1 隻，下面還有「目標角色 2」~「目標角色 7」）。'
+            '刷到其中任意一隻就停下，把號留在遊戲裡不重置；一隻都沒出就重置帳號繼續刷。'
+            '七個位全留「不指定」= 只跑一輪。⚠ 和「停節點」只能填一個，兩個都填以這裡為準。',
         'Starsavior2.Target.none': '不指定（只跑一輪，驗號完停）',
 
         'Starsavior2.TargetCount.name': '目標數量',
-        'Starsavior2.TargetCount.help': '1 = 本體（0 星），4 = 滿星。沒選目標角色時不生效。',
+        'Starsavior2.TargetCount.help':
+            '每個掛上的目標各自都要這麼多隻。1 = 本體（0 星），4 = 滿星。沒掛目標時不生效。',
 
         'Starsavior2.StopAt.name': '停節點',
         'Starsavior2.StopAt.help':
@@ -119,8 +123,8 @@ TEXT = {
         'Starsavior2._info.help':
             'Set the package name and resolution in "Settings -> Emulator" first, then press Start here. '
             'Only one of the three modes takes effect:\n'
-            '1) Target character set: reroll round after round until it drops. On a hit the account is '
-            'kept (no reset); on a miss the account is reset and the next round starts.\n'
+            '1) Target character(s) set (up to 7): reroll round after round until ANY of them drops. '
+            'On a hit the account is kept (no reset); on a miss the account is reset and the next round starts.\n'
             '2) Stop-at set: stop right after that checkpoint.\n'
             '3) Both empty: run exactly one round, stop after the roster check, no reset.',
 
@@ -132,12 +136,15 @@ TEXT = {
 
         'Starsavior2.Target.name': 'Target character',
         'Starsavior2.Target.help':
-            'Stop as soon as this character drops and keep the account; otherwise reset and keep rerolling. '
-            '"Not set" runs a single round only. Warning: mutually exclusive with "Stop at".',
+            'Up to 7 targets can be set (this is #1; "Target 2" to "Target 7" follow). '
+            'Stop as soon as ANY of them drops and keep the account; otherwise reset and keep rerolling. '
+            'All seven set to "Not set" runs a single round only. '
+            'Warning: mutually exclusive with "Stop at".',
         'Starsavior2.Target.none': 'Not set (one round, stop after the roster check)',
 
         'Starsavior2.TargetCount.name': 'Target count',
-        'Starsavior2.TargetCount.help': '1 = base (0 star), 4 = max star. Ignored when no target is set.',
+        'Starsavior2.TargetCount.help':
+            'How many copies each target needs. 1 = base (0 star), 4 = max star. Ignored when no target is set.',
 
         'Starsavior2.StopAt.name': 'Stop at',
         'Starsavior2.StopAt.help':
@@ -163,7 +170,7 @@ TEXT = {
         'Starsavior2._info.help':
             '先に「設定 → エミュレーター」でパッケージ名と解像度を設定し、このページで「起動」を押してください。'
             '3 つのモードのうち有効なのは 1 つだけです：\n'
-            '①「目標キャラ」を設定 = 出るまで周回。出たらアカウントを残して停止、出なければリセットして続行。\n'
+            '①「目標キャラ」を設定（最大 7 体）= 出るまで周回。どれか 1 体出たらアカウントを残して停止、1 体も出なければリセットして続行。\n'
             '②「停止ポイント」を設定 = そのポイントで停止。\n'
             '③ 両方空 = 1 周だけ実行し、検品後に停止（リセットなし）。',
 
@@ -174,12 +181,14 @@ TEXT = {
 
         'Starsavior2.Target.name': '目標キャラ',
         'Starsavior2.Target.help':
-            'このキャラが出たら停止し、アカウントはリセットしません。出なければリセットして周回を続けます。'
-            '「指定しない」なら 1 周だけ。⚠「停止ポイント」とは排他です。',
+            '最大 7 体まで設定できます（ここは 1 体目、「目標キャラ 2」〜「目標キャラ 7」が続きます）。'
+            'いずれか 1 体が出たら停止し、アカウントはリセットしません。出なければリセットして周回を続けます。'
+            '7 つすべて「指定しない」なら 1 周だけ。⚠「停止ポイント」とは排他です。',
         'Starsavior2.Target.none': '指定しない（1 周だけ、検品後に停止）',
 
         'Starsavior2.TargetCount.name': '必要数',
-        'Starsavior2.TargetCount.help': '1 = 本体（0 凸）、4 = 完凸。目標キャラ未設定時は無効です。',
+        'Starsavior2.TargetCount.help':
+            '設定した各目標それぞれに必要な数。1 = 本体（0 凸）、4 = 完凸。目標未設定時は無効です。',
 
         'Starsavior2.StopAt.name': '停止ポイント',
         'Starsavior2.StopAt.help':
@@ -192,9 +201,24 @@ TEXT = {
     },
 }
 
+# 目标角色 2~7：和 `Target` 是同一组字段，只有序号不同，所以按语种模板生成，
+# 不手抄 6 遍。文案故意短——界面上六条一模一样的说明会把设置本身挤下去。
+EXTRA_TARGET = {
+    'zh-CN': ('目标角色 %d', '可选。最多挂 7 只，任意一只出了就停。', '不指定（这一位空着）'),
+    'zh-TW': ('目標角色 %d', '可選。最多掛 7 隻，任一隻出了就停。', '不指定（這一格空著）'),
+    'en-US': ('Target %d', 'Optional. Up to 7 targets; any one of them stops the reroll.',
+              'Not set (leave this slot empty)'),
+    'ja-JP': ('目標キャラ %d', '任意。最大 7 体、どれか 1 体出たら停止。', '指定しない（この枠は空き）'),
+}
+
 
 def main():
     for lang, mapping in TEXT.items():
+        name, help_text, none_text = EXTRA_TARGET[lang]
+        for index in range(2, 8):
+            mapping['Starsavior2.Target%d.name' % index] = name % index
+            mapping['Starsavior2.Target%d.help' % index] = help_text
+            mapping['Starsavior2.Target%d.none' % index] = none_text
         path = os.path.join(I18N, '%s.json' % lang)
         data = read_file(path)
         for key, value in mapping.items():

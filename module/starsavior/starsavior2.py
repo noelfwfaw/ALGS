@@ -127,6 +127,13 @@ STOP_GUIDE = 'guide'            # 节点2：所有引导走完停下（还没领
 STOP_VERIFY = 'verify'          # 节点3：一直跑到验号
 STOP_CHOICES = (STOP_NONE, STOP_NICKNAME, STOP_GUIDE, STOP_VERIFY)
 
+# 目标角色最多挂 7 只（`argument.yaml` 里是 `Target` + `Target2`~`Target7`）。
+# ❗判定是**任意一只达标就停**，不是七只凑齐 —— 见 `target.check_targets()`。
+TARGET_FIELDS = (
+    'Target', 'Target2', 'Target3', 'Target4',
+    'Target5', 'Target6', 'Target7',
+)
+
 # 需要往里打字的按钮（昵称走实例方法 `text_for()`，这里只放固定文案）。
 TEXT_INPUT = {
     E_200_1: '重置服务器账号',
@@ -487,25 +494,44 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.input_enabled = self.stop_at != STOP_NICKNAME
 
         if self.targets:
-            row = self.targets[0]
-            target_note = '%s × %d 只' % (row['label'], row['count'])
+            target_note = ' / '.join('%s × %d 只' % (row['label'], row['count'])
+                                     for row in self.targets)
         else:
             target_note = '不指定（跑一轮就停）'
         logger.info('本轮配置：昵称 %s / 目标 %s / 停节点 %s'
                     % (self.nickname, target_note, self.stop_at))
 
     def read_targets(self):
-        """GUI 的「目标角色」→ `check_targets()` 要的列表；不指定返回 None。"""
-        label = str(self.config.Starsavior2_Target or 'none').strip()
-        if label in ('', 'none'):
-            return None
+        """GUI 的七个「目标角色」→ `check_targets()` 要的列表；一个都没选返回 None。
+
+        ❗最多 7 只（`TARGET_FIELDS`），判定是**任意一只达标就停**：
+          想刷的角色通常不止一个，挂满七个等于把这七只的概率加起来；
+          要求七只同时出（AND）概率低到没有意义。
+        七个位里重复选同一只的，只算一次。
+        """
         try:
             count = int(self.config.Starsavior2_TargetCount or 1)
         except (TypeError, ValueError):
             logger.warning('目标数量不是数字，按 1 只算')
             count = 1
         count = min(max(count, MIN_COUNT), MAX_COUNT)
-        return [{'label': label, 'count': count}]
+
+        targets = []
+        seen = set()
+        for field in TARGET_FIELDS:
+            # `getattr` 兜底：`config_generated.py` 还没重新生成时不会 AttributeError。
+            label = str(getattr(self.config, 'Starsavior2_' + field, 'none') or 'none').strip()
+            if label in ('', 'none'):
+                continue
+            if label in seen:
+                logger.info('目标角色 %s 填了不止一次，只算一次' % label)
+                continue
+            seen.add(label)
+            targets.append({'label': label, 'count': count})
+
+        if not targets:
+            return None
+        return targets
 
     def read_stop(self):
         stop = str(self.config.Starsavior2_StopAt or STOP_NONE).strip()
@@ -580,9 +606,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         logger.hr('刷初始结束：%s' % reason, level=1)
         logger.info('昵称：%s' % self.nickname)
         if self.targets:
-            row = self.targets[0]
-            logger.info('目标：%s × %d 只 → %s'
-                        % (row['label'], row['count'],
+            logger.info('目标：%s → %s'
+                        % (' / '.join('%s × %d 只' % (row['label'], row['count'])
+                                      for row in self.targets),
                            '已达成' if self.target_hit else '未达成'))
         else:
             logger.info('目标：不指定（只跑一轮）')
@@ -1899,8 +1925,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             logger.warning('验号：一个 SSR 都没读到')
             return False
 
-        # ❗目标来自 GUI（`Starsavior2.Target`），不再读 `config/state` 里那份 json：
-        #   留「不指定」就**不做达标判定**，只把这一轮的号记下来（跑完就停、不重置）。
+        # ❗目标来自 GUI（`Starsavior2.Target` + `Target2`~`Target7`，最多 7 只），
+        #   不再读 `config/state` 里那份 json：全都留「不指定」就**不做达标判定**，
+        #   只把这一轮的号记下来（跑完就停、不重置）。
         targets = self.targets or []
         if not targets:
             logger.info('验号：没有设置目标角色，这一轮只做记录')
@@ -1918,7 +1945,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                            '达成' if row['hit'] else '未达成'))
         self.target_hit = hit
         if hit:
-            logger.info('验号：目标全部达成，这一轮停在号上不重置')
+            logger.info('验号：命中目标（挂了几只只看任意一只），这一轮停在号上不重置')
         return True
 
     def save_scan(self, accounts, targets=None, target_detail=None, target_hit=False):

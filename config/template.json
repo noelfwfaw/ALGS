@@ -692,6 +692,12 @@
     "Starsavior2": {
       "Nickname": "",
       "Target": "none",
+      "Target2": "none",
+      "Target3": "none",
+      "Target4": "none",
+      "Target5": "none",
+      "Target6": "none",
+      "Target7": "none",
       "TargetCount": 1,
       "StopAt": "none"
     },
