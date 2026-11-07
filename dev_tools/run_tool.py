@@ -66,6 +66,10 @@ def main():
         alas.config.bind('Starsavior2')
         task_object = Starsavior2(config=alas.config, device=device)
         task_object.load_plan()
+        # ❗进程刚起，`device.image` 还是 None：各段里的 `appear()` 不自己截图，
+        #   `loop()` 默认又跳过首帧。分段单跑时先拍一张，省得每段都撞
+        #   `AttributeError: 'NoneType' object has no attribute 'shape'`。
+        device.screenshot()
         for step in args[1:]:
             received = getattr(task_object, step)()
             print('[tool] %s -> %s' % (step, received), flush=True)

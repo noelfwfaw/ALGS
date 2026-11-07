@@ -80,6 +80,7 @@ from module.starsavior.assets import (
     E_89_1, E_8_1, E_90_1, E_91_1, E_92_1,
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
+    E_205_1, E_206_1, E_206_2,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -141,6 +142,10 @@ TARGET_FIELDS = (
     'Target5', 'Target6', 'Target7',
 )
 
+# 验号记录（`config/state/starsavior_accounts.json`）最多留多少轮。
+# 一条只有「时间 + 角色列表」，一轮约 100 字节，500 轮也就 50KB 上下。
+SCAN_LOG_LIMIT = 500
+
 # 需要往里打字的按钮（昵称走实例方法 `text_for()`，这里只放固定文案）。
 TEXT_INPUT = {
     E_200_1: '重置服务器账号',
@@ -152,12 +157,16 @@ TEXT_INPUT = {
 # 要先点它上面的**祝福框**（「专注提升 I +20」那条横条）才会推进。
 # 用户 2026-11-07 13:1x：「我说的框是获得全新祝福下面那个框，点那里是能进行的」，
 # 紧接着又补一句「点框内左右没有内容的地方」—— 横条中间是星星图标和「+20」
-# 小框，**点图标/数字都不算点框**，要落到横条两端空白处：
-#     横条 = (512,397)-(812,433)，图标右边空白 ≈ (697,415)，右端空白 ≈ (797,415)。
-# 真机 13:10 把确认键从头点到尾（12 次）都没反应，结算卡死，
-# 后面领奖 / 抽卡 / 验号全废。
+# 小框，**点图标/数字都不算点框**。
+#
+# ❗这份点列是**首点就开始用**的，不是"点不动才改点"的顺序：
+#   真机 2026-11-07 14:12 先点中心 (638,665)、再点 (697,415)/(797,415)，
+#   四次全部没推进，用户：「不要点中间。偏移大一点。」
+#   横条 = (512,397)-(812,433)，所以两个落点贴着**两端**放（各留 8px），
+#   中心 (637,665) 只作为最后的兜底 —— `E_139_1` 这张模板还匹配
+#   「最终旅程结果」那屏，那一屏点中心才有用（硬约束 157）。
 RETRY_AT = {
-    E_139_1: ((697, 415), (797, 415)),
+    E_139_1: ((520, 415), (800, 415), (637, 665), (637, 665)),
 }
 
 
@@ -649,7 +658,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                                  else '见上一段日志'))
 
     def press(self, buttons, note, timeout=300, idle=12, once=False, dialogue=False,
-              frames=False, speed=False, skip=True, stop_on=()):
+              frames=False, speed=False, skip=True, stop_on=(), stop_after_page=None):
         """
         把一串按钮按顺序点完，直到连着 `idle` 秒什么都认不到。
 
@@ -683,6 +692,17 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
             stop_on (tuple): 看到这里面任意一个按钮就**立刻收工**，交给下一段
                 （开场引导见到昵称框就走，不用干等 idle）。
+
+            stop_after_page (int): 点掉这个页号的引导页之后**立刻收工**，不等 idle。
+
+                ❗`page_168` 是「主界面上的 16 页后续引导」（153~168）的最后一页，
+                点掉它的时候游戏**已经在主界面了**，再等 `idle` 只是空耗 40 秒
+                （真机 2026-11-07 14:36~14:37 日志一路刷
+                `page_168 之后 10s/20s/30s/40s 没有点掉新引导页`）。
+                用户 14:4x：「168_1 后就在主页面了不用等 40s，直接下一步领奖励」。
+                只在 settle 段用；`GUIDE_PAGES` 里 168 之后还有 185~192
+                （救援者引导，属于 verify），所以这里比的是 `>=`，
+                正常轮里 settle 走不到那些页。
 
             speed (bool): 顺手把倍速保持在 3x（`journey.py` 的 `ensure_speed`）。
 
@@ -738,7 +758,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #     speed_recheck=True  期间**只补档、不点训练**；
         #     确认到 3x（或 45 秒都没按钮）→ 关掉补档，本段再也不动倍速。
         speed_recheck = False  # 119_1 之后、训练之前的「必须先看到 3x」窗口
-        recheck_wait = Timer(45)   # 这个窗口的兜底，防止倍速按钮一直不出现而死等
+        # ❗这个兜底只管「倍速按钮一直不出现」（卡在别的页面），不管「按钮在、
+        #   但档位还没上去」—— 后者只要采样到按钮就 reset，见下面补档分支。
+        #   原来写 45 秒：真机 2026-11-07 14:45:28 第二次补档把 1x 点到 2x 之后，
+        #   画面切进过场、39 秒没有倍速按钮，45 秒一到就去点训练，最终停在 2x。
+        recheck_wait = Timer(120)
         speed_after = False    # 窗口是「因为看到 3x」关掉的 —— 下一次点训练才关补档
         auto_last_click = 0.0  # 上次点 AUTO 的时刻（说明链里按 AUTO_RETRY 节流）
         for _ in self.loop(timeout=timeout):
@@ -887,6 +911,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             if speed and speed_ok and speed_hold.reached():
                 level = self.speed_level()
                 speed_hold.reset()
+                # ❗倍速按钮还在 = 还在这段旅程里，只是档位没上去。这时候不能
+                #   因为「窗口总时长」到了就放弃补档：真机 2026-11-07 14:45:28
+                #   第二次补档刚把 1x 点到 2x，画面就切进过场、39 秒没有按钮，
+                #   45 秒窗口一到期就直接去点训练了，最终停在 2x。
+                #   只有「一直看不到按钮」才允许倒计时走完（见 recheck_wait）。
+                if speed_recheck and level != 0:
+                    recheck_wait.reset()
                 if level == 3:
                     speed_reached = True
                     if speed_recheck:
@@ -1042,7 +1073,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     if speed and speed_recheck and button in (E_122_1, E_120_1):
                         if not recheck_wait.reached():
                             continue
-                        logger.warning('%s：45 秒没等到 3x，放开训练/休息' % note)
+                        logger.warning('%s：%d 秒没见到倍速按钮，放弃等 3x，放开训练/休息'
+                                       % (note, recheck_wait.limit))
                         speed_recheck = False
                     now = time.time()
                     if button.name not in seen_at:
@@ -1098,21 +1130,20 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     #   后面领奖 / 抽卡 / 验号全废）。用户 13:1x：
                     #   「做点击偏移，点了确认后，再点一下框内」。
                     retry = tries.get(button.name, 1)
-                    if retry >= 2:
-                        # ❗**只有点不动才改点**：`E_139_1` 这张模板同时匹配
-                        #   「获得全新祝福」和「最终旅程结果」两屏的「确认」——
-                        #   后者点中心就有用，无脑改点框内空白会空转到封禁
-                        #   （真机 2026-11-07 13:18 实测：4 次全点了空白，
-                        #   而这一屏根本没有祝福框）。
-                        if button in RETRY_AT:
-                            points = RETRY_AT[button]
-                            cx, cy = points[(retry - 2) % len(points)]
-                            logger.info('%s：第 %d 次没点动，改点框内空白 (%d, %d)'
-                                        % (button.name, retry, cx, cy))
-                        else:
-                            cx, cy = self.retry_point(target.area, retry)
-                            logger.info('%s：第 %d 次没点动，换框内另一点 (%d, %d)'
-                                        % (button.name, retry, cx, cy))
+                    if button in RETRY_AT:
+                        # ❗这一类按钮**首点就走点列**，不先点中心：`E_139_1` 的
+                        #   确认键是死的，点中心只会浪费一次机会（真机 14:12
+                        #   四次全都没推进，用户：「不要点中间。偏移大一点。」）。
+                        points = RETRY_AT[button]
+                        cx, cy = points[(retry - 1) % len(points)]
+                        logger.info('%s：第 %d 次点击，落点 (%d, %d)'
+                                    % (button.name, retry, cx, cy))
+                    elif retry >= 2:
+                        # 其它按钮仍然是「点不动才换点」：游戏会吞掉正中那一下
+                        # （真机 2026-11-07 13:10，`E_139_1` 连点 12 次全打在中心）。
+                        cx, cy = self.retry_point(target.area, retry)
+                        logger.info('%s：第 %d 次没点动，换框内另一点 (%d, %d)'
+                                    % (button.name, retry, cx, cy))
                     self.device.click(Button(  # alas-lint: allow - 只把落点钉到 area 内某个点，没有 file、不进 appear 家族；判据仍然是上面那条 appear
                         area=(cx - 2, cy - 2, cx + 2, cy + 2),
                         color=(0, 0, 0),
@@ -1179,6 +1210,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                             last_done = (page, done_at)
                             gap_reported = 0
                             seen_at.pop(button.name, None)
+                            # ❗最后一页引导点掉 = 游戏已经回主界面了，不用再干等 idle。
+                            #   168 之后没有任何引导页可点，`idle=40` 只会白等 40 秒
+                            #   （真机 2026-11-07 14:36:37~14:37:07 一路播报
+                            #   「page_168 之后 10s/20s/30s/40s 没有点掉新引导页」）。
+                            if stop_after_page and page >= stop_after_page:
+                                logger.info('%s：page_%d 点掉，已经在主界面，这一段收工'
+                                            % (note, page))
+                                self.report_pages(note, buttons, hit)
+                                self.report_guide_timing(note, guide_log)
+                                return True
                     # 引导页**点成功**（按钮真的消失）才淘汰紧邻的前一页。
                     # ❗不用「识别到就淘汰」：TM_CCOEFF_NORMED 只比结构不比颜色，
                     #    单帧误命中若直接推进游标，会把中间没点到的页全锁死且不可逆。
@@ -1331,6 +1372,25 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     # 主界面四格、开场引导第一屏。看到任意一个就说明游戏画出来了。
     START_SCREENS = (E_1_1, E_3_1, E_2_1, E_171_1, E_4_2)
 
+    def dismiss_game_error(self):
+        """点掉启动时偶发的「发生错误 (6 NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND)」弹窗。
+
+        ❗真机 2026-11-07 14:5x：工具页点 Start 有概率弹一次（冷启动那一会儿
+        连不上服务器），弹窗把标题页 / 「Sign in with Google」整块盖住，
+        `wait_start_screen` 判不出就绪、`login()` 也点不到按钮。
+        **点掉「确认」之后就能正常登录**（用户：「这个点掉后一般就能正常登录
+        账号了」）。点完等它真的消失再返回，免得下一帧又读到自己。
+
+        Returns:
+            bool: 这一帧看到并点掉了，返回 True。
+        """
+        if not self.appear(E_206_1, offset=(10, 10)):
+            return False
+        logger.info('登录：点掉「发生错误」（NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND）')
+        self.click_button(E_206_2, '确认（开始游戏异常）')
+        self.wait_until_disappear(E_206_1, offset=(10, 10), timeout=3)
+        return True
+
     def wait_start_screen(self, timeout=180, settle=3):
         """等游戏真的画出画面再开工。
 
@@ -1348,11 +1408,20 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         （真机 12:52:32 实测：等了 0.0s 就"就绪"，下一行就是"不在标题页"）。
         """
         logger.hr('等游戏画面', level=2)
+        # ❗`skip_first=False`：工具是 `AlGS.run(command, skip_first_screenshot=True)`
+        #   进来的，进程刚起、一张截图都还没拍，`device.image` 是 None。
+        #   默认的 `loop()` 会跳过首帧截图，第一下 `appear()` 就
+        #   `AttributeError: 'NoneType' object has no attribute 'shape'`
+        #   （真机 2026-11-07 13:52，工具页第一次点启动就撞上）。
         start = time.time()
         hits = 0
-        for _ in self.loop(timeout=timeout):
+        for _ in self.loop(skip_first=False, timeout=timeout):
             # 游戏自己在加载，别让看门狗把正常等待判成卡死。
             self.device.stuck_record_clear()
+            # 启动阶段偶发的「发生错误」弹窗：点掉再判，别让它把画面判成「没就绪」
+            if self.dismiss_game_error():
+                hits = 0
+                continue
             found = False
             for button in self.START_SCREENS:
                 if self.appear(button, offset=CHAIN_OFFSET):
@@ -1381,6 +1450,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         所以每一步都 `settle=3`（连续三帧都看到才算到位，约 0.9 秒）。
         """
         self.device.screenshot()
+        # 启动时那个「发生错误」弹窗会盖住整个登录页，先点掉再往下判
+        self.dismiss_game_error()
 
         # 0. 已经在游戏里（引导 / 剧情 / 主界面）：标题页的「Touch to Start」根本不可见，
         #    这时再点它就是瞎点。直接认作已登录 —— `run()` 里下一段 `guide()` 会接住。
@@ -1530,13 +1601,21 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         **page_153~168 一页都没点到**，紧接着 claim「打不开菜单项」、
         gacha 0.2 秒退出、verify 空读、reset 连设定页都进不去，整轮白跑。
         11:51 从 page_153 续跑证明这 16 页只要 20 秒（平均 1.1s/页），
-        缺的只是「别在过场里收工」。代价是正常轮末尾多等 28 秒。
+        缺的只是「别在过场里收工」。
+
+        ❗但 `idle=40` 的代价是**末尾空等**：page_168 是最后一页，点掉它就已经
+        在主界面了，后面没有任何引导页可点，却还要静默满 40 秒才收工
+        （真机 2026-11-07 14:36:37~14:37:07 一路播报「page_168 之后 Ns 没有
+        点掉新引导页」）。用户 14:4x：「168_1 后就在主页面了不用等 40s，
+        直接下一步领奖励」。所以两遍都加 `stop_after_page=168`：
+        点掉 168 立刻返回，省掉这 40 秒。
 
         ❗**不加 `stop_on=(E_171_1,)`**：153~168 这 16 页**本身就在主界面上**，
         右上四格从第一页起就可见（真机 11:49:52 实测 0.995），加了这个 stop
         会刚起步就收工，等于没改。
         """
-        self.press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40)
+        self.press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40,
+                   stop_after_page=168)
         # ❗第二遍只在「还没回到主界面」时才跑。原来那句「第二遍没东西可点的话
         #   就是空转 12 秒，不亏」是错的：真机 2026-11-07 10:26 实测，`E_168_1`
         #   一过就已经在主界面了，第二遍整整 12 秒**一页都没点到**
@@ -1548,7 +1627,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # （多花 40 秒），也不要漏掉第二个「跳过新手教学」。
         if not self.appear(E_171_1, offset=(10, 10)):  # alas-lint: allow - 判据是正面条件（主界面四格），"看不见"=还没回主界面；这里只决定要不要再扫一遍，误判的代价是多花 40 秒而不是点错东西
             self.press(SETTLE, '结算 / 签到 / 解锁（第二个跳过教学）', timeout=600,
-                       idle=40)
+                       idle=40, stop_after_page=168)
 
     @staticmethod
     def reset_input_typed(image):
@@ -1964,13 +2043,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         targets = self.targets or []
         if not targets:
             logger.info('验号：没有设置目标角色，这一轮只做记录')
-            self.save_scan(accounts, [], [], False)
+            self.save_scan(accounts)
             self.target_hit = False
             logger.info('验号：读到 %d 个 SSR' % len(accounts))
             return True
 
         hit, detail = check_targets(accounts, targets, self.target_mode)
-        self.save_scan(accounts, targets, detail, hit)
+        self.save_scan(accounts)
         logger.info('验号：读到 %d 个 SSR' % len(accounts))
         for row in detail:
             logger.info('验号目标 %s：需要 %d 只，实际 %d 只 → %s'
@@ -1983,8 +2062,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                            else '挂上的目标全部凑够'))
         return True
 
-    def save_scan(self, accounts, targets=None, target_detail=None, target_hit=False):
-        """把这一轮的号存档。每轮一个文件，方便事后挑。
+    def save_scan(self, accounts):
+        """把这一轮的号记一笔：**只有时间和角色（各几只）**，给人事后翻。
+
+        ❗这份文件**只写不读** —— 达标判定只看 GUI 配置 + 当前这一帧的扫描结果，
+          所以 `targets` / `target_detail` / `ssr` / `total` 这些字段脚本自己都用不上，
+          删掉（用户 2026-11-07：「无用的话简洁点，就时间，角色，多少只就行」）。
+        旧格式（带 targets / characters 是 dict）读进来会顺手归一，
+        跑一轮之后整个文件就都是新格式了。
 
         写到 `config/state/`：那里的东西是**状态**不是配置，
         `config_updater` 不会去覆盖它（`config/*.json` 顶层的会被管）。
@@ -2003,19 +2088,36 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             except (ValueError, OSError):
                 log = []
 
-        total = sum(a.get('count') or 1 for a in accounts)
+        log = [self.compact_scan(row) for row in log]
         log.append({
             'time': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'ssr': len(accounts),
-            'total': total,
-            'characters': accounts,
-            'targets': targets or [],
-            'target_detail': target_detail or [],
-            'target_hit': bool(target_hit),
+            'characters': self.format_scan_characters(accounts),
         })
+        # 只留最近 SCAN_LOG_LIMIT 轮，别让文件无限长
+        log = log[-SCAN_LOG_LIMIT:]
+
+        # 一轮一行，不展开成 indent 那种一大片 —— 翻二十轮只要滚二十行
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(log, f, ensure_ascii=False, indent=2)
-        logger.info('验号：已写入 %s（累计 %d 轮）' % (path, len(log)))
+            f.write('[\n')
+            f.write(',\n'.join('  ' + json.dumps(row, ensure_ascii=False) for row in log))
+            f.write('\n]\n')
+        logger.info('验号：已记到 %s（累计 %d 轮）' % (path, len(log)))
+
+    @staticmethod
+    def format_scan_characters(accounts):
+        """`[{'label': '亚瑟菈@星光华尔兹', 'count': 2}]` → `['亚瑟菈@星光华尔兹 ×2']`。"""
+        return ['%s ×%d' % (a.get('label') or a.get('name') or '?', a.get('count') or 1)
+                for a in accounts]
+
+    @classmethod
+    def compact_scan(cls, row):
+        """旧条目（带 targets / target_detail / ssr）压成「时间 + 角色列表」。"""
+        if not isinstance(row, dict):
+            return {'time': '', 'characters': []}
+        chars = row.get('characters') or []
+        if chars and isinstance(chars[0], dict):
+            chars = cls.format_scan_characters(chars)
+        return {'time': row.get('time') or '', 'characters': chars}
 
     @staticmethod
     def auto_battle_started(image):
@@ -2093,9 +2195,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         路径（2026-11-06 19:24~19:47 真机**逐步走通**，每一跳都截图确认过）：
 
             列表页 → 左上返回 → 主界面
-            主界面右上四格菜单 (1230, 45) → 右侧竖排最下的齿轮 (1206, 533)
-            → 游戏设定页 → 左侧「账号管理」(100, 345)
-            → 「重置服务器账号」(835, 366) → 警告弹窗「确认」(735, 468)
+            主界面右上四格菜单 `E_171_1` 中心 → 右侧竖排最下的齿轮 `E_205_1` 中心 (1202, 531)
+             → 游戏设定页 → 左侧「账号管理」`E_197_1` 中心 (114, 343)
+             → 「重置服务器账号」(835, 366) → 警告弹窗「确认」(735, 468)
             → 输入弹窗：点输入框 (640, 401) → 打「重置服务器账号」→「确认」
             → 标题页
 
@@ -2162,20 +2264,40 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     (E_171_1.area[1] + E_171_1.area[3]) // 2, '系统菜单')
         # 等网格展开动画走完；不等的话下一枪会点在菜单还没铺开的地方
         self.wait_until_still((900, 60, 1280, 700), timeout=3, threshold=4.0)
-        # ❗齿轮的真实位置是 **(1220, 536)**。原来写 (1206, 533)，偏左 14 像素，
-        #   落在齿轮左边的空白上 —— 菜单直接收起来回主界面，然后
-        #   卡在 `wait_text('账号管理')` 十秒（真机 2026-11-06 22:34 实测）。
-        self.tap_at(1220, 536, '设定')
-        # ❗用模板 `E_197_1`，不用 OCR：暗灰「账号管理」常被读成「号管理」
-        #   （首字被左边圆图标吃掉），真机 00:49 明明在设定页却连读 10 秒
-        #   判「进不了」。用户 00:52 补的 page_197~199 截图正好对应旧素材，
-        #   实测 `E_197_1` 在设定页 **1.000**（00:52 离线复验），不用造新素材。
-        if not self.wait_until_appear(E_197_1, offset=(10, 10), timeout=10):
-            logger.warning('重置：进不了游戏设定页')
+        # ❗齿轮点 **`E_205_1` 的 area 中心 (1202, 531)**，不再写死坐标。
+        #   以前写 (1220, 536)，偏右 18 像素、正好落在齿轮右边的空白上，
+        #   点完页面纹丝不动（真机 2026-11-07 14:17 整轮重置失败）。
+        #   素材是用户 14:18 重新导出的 `设置.png`，图标 bbox 离线量过：
+        #   x 1190~1215 / y 518~545。`click_button()` 钉的是 area 中心 ——
+        #   用户反复强调的那句「所有的点击都点中间」（00:46、14:18）。
+        #
+        # ❗**点一下没反应就接着点**，不是点一次干等 10 秒：菜单展开动画、
+        #   商店红点 / 活动弹窗都可能把第一下吞掉（用户 14:20：「而且只点了
+        #   一次，页面没变的话，应该反复点击」；硬约束 153）。2 秒节流，
+        #   15 秒里最多点 7 次。
+        clicked = 0
+        last_click = 0
+        for _ in self.loop(timeout=15):
+            if self.appear(E_197_1, offset=(10, 10)):
+                break
+            # 齿轮还没露出来（菜单没铺开）就只等，不点
+            if not self.appear(E_205_1, offset=(10, 10)):
+                continue
+            if time.time() - last_click < 2:
+                continue
+            self.click_button(E_205_1, '设定')
+            last_click = time.time()
+            clicked += 1
+        else:
+            # ❗用模板 `E_197_1` 判「进没进设定页」，不用 OCR：暗灰「账号管理」
+            #   常被读成「号管理」（首字被左边圆图标吃掉），真机 00:49 明明
+            #   在设定页却连读 10 秒判「进不了」。
+            logger.warning('重置：进不了游戏设定页（点了 %d 次「设定」）' % clicked)
             return False
 
-        # 3. 左侧「账号管理」
-        self.tap_at(100, 345, '账号管理页签')
+        # 3. 左侧「账号管理」——`E_197_1` 就是这个页签（83x28 正好框住四个字），
+        #    点它的中心 (114, 343)，别再用写死的 (100, 345)（偏左 14px）。
+        self.click_button(E_197_1, '账号管理页签')
         # `E_198_1` 在账号管理页 1.000、设定页 0（00:52 离线复验）；
         # 比 OCR 认「重置服务器账号」稳，且不受按钮亮暗影响。
         if not self.wait_until_appear(E_198_1, offset=(10, 10), timeout=10):
