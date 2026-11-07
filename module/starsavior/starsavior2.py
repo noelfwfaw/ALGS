@@ -159,14 +159,19 @@ TEXT_INPUT = {
 # 紧接着又补一句「点框内左右没有内容的地方」—— 横条中间是星星图标和「+20」
 # 小框，**点图标/数字都不算点框**。
 #
-# ❗这份点列是**首点就开始用**的，不是"点不动才改点"的顺序：
-#   真机 2026-11-07 14:12 先点中心 (638,665)、再点 (697,415)/(797,415)，
-#   四次全部没推进，用户：「不要点中间。偏移大一点。」
-#   横条 = (512,397)-(812,433)，所以两个落点贴着**两端**放（各留 8px），
-#   中心 (637,665) 只作为最后的兜底 —— `E_139_1` 这张模板还匹配
-#   「最终旅程结果」那屏，那一屏点中心才有用（硬约束 157）。
+# ❗用法：**第 1 次点 area 中心（确认本体），点不动才走这份点列**。
+#   `E_139_1` 是蓝色「确认」，同时出现在两屏（硬约束 157）：
+#     · 「最终旅程结果」屏 —— 点确认就能过；
+#     · 「获得全新祝福」屏 —— 点确认没反应（游戏 bug），要点祝福横条
+#       右侧的空白（横条 = (512,397)-(812,433)，中间是星星图标和「+20」，
+#       点图标/数字都不算点框）。
+#   用户 16:15：「优先级应该是点下面那个确认，当点确认没用（游戏bug）
+#   才去点偏移，现在一直点偏移本不会过结算」。
+#   真机 2026-11-07 14:12 的旧教训：中心连点 12 次都没推进 —— 那时是
+#   **只点中心**、没有偏移；15:5x 左端 (520,415) 又点到了**祝福**，所以
+#   点列只留**右端空白**（距右缘留 8px）。
 RETRY_AT = {
-    E_139_1: ((520, 415), (800, 415), (637, 665), (637, 665)),
+    E_139_1: ((800, 415), (790, 420), (800, 408)),
 }
 
 
@@ -658,7 +663,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                                  else '见上一段日志'))
 
     def press(self, buttons, note, timeout=300, idle=12, once=False, dialogue=False,
-              frames=False, speed=False, skip=True, stop_on=(), stop_after_page=None):
+              frames=False, speed=False, skip=True, stop_on=(), stop_after_page=None,
+              stop_after_button=(), hit_out=None, restore_after=None):
         """
         把一串按钮按顺序点完，直到连着 `idle` 秒什么都认不到。
 
@@ -704,6 +710,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 （救援者引导，属于 verify），所以这里比的是 `>=`，
                 正常轮里 settle 走不到那些页。
 
+            restore_after (float): 多少秒没有命中就恢复全表扫描（默认 `idle * 0.7`）。
+
+                ❗只给「页少、节奏快」的段压短，比如救援者引导只有 8 页、
+                一页约 1 秒，等 8 秒才能重扫一页都点不动，用户 16:2x：
+                「不用8秒那么久」。长段别动它，重扫会把淘汰的旧页放回来。
+
             speed (bool): 顺手把倍速保持在 3x（`journey.py` 的 `ensure_speed`）。
 
                 ❗倍速会**自己掉回 1x**：跳过新手教学、进新关卡都会重置。
@@ -727,13 +739,22 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         advance = Timer(0.8)   # 剧情点击 / SKIP 的重试间隔
         skip_fail = 0          # 连续点了几次 SKIP 都没反应
         confirm = Timer(3)     # 「刚点过 SKIP」之后认确认框的窗口（未启动 = 不认）
-        hit = []               # 这一段点过的按钮名（按点击顺序，用来报页号）
+        hit = [] if hit_out is None else hit_out   # 这一段点过的按钮名（按点击顺序，用来报页号；传 list 进来可以在段外查它点过什么）
         blocked = set()        # 点了不消失的按钮，本段不再点
         tries = {}             # 每个按钮点了几次（判断"是不是真点不动"）
+        # ❗点完且验证「消失」的按钮，2 秒内不再点：关闭动画的残帧还会被
+        #   匹配上一帧（真机 2026-11-07 15:20 E_119_1 点完 0.3s 验证消失、
+        #   0.2s 后又命中，多打一击被动画吞掉，还留下误导性的
+        #   「第 2 次没点动」日志）。2 秒足够盖过残帧窗口；真要重弹的
+        #   （第二个教学弹窗）隔着十几秒过场，不受影响。
+        cooldown = {}          # button.name -> 冷却截止时刻
         # 引导页淘汰：见 guide_chain.py。只对标题「引导N」的 140 页生效，
         # 每点成功一页只淘汰它的紧邻前一页，不一次性禁用前面全部。
         expired = set()        # 已走过的引导页号
-        no_hit = Timer(idle * 0.7).start()   # 长时间无命中就恢复全表扫描
+        # 长时间无命中就恢复全表扫描。默认按 idle 的 0.7 倍；短段（救援者引导
+        # 只有 8 页、一页 1 秒）等 8 秒太久，用 `restore_after` 单独压短。
+        restore_wait = idle * 0.7 if restore_after is None else restore_after
+        no_hit = Timer(restore_wait).start()
         train_wait = Timer(2.5)  # 训练失败点完之后等多久再看（训练要跑一会儿）
         train_tries = 0        # 训练失败连点了几次
         # 引导页之间的识别时长（用户 2026-11-07：「记录每个引导之间的识别时长」，
@@ -839,6 +860,15 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 skip_button = E_202_1
             elif self.appear(E_202_2, offset=CHAIN_OFFSET):
                 skip_button = E_202_2
+            # ❗`E_115_1` 是「纯黑过场 + SKIP」那一帧的取样（旅程进场那一下）。
+            #   它**过拟合**：离线四张画面实测 —— 自己那张 1.000，但剧情页只有
+            #   0.761、E_202 横栏 0.753、E_5_1 那张 0.798，换个背景全部低于 0.85。
+            #   反过来 `E_5_1` 是大裁框（带横栏底色），四张全在 0.898~1.000。
+            #   所以排最后当**黑屏兜底**：黑过场里 E_5_1 已经掉到 0.898（勉强过），
+            #   E_115_1 是 1.000，接得住；真机 2026-11-07 16:09 就是点完 SKIP 之后
+            #   黑过场里 12 秒没人认它（GUIDE_B 表里没有、in_story 又不认）而空转。
+            elif self.appear(E_115_1, offset=CHAIN_OFFSET):
+                skip_button = E_115_1
             # ❗**不要再加"白字占比"那种兜底**。2026-11-06 23:22 试过一版：
             #   靠 (1170,30)-(1245,60) 的白像素判 SKIP，结果旅程页右上角
             #   有白色资源数字也满足，`in_story` 恒真 —— 一整段点了 26 次
@@ -1049,6 +1079,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     continue
                 if button.name in blocked:
                     continue
+                if time.time() < cooldown.get(button.name, 0):
+                    # 刚点掉、还在播关闭动画：残帧不算数，别在动画上浪费点击
+                    continue
                 if self.appear(button, offset=CHAIN_OFFSET):
                     # AUTO 已经开着就别再点（再点一次会关掉）；封掉本段。
                     if button is E_134_2 and self.auto_battle_started(self.device.image):
@@ -1131,13 +1164,19 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     #   「做点击偏移，点了确认后，再点一下框内」。
                     retry = tries.get(button.name, 1)
                     if button in RETRY_AT:
-                        # ❗这一类按钮**首点就走点列**，不先点中心：`E_139_1` 的
-                        #   确认键是死的，点中心只会浪费一次机会（真机 14:12
-                        #   四次全都没推进，用户：「不要点中间。偏移大一点。」）。
-                        points = RETRY_AT[button]
-                        cx, cy = points[(retry - 1) % len(points)]
-                        logger.info('%s：第 %d 次点击，落点 (%d, %d)'
-                                    % (button.name, retry, cx, cy))
+                        # ❗点列**只在确认键点不动之后**才用：`E_139_1` 是蓝色
+                        #   「确认」，它同时出现在「最终旅程结果」和「获得全新
+                        #   祝福」两屏 —— 结果屏点确认就能过；祝福屏点确认没
+                        #   反应（游戏 bug）才要点祝福横条右侧的空白。用户
+                        #   16:15：「优先级应该是点下面那个确认，当点确认没用
+                        #   （游戏bug）才去点偏移，现在一直点偏移本不会过结算」。
+                        #   所以第 1 次永远点 area 中心（确认本体），第 2 次起
+                        #   才走点列。
+                        if retry >= 2:
+                            points = RETRY_AT[button]
+                            cx, cy = points[(retry - 2) % len(points)]
+                            logger.info('%s：第 %d 次点击，落点 (%d, %d)'
+                                        % (button.name, retry, cx, cy))
                     elif retry >= 2:
                         # 其它按钮仍然是「点不动才换点」：游戏会吞掉正中那一下
                         # （真机 2026-11-07 13:10，`E_139_1` 连点 12 次全打在中心）。
@@ -1170,6 +1209,15 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     # 每次点击都记一条「点了多久、按钮消没消失」——
                     # 用户 2026-11-06 21:30：「每次都做记录，这才能知道哪里出了问题」。
                     click_at = time.time()
+                    # ❗`E_115_1` 是旅程开场剧情右上角的 SKIP（和倍速按钮同一横栏），
+                    #   但它**不在** `in_story` 认的那三套 SKIP 模板里，是从表里
+                    #   点掉的 —— 表内点击不会自动开「认确认框」的窗口。点完它
+                    #   会弹「是否跳过」确认框把 SKIP 盖住，窗口没开的话确认框
+                    #   （E_200_2）没人按，剧情就没跳掉、SKIP 也认不到了
+                    #   （真机 2026-11-07 15:5x：115_1 只点了一次，没完全跳过）。
+                    #   和 in_story 分支同一个安全前提：确认框只可能是我自己点出来的。
+                    if button is E_115_1:
+                        confirm.reset()
                     if button is E_134_2:
                         vanished = self.wait_auto_battle_start(timeout=6)
                     else:
@@ -1187,6 +1235,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         logger.info('%s 点完 %.1fs 后%s'
                                     % (button.name, done_at - click_at,
                                        '消失了' if vanished else '还在'))
+                        if vanished:
+                            cooldown[button.name] = time.time() + 2
                     if page is not None:
                         wait = None
                         if last_done is not None:
@@ -1244,6 +1294,17 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                             blocked.discard(E_134_2.name)
                             logger.info('%s：评鉴战说明已过，解除对 %s 的封禁'
                                         % (note, E_134_2.name))
+                    # 见了就正面收工：`stop_after_button` 里的按钮点掉且验证
+                    # 消失后，这一段的使命就完成了，不用等 idle。
+                    # ❗专为 settle 第二遍：它的任务只剩「接住 168 之后弹出的
+                    #   第二个跳过新手教学」，点掉就该把控制权交给领奖——
+                    #   它到不了 168，stop_after_page 永远不触发，干等 idle=40
+                    #   只会白等 40 秒（真机 2026-11-07 15:20:34~15:21:14）。
+                    if vanished and button in stop_after_button:
+                        logger.info('%s：%s 点掉，这一段正面收工' % (note, button.name))
+                        self.report_pages(note, buttons, hit)
+                        self.report_guide_timing(note, guide_log)
+                        return True
                     if not vanished:
                         # 点了它还在，有两种可能：
                         #   ① 常驻元素 —— 「选择旅程」那屏的 E_84_1 是左下角的
@@ -1280,7 +1341,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 # 恢复全表扫描一次，别让一段里累积的淘汰把整轮锁死。
                 if expired and no_hit.reached():
                     logger.info('%s：%.0f 秒没有命中，恢复全表扫描（%d 页）'
-                                % (note, idle * 0.7, len(expired)))
+                                % (note, restore_wait, len(expired)))
                     expired.clear()
                     no_hit.reset()
                 if quiet.reached():
@@ -1625,9 +1686,56 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # 这里的"看不见四格"不是转场误判：判据是**正面**的（主界面四格在 = 结算完了），
         # 只有"看不见"才需要再扫一遍，而且这一分支本身就是那一步。宁可按旧行为多扫一遍
         # （多花 40 秒），也不要漏掉第二个「跳过新手教学」。
+        hit1 = []
+        self.press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40,
+                   stop_after_page=168, hit_out=hit1)
+        # ❗第二遍只在「还没回到主界面」时才跑。原来那句「第二遍没东西可点的话
+        #   就是空转 12 秒，不亏」是错的：真机 2026-11-07 10:26 实测，`E_168_1`
+        #   一过就已经在主界面了，第二遍整整 12 秒**一页都没点到**
+        #   （用户：「168_1 的引导走完，等半天才去领奖励抽卡」）。
+        #   判据用主界面右上角四格 `E_171_1` —— 它在就说明结算已经走完了。
+        self.device.screenshot()
+        # 这里的"看不见四格"不是转场误判：判据是**正面**的（主界面四格在 = 结算完了），
+        # 只有"看不见"才需要再扫一遍，而且这一分支本身就是那一步。宁可按旧行为多扫一遍
+        # （多花 40 秒），也不要漏掉「跳过新手教学」。
+        hit2 = []
         if not self.appear(E_171_1, offset=(10, 10)):  # alas-lint: allow - 判据是正面条件（主界面四格），"看不见"=还没回主界面；这里只决定要不要再扫一遍，误判的代价是多花 40 秒而不是点错东西
             self.press(SETTLE, '结算 / 签到 / 解锁（第二个跳过教学）', timeout=600,
-                       idle=40, stop_after_page=168)
+                       idle=40, stop_after_page=168, stop_after_button=(E_119_1,),
+                       hit_out=hit2)
+
+        # ❗兜底：结算阶段一共有**两个**「跳过新手教学」（用户 15:5x：
+        #   「旅程里有一个教学。后面还有两个教学，一共三个」），它们都在
+        #   page_168 点掉**之后**隔几秒才弹 —— 上面两遍谁先点掉 168 谁先收工
+        #   （真机 15:49:22 一收工，两个弹窗全没人点）。所以只要两遍都没点到
+        #   过 119，就在这里**等**它：最多 40 秒；点掉一层窗口续上，第二层
+        #   紧跟着弹也接得住。已经在两遍里点过就跳过，不白等。
+        # ❗收工判据是**正面**的：两个教学都点过、主界面四格连续 3 秒可见，
+        #   就立刻交棒领奖 —— 只靠「40 秒窗口到期」会点完再白等 40 秒
+        #   （真机 16:18:39 点完第二个教学、16:19:19 才进邮箱）。
+        if 'E_119_1' not in hit1 and 'E_119_1' not in hit2:
+            wait_teach = Timer(40).start()
+            main_stable = Timer(3)   # 点过两个教学之后，四格连续 3 秒 = 回主界面了
+            clicked = 0
+            for _ in self.loop(timeout=55):
+                if wait_teach.reached():
+                    break
+                # 过场是游戏自己播的，别让看门狗把这段等待判成卡死（硬约束 152）
+                self.device.stuck_record_clear()
+                if self.appear(E_119_1, offset=CHAIN_OFFSET):
+                    self.click_button(E_119_1, '跳过新手教学（结算兜底）')
+                    self.wait_until_disappear(E_119_1, offset=CHAIN_OFFSET, timeout=3)
+                    wait_teach.reset()   # 第二个教学可能紧接着弹，窗口续上
+                    clicked += 1
+                    main_stable.reset()
+                    continue
+                # 两个教学都点过、主界面四格连续 3 秒可见 → 立刻收工，别空等 40 秒
+                if clicked >= 2:
+                    if self.appear(E_171_1, offset=CHAIN_OFFSET):
+                        if main_stable.reached():
+                            break
+                    else:
+                        main_stable.reset()
 
     @staticmethod
     def reset_input_typed(image):
@@ -2027,7 +2135,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # 点进救援者**必定有一段引导**（185~192），用户 2026-11-06 22:07：
         # 「就像旅程那里一样，先引导后验号」。引导走完会停在详情页，
         # 下面 `back_to_list()` 负责退回来。
-        self.press(VERIFY, '救援者引导', timeout=600)
+        # ❗`restore_after=2`：只有 8 页、一页约 1 秒，等 8 秒才重扫太久
+        #   （用户 16:2x：「不用8秒那么久」）。
+        self.press(VERIFY, '救援者引导', timeout=600, restore_after=2)
         # 引导最后一步可能是点左上返回。press 的 12 秒静默已经等过了，
         # 这里再兜一次「回列表」，免得带着详情页进去扫。
         self.back_to_list()
