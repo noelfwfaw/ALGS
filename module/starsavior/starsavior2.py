@@ -32,6 +32,7 @@ import threading
 import time
 
 import numpy as np
+import yaml
 
 from module.base.button import Button
 from module.base.timer import Timer
@@ -413,6 +414,54 @@ VERIFY = (
 RESET_WORD = '重置服务器账号'
 
 
+def load_onepush_conf(raw):
+    """把 `Error.OnePushConfig` 解析成 onepush 的参数字典，**容忍整段多缩进**。
+
+    GUI 里那段是 `mode: yaml` 的手填文本框，从文档复制时很容易除第一行外
+    每行都多带一个前导空格（本机 2026-11-07 的配置就是这样：
+    `provider: custom\\n url: https://...`）。YAML 会把 ` url:` 当成
+    `provider` 的续行，抛 `ScannerError: mapping values are not allowed here`
+    —— 结果就是推送永远发不出去，而日志只说「没配 provider」，看不出原因。
+
+    所以先按原样解析，失败再把**第一行之后**的行统一去掉公共缩进重试。
+    第一行不动：它本来就该在顶格，多缩进的情况交给 YAML 自己处理。
+
+    Returns:
+        tuple: `(dict, str)` —— 参数字典 + 规整后的 YAML 文本。
+        第二项必须回传给 `handle_notify()`，因为它在内部还要自己再解析一遍，
+        给它原始那份照样会失败。
+    """
+    raw = (raw or '').replace('\r\n', '\n').replace('\r', '\n')
+
+    def parse(text):
+        data = {}
+        for item in yaml.safe_load_all(text):
+            if isinstance(item, dict):
+                data.update(item)
+        return data
+
+    try:
+        data = parse(raw)
+        if data:
+            return data, raw
+    except Exception:
+        pass
+
+    lines = raw.split('\n')
+    head, tail = lines[:1], lines[1:]
+    widths = [len(line) - len(line.lstrip(' ')) for line in tail if line.strip()]
+    if widths:
+        pad = min(widths)
+        if pad:
+            tail = [line[pad:] if line.strip() else line for line in tail]
+    text = '\n'.join(head + tail)
+
+    try:
+        return parse(text), text
+    except Exception:
+        return {}, text
+
+
 class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     """刷初始：登录 -> 引导 -> 旅程 -> 结算 -> 领奖 -> 抽卡 -> 验号（按配置决定停在哪）。
 
@@ -431,6 +480,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     target_mode = TARGET_MODE_ANY   # any = 任意一个角色凑够就停 / all = 全都要
     stop_at = STOP_NONE
     target_hit = False
+    target_detail = ()         # 验号结果（`verify()` 里覆盖），推送正文要用
 
     def warmup_ocr(self):
         """后台线程先把 cnocr 模型加载好。
@@ -495,6 +545,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.verify()
 
             if self.target_hit:
+                self.notify_hit()
                 self.report_plan('目标达成，号留在游戏里，不重置')
                 return
             if not self.targets:
@@ -669,6 +720,50 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             logger.info('目标：不指定（只跑一轮）')
         logger.info('账号：%s' % ('已留在游戏里，没有重置' if not self.targets or self.target_hit
                                  else '见上一段日志'))
+
+    def notify_hit(self):
+        """刷到目标时推一条消息，**复用「错误推送」那份设置**。
+
+        ❗不另加配置项：读 `Error.OnePushConfig`（`config/alas.json` 里
+          `Error` 组那段 onepush YAML，本地推送 / webhook / telegram 都行），
+          填什么就发什么。用户 2026-11-07 17:5x：「链接到消息推送，利用原错误
+          推送设置。就是刷好了就发信息。」
+
+        ❗只在目标达成时发，重置继续刷的那几轮不打扰。没配 / 发失败都只记
+          一条日志，绝不影响刷初始本身。
+        """
+        data, conf = load_onepush_conf(getattr(self.config, 'Error_OnePushConfig', ''))
+        provider = data.get('provider')
+        if not provider or str(provider).strip().lower() in ('null', 'none'):
+            logger.info('推送：Error.OnePushConfig 没配 provider，跳过')
+            return False
+
+        detail = self.target_detail or ()
+        # ❗标题和正文都必须带 `AlGS`：钉钉连接器的 flow 里挂了关键词过滤
+        #   （`trigger_filter_break: flow input not contain keywords`），
+        #   输入里不出现关键词就直接 break，钉钉侧表现为「没收到消息」，
+        #   而 HTTP 照样 200，`handle_notify` 也照样记 success —— 完全看不出来。
+        #   原生的错误推送靠标题「Alas推送」过的，刷初始这条 2026-11-07 在连接器
+        #   里补了 `ALGS` 关键词（大小写不敏感，但别改成不含这两个词的文案）。
+        lines = ['AlGS 刷初始：目标达成，账号留在游戏里，没有重置。',
+                 '昵称：%s' % self.nickname]
+        for row in detail:
+            lines.append('%s：%d/%d 只%s'
+                         % (row['label'], row['got'], row['need'],
+                            '' if row['hit'] else '（还没够）'))
+        content = '\n'.join(lines)
+        title = 'AlGS 刷初始：刷好了'
+        try:
+            from module.notify import handle_notify
+            ok = handle_notify(conf, title=title, content=content)
+        except Exception as e:
+            logger.warning('推送失败：%s' % e)
+            return False
+        if ok:
+            logger.info('推送：已发出（%s）' % title)
+        else:
+            logger.warning('推送：没发出去，检查 Error.OnePushConfig')
+        return ok
 
     def press(self, buttons, note, timeout=300, idle=12, once=False, dialogue=False,
               frames=False, speed=False, skip=True, stop_on=(), stop_after_page=None,
@@ -2190,6 +2285,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         % (row['label'], row['need'], row['got'],
                            '凑够' if row['hit'] else '不够'))
         self.target_hit = hit
+        self.target_detail = detail
         if hit:
             logger.info('验号：%s，这一轮停在号上不重置'
                         % ('任意一个角色凑够' if self.target_mode == TARGET_MODE_ANY

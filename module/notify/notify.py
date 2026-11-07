@@ -38,7 +38,11 @@ def handle_notify(_config: str, **kwargs) -> bool:
         if isinstance(notifier, Custom):
             if "method" not in config or config["method"] == "post":
                 config["datatype"] = "json"
-            if not ("data" in config or isinstance(config["data"], dict)):
+            # 原写法 `not ("data" in config or isinstance(config["data"], dict))`
+            # 在配置里**没写 data** 时会拿 `config["data"]` 抛 KeyError（or 的右边
+            # 照样求值），整个推送直接失败。用 get() 判断才是有意的那句「data 不是
+            # dict 就当空的」。
+            if not isinstance(config.get("data"), dict):
                 config["data"] = {}
             if "title" in kwargs:
                 config["data"]["title"] = kwargs["title"]
