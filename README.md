@@ -17,11 +17,19 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 当前支持 5 个游戏、41 个任务，另有 1 个不参与排期的独立工具。
 
-[支持的游戏](#games) · [功能](#features) · [运行排期](#schedule) · [使用](#start) · [配置](#config) · [注意事项](#notes) · [许可](#license)
+## 📖 目录
+
+- [支持的游戏](#games)
+- [功能](#features)
+- [运行排期](#schedule)
+- [使用](#start)
+- [配置](#config)
+- [注意事项](#notes)
+- [许可](#license)
 
 <a name="games"></a>
 
-## 支持的游戏
+## 🎮 支持的游戏
 
 | 游戏 | 任务数 | 每日刷新 | 备注 |
 |:---|:---:|:---:|:---|
@@ -35,9 +43,11 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 <a name="features"></a>
 
-## 功能
+## 🧩 功能
 
 ### 苍雾世界
+
+> 11 个任务 · 每天 05:00 刷新 · 三个商店按周补货
 
 | 任务 | 说明 |
 |:---|:---|
@@ -54,6 +64,8 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 荣誉凭证 | 仅购买货架第一格，售罄即停止 |
 
 ### 失落之剑
+
+> 17 个任务 · 每天 00:00 刷新 · 迷宫与星辰轮回为周常
 
 | 任务 | 说明 |
 |:---|:---|
@@ -77,6 +89,8 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ### 棕色尘埃2
 
+> 8 个任务 · 每天 08:00 刷新
+
 | 任务 | 说明 |
 |:---|:---|
 | 免费抽抽乐 | 服装与装备分类各完成一次每日免费召唤 |
@@ -90,6 +104,8 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ### 卡厄思梦境
 
+> 4 个任务 · 每天 05:00 刷新（暂定）
+
 | 任务 | 说明 |
 |:---|:---|
 | 唤起游戏 | 从任意界面回到主界面 |
@@ -99,13 +115,15 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ### 交错战线
 
+> 1 个任务 · 每天 05:00 刷新
+
 | 任务 | 说明 |
 |:---|:---|
 | 启动游戏 | 将客户端带到主界面 |
 
 <a name="schedule"></a>
 
-## 运行排期
+## ⏱️ 运行排期
 
 | 游戏 | 任务 | 运行时间 | 说明 |
 |:---|:---|:---|:---|
@@ -128,7 +146,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 <a name="start"></a>
 
-## 使用
+## 🚀 使用
 
 1. 准备 MuMu 模拟器，分辨率设为 1280×720，安装并登录游戏。
 2. 运行 `start_algs.bat`，脚本会连接模拟器并启动管理界面。
@@ -142,7 +160,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 <a name="config"></a>
 
-## 配置
+## ⚙️ 配置
 
 ### 苍雾世界
 
@@ -177,20 +195,20 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 <a name="notes"></a>
 
-## 注意事项
+## ⚠️ 注意事项
 
-**环境**
+### 环境
 
 - 分辨率固定 1280×720，仅支持模拟器。
 - 启动前需要模拟器处于运行状态，`start_algs.bat` 会自动完成 adb 连接。
 - 体力或次数不足时任务会跳过，不会等待结算。
 
-**资源消耗**
+### 资源消耗
 
 - 活动开荒、推主线、迷宫、竞技场均会实际消耗体力、次数或票券。
 - 刷初始会清空账号上可抽取的资源，并可能重置服务器账号进度，仅适用于空号或小号。该功能仍在测试阶段，兼容性有限。
 
-**异常处理**
+### 异常处理
 
 - 游戏卡死、掉线或停留在弹窗时，脚本会保存最近 60 张截图与日志，随后重启游戏继续执行。
 - 无法识别维护公告页，维护期间会按各游戏的启动上限等待；同一任务连续失败 3 次后调度器停止，需要手动重新开始。
@@ -199,7 +217,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 <a name="license"></a>
 
-## 许可
+## 📄 许可
 
 GNU General Public License v3.0，见 [`LICENSE`](LICENSE)。
 
