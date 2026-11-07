@@ -44,8 +44,10 @@ TEXT = {
 
         'Starsavior2.Nickname.name': '自定义昵称',
         'Starsavior2.Nickname.help':
-            '留空就每轮随机「Savior + 4 位数字」。只收英文和数字（游戏输入框打不了中文），'
-            '4~16 个字符；其他字符会被过滤掉，过滤完不够 4 位就退回随机名。',
+            '留空就每轮随机一个 10 位的字母+数字组合（纯随机、不含任何单词 —— '
+            '带单词会被游戏判「包含无法使用的字」，拒绝提交）。'
+            '只收英文和数字（游戏输入框打不了中文），4~16 个字符；'
+            '其他字符会被过滤掉，过滤完不够 4 位就退回随机名。',
 
         'Starsavior2.TargetMode.name': '达标条件',
         'Starsavior2.TargetMode.help':
@@ -98,8 +100,10 @@ TEXT = {
 
         'Starsavior2.Nickname.name': '自訂暱稱',
         'Starsavior2.Nickname.help':
-            '留空就每輪隨機「Savior + 4 位數字」。只收英文和數字（遊戲輸入框打不了中文），'
-            '4~16 個字元；其他字元會被過濾掉，過濾完不足 4 位就退回隨機名稱。',
+            '留空就每輪隨機一個 10 位英數組合（純隨機、不含任何單字 —— '
+            '帶單字會被遊戲判「包含無法使用的字」，拒絕提交）。'
+            '只收英文和數字（遊戲輸入框打不了中文），4~16 個字元；'
+            '其他字元會被過濾掉，過濾完不足 4 位就退回隨機名稱。',
 
         'Starsavior2.TargetMode.name': '達標條件',
         'Starsavior2.TargetMode.help':
@@ -156,9 +160,10 @@ TEXT = {
 
         'Starsavior2.Nickname.name': 'Nickname',
         'Starsavior2.Nickname.help':
-            'Leave empty for a random "Savior + 4 digits" name each round. ASCII letters and digits only '
-            '(the game input box cannot take Chinese), 4-16 characters; other characters are stripped, '
-            'and a result shorter than 4 falls back to a random name.',
+            'Leave empty for a random 10-character mix of letters and digits each round '
+            '(no words — the game rejects names containing "unusable characters"). '
+            'ASCII letters and digits only (the game input box cannot take Chinese), 4-16 characters; '
+            'other characters are stripped, and a result shorter than 4 falls back to a random name.',
 
         'Starsavior2.TargetMode.name': 'Win condition',
         'Starsavior2.TargetMode.help':
@@ -218,8 +223,10 @@ TEXT = {
 
         'Starsavior2.Nickname.name': 'ニックネーム',
         'Starsavior2.Nickname.help':
-            '空欄なら毎回ランダムな「Savior + 4 桁の数字」。英数字のみ（ゲームの入力欄は中国語を受け付けません）、'
-            '4〜16 文字。他の文字は除去され、4 文字未満ならランダム名になります。',
+            '空欄なら毎回ランダムな英数字 10 桁の組み合わせ（単語なし —— 単語を含むと'
+            '「使用できない文字が含まれています」で拒否されます）。'
+            '英数字のみ（ゲームの入力欄は中国語を受け付けません）、4〜16 文字。'
+            '他の文字は除去され、4 文字未満ならランダム名になります。',
 
         'Starsavior2.TargetMode.name': '達成条件',
         'Starsavior2.TargetMode.help':

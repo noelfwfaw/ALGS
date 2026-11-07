@@ -51,7 +51,11 @@ def main():
         from module.starsavior.starsavior2 import Starsavior2
 
         task_object = Starsavior2(config=alas.config, device=device)
-        print('[tool] reset -> %s' % task_object.reset(), flush=True)
+        # ❗必须 return：少这一句，重置完会继续往下走 `alas.run()`，
+        #   把整轮刷初始（登录→引导→旅程…）又跑一遍。2026-11-07 23:47 就踩了。
+        ok = task_object.reset()
+        print('[tool] reset -> %s' % ok, flush=True)
+        return 0 if ok else 1
 
     if '--step' in flags:
         # 只跑某一段（`settle` / `claim` / `gacha` / `verify` / `guide` …），

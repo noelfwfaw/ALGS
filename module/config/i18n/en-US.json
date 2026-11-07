@@ -870,7 +870,7 @@
     },
     "Nickname": {
       "name": "Nickname",
-      "help": "Leave empty for a random \"Savior + 4 digits\" name each round. ASCII letters and digits only (the game input box cannot take Chinese), 4-16 characters; other characters are stripped, and a result shorter than 4 falls back to a random name."
+      "help": "Leave empty for a random 10-character mix of letters and digits each round (no words — the game rejects names containing \"unusable characters\"). ASCII letters and digits only (the game input box cannot take Chinese), 4-16 characters; other characters are stripped, and a result shorter than 4 falls back to a random name."
     },
     "TargetMode": {
       "name": "Win condition",

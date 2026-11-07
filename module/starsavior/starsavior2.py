@@ -36,6 +36,7 @@ import yaml
 
 from module.base.button import Button
 from module.base.timer import Timer
+from module.exception import ScriptError
 from module.logger import logger
 from module.starsavior.assets import (
     E_4_2,    E_100_1, E_101_1, E_102_1, E_103_1, E_104_1,
@@ -86,7 +87,7 @@ from module.starsavior.assets import (
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
 from module.starsavior.journey import JourneySpeed, TrainFail, SPEED_BOX
-from module.starsavior.ocr import RESET_DIALOG, RESET_ENTRY, RESET_TAB
+from module.starsavior.ocr import RESET_DIALOG, RESET_ENTRY, RESET_TAB, read_nick, read_reset_input
 from module.starsavior.scan import RescuerScan
 from module.starsavior.starsavior_ui import StarsaviorUI
 from module.starsavior.target import (
@@ -124,10 +125,21 @@ CLICK_TARGET = {
 # ❗`input text` 只认 ASCII，中文昵称根本打不进去，所以白名单只放英文和数字；
 #   写死一个名字会被游戏判「非法」（用户 2026-11-06 23:15：「不要用这个名，
 #   换个，非法了」）—— 多半是重名或者被占用，所以留空时**每轮重新随机**。
-#   长度 4~16 是游戏要求，「Savior + 4 位数字」正好 8 个字符。
+#   长度 4~16 是游戏要求。
+#
+# ❗❗**随机名里不许出现任何有意义的词**。原来用「Savior + 4 位数字」，
+#   真机 2026-11-07 23:30 游戏弹「包含无法使用的字。」—— `Savior8374`、
+#   `Savior9748` 都被拒，确认键怎么点都不前进，看起来像「卡在昵称页」。
+#   用户当天明确：「改成纯随机无意思的字母＋数字」。
+#   `Savior` 是英文「救世主」，大概率撞了敏感词表；以后也别换别的单词前缀。
 NICK_MIN = 4
 NICK_MAX = 16
 NICK_CHAR = re.compile(r'[0-9A-Za-z]')
+
+# 随机名用的字符集：去掉 `i l o 0 1` 这些 OCR 容易认错的，
+# 回读校验（`nick_typed_ok`）能少一堆误判。
+NICK_LETTERS = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+NICK_DIGITS = '23456789'
 
 # 停节点（`StopAt` 配置项的取值）。和「目标角色」互斥，只能填一个。
 STOP_NONE = 'none'
@@ -671,24 +683,37 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         return points[(tries - 2) % len(points)]
 
     @staticmethod
-    def make_nickname(text):
+    def random_nickname():
+        """纯随机的无意义昵称：6 个字母 + 4 个数字，打乱顺序，共 10 位。
+
+        ❗**不能带任何有意义的词**：原来是 `Savior` + 4 位数字，真机
+          2026-11-07 23:30 游戏弹「包含无法使用的字。」，确认键怎么点都不走。
+          强制混进数字是因为有些游戏要求「字母 + 数字」，纯字母可能又被判非法。
+        """
+        chars = [random.choice(NICK_LETTERS) for _ in range(6)]
+        chars += [random.choice(NICK_DIGITS) for _ in range(4)]
+        random.shuffle(chars)
+        return ''.join(chars)
+
+    @classmethod
+    def make_nickname(cls, text):
         """把 GUI 里填的昵称变成真能打进去的名字。
 
-        · 留空 → 随机 `Savior` + 4 位数字。写死的名字会被游戏判「非法」
-          （用户 2026-11-06 23:15：「不要用这个名，换个，非法了」），
+        · 留空 → 纯随机字母数字（`random_nickname()`）。写死的名字会被游戏判
+          「非法」（用户 2026-11-06 23:15：「不要用这个名，换个，非法了」），
           所以空的必须每轮重新随机，不能缓存一个常量。
         · 只留英文/数字：`input text` 送不了中文，游戏也只收这两种。
         · 过滤完长度不在 4~16 → 退回随机名，别让游戏弹「非法昵称」。
         """
         text = str(text or '').strip()
         if not text:
-            return 'Savior%04d' % random.randint(0, 9999)
+            return cls.random_nickname()
         cleaned = ''.join(NICK_CHAR.findall(text))
         if cleaned != text:
             logger.warning('昵称里有游戏不接受的字符，已经去掉：%r → %r'
                            % (text, cleaned))
         if len(cleaned) < NICK_MIN or len(cleaned) > NICK_MAX:
-            fallback = 'Savior%04d' % random.randint(0, 9999)
+            fallback = cls.random_nickname()
             logger.warning('昵称要 %d~%d 个字符（%r 现在 %d 个），改用随机名 %s'
                            % (NICK_MIN, NICK_MAX, cleaned, len(cleaned), fallback))
             return fallback
@@ -703,6 +728,69 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if button is E_60_2:
             return self.nickname if self.input_enabled else None
         return TEXT_INPUT.get(button)
+
+    def type_content(self, button, content):
+        """把字打进刚点开的输入框。昵称走「分片 + 回读」，其它仍是整串发。
+
+        ❗一次发整串会**丢掉开头几个字符**。真机 2026-11-07 19:09：
+          昵称 `Savior7458` 进框只剩 `ior7458`（前 3 个字符被吞），名字变成
+          7 位，游戏「确认」被连点 10 次都不前进，最后 `GameTooManyClickError`
+          把游戏判成卡死、重启 —— 而日志里写的是「已输入 Savior7458」。
+          **发送成功 ≠ 进框成功**，所以必须回读。
+        """
+        if button is not E_60_2:
+            self.device.adb_shell(['input', 'text', content])
+            logger.info('%s 已输入 %s' % (button.name, content))
+            return True
+        return self.type_nickname(content)
+
+    def type_nickname(self, nickname):
+        """昵称分片输入 + OCR 回读，对不上就清空重输（最多 2 次）。
+
+        分片是因为丢字只发生在整串的最前面（输入法还没就绪）：每片 3 个字符、
+        片间留 0.15s，比一次发整串稳得多。回读用 `ocr.read_nick`。
+        """
+        for attempt in (1, 2):
+            # ❗**每次都要先清空**，包括第一次：从中断的画面接着跑时，框里可能
+            #   还留着上一轮被游戏拒掉的名字（真机 2026-11-07 23:30 框里是
+            #   `Savior8374`，提示「包含无法使用的字。」），不清空就会拼成
+            #   `Savior8374Xk7mQ2p`，照样过不了。
+            self.clear_nick_input()
+            for i in range(0, len(nickname), 3):
+                self.device.adb_shell(['input', 'text', nickname[i:i + 3]])
+                time.sleep(0.15)
+            seen = read_nick(self.device.screenshot())
+            if self.nick_typed_ok(seen, nickname):
+                logger.info('昵称已输入 %s' % nickname)
+                return True
+            logger.warning('昵称输入不完整：要 %r，框里读出来是 %r（第 %d 次）'
+                           % (nickname, seen, attempt))
+        # 不再死点确认键：那只会连点到 GameTooManyClickError，还要多花十分钟重走引导
+        raise ScriptError('昵称输不进去：要 %r，两次都没进框' % nickname)
+
+    def clear_nick_input(self):
+        """清空昵称框：点一下框内 → 光标移到末尾 → 连按退格。"""
+        self.tap_at(640, 385, '昵称框（清空重输）')
+        self.device.adb_shell(['input', 'keyevent', 'KEYCODE_MOVE_END'])
+        self.device.adb_shell(['input', 'keyevent'] + ['KEYCODE_DEL'] * 24)
+        time.sleep(0.3)
+
+    @staticmethod
+    def nick_typed_ok(seen, want):
+        """昵称进框了吗 —— **只比长度**，不比字符。
+
+        ❗cnocr 认字母数字混排非常不准。真机 2026-11-07 23:35：框里明明是
+          `C4y8S6k8nc`，OCR 读出 `Cayestkisnc`（10 位变 11 位，数字全认成字母），
+          逐字比对只有 4 个对得上，判「输入不完整」→ 白白清空重输两次。
+          而**丢字的特征是长度明显变短**（`Savior7458` 只进去 `ior7458`，
+          少 3 个字符），所以比长度就够用，还不会被 OCR 的错字干扰。
+          容差 1：OCR 偶尔多读/少读一个字符。
+        """
+        a = ''.join((seen or '').split())
+        b = ''.join((want or '').split())
+        if not a or not b:
+            return False
+        return abs(len(a) - len(b)) <= 1
 
     def report_plan(self, reason):
         """工具跑完的收尾小结：让日志自己说明停在哪、为什么。"""
@@ -818,6 +906,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 ❗只给「页少、节奏快」的段压短，比如救援者引导只有 8 页、
                 一页约 1 秒，等 8 秒才能重扫一页都点不动，用户 16:2x：
                 「不用8秒那么久」。长段别动它，重扫会把淘汰的旧页放回来。
+                ❗`idle` 压得很小的段要**显式给这个值**：默认跟着 `idle` 缩，
+                2 秒的 `idle` 会把重扫周期缩到 1.4 秒，51 页全表重扫得太勤。
 
             speed (bool): 顺手把倍速保持在 3x（`journey.py` 的 `ensure_speed`）。
 
@@ -1000,7 +1090,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
             # ⓪ 见了就收工：`stop_on` 里的按钮是「下一段该接手」的信号
             #    （开场引导看到昵称框 → 立刻交给「昵称」段，别再干等 idle）。
+            #
+            # ❗**只在"干净"的画面上认**：有 SKIP 说明还在剧情里、有血条说明在
+            #   战斗里，这两种画面上的小图标（右上角的 `→`、播放三角之类）容易和
+            #   别的页撞。真机 2026-11-07 引导段一共 51 页，误判一次就把后面
+            #   几十页全漏掉，代价远大于省下的十几秒。
             for stop_button in stop_on:
+                if in_story or in_battle:
+                    continue
                 if self.appear(stop_button, offset=CHAIN_OFFSET):
                     logger.info(f'{note}：看到 {stop_button.name}，这一段提前收工')
                     self.report_guide_timing(note, guide_log)
@@ -1308,9 +1405,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         #   昵称页就是这么丢的 —— 输入框一直空着，确认键一直是灰的，
                         #   最后报「昵称：表里有但没点到 → [61]」）。
                         #   等下半屏稳定（键盘弹出动画结束）再发。
+                        #
+                        # ❗等静止**还不够**：19:09 那一轮等到了静止，整串发出去
+                        #   仍然被吞掉开头 3 个字符（`Savior7458` → `ior7458`），
+                        #   昵称短了、确认键永远点不动。真正的判据是**回读框里的字**，
+                        #   见 `type_content` / `type_nickname`。
                         self.wait_until_still((0, 300, 1280, 720), timeout=2, threshold=3.0)
-                        self.device.adb_shell(['input', 'text', content])
-                        logger.info('%s 已输入 %s' % (button.name, content))
+                        self.type_content(button, content)
                         typed.add(button.name)
                     quiet.reset()
                     no_hit.reset()
@@ -1744,8 +1845,20 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   90 秒在教学战画面上空转过去了，教学战 04:10:28 才打完，昵称弹窗
         #   落在这一段里 —— 表里没有 E_60_2/E_61_1 就永远认不出。
         #   昵称那两条走 `text_for()`（实例级昵称），不会点画面中央。
+        # ❗`stop_on=(E_116_1,)`：点完最后一个 SKIP 之后，画面会黑一下加载，
+        #   然后进旅程主页（右上角有倍速按钮）。这张表里**一页都不认识旅程主页**，
+        #   所以就算页面早就刷出来了，press 也认不出，只能干等满 `idle=12` 秒
+        #   （真机 2026-11-07 22:33 与 23:12 两次都是这样：收工后 84~100ms，
+        #   `journey()` 一上来就把倍速点上了 —— 说明页面在 idle 到期前就已经就绪）。
+        #   看到倍速按钮就把控制权交给 `journey().ensure_speed`，它认识这个页面。
+        #
+        #   ❗**别用 E_122_1（训练/休息菱形）**：现场截图实测它在旅程主页上是
+        #   `False`（`E_116_1 True / E_122_1 False / E_120_1 False`），那两个菱形
+        #   只在「关卡选择」页出现，拿它当判据永远不会命中。
+        #   `stop_on` 本身已经限制成「没有 SKIP、没有血条」的干净画面才判，
+        #   所以引导页和教学战不会误伤。
         self.press(GUIDE_A + NICK + GUIDE_B, '引导（进旅程之前）', timeout=420,
-                   frames=True, dialogue=True)
+                   frames=True, dialogue=True, stop_on=(E_116_1,))
         return True
 
     def journey(self):
@@ -1873,6 +1986,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             `/system/bin/sh: no closing quote`，引号被编码弄坏。
           只有 `subprocess` 直接调 adb.exe、把 UTF-8 参数交给 CreateProcess
           才进得去（bright=0.2547，截图里能看到「重置服务器账号」）。
+
+        ❗❗**并且必须先把输入法全禁掉**（见 `ime_off`）：只要默认还是搜狗，
+          `input text` 的中文就会停在搜狗的候选栏里，游戏的自绘输入框一个字
+          都收不到 —— 23:19 连丢 4 次就是这么来的，日志里却是「已输入确认语」。
         """
         result = subprocess.run(
             [self.device.adb_binary, '-s', self.device.serial,
@@ -1883,32 +2000,130 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                            % (result.returncode, result.stderr[:120]))
         return result
 
+    def ime_list(self):
+        """当前装了哪些输入法（`ime list -s` 的每行一个）。
+
+        ❗`adb_shell` 返回的是**整串 str**（不是 list），直接迭代会按字符拆开，
+        这里两种都兼容。
+        """
+        out = self.device.adb_shell(['ime', 'list', '-s'])
+        lines = out if isinstance(out, list) else (out or '').splitlines()
+        return [line.strip() for line in lines if line.strip()]
+
+    def ime_off(self):
+        """临时禁掉所有输入法，返回原来的列表（交给 `ime_on` 恢复）。
+
+        ❗**不禁掉就输不进中文**。搜狗（`com.sohu.inputmethod.sogou.chuizi`）
+        会把 `input text` 送进来的中文吞在自己的候选栏里 —— 字明明出现在屏幕
+        底部的输入法编辑区，游戏的自绘输入框还是空的。真机 2026-11-07 23:19
+        连丢 4 次，OCR 只读到光标和边框的乱码，最后「重输 4 次都没通过校验」。
+        禁掉之后 `input text` 走 InputManager 直接注入，中文立刻进框（实测）。
+
+        也不用 FastInputIME 顶替：它同样只把字留在自己的编辑区，没有
+        InputConnection 可提交。这个游戏的输入框是真自绘的，只吃注入事件。
+        """
+        imes = self.ime_list()
+        for ime in imes:
+            self.device.adb_shell(['ime', 'disable', ime])
+        return imes
+
+    def ime_on(self, imes):
+        """把 `ime_off` 禁掉的输入法重新启用。"""
+        for ime in imes:
+            self.device.adb_shell(['ime', 'enable', ime])
+
+    def clear_reset_input(self):
+        """清空确认语输入框：点框 → 光标移到末尾 → 连按退格。"""
+        self.tap_at(640, 401, '点输入框（清空重输）')
+        self.device.adb_shell(['input', 'keyevent', 'KEYCODE_MOVE_END'])
+        self.device.adb_shell(['input', 'keyevent'] + ['KEYCODE_DEL'] * 20)
+        time.sleep(0.3)
+
+    @staticmethod
+    def reset_word_ok(seen):
+        """OCR 读出来的确认语对不对。
+
+        ❗容忍 1 个 OCR 错字（cnocr 常把「账」读成「帐」，游戏本身也写成「帐」），
+          但**顺序错一律不算对**：游戏那个 bug 就是顺序乱
+          （服务器 → 务服器），必须清空重输。
+        """
+        got = ''.join((seen or '').split())
+        want = RESET_WORD
+        if got == want:
+            return True
+        if len(got) != len(want):
+            return False
+        same = sum(1 for a, b in zip(got, want) if a == b)
+        return same >= len(want) - 1
+
     def finish_reset_input(self):
-        """输入确认语 -> **验收字进去了** -> 点确认 -> 等回标题页。
+        """输入确认语 -> **回读核对** -> 点确认 -> 等回标题页。
 
         单独一个方法，方便从「输入弹窗」这个状态接着跑（本轮中断时）。
-        """
-        self.tap_at(640, 401, '点输入框')
-        self.wait_until_still((0, 300, 1280, 720), timeout=3, threshold=3.0)
-        self.type_text(RESET_WORD)
-        typed = False
-        for _ in self.loop(timeout=5):
-            self.device.stuck_record_clear()
-            if self.reset_input_typed(self.device.image):
-                typed = True
-                break
-        if not typed:
-            logger.warning('重置：中文没进输入框，不点确认')
-            return False
-        logger.info('重置：已输入确认语 %s' % RESET_WORD)
 
-        self.tap_at(735, 468, '确认（已输入）')
+        ❗**只看"框里有白字"不够**。游戏有这个 bug：7 个字会乱序
+          （「重置服务器账号」→「重置务服器账号」），人手动打字也会触发。
+          字确实在框里、确认键也亮着，点下去就是不生效，整段卡在
+          「点了确认但没回到标题页」（用户 2026-11-07 22:40 报的）。
+          所以这里 OCR 回读内容，对不上就清空重输，最多 4 次。
+
+        ❗整个输入过程**必须禁着输入法**：搜狗会把 `input text` 的中文吞在
+          候选栏里（见 `ime_off`），框里始终是空的。禁掉后 `input text`
+          直接注入，中文立刻进框。用完不管成败都恢复。
+        """
+        imes = self.ime_off()
+        try:
+            return self._finish_reset_input()
+        finally:
+            self.ime_on(imes)
+
+    def _finish_reset_input(self):
+        for attempt in range(1, 5):
+            if attempt > 1:
+                self.clear_reset_input()
+            self.tap_at(640, 401, '点输入框')
+            self.wait_until_still((0, 300, 1280, 720), timeout=3, threshold=3.0)
+            self.type_text(RESET_WORD)
+            seen = ''
+            for _ in self.loop(timeout=5):
+                self.device.stuck_record_clear()
+                if not self.reset_input_typed(self.device.image):
+                    continue
+                seen = read_reset_input(self.device.image)
+                if seen:
+                    break
+            if not self.reset_word_ok(seen):
+                logger.warning('重置：确认语不对（要 %r，框里是 %r），清空重输（第 %d 次）'
+                               % (RESET_WORD, seen, attempt))
+                continue
+
+            logger.info('重置：已输入确认语 %s' % seen)
+            self.tap_at(735, 468, '确认（已输入）')
+            # ❗校验不过时游戏**不报错、弹窗不关、只把输入框清空**。
+            #   真机 2026-11-07 22:40 现场：点完确认原样干等 120 秒，弹窗还杵着、
+            #   框里已经空了。所以看到「弹窗还在」就判这次没过，清空重输。
+            for _ in self.loop(timeout=25):
+                self.device.stuck_record_clear()
+                if self.appear(E_1_1, offset=CHAIN_OFFSET):
+                    logger.info('重置完成，回到标题页')
+                    return True
+            self.device.screenshot()
+            if not self.reset_input_ready(self.device.image):
+                logger.info('重置：输入弹窗已经关了，等加载回标题页')
+                break
+            logger.warning('重置：第 %d 次点了确认没生效（弹窗还在、框已清空），重输'
+                           % attempt)
+        else:
+            logger.warning('重置：重输 4 次都没通过校验，停下')
+            return False
+
+        # 弹窗已关 = 校验通过，剩下的只是加载，慢一点也值得等。
         for _ in self.loop(timeout=120):
             self.device.stuck_record_clear()
             if self.appear(E_1_1, offset=CHAIN_OFFSET):
                 logger.info('重置完成，回到标题页')
                 return True
-        logger.warning('重置：点了确认但没回到标题页')
+        logger.warning('重置：输入弹窗关了，但没回到标题页')
         return False
 
     @staticmethod
@@ -2438,10 +2653,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
           y≈355 的「立即初始化」，所以警告弹窗不能用它认。
           `E_200_1` 输入框是纯色，永远不能当判据。
 
-        ❗中文输入用 `adb_shell(['input','text',...])` 就行，MuMu 支持 UTF-8。
-          但**别切输入法、也别混用 ADBKeyboard 那种广播**：实测切到
-          FastInputIME 之后一个字都进不去，切回搜狗、只发一条 `input text`
-          就正常（半成品 log/ss_explore/settings.py 也是这么做的）。
+        ❗中文输入走 `type_text()`（`subprocess` 直调 adb.exe 传 UTF-8 参数），
+          `adb_shell(['input','text',...])` 的中文字会全丢。
+          ❗❗**而且必须先把输入法全禁掉**（`ime_off`）：默认的搜狗会把
+          `input text` 的中文吞在自己的候选栏里 —— 字出现在屏幕底部的输入法
+          编辑区，游戏的自绘输入框还是空的。2026-11-07 23:19 连丢 4 次就是这么
+          来的，日志还写着「已输入确认语」。切 FastInputIME 也没用，它同样只把
+          字留在自己的编辑区，没有 InputConnection 可提交。
         """
         logger.hr('重置账号', level=2)
 
