@@ -5,7 +5,7 @@
 **单模拟器多游戏任务调度脚本**
 
 ![games](https://img.shields.io/badge/games-5-success?style=flat-square)
-![tasks](https://img.shields.io/badge/tasks-41-blue?style=flat-square)
+![tasks](https://img.shields.io/badge/tasks-42-blue?style=flat-square)
 ![resolution](https://img.shields.io/badge/resolution-1280x720-informational?style=flat-square)
 ![license](https://img.shields.io/badge/license-GPL--3.0-red?style=flat-square)
 
@@ -15,7 +15,7 @@
 
 AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript) 框架改造：在一个 Android 模拟器中运行多个游戏，按任务排期依次执行。每个任务独立记录下次运行时间，到期后自动启动模拟器完成对应操作，结束后关闭游戏。
 
-当前支持 5 个游戏、41 个任务，另有 1 个不参与排期的独立工具。
+当前支持 5 个游戏、42 个任务，另有 1 个不参与排期的独立工具。
 
 ## 📖 目录
 
@@ -36,7 +36,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 苍雾世界 Hazeworld | 11 | 05:00 | 三个商店按周补货 |
 | 失落之剑 Lost Sword | 17 | 00:00 | 迷宫、星辰轮回为周常 |
 | 棕色尘埃2 Brown Dust II | 8 | 08:00 | 活动五步合并为一个任务 |
-| 卡厄思梦境 Chaos Zero Nightmare | 4 | 05:00 | 刷新时间暂定 |
+| 卡厄思梦境 Chaos Zero Nightmare | 5 | 05:00 | 刷新时间暂定 |
 | 交错战线 Crosscore | 1 | 05:00 | 仅支持启动游戏 |
 
 星之救援者以独立工具的形式提供刷初始功能，不参与排期，从 WebUI 的「工具」页面手动启动。每轮依次完成登录、引导、旅程、领奖、抽卡与验号；达到设定目标后保留账号，未达标则重置账号重新登录。
@@ -104,7 +104,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ### 卡厄思梦境
 
-> 4 个任务 · 每天 05:00 刷新（暂定）
+> 5 个任务 · 每天 05:00 刷新（暂定）
 
 | 任务 | 说明 |
 |:---|:---|
@@ -112,6 +112,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 战斗训练 | 按配置的页签、难度与次数消耗体力刷关 |
 | 方舟都市 | 政策室审批政策，咖啡厅领取每日体力，诺诺商店按周扫货（跳过单元币与超持有上限的商品） |
 | 日常领取 | 领取当日行程奖励与邮箱附件 |
+| 兑换码 | 从兑换码站点获取新码并兑换，已处理的码不再尝试 |
 
 ### 交错战线
 
@@ -139,6 +140,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 失落之剑 | 兑换码 | 每天 10:00 | 无新码时不启动游戏 |
 | 棕色尘埃2 | 每日任务（7 项） | 每天 08:00 | 日刷新 |
 | 棕色尘埃2 | 兑换码 | 每天 10:30 | 与失落之剑错开 |
+| 卡厄思梦境 | 兑换码 | 每天 05:00 | 无新码时不启动游戏 |
 | 卡厄思梦境 | 方舟都市、战斗训练、日常领取、唤起游戏 | 每天 05:00 | 按此顺序执行 |
 | 交错战线 | 启动游戏 | 每天 05:00 | 日刷新 |
 
@@ -185,6 +187,10 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - 快速狩猎：八项次数分为两组预算，狩猎场、金币、史莱姆合计不超过 15 次，圣石洞穴五种属性合计不超过 10 次，超出时拒绝执行。
 - 活动：可分别设置战斗模式与每个模式的场次，活动商店按兑换优先级消费活动币。
 - 兑换码：兑换记录保存在本地，删除对应条目可重新尝试。
+
+### 卡厄思梦境
+
+- 兑换码：兑换记录保存在本地，删除对应条目可重新尝试。兑换码站点把国服与全球服的码混在一起发，本机的全球客户端兑不了国服码（输入法也送不进中文），这类码会在本地记为失败，不再每天重试。
 
 ### 星之救援者（工具）
 

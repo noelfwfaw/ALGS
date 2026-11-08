@@ -194,6 +194,10 @@
       "name": "Daily claim (missions + mailbox)",
       "help": "Opens the top-right menu and does two things: (1) 日常任務 → the 全部領取 button of 當日行程; (2) the envelope in the vertical column that appears on the right edge once the menu is open → 信箱, then 全部領取 there. Both buttons are orange while something is left and grey once done. It only claims - the missions themselves are done by the 模擬 and 方舟都市 tasks"
     },
+    "ChaoszeroRedeem": {
+      "name": "Coupon codes",
+      "help": "Fetch the coupon codes from GameKee once a day, skip the codes of the CN server, and redeem the new ones in the game; used and expired codes are skipped"
+    },
     "ChaoszeroMain": {
       "name": "Launch game",
       "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"

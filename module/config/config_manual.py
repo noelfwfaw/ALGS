@@ -53,7 +53,7 @@ class ManualConfig:
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
-    > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroMain
+    > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroRedeem > ChaoszeroMain
     > CrosscoreMain
     """
 

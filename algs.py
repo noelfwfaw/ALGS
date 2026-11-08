@@ -225,6 +225,11 @@ class AlGS(GameScheduler):
         from module.chaoszero.daily import ChaoszeroDaily
         ChaoszeroDaily(config=self.config, device=self.device).run()
 
+    def chaoszero_redeem(self):
+        # 兑换码：从 GameKee 抓，新的在游戏里兑掉（不按服务器过滤）。
+        from module.chaoszero.redeem import ChaoszeroRedeem
+        ChaoszeroRedeem(config=self.config, device=self.device).run()
+
     # ==================== Cross Core (交错战线) ====================
 
     def crosscore_main(self):
