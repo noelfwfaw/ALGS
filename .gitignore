@@ -273,6 +273,8 @@ pyrightconfig.json
 .trae/
 # 真机整屏样本，只给 dev_tools 里的一次性 probe 用（probe 本身也不进库）
 dev_tools/samples/
+# 本机目录联接脚本：把 .codebuddy / .trae 的 skills 指到 .workbuddy，只在开发机用
+dev_tools/link_*_skills.bat
 # IDE / agent screenshot scratch, never part of the project
 .screenshots/
 
