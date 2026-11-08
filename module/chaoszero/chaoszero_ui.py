@@ -33,10 +33,10 @@ import numpy as np
 
 from module.base.button import Button
 from module.base.timer import Timer
-from module.chaoszero.assets import (ARK_TITLE, BOOT_CONNECT_FAILED, BOOT_TOUCH_START,
-                                     CAFE_TITLE, PANEL_CLOSE, POLICY_TITLE,
-                                     RESULT_CONFIRM, SIM_PAGE, TEAM_TITLE,
-                                     TRAINING_TABS, TRAINING_TITLE)
+from module.chaoszero.assets import (ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
+                                     BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
+                                     PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, SIM_PAGE,
+                                     TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
 from module.chaoszero.page import page_main
 from module.exception import GameStuckError
 from module.logger import logger
@@ -241,10 +241,12 @@ class ChaoszeroUI(UI):
                     self.device.click(RESULT_CONFIRM)
                 continue
 
-            # 方舟都市那一片：政策室、咖啡廳、批准页、方舟都市首页。它们的返回
-            # 键不一定按得动（政策室首页实测按不动），统一点左上那颗白箭头。
+            # 方舟都市那一片：政策室、災難修復作戰、咖啡廳、批准页、方舟都市首页。
+            # 它们的返回键不一定按得动（政策室首页实测按不动），统一点左上那颗白箭头。
             if self.appear(ARK_TITLE, offset=(20, 20)) \
                     or self.appear(POLICY_TITLE, offset=(20, 20)) \
+                    or self.appear(ARK_WAR_TARGET, offset=(20, 20)) \
+                    or self.appear(ARK_WAR_AUTO, offset=(20, 20)) \
                     or self.appear(CAFE_TITLE, offset=(20, 20)):
                 if back.reached():
                     back.reset()

@@ -154,6 +154,7 @@ class GeneratedConfig:
     ChaoszeroArk_PolicyTimes = 0
     ChaoszeroArk_PolicySide = 'auto'  # auto, left, right
     ChaoszeroArk_CafeOrder = True
+    ChaoszeroArk_ShopPurchase = True
 
     # Group `Starsavior2`
     Starsavior2_Nickname = ''

@@ -508,6 +508,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.gacha()
             self.verify()
 
+            # 节点3：验号结束就是终点，不管目标角色（冲突时已经在 load_plan
+            # 里被清空了）。不留这一支会掉进下面的「没有目标角色」，日志里写
+            # 「只跑一轮」，看不出选的是节点3。
+            if self.stop_at == STOP_VERIFY:
+                self.report_plan('节点3：验号完成（不重置账号）')
+                return
+
             if self.target_hit:
                 self.notify_hit()
                 self.report_plan('目标达成，号留在游戏里，不重置')
@@ -534,12 +541,15 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.targets = self.read_targets()
         self.stop_at = self.read_stop()
 
-        # ❗互斥：两个都填了按「目标角色」跑。目标是一次具体的刷取需求，
-        #   停节点是调试/分段用的，冲突时保住前者。
+        # ❗互斥：两个都填了按「停节点」跑。GUI 的帮助文字和 `argument.yaml`
+        #   都写着「填了节点就按节点跑，目标角色会被忽略」，代码以前反着来：
+        #   一选节点就被静默忽略、按旧的目标角色继续刷（真机 2026-11-08 12:10，
+        #   用户：「选了节点，但是还是继续打了」）。目标角色常常是上一轮留下的
+        #   旧值，停节点才是这次显式要的，冲突时保住后者。
         if self.targets and self.stop_at != STOP_NONE:
             logger.warning('「目标角色」和「停节点」只能填一个，两个都填了 → '
-                           '按目标角色跑，停节点忽略')
-            self.stop_at = STOP_NONE
+                           '按停节点跑，目标角色忽略')
+            self.targets = None
 
         # 节点1 只点开输入框、不打字；别的模式照常输入。
         self.input_enabled = self.stop_at != STOP_NICKNAME

@@ -290,6 +290,9 @@ ChaoszeroArk:
     option: [ auto, left, right ]
   # 咖啡廳：每天点一次餐（內用 +120 體力）。今天点过了菜单就不再弹出，正常退出。
   CafeOrder: true
+  # 諾諾商店：从上往下买，每件按 MAX 买满限量。
+  # 不买「單元幣」；「購買」灰掉的（持有量超上限、钱不够）跳过。
+  ShopPurchase: true
 
 
 # ==================== Star Savior (星之救援者) ====================

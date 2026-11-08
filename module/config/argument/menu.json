@@ -65,10 +65,10 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
-      "ChaoszeroMain",
-      "ChaoszeroSimulation",
       "ChaoszeroArk",
-      "ChaoszeroDaily"
+      "ChaoszeroSimulation",
+      "ChaoszeroDaily",
+      "ChaoszeroMain"
     ]
   },
   "Crosscore": {

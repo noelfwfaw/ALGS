@@ -1236,8 +1236,8 @@ class Connection(ConnectionAttr):
 
         # Auto package detection
         if len(packages) == 0:
-            logger.critical(f'No AzurLane package found, '
-                            f'please confirm AzurLane has been installed on device "{self.serial}"')
+            logger.critical(f'No supported game package found, '
+                            f'please confirm a supported game has been installed on device "{self.serial}"')
             raise RequestHumanTakeover
         if len(packages) == 1:
             logger.info('Auto package detection found only one package, using it')
@@ -1245,11 +1245,27 @@ class Connection(ConnectionAttr):
             # Set config
             if set_config:
                 self.config.Emulator_PackageName = self.package
-            # Set server
-            logger.info('Server changed, release resources')
-            set_server(self.package)
         else:
-            logger.critical(
-                f'Multiple AzurLane packages found, auto package detection cannot decide which to choose, '
-                'please copy one of the available devices listed above to Alas.Emulator.PackageName')
-            raise RequestHumanTakeover
+            # One emulator with several games installed is the normal setup here.
+            # Only one package can be bound at a time, and the scheduler switches
+            # to the game a task belongs to before running it, so any of them
+            # works. Prefer the game already on screen, because that is what a
+            # user means by "auto"; otherwise take the first registered game, so
+            # the pick does not follow the arbitrary order of `dumpsys`.
+            order = list(VALID_PACKAGE) + list(VALID_CHANNEL_PACKAGE)
+            packages = sorted(packages, key=order.index)
+            self.package = packages[0]
+            try:
+                current = self.app_current_adb()
+            except Exception as e:
+                logger.info(f'Cannot read the foreground package: {e}')
+            else:
+                if current in packages:
+                    self.package = current
+            logger.info(f'Auto package detection found {len(packages)} games, '
+                        f'using {self.package}, the scheduler switches games by task')
+            # `Emulator.PackageName` stays `auto`: pinning it to whatever game is
+            # on screen now would change what the next start boots.
+        # Set server
+        logger.info('Server changed, release resources')
+        set_server(self.package)

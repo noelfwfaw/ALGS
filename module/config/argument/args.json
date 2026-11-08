@@ -2184,7 +2184,7 @@
       }
     }
   },
-  "ChaoszeroMain": {
+  "ChaoszeroArk": {
     "Scheduler": {
       "Enable": {
         "type": "checkbox",
@@ -2201,7 +2201,7 @@
       },
       "Command": {
         "type": "input",
-        "value": "ChaoszeroMain",
+        "value": "ChaoszeroArk",
         "display": "hide"
       },
       "SuccessInterval": {
@@ -2218,6 +2218,33 @@
         "type": "input",
         "value": "05:00",
         "display": "hide"
+      }
+    },
+    "ChaoszeroArk": {
+      "PolicyEnable": {
+        "type": "checkbox",
+        "value": true
+      },
+      "PolicyTimes": {
+        "type": "input",
+        "value": 0
+      },
+      "PolicySide": {
+        "type": "select",
+        "value": "auto",
+        "option": [
+          "auto",
+          "left",
+          "right"
+        ]
+      },
+      "CafeOrder": {
+        "type": "checkbox",
+        "value": true
+      },
+      "ShopPurchase": {
+        "type": "checkbox",
+        "value": true
       }
     },
     "Storage": {
@@ -2316,74 +2343,6 @@
       }
     }
   },
-  "ChaoszeroArk": {
-    "Scheduler": {
-      "Enable": {
-        "type": "checkbox",
-        "value": false,
-        "option": [
-          true,
-          false
-        ]
-      },
-      "NextRun": {
-        "type": "datetime",
-        "value": "2020-01-01 00:00:00",
-        "validate": "datetime"
-      },
-      "Command": {
-        "type": "input",
-        "value": "ChaoszeroArk",
-        "display": "hide"
-      },
-      "SuccessInterval": {
-        "type": "input",
-        "value": 0,
-        "display": "hide"
-      },
-      "FailureInterval": {
-        "type": "input",
-        "value": 120,
-        "display": "hide"
-      },
-      "ServerUpdate": {
-        "type": "input",
-        "value": "05:00",
-        "display": "hide"
-      }
-    },
-    "ChaoszeroArk": {
-      "PolicyEnable": {
-        "type": "checkbox",
-        "value": true
-      },
-      "PolicyTimes": {
-        "type": "input",
-        "value": 0
-      },
-      "PolicySide": {
-        "type": "select",
-        "value": "auto",
-        "option": [
-          "auto",
-          "left",
-          "right"
-        ]
-      },
-      "CafeOrder": {
-        "type": "checkbox",
-        "value": true
-      }
-    },
-    "Storage": {
-      "Storage": {
-        "type": "storage",
-        "value": {},
-        "valuetype": "ignore",
-        "display": "disabled"
-      }
-    }
-  },
   "ChaoszeroDaily": {
     "Scheduler": {
       "Enable": {
@@ -2402,6 +2361,51 @@
       "Command": {
         "type": "input",
         "value": "ChaoszeroDaily",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ChaoszeroMain": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ChaoszeroMain",
         "display": "hide"
       },
       "SuccessInterval": {

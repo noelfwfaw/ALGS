@@ -1,104 +1,56 @@
 """
 每日免费抽抽乐 (Brown Dust II).
 
-Flow observed in game (2026-10-28, the screenshots are in `screenshots/browndust/`):
+2026-11-08 换了一套流程，旧的红点版已经删掉：
 
-    page_main   --底栏「抽抽乐」-->  page_summon（落在服装页签）
-    page_summon  左边一列卡片 = 这个分类下的所有卡池，每个卡池有**自己的**每日免费
-    ...          卡片右上角带红「!」= 这个卡池今天还有免费
-    ...          点卡片 -> 底部「抽1次」右上角也出现红「!」，下面写「免费1次」
-    ...          点「抽1次」 -> 「确认抽抽乐」弹窗（正文写着「免费1次」）-> 点「购买」
-    ...          抽卡动画 -> 结果页（角色/装备详情）-> 左上角「<」回卡池，红点消失
-    page_summon  点左侧「装备」页签 -> 同一套版式，另一列卡池
+    page_main --底栏「抽抽乐」-->  page_summon（落在服装页签）
+    页签左下角一枚「所有免费抽抽乐」按钮
+    -> 点它 -> 「确认抽抽乐」弹窗（正文「目前有 N 次免费……是否全部进行？」）
+    -> 点「确认」-> 这一页签当天的免费一次抽完 -> 按钮消失
+    -> 切到装备页签重复一遍
 
-**同一枚红「!」在三个地方出现，含义完全不同** —— 2026-10-28 在这里栽过一次：
+所以判据只有一个：**这枚按钮还在不在**。按钮消失了就是今天抽完了，
+不用像旧版那样去每张卡池的右上角找红「!」、再逐池点「抽1次」。
 
-| 位置 | 含义 | 能当判据吗 |
+实测（2026-11-08 的六张截图，`screenshots/browndust/`）：
+
+| 读法 | 免费抽页面（服装 3 张卡池 + 装备） | 抽完后的页面 |
 |---|---|---|
-| 左侧页签（服装/装备） | 这个分类下**还有**免费没抽 | 不能，它只知道"有"，不知道"哪个" |
-| 卡池卡片右上角 | **这个卡池**今天还有免费 | **就是这个** |
-| 「抽1次」右上角 | 当前显示的卡池有免费 | 只能确认"这一池"，要先点进去 |
+| 灰度匹配 | 0.900 / 0.908 / 0.925 / 1.000 | 0.185 / 0.234 |
+| 固定二值（luma>210） | 0.952 / 0.976 / 0.977 / 1.000 | 0.19 / 0.19 |
 
-只按钮红点会把免费全跳过：页面默认打开的那张卡池往往恰好没有免费，于是
-"按钮上没有红点"被读成"今天没免费"，而其实同一页另外几张卡片都亮着
-（2026-10-28 20:27 实机：服装页 1 张卡片带红点、装备页 2 张，脚本一个都没抽）。
-反过来，只看页签红点又永远点不完 —— 它要整列都抽干净才灭。
+按钮是**半透明**的：「所有免费抽抽乐」几个白字直接压在会动的立绘上，
+背景一换灰度分就掉（同一张模板在四张图上差 0.10）。白字先过一遍二值，
+背景被削掉，四张图收进 0.05 以内。这就是这里不用 `match()` 也不用
+`match_binary()`（Otsu 的阈值跟着背景漂，四张图只剩 0.901~0.939）的原因。
 
-A press is then verified by three separate observations, in this order:
+「确认抽抽乐」弹窗上的「确认」是普通的不透明胶囊，灰度模板就够：两个页签
+的弹窗都是 1.000，非弹窗画面（大厅、页签页、结果页）最高 0.327。
 
-1. the confirm dialog appears (`SUMMON_CONFIRM_DIALOG`),
-2. the dialog says 免费1次 (`SUMMON_CONFIRM_FREE`) - the only guard against
-   spending paid currency if the badge was ever misread,
-3. the banner page leaves and comes back (`SUMMON_BANNER`), which is what tells
-   "the pull played" apart from "the press was swallowed".
-
-Only after that is the badge read again: still there means the pull did not
-happen and the next round retries, gone means it did.
+旧版（2026-10-28）逐张卡池找红「!」、按「抽1次」、再在弹窗里核对
+「免费1次」—— 那套东西全部删掉了：新按钮一次把整个页签的免费做完，
+次数由游戏在弹窗里写明。
 """
-from module.base.button import Button
-from module.base.timer import Timer
-from module.base.utils import color_mask
-from module.browndust.assets import (SUMMON_BANNER, SUMMON_CONFIRM_BUY,
-                                     SUMMON_CONFIRM_CANCEL,
-                                     SUMMON_CONFIRM_DIALOG,
-                                     SUMMON_CONFIRM_FREE)
-from module.browndust.browndust_ui import BrowndustUI, page_main, page_summon
-from module.logger import logger
-
 import cv2
 import numpy as np
 
-# Where the game draws the "the banner on screen still has its free pull" badge:
-# the top right corner of the 「抽1次」 button. 17x17 is the whole badge, which is
-# why it is measured by colour instead of by template - a template this small
-# matches half the screen (the same 「!」 sits on the two tabs and on every card
-# of the list, all within 0.30 similarity of each other).
-SUMMON_DOT = (976, 604, 993, 621)
-# Mean of the 166 red pixels inside that box on 抽卡页面.png.
-SUMMON_DOT_COLOR = (207, 71, 63)
-# Per channel tolerance of `color_mask`, wide enough for the badge's shading.
-SUMMON_DOT_THRESHOLD = 60
-# 142~152 pixels when the badge is there, 0 on each of the other 31 screenshots
-# of the game, so 40 sits on a 4x margin either way.
-SUMMON_DOT_PIXELS = 40
-# The badge is drawn **after** the button and after the banner artwork, so on
-# the frame a tab opens the button is already there and the badge is not. Read
-# once, that frame answers "no free pull" for a tab that has one - 2026-10-28
-# 20:27 实机就是这么跳过两次免费的（切完页签 0.4 秒就判定）。So the badge is
-# waited for instead of read once, and the answer "no" is only given after this
-# many seconds of not seeing it.
-SUMMON_DOT_TIMEOUT = 3
-# The re-read after a pull sits on a page that is not loading anything, so it
-# does not need the same patience - a badge that is still there is there at once.
-SUMMON_DOT_RECHECK = 2
+from module.base.button import Button
+from module.base.timer import Timer
+from module.browndust.assets import (SUMMON_BANNER, SUMMON_CONFIRM_OK,
+                                     SUMMON_FREE_ALL)
+from module.browndust.browndust_ui import BrowndustUI, page_main, page_summon
+from module.logger import logger
 
-# The card list on the left of the page. Each banner is one card, and a card
-# still holding its daily free pull carries a red 「!」 on its top right corner
-# (the same badge as on 「抽1次」, and the same colour).
-#
-# Only the right edge is scanned. `SUMMON_CARD_LIST` is the x band the badge
-# lives in: cards end at x=360 and the badge is 20x19 at x=339~359, so its
-# centre is x≈349 for every card. Scanning the whole card turned the first
-# card's red-haired character into a "badge" - the artwork is full of reds.
-SUMMON_CARD_LIST = (325, 75, 372, 520)
-# Badge centre to press point: 45 px left and 28 px down is the middle of the
-# card, clear of the list's scroll bar on the left and of the page on the right.
-SUMMON_CARD_CLICK = (-45, 28)
-# Shape filter for a badge: `color_mask` + dilation gives ~150~330 px in a
-# 14~20 px box. Artwork fragments are either huge or a single pixel.
-SUMMON_BADGE_MIN_AREA = 60
-SUMMON_BADGE_MAX_AREA = 700
-SUMMON_BADGE_MIN_SIZE = 10
-SUMMON_BADGE_MAX_SIZE = 30
-# A card press repaints the banner artwork and the button; the badge on the
-# button is drawn last. 5 s is the same "did the press land" budget as a tab.
-SUMMON_CARD_TIMEOUT = 5
-
-# The 「抽1次」 button: 833~1011 x 606~652. The click point is the lower left of
-# the badge on purpose - the badge hangs over the button's rounded top right
-# corner, where a press is as likely to land on the panel behind it.
-SUMMON_PULL1 = Button(area=(833, 606, 1011, 652), color=(0, 0, 0),  # alas-lint: allow - a click point; the button's label turns into a ticket price after the free pull, so there is nothing stable to match
-                      button=(900, 620, 960, 640), name='SUMMON_PULL1')
+# 「所有免费抽抽乐」按钮的二值匹配参数。搜索框 = 素材 area 四周各放 20 像素
+# （跟 `appear(offset=(20, 20))` 同一个余量），模板是白字，所以阈值取 210
+# （实测白字 230~255，立绘里的高光很少有整块越过 210 的）。
+SUMMON_FREE_ALL_OFFSET = 20
+SUMMON_FREE_ALL_LUMA = 210
+# 四张免费抽页面 0.952~1.000，抽完后的页面 0.19，0.90 两边都留足。
+SUMMON_FREE_ALL_SIMILARITY = 0.90
+# 等按钮画出来的时间。页面刚进来、抽完刚回来都要等它重画；等不到就是没有了。
+# 5 秒对"今天已经抽完"那次多花的等待来说不算长。
+SUMMON_FREE_ALL_TIMEOUT = 5
 
 # The two tabs of the page, left edge. `button` is the click point, `area` is
 # the tab's **label**, and the label is what says which tab is open: the game
@@ -119,8 +71,7 @@ SUMMON_TAB_EQUIP = Button(area=(140, 282, 210, 310), color=(0, 0, 0),  # alas-li
                           button=(124, 249, 160, 285), name='SUMMON_TAB_EQUIP')
 
 # Pixels above this luma inside the label box = the tab is the open one.
-# Measured on the five banner screenshots of the game: open tab 72~96, closed
-# tab 0~13, and 0 while the confirm dialog dims the page. 40 sits in between.
+# 2026-11-08 实测：服装页签打开 108、装备页签打开 94，另一边 10 / 0。
 SUMMON_TAB_LABEL_LUMA = 230
 SUMMON_TAB_LABEL_PIXELS = 40
 
@@ -132,34 +83,29 @@ SUMMON_TAB_LABEL_PIXELS = 40
 SUMMON_RESULT_BACK = Button(area=(126, 22, 160, 54), color=(0, 0, 0),  # alas-lint: allow - a click point on the result screen's own back arrow, guarded by the banner page being gone
                             button=(130, 24, 156, 48), name='SUMMON_RESULT_BACK')
 
-# A press on 抽1次 opens the dialog in well under a second; 6 leaves room for a
-# slow emulator without sitting on a press that was swallowed.
+# A press on the button opens the dialog in well under a second; 6 leaves room
+# for a slow emulator without sitting on a press that was swallowed.
 SUMMON_DIALOG_TIMEOUT = 6
-# A press right after the banner is switched is eaten by the page's own fade-in,
-# so the press is repeated. Three tries is "one real press plus two that were
-# swallowed" - a button that is still bare after that is not going to open.
-SUMMON_PULL_TRIES = 3
+# A press right after a tab is switched is eaten by the page's fade-in, so the
+# press is repeated. Three tries is "one real press plus two that were
+# swallowed" - a button that still opens nothing is not going to open.
+SUMMON_FREE_TRIES = 3
 # The pull animation takes over the screen right away; if the banner page is
-# still there after this long, the pull did not start.
+# still there after this long, no pull started.
 SUMMON_LEAVE_TIMEOUT = 30
 # Animation + result screen + the way back. The result screen waits for a
 # press, so this only bounds the animation itself.
 SUMMON_RESULT_TIMEOUT = 120
-# Seconds between two presses on the result screen's back arrow. The arrow is
-# there from the first frame of the result screen, but pressing it while the
-# character animation is still playing is wasted, so the first press waits this
-# long and the rest are spaced the same.
+# Seconds between two presses on the result screen's back arrow.
 SUMMON_RESULT_CLICK = 3
 # Pressing a tab is only verified by its label turning white, so the press is
-# repeated while that has not happened yet - a tab press right after the page
-# opens is the one most likely to be eaten by the page's own fade-in.
+# repeated while that has not happened yet.
 SUMMON_TAB_TIMEOUT = 10
 SUMMON_TAB_RETRY = 3
-# One free pull per banner per day, and a tab holds several banners (the list
-# fits four cards on screen). This is the number of rounds per tab, not a
-# limit on pulls: a round only counts when a badge was actually spent, and the
-# list is re-read every round, so the loop ends on the first tab without one.
-SUMMON_MAX_PULLS = 8
+# One press takes every free pull of the tab (the dialog says so), so a second
+# round only exists for the case where the game leaves the button up while it
+# still has a free pull to give. Three rounds is already generous.
+SUMMON_MAX_ROUNDS = 3
 
 # The two tabs, in the order the game opens them.
 SUMMON_TABS = (
@@ -201,7 +147,7 @@ class BrowndustSummon(BrowndustUI):
             out: page_main
 
         Returns:
-            int: Number of pulls taken.
+            int: Number of 「所有免费抽抽乐」 rounds taken.
         """
         self.ui_ensure(page_main)
         self.ui_ensure(page_summon)
@@ -217,12 +163,9 @@ class BrowndustSummon(BrowndustUI):
         """
         Take every free pull of one tab.
 
-        A tab is a **list** of banners and each banner has its own daily free
-        pull, so the badge on 「抽1次」 only ever answers for the banner that is
-        on screen. The card list on the left is what says where the free pulls
-        are - measured 2026-10-28: the costume tab had one badge in its list and
-        the weapon tab two, while the banner the page opens by default had none.
-        Reading only the button skipped all three of them.
+        The tab's 「所有免费抽抽乐」 button is the whole answer: press it, confirm
+        the dialog, the game plays every free pull at once, and the button is
+        gone. See the module docstring for the measured scores.
 
         Pages:
             in: page_summon
@@ -233,39 +176,71 @@ class BrowndustSummon(BrowndustUI):
             tab (Button): The tab, both its click point and its label box.
 
         Returns:
-            int: Pulls taken on this tab.
+            int: Rounds taken on this tab.
         """
         if not self.summon_open_tab(name, tab):
             return 0
 
         taken = 0
-        for _ in range(SUMMON_MAX_PULLS):
-            if not self.summon_pull_next(name):
+        for _ in range(SUMMON_MAX_ROUNDS):
+            if not self.summon_free_all_available():
+                break
+            if not self.summon_pull_all_free(name):
                 break
             taken += 1
 
         if taken:
-            logger.info(f'{name}: {taken} free pull(s) taken')
+            logger.info(f'{name}: {taken} free round(s) taken')
         else:
-            logger.info(f'{name}: no banner with a free pull left')
+            logger.info(f'{name}: no free pull left')
         return taken
 
-    def summon_pull_next(self, name):
+    def summon_free_all_available(self, timeout=SUMMON_FREE_ALL_TIMEOUT):
         """
-        Take the free pull of the next banner that still has one.
+        Whether the tab still shows its 「所有免费抽抽乐」 button.
 
-        Two places to look, in this order:
+        The read is waited for, not taken once: right after the page fades in
+        the button has not been drawn yet, and that frame must not be read as
+        "no free pull left".
 
-        1. the banner already on screen - its 「抽1次」 button carries the badge.
-           This is the banner the page opens with, or the one the previous
-           round ended on.
-        2. the card list - every banner that still holds a free pull has a red
-           「!」 on the top right corner of its card. Open the top one, and its
-           badge shows up on the button.
+        Returns:
+            bool: If the button is there.
+        """
+        for _ in self.loop(timeout=timeout):
+            if self.summon_free_all_appear():
+                return True
+        return False
 
-        A pull is never taken from a bare button, so a card that was misread as
-        having a badge only costs one wasted press: `summon_open_card()` waits
-        for the badge to appear before anything is pulled.
+    def summon_free_all_appear(self):
+        """
+        Match the button on the current frame.
+
+        A fixed-threshold binary match instead of `Button.match_binary()`: the
+        button is translucent, so everything inside it takes the colour of the
+        banner artwork behind it, and Otsu picks a different threshold on every
+        banner. The white label survives any of them, so the label is what is
+        matched - see the module docstring.
+
+        Returns:
+            bool: If the button is there.
+        """
+        x0, y0, x1, y1 = SUMMON_FREE_ALL.area
+        area = (x0 - SUMMON_FREE_ALL_OFFSET, y0 - SUMMON_FREE_ALL_OFFSET,
+                x1 + SUMMON_FREE_ALL_OFFSET, y1 + SUMMON_FREE_ALL_OFFSET)
+        image = cv2.cvtColor(self.image_crop(area, copy=False), cv2.COLOR_RGB2GRAY)
+        binary = (image > SUMMON_FREE_ALL_LUMA).astype(np.uint8) * 255
+
+        SUMMON_FREE_ALL.ensure_template()
+        template = cv2.cvtColor(SUMMON_FREE_ALL.image, cv2.COLOR_RGB2GRAY)
+        template = (template > SUMMON_FREE_ALL_LUMA).astype(np.uint8) * 255
+
+        result = cv2.matchTemplate(binary, template, cv2.TM_CCOEFF_NORMED)
+        _, similarity, _, _ = cv2.minMaxLoc(result)
+        return similarity > SUMMON_FREE_ALL_SIMILARITY
+
+    def summon_pull_all_free(self, name):
+        """
+        Press the button, confirm the dialog and wait out the pulls.
 
         Pages:
             in: page_summon
@@ -275,96 +250,37 @@ class BrowndustSummon(BrowndustUI):
             name (str): 服装 / 装备, for the log.
 
         Returns:
-            bool: If a pull was taken.
+            bool: If the pulls played and the banner page is back.
         """
-        if self.summon_free_available(timeout=SUMMON_DOT_RECHECK):
-            return self.summon_pull_once()
-
-        self.device.screenshot()
-        badges = self.summon_card_badges()
-        if not badges:
+        logger.info(f'{name}: press 所有免费抽抽乐')
+        # 按钮刚被匹配到，这里不重复 appear；按下去要重试，刚切完页签的那一下
+        # 会被页面淡入吃掉。判据是弹窗上的「确认」—— 它只在弹窗上出现，
+        # 实测弹窗 1.000、其它画面最高 0.327。
+        for i in range(SUMMON_FREE_TRIES):
+            self.device.click(SUMMON_FREE_ALL)  # alas-lint: allow - matched right above, the dialog below is the proof
+            if self.wait_until_appear(SUMMON_CONFIRM_OK, offset=(20, 20),
+                                      timeout=SUMMON_DIALOG_TIMEOUT, settle=2):
+                break
+            logger.warning(f'The confirm dialog did not show up, press again ({i + 1}/{SUMMON_FREE_TRIES})')
+        else:
+            logger.info(f'{name}: the button opens nothing, no free pull left')
             return False
 
-        if not self.summon_open_card(name, badges[0]):
+        logger.info('Confirm')
+        self.device.click(SUMMON_CONFIRM_OK)  # alas-lint: allow - the dialog was just matched, this is its own button
+        if not self.wait_until_disappear(SUMMON_CONFIRM_OK, offset=(20, 20),
+                                         timeout=10, settle=2):
+            logger.warning('The confirm dialog did not close')
             return False
-        return self.summon_pull_once()
 
-    def summon_open_card(self, name, badge):
-        """
-        Open the banner whose card still carries a 「!」.
-
-        The press is verified by the badge appearing on 「抽1次」: a banner with
-        no free pull leaves its button bare, so this also tells "the card press
-        was swallowed" and "the badge belonged to another card" apart from a
-        banner that really is free.
-
-        Pages:
-            in: page_summon
-            out: page_summon
-
-        Args:
-            name (str): 服装 / 装备, for the log.
-            badge (tuple[int, int]): Centre of the 「!」 on the card.
-
-        Returns:
-            bool: If the banner opened and offers a free pull.
-        """
-        point = (badge[0] + SUMMON_CARD_CLICK[0], badge[1] + SUMMON_CARD_CLICK[1])
-        logger.info(f'{name}: open the banner at {point}')
-        self.device.click_minitouch(point[0], point[1])  # alas-lint: allow - a card press, verified by the badge on the button below
-        if not self.summon_free_available(timeout=SUMMON_CARD_TIMEOUT):
-            return False
-        # 红点出现不等于页面画完了：卡池立绘还在换图、按钮还在淡入，这时候按
-        # 「抽1次」会被吞（见 `SUMMON_PULL_TRIES`）。等这块区域连续两帧不变。
-        #
-        # 这里一定会超时并打一条 "Area ... is still changing"：按钮上有循环
-        # 播放的星点粒子，永远在动。那条 warning 不是故障，等 3 秒的收尾动作
-        # 已经做完了（页面确实画完了），被吞的点击由下面的重试兜住。
-        self.wait_until_still(SUMMON_PULL1.area, timeout=3)
-        return True
-
-    def summon_card_badges(self):
-        """
-        The red 「!」 marks of the card list, top to bottom.
-
-        Only the right edge of the cards is read (`SUMMON_CARD_LIST`): the badge
-        hangs on the top right corner at x≈349, while the artwork inside the
-        cards is full of reds - the first card of the costume tab holds a
-        red-haired character, and her hair was the first "badge" a full-width
-        scan returned.
-
-        Needs a fresh screenshot in `device.image`; the caller takes it.
-
-        Returns:
-            list[tuple[int, int]]: Centre of each badge, in screen coordinates.
-        """
-        mask = color_mask(self.image_crop(SUMMON_CARD_LIST, copy=False),
-                          color=SUMMON_DOT_COLOR, threshold=SUMMON_DOT_THRESHOLD)
-        # 淡入时「!」会碎成几块，先连起来再数。
-        mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1)
-        _, _, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8)
-
-        x0, y0 = SUMMON_CARD_LIST[0], SUMMON_CARD_LIST[1]
-        badges = []
-        for i in range(1, len(stats)):
-            _, _, w, h, area = stats[i]
-            if not SUMMON_BADGE_MIN_AREA <= area <= SUMMON_BADGE_MAX_AREA:
-                continue
-            if not SUMMON_BADGE_MIN_SIZE <= w <= SUMMON_BADGE_MAX_SIZE:
-                continue
-            if not SUMMON_BADGE_MIN_SIZE <= h <= SUMMON_BADGE_MAX_SIZE:
-                continue
-            badges.append((int(centroids[i][0] + x0), int(centroids[i][1] + y0)))
-        badges.sort(key=lambda b: b[1])
-        return badges
+        return self.summon_wait_banner()
 
     def summon_tab_open(self, tab):
         """
         Whether the given tab is the one the page is showing.
 
         The game draws the open tab's label in pure white and the other one in
-        grey, so this is a brightness count - see `SUMMON_TAB_LABEL_LUMA` for
-        why neither the page title nor the tab's icon can answer it.
+        grey, so this is a brightness count - see `SUMMON_TAB_LABEL_LUMA`.
 
         Args:
             tab (Button): The tab, `area` being its label box.
@@ -379,11 +295,9 @@ class BrowndustSummon(BrowndustUI):
         Switch the page to the given tab.
 
         The press is repeated until the label turns white, because a press right
-        after the page opens tends to be eaten by its fade-in. What is *not*
-        repeated is a read of the badge: if no press is accepted within
-        `SUMMON_TAB_TIMEOUT` the tab is skipped, which is the harmless way to
-        fail - skipping a tab costs one free pull, pressing blind on the wrong
-        tab would read the other tab's badge.
+        after the page opens tends to be eaten by its fade-in. If no press is
+        accepted within `SUMMON_TAB_TIMEOUT` the tab is skipped, which is the
+        harmless way to fail - one tab costs at most one day's free pulls.
 
         Pages:
             in: page_summon
@@ -426,91 +340,19 @@ class BrowndustSummon(BrowndustUI):
         logger.warning('Not on the gacha page, cannot switch tabs')
         return False
 
-    def summon_free_available(self, timeout=SUMMON_DOT_TIMEOUT):
-        """
-        Whether the 「抽1次」 button still carries the free-pull badge.
-
-        Not a single read: the game paints the badge a few frames after the
-        button and the banner artwork, so right after a tab opens the honest
-        answer is "not yet", not "no". See `SUMMON_DOT_TIMEOUT`.
-
-        Args:
-            timeout (int, float): Seconds to wait for the badge before saying no.
-
-        Returns:
-            bool: If a free pull is available.
-        """
-        for _ in self.loop(timeout=timeout):
-            if self.image_color_count(SUMMON_DOT, color=SUMMON_DOT_COLOR,
-                                      threshold=SUMMON_DOT_THRESHOLD,
-                                      count=SUMMON_DOT_PIXELS):
-                return True
-        return False
-
-    def summon_pull_once(self):
-        """
-        Press 抽1次, confirm the free dialog and wait out the pull.
-
-        Pages:
-            in: page_summon
-            out: page_summon
-
-        Returns:
-            bool: If the pull played and the banner page is back.
-        """
-        logger.info('Free pull available, press the button')
-        # 判据是上面那枚红点，所以这里不再 appear 一次：`SUMMON_PULL1` 是没有
-        # 模板的点击点（按钮上的「免费1次」用掉后会变成票价，硬约束 82：纯坐标
-        # 按钮不能进 appear 家族）。
-        #
-        # 按下去要重试：刚换完卡池的按钮还在淡入，第一下会被吞掉 —— 2026-10-28
-        # 20:44 装备页就是这样，红点已经看见了，按下去却什么都没有。
-        for i in range(SUMMON_PULL_TRIES):
-            self.device.click(SUMMON_PULL1)  # alas-lint: allow - click point, guarded by summon_free_available() in the caller
-            if self.wait_until_appear(SUMMON_CONFIRM_DIALOG, offset=(20, 20),
-                                      timeout=SUMMON_DIALOG_TIMEOUT, settle=2):
-                break
-            logger.warning(f'The confirm dialog did not show up, press again ({i + 1}/{SUMMON_PULL_TRIES})')
-        else:
-            logger.warning('The press on 抽1次 was swallowed every time, skip this banner')
-            return False
-
-        # 「购买」也是「取消」的邻居，只有弹窗正文写着「免费1次」才允许按：
-        # 万一红点是别的东西（比如折扣），这一条挡在扣钱之前。
-        if self.appear(SUMMON_CONFIRM_FREE, offset=(20, 20)):
-            if self.appear(SUMMON_CONFIRM_BUY, offset=(20, 20)):
-                logger.info('Dialog says 免费1次, press 购买')
-                self.device.click(SUMMON_CONFIRM_BUY)  # alas-lint: allow - same dialog, both checks above are the guard
-            else:
-                logger.warning('The dialog has no 购买 button')
-                return False
-        else:
-            logger.warning('The dialog does not offer a free pull, press 取消')
-            if self.appear(SUMMON_CONFIRM_CANCEL, offset=(20, 20)):
-                self.device.click(SUMMON_CONFIRM_CANCEL)  # alas-lint: allow - the dialog was just matched, this is the way out of it
-            return False
-
-        if not self.wait_until_disappear(SUMMON_CONFIRM_DIALOG, offset=(20, 20),
-                                         timeout=10, settle=2):
-            logger.warning('The confirm dialog did not close')
-            return False
-
-        return self.summon_wait_banner()
-
     def summon_wait_banner(self):
         """
         Wait out the pull animation and the result screen.
 
         The banner page has to be **seen leaving** first. It is still on screen
-        while the confirm dialog is up (0.93 under the overlay), so a plain wait
-        for it to come back would return on the frame the dialog closes - and
-        the task would then read the badge on a half drawn page and press the
-        next tab while the animation is still playing.
+        while the confirm dialog is up (0.88~0.94 under the overlay), so a plain
+        wait for it to come back would return on the frame the dialog closes -
+        and the task would then read the button on a half drawn page.
 
-        The result screen is a character sheet with a 「<」 in the top left
-        corner, and that arrow is the only way back - a press in the middle of
-        the screen does nothing. The press is throttled and only sent while the
-        banner page is gone.
+        The result screen is a character/equipment sheet with a 「<」 in the top
+        left corner, and that arrow is the only way back - a press in the middle
+        of the screen does nothing. The press is throttled and only sent while
+        the banner page is gone.
 
         Pages:
             in: page_summon
@@ -527,10 +369,6 @@ class BrowndustSummon(BrowndustUI):
         tap = Timer(SUMMON_RESULT_CLICK).start()
         for _ in self.loop(timeout=SUMMON_RESULT_TIMEOUT):
             if self.appear(SUMMON_BANNER, offset=(20, 20)):
-                # The button's label is being redrawn from 免费1次 to a ticket
-                # price while the page fades in; reading the badge before that
-                # settles is reading a frame that is not the page yet.
-                self.wait_until_still(SUMMON_PULL1.area, timeout=3)
                 return True
             if tap.reached():
                 tap.reset()

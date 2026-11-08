@@ -182,21 +182,21 @@
       "name": "Coupon codes",
       "help": "Fetch the coupon codes of the game from GameKee once a day and redeem the new ones; used and expired codes are skipped"
     },
-    "ChaoszeroMain": {
-      "name": "Launch game",
-      "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"
+    "ChaoszeroArk": {
+      "name": "Ark City dailies",
+      "help": "Three things in 方舟都市: approve a few policies in 政策室 (each one costs a day), order once at 庭院咖啡廳 for 120 stamina, and buy out 諾諾商店 from the top (it never buys 單元幣 and skips any greyed-out 購買). If the cafe already served you today it is skipped, not treated as a failure"
     },
     "ChaoszeroSimulation": {
       "name": "Battle training (spend stamina)",
       "help": "Walks 模擬 → 戰鬥訓練 and farms the ticked tabs in order: open the stage, apply difficulty and battle efficiency, fight, make sure auto-battle is on, take the result, and repeat until the stamina or the daily attempts run out"
     },
-    "ChaoszeroArk": {
-      "name": "Ark City dailies",
-      "help": "Two things in 方舟都市: approve a few policies in 政策室 (each one costs a day), and order once at 庭院咖啡廳 for 120 stamina. If the cafe already served you today it is skipped, not treated as a failure"
-    },
     "ChaoszeroDaily": {
       "name": "Daily claim (missions + mailbox)",
       "help": "Opens the top-right menu and does two things: (1) 日常任務 → the 全部領取 button of 當日行程; (2) the envelope in the vertical column that appears on the right edge once the menu is open → 信箱, then 全部領取 there. Both buttons are orange while something is left and grey once done. It only claims - the missions themselves are done by the 模擬 and 方舟都市 tasks"
+    },
+    "ChaoszeroMain": {
+      "name": "Launch game",
+      "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"
     },
     "CrosscoreMain": {
       "name": "Launch game",
@@ -250,7 +250,7 @@
     },
     "PackageName": {
       "name": "Game Server",
-      "help": "Game to open first. The scheduler switches games by itself afterwards, so pick any installed one; \"Auto-detect\" cannot decide when several clients are installed",
+      "help": "Game to open first. The scheduler switches games by itself afterwards; \"Auto-detect\" prefers the game already in the foreground, otherwise picks the first registered one",
       "auto": "Auto-detect",
       "com.feimo.hazeworld.bilibili": "HAZEWORLD",
       "com.wemadeconnect.aos.lostdgl": "LOSTSWORD",
@@ -841,7 +841,7 @@
   "ChaoszeroArk": {
     "_info": {
       "name": "Ark City",
-      "help": "How many policies to approve, which side, and whether to order at the cafe"
+      "help": "How many policies to approve, which side, whether to order at the cafe, and whether to buy from the shop"
     },
     "PolicyEnable": {
       "name": "Policy room",
@@ -861,6 +861,10 @@
     "CafeOrder": {
       "name": "Order at the cafe",
       "help": "Once a day: 內用 restores 120 stamina right away. After that the menu stops opening and the task ends normally"
+    },
+    "ShopPurchase": {
+      "name": "諾諾商店",
+      "help": "Buys the shelf out from the top, pressing MAX on each product. 單元幣 is never bought; products whose 購買 button is grey (holding cap reached, not enough coins) are skipped"
     }
   },
   "Starsavior2": {

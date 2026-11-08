@@ -5,6 +5,8 @@ from module.base.template import Template
 # Don't modify it manually.
 
 ARK_TITLE = Button(area={'chaoszero': (104, 18, 211, 50)}, color={'chaoszero': (52, 52, 52)}, button={'chaoszero': (104, 18, 211, 50)}, file={'chaoszero': './assets/chaoszero/chaoszero/ARK_TITLE.png'})
+ARK_WAR_AUTO = Button(area={'chaoszero': (570, 636, 850, 702)}, color={'chaoszero': (169, 171, 171)}, button={'chaoszero': (570, 636, 850, 702)}, file={'chaoszero': './assets/chaoszero/chaoszero/ARK_WAR_AUTO.png'})
+ARK_WAR_TARGET = Button(area={'chaoszero': (38, 650, 335, 692)}, color={'chaoszero': (64, 70, 70)}, button={'chaoszero': (38, 650, 335, 692)}, file={'chaoszero': './assets/chaoszero/chaoszero/ARK_WAR_TARGET.png'})
 BATTLE_AUTO = Button(area={'chaoszero': (1105, 8, 1175, 64)}, color={'chaoszero': (34, 40, 45)}, button={'chaoszero': (1135, 31, 1147, 43)}, file={'chaoszero': './assets/chaoszero/chaoszero/BATTLE_AUTO.png'})
 BATTLE_EXIT = Button(area={'chaoszero': (1005, 15, 1047, 57)}, color={'chaoszero': (70, 68, 67)}, button={'chaoszero': (1005, 15, 1047, 57)}, file={'chaoszero': './assets/chaoszero/chaoszero/BATTLE_EXIT.png'})
 BOOT_CONNECT_FAILED = Button(area={'chaoszero': (505, 349, 776, 368)}, color={'chaoszero': (160, 160, 160)}, button={'chaoszero': (540, 300, 740, 420)}, file={'chaoszero': './assets/chaoszero/chaoszero/BOOT_CONNECT_FAILED.png'})
@@ -24,6 +26,12 @@ PANEL_CLOSE = Button(area={'chaoszero': (1192, 66, 1224, 98)}, color={'chaoszero
 POLICY_EMPTY = Button(area={'chaoszero': (945, 396, 1048, 434)}, color={'chaoszero': (113, 166, 202)}, button={'chaoszero': (945, 396, 1048, 434)}, file={'chaoszero': './assets/chaoszero/chaoszero/POLICY_EMPTY.png'})
 POLICY_STAMP = Button(area={'chaoszero': (795, 674, 1085, 700)}, color={'chaoszero': (71, 98, 124)}, button={'chaoszero': (795, 674, 1085, 700)}, file={'chaoszero': './assets/chaoszero/chaoszero/POLICY_STAMP.png'})
 POLICY_TITLE = Button(area={'chaoszero': (104, 18, 186, 50)}, color={'chaoszero': (63, 64, 66)}, button={'chaoszero': (104, 18, 186, 50)}, file={'chaoszero': './assets/chaoszero/chaoszero/POLICY_TITLE.png'})
+SHOP_CLOSE = Button(area={'chaoszero': (1024, 136, 1080, 190)}, color={'chaoszero': (229, 229, 230)}, button={'chaoszero': (1024, 136, 1080, 190)}, file={'chaoszero': './assets/chaoszero/chaoszero/SHOP_CLOSE.png'})
+SHOP_COIN = Button(area={'chaoszero': (1074, 496, 1186, 604)}, color={'chaoszero': (185, 173, 145)}, button={'chaoszero': (1074, 496, 1186, 604)}, file={'chaoszero': './assets/chaoszero/chaoszero/SHOP_COIN.png'})
+SHOP_LOCK = Button(area={'chaoszero': (572, 500, 664, 532)}, color={'chaoszero': (78, 67, 42)}, button={'chaoszero': (572, 500, 664, 532)}, file={'chaoszero': './assets/chaoszero/chaoszero/SHOP_LOCK.png'})
+SHOP_MAX = Button(area={'chaoszero': (472, 536, 628, 576)}, color={'chaoszero': (243, 243, 243)}, button={'chaoszero': (472, 536, 628, 576)}, file={'chaoszero': './assets/chaoszero/chaoszero/SHOP_MAX.png'})
+SHOP_SOLD = Button(area={'chaoszero': (572, 190, 664, 222)}, color={'chaoszero': (69, 67, 81)}, button={'chaoszero': (572, 190, 664, 222)}, file={'chaoszero': './assets/chaoszero/chaoszero/SHOP_SOLD.png'})
+SHOP_TITLE = Button(area={'chaoszero': (84, 20, 300, 62)}, color={'chaoszero': (36, 56, 68)}, button={'chaoszero': (84, 20, 300, 62)}, file={'chaoszero': './assets/chaoszero/chaoszero/SHOP_TITLE.png'})
 RESULT_CONFIRM = Button(area={'chaoszero': (1040, 640, 1205, 686)}, color={'chaoszero': (171, 110, 219)}, button={'chaoszero': (999, 635, 1245, 690)}, file={'chaoszero': './assets/chaoszero/chaoszero/RESULT_CONFIRM.png'})
 REWARD_HINT = Button(area={'chaoszero': (533, 655, 750, 690)}, color={'chaoszero': (160, 154, 171)}, button={'chaoszero': (533, 655, 750, 690)}, file={'chaoszero': './assets/chaoszero/chaoszero/REWARD_HINT.png'})
 SIM_PAGE = Button(area={'chaoszero': (1092, 653, 1254, 689)}, color={'chaoszero': (105, 82, 70)}, button={'chaoszero': (1092, 653, 1254, 689)}, file={'chaoszero': './assets/chaoszero/chaoszero/SIM_PAGE.png'})

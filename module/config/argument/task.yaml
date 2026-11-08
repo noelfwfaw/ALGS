@@ -135,15 +135,15 @@ Chaoszero:
   menu: 'collapse'
   page: 'setting'
   tasks:
-    ChaoszeroMain:
-      - Scheduler
-    ChaoszeroSimulation:
-      - Scheduler
-      - ChaoszeroSimulation
     ChaoszeroArk:
       - Scheduler
       - ChaoszeroArk
+    ChaoszeroSimulation:
+      - Scheduler
+      - ChaoszeroSimulation
     ChaoszeroDaily:
+      - Scheduler
+    ChaoszeroMain:
       - Scheduler
 
 # ==================== Cross Core (交错战线) ====================

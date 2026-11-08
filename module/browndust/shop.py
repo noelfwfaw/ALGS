@@ -130,9 +130,13 @@ SHOP_ICON_OFFSET = (65, 55)
 # 弹窗是固定尺寸的一块面板，三种商品量下来一模一样：
 #   标题 y 205~235，黄字「购买商品将立刻发放。」(275,267)-(437,282)，
 #   「1个 🎟300」y 424，「MIN/-10/+10/MAX」y 509，「购买」(837,496)-(1005,524)。
-SHOP_PANEL_AREA = (250, 195, 1060, 490)
+# 等"画稳"要盯的整块：面板主体 + 数量条(y 490~530) + 「购买」(496~524)。只盯
+# 主体会漏掉后面两处 —— 点完 MAX 要重画的正是数量条，那时主体两帧本来就一样。
+SHOP_DIALOG_AREA = (250, 195, 1060, 540)
 SHOP_PANEL_TIMEOUT = 10
 SHOP_DONE_TIMEOUT = 15
+# 「购买完成。」弹窗：文字 (592,328)-(678,353) + 下面那颗「确认」(576,385)-(703,421)。
+SHOP_DONE_ALERT_AREA = (560, 315, 720, 435)
 SHOP_PANEL_CLOSE = Button(area=(992, 172, 1026, 206), color=(0, 0, 0),  # alas-lint: allow - a plain close X on the dialog, nothing behind it to match
                           button=(1009, 189, 1009, 189), name='SHOP_PANEL_CLOSE')
 # 「MAX」/「MIN」两段按钮。买满限量是 MAX —— **游戏会把 MAX 截到"买得起"为止**
@@ -722,6 +726,47 @@ class EventShop:
         else:
             self.shop_scroll_top()
 
+    def shop_wait_paint(self, area, timeout, require_motion=False):
+        """
+        等一块画面画完，可选要求它"先动起来"。
+
+        `wait_until_still()` 判的是"相邻两帧一样"。点下 MAX 之后游戏大约半秒才
+        把数量和价格重画上去，在那之前两帧本来就相同，它于是**立刻返回** ——
+        紧接着按下的「购买」还是旧数量，运气差时按钮还没响应，那一下就丢了
+        （`battle_pass.pass_wait_repaint()` 踩的是同一件事）。所以点完 MAX 用
+        `require_motion=True`：先看到变化，再看到两帧一致。
+
+        限购只有 1 件的商品 MAX 不会改变任何东西，等不到变化就超时放行 —— 那
+        不是错误，调用方照样可以按「购买」。
+
+        Args:
+            area (tuple): (x1, y1, x2, y2)。
+            timeout (int|float): 最多等几秒。
+            require_motion (bool): 是否必须看到一次变化。
+
+        Returns:
+            bool: 是否等到"动过又停下"（`require_motion=False` 时，静止也算）。
+        """
+        timeout = Timer(timeout).start()
+        previous = self.image_crop(area, copy=True)
+        moved = False
+
+        for _ in self.loop():
+            current = self.image_crop(area, copy=True)
+            diff = np.mean(np.abs(current.astype(np.int16) - previous.astype(np.int16)))
+            previous = current
+            if diff >= 1.0:
+                moved = True
+            elif moved:
+                return True
+            elif not require_motion:
+                return True
+
+            if timeout.reached():
+                if require_motion and not moved:
+                    logger.info('[Shop] the dialog did not repaint, the amount was probably already at max')
+                return False
+
     def shop_buy(self, item, buy_max=True):
         """
         点开一格、选数量、买下来。
@@ -751,12 +796,14 @@ class EventShop:
             logger.warning('[Shop] the purchase dialog did not show up')
             return False
         # 面板是淡入的，第一帧就能匹配到 1.00 但按下去不算数（魔兽的确认框、
-        # 推荐部署面板都栽过），等它画稳。
-        self.wait_until_still(SHOP_PANEL_AREA, timeout=3)
+        # 推荐部署面板都栽过），等它画稳 —— 连数量条和「购买」一起盯。
+        self.shop_wait_paint(SHOP_DIALOG_AREA, timeout=3)
 
         if buy_max:
             self.device.click(SHOP_AMOUNT_MAX)  # alas-lint: allow - the dialog was matched above, 「购买完成。」below is the proof
-            self.wait_until_still(SHOP_PANEL_AREA, timeout=3)
+            # MAX 改的是数量条，游戏半秒后才重画。这里必须"先动再停"，否则拿着
+            # 旧数量去点「购买」，按钮还没响应时那一下就直接丢了。
+            self.shop_wait_paint(SHOP_DIALOG_AREA, timeout=3, require_motion=True)
 
         self.device.click(SHOP_CONFIRM)  # alas-lint: allow - same dialog, same proof
         if not self.wait_until_appear(SHOP_BUY_DONE, offset=(30, 30), timeout=SHOP_DONE_TIMEOUT):
@@ -770,6 +817,9 @@ class EventShop:
                 self.wait_until_disappear(SHOP_BUY_PANEL, offset=(30, 30), timeout=5)
             return False
 
+        # 「购买完成。」也是淡入的，等它画稳再点「确认」；点空了弹窗会留在原地，
+        # 下一次扫描就会把这件已经买到的商品当成还没买。
+        self.wait_until_still(SHOP_DONE_ALERT_AREA, timeout=2)
         self.device.click(SHOP_DONE_OK)  # alas-lint: allow - 「购买完成。」was just matched
         if not self.wait_until_disappear(SHOP_BUY_DONE, offset=(30, 30), timeout=10):
             logger.warning('[Shop] the「购买完成。」alert did not go away')

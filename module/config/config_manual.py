@@ -42,16 +42,18 @@ class ManualConfig:
     # 魔兽追踪者 → 活动任务 → 活动商店. Splitting it took a cold start and a trip
     # through the lobby for every single tab of the same page.
     #
-    # 卡厄思梦境 has one task so far: 「唤起」. It is the only way to make the
-    # scheduler switch to this game at all, so it has to be listed before the
-    # game can be used; the real daily tasks go above it as they are added.
+    # 卡厄思梦境 was reordered by the user (2026-11-08): 方舟都市 goes first because
+    # its 諾諾商店 is a weekly stock that runs out, then the stamina-burning
+    # 战斗训练, then the one-press 日常任務. 「唤起」 stays last: it only walks the
+    # client back to the main page so the block ends on a known screen, and the
+    # real daily tasks sit above it.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
-    > ChaoszeroSimulation > ChaoszeroArk > ChaoszeroDaily > ChaoszeroMain
+    > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroMain
     > CrosscoreMain
     """
 
