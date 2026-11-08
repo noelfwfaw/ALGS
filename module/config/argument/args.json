@@ -2523,6 +2523,61 @@
       }
     }
   },
+  "CrosscoreBase": {
+    "CrosscoreBase": {
+      "Team1Hours": {
+        "type": "input",
+        "value": 15.5
+      },
+      "Team2Hours": {
+        "type": "input",
+        "value": 8.5
+      }
+    },
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "CrosscoreBase",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "Starsavior2": {
     "Starsavior2": {
       "Nickname": {

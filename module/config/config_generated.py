@@ -156,6 +156,10 @@ class GeneratedConfig:
     ChaoszeroArk_CafeOrder = True
     ChaoszeroArk_ShopPurchase = True
 
+    # Group `CrosscoreBase`
+    CrosscoreBase_Team1Hours = 15.5
+    CrosscoreBase_Team2Hours = 8.5
+
     # Group `Starsavior2`
     Starsavior2_Nickname = ''
     Starsavior2_TargetMode = 'any'  # any, all

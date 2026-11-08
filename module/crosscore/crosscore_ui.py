@@ -34,13 +34,20 @@
 **主页按钮**一步就回大厅。所以 `handle_home()` 排在 `handle_sub_page()` 前面，
 「是否退出基地？」本身也留了一个处理分支，万一从别处被弹出来也能出得去。
 
-大厅的弹窗（公告、充值奖励）都是同一个样式的右上角 ✕（白叉 + 一点橙），
-所以一个模板管两家：实测公告上 1.000、充值奖励上 0.905，其它画面 ≤0.57。
+大厅的弹窗（公告、充值奖励）关闭键**不在同一个位置**（2026-11-08 实测）：
+公告是右上角 (1194,80) 的白叉 + 橙尖，充值奖励的 ✕ 在 (1064,137)。所以它们
+是两个模板，`handle_lobby_popup()` 按公告 → 充值依次处理。
+
+签到页只在当天首次登录时出现；已经签到过再重启，游戏直接进大厅，只剩公告和
+充值奖励两个弹窗。所以签到页是可选分支，认不出来就跳过，不能等。
 """
 
+from module.base.button import Button
 from module.base.timer import Timer
 from module.crosscore.assets import (BOOT_BACK, BOOT_HOME, BOOT_POPUP_CLOSE,
-                                     BOOT_START_GAME, DIALOG_CONFIRM, DIALOG_EXIT_BASE)
+                                     BOOT_START_GAME, DIALOG_CONFIRM, DIALOG_EXIT_BASE,
+                                     E_3_1, E_4_1, E_4_2, E_5_1, E_5_2, E_6_1,
+                                     E_6_2, E_7_1, E_7_2)
 from module.crosscore.page import page_main
 from module.exception import GameStuckError
 from module.logger import logger
@@ -56,6 +63,13 @@ CROSSCORE_ENTER_TIMEOUT = 90
 
 # 点了没反应时的重试间隔（硬约束 153：点一下没动不算失败，隔两秒再点）。
 CROSSCORE_RETRY_INTERVAL = 2
+
+# 大厅长时间不操作会进入待机：立绘和背景还在，**所有图标全部隐藏**，随便点一下
+# 才恢复（2026-11-08 用户实测）。那时 page_main 和所有弹窗判据都匹配不上，
+# 启动等待会一路空转到超时，所以在「一段时间没有任何已知页面」时补一次点击。
+# 点在屏幕正中：片头 / 加载层的点击本来就没有作用，标题屏和已知页面又都先被
+# 各自的分支接走了，所以这里只可能是待机画面。
+IDLE_WAKE_INTERVAL = 8
 
 
 class CrosscoreUI(UI):
@@ -98,16 +112,24 @@ class CrosscoreUI(UI):
         2. Lobby popups (公告 / 充值奖励) are closed **before** returning: they
            are drawn on top of the lobby, and `page_main` still matches behind
            them (0.998), so "lobby is up" does not mean "lobby is usable".
-        3. 「是否退出基地？」 - the dialog the base-building page raises when it
+        3. The 「获得物品」 popup is checked before the panels it is drawn on
+           top of: it covers the sign-in page, and the 已签到 button behind it
+           matches at 0.998, so a signed-in check running first would press the
+           back arrow while the reward is still unclaimed.
+        4. The daily sign-in page and the 已签到 panel only show up on the first
+           login of the day, so they are optional branches: press 签到, wait for
+           the reward popup, then leave the greyed-out panel. On a restart after
+           signing in the game skips all three.
+        5. 「是否退出基地？」 - the dialog the base-building page raises when it
            is left. It is a dialog, so it comes after the lobby check and before
            everything that is a page.
-        4. 「开始游戏」 is the only thing that takes the client inside.
-        5. The base page has a home button that goes straight back to the lobby
+        6. 「开始游戏」 is the only thing that takes the client inside.
+        7. The base page has a home button that goes straight back to the lobby
            (measured: no dialog in between), so it is pressed before the back
            arrow of the shared header.
-        6. Anything else with a back arrow in the top left is a secondary page
+        8. Anything else with a back arrow in the top left is a secondary page
            (签到 / 任务) the game was left on; walk back out of it.
-        7. What is left - the NERI splash, the logo animation, the 加载中
+        9. What is left - the NERI splash, the logo animation, the 加载中
            overlay - is waited out; pressing anything there does nothing.
 
         Pages:
@@ -122,6 +144,7 @@ class CrosscoreUI(UI):
         """
         logger.hr('App boot', level=2)
         timeout = Timer(CROSSCORE_BOOT_TIMEOUT, count=3).start()
+        idle = Timer(IDLE_WAKE_INTERVAL).start()
 
         while 1:
             if skip_first_screenshot:
@@ -141,11 +164,21 @@ class CrosscoreUI(UI):
             if self.ui_page_appear(page_main):
                 if self.handle_lobby_popup():
                     continue
+                if self.handle_item_popup():
+                    continue
                 logger.info('Game is at page_main')
                 return True
 
             # Popup over the lobby
             if self.handle_lobby_popup():
+                continue
+            if self.handle_item_popup():
+                continue
+
+            # Daily sign-in, only on the first login of the day
+            if self.handle_sign_in():
+                continue
+            if self.handle_signed_in_page():
                 continue
 
             # 「是否退出基地？」 over the base page
@@ -162,6 +195,17 @@ class CrosscoreUI(UI):
 
             if self.handle_sub_page():
                 continue
+
+            # Nothing known on screen for a while: the lobby is showing its idle
+            # view with every icon hidden, one tap brings them back.
+            if idle.reached():
+                idle.reset()
+                logger.info('No known page, tap the screen to wake the idle lobby')
+                wake = Button(area=(636, 356, 644, 364), color=(0, 0, 0),
+                              button=(636, 356, 644, 364), name='WAKE_TAP')
+                # The idle lobby hides every icon, so there is no template to
+                # guard this tap with; it is repeated by the timer above.
+                self.device.click(wake)  # alas-lint: allow - the idle lobby hides every icon, there is nothing to appear-guard
 
             if timeout.reached():
                 logger.warning('Wait game boot timeout')
@@ -198,26 +242,129 @@ class CrosscoreUI(UI):
 
     def handle_lobby_popup(self):
         """
-        Close a lobby popup (公告 / 充值奖励) with its ✕.
+        Close a lobby popup: 公告 first, then 充值奖励.
 
-        Both popups use the same close button - a white cross with an orange
-        tip on a dark rounded square - so one template covers them: measured
-        1.000 on the 公告, 0.905 on 充值奖励, at most 0.57 on every other screen
-        of the boot. They are raised on entering the lobby, so this is both part
-        of `handle_app_boot()` and wired into `ui_additional()`: a task that is
-        already running can have one pop over it.
+        They do **not** share a close button (2026-11-08 实测): the 公告 uses the
+        white cross at the top right (1194,80), while the 充值奖励 raises its own
+        ✕ at (1064,137). The old single template left the recharge popup on
+        screen, and the boot waited on the lobby until it timed out.
+
+        Both handlers require the popup body and its ✕ at the same time; a lone
+        ✕ would be a blind tap, and the recharge banner is also part of the
+        clean lobby, so its body alone must not count as "popup is open".
 
         Returns:
             bool: If a popup was on screen (and was pressed).
         """
-        if self.appear(BOOT_POPUP_CLOSE, offset=(20, 20), interval=CROSSCORE_RETRY_INTERVAL):
-            logger.info('A lobby popup is open, press its X')
+        if self.handle_announcement_popup():
+            return True
+        if self.handle_recharge_popup():
+            return True
+
+        return False
+
+    def handle_announcement_popup(self):
+        """
+        Close the 公告 popup.
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(E_3_1, offset=(20, 20)) \
+                and self.appear(BOOT_POPUP_CLOSE, offset=(20, 20), interval=CROSSCORE_RETRY_INTERVAL):
+            logger.info('公告 popup, press its X')
             self.device.click_record_clear()
             self.device.click(BOOT_POPUP_CLOSE)
-            if not self.wait_until_disappear(BOOT_POPUP_CLOSE, offset=(20, 20), timeout=5, settle=2):
-                # 不是失败：关掉一个之后下一张（公告 → 充值奖励）会立刻顶上来，
-                # 同一个 ✕ 又出现了。交给调用处再关一次。
+            if not self.wait_until_disappear(E_3_1, offset=(20, 20), timeout=5, settle=2):
+                # 不是失败：关掉公告后充值奖励会立刻顶上来，下一轮再关。
                 logger.info('Another popup is on screen, close it in the next round')
+            return True
+
+        return False
+
+    def handle_recharge_popup(self):
+        """
+        Close the 充值奖励 popup, whose ✕ is not at the top right.
+
+        The popup body (E_6_1) is checked together with its own ✕ (E_6_2): the
+        same banner is also part of the clean lobby, and a check that fires on
+        the clean lobby would keep the boot loop from ever returning.
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(E_6_1, offset=(20, 20)) \
+                and self.appear(E_6_2, offset=(20, 20), interval=CROSSCORE_RETRY_INTERVAL):
+            logger.info('充值奖励 popup, press its own X')
+            self.device.click_record_clear()
+            self.device.click(E_6_2)
+            if not self.wait_until_disappear(E_6_1, offset=(20, 20), timeout=5, settle=2):
+                logger.warning('The recharge popup is still there, the X did not take')
+            return True
+
+        return False
+
+    def handle_item_popup(self):
+        """
+        Close the 「获得物品」 popup raised by the daily sign-in.
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(E_5_1, offset=(20, 20)) \
+                and self.appear(E_5_2, offset=(20, 20), interval=CROSSCORE_RETRY_INTERVAL):
+            logger.info('Item popup, press its confirm button')
+            self.device.click_record_clear()
+            self.device.click(E_5_2)
+            if not self.wait_until_disappear(E_5_1, offset=(20, 20), timeout=5, settle=2):
+                logger.warning('The item popup is still there')
+            return True
+
+        return False
+
+    def handle_sign_in(self):
+        """
+        Press 「签到」 on the daily sign-in page.
+
+        The page only shows up on the first login of the day; a restart after
+        signing in goes straight to the lobby (2026-11-08 实测), so this is an
+        optional branch. The page and the button are checked together, then the
+        code waits for the 「获得物品」 popup: the click is swallowed while the
+        panel is still fading in.
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(E_4_1, offset=(20, 20)) \
+                and self.appear(E_4_2, offset=(20, 20), interval=CROSSCORE_RETRY_INTERVAL):
+            logger.info('Sign-in page, press 签到')
+            self.device.click_record_clear()
+            self.device.click(E_4_2)
+            if not self.wait_until_appear(E_5_1, offset=(20, 20), timeout=10, settle=2):
+                logger.warning('Sign-in popup did not show up')
+            return True
+
+        return False
+
+    def handle_signed_in_page(self):
+        """
+        Leave the 已签到 panel through its back arrow.
+
+        After the reward popup is closed the panel stays on screen with the
+        bottom-right button greyed out; its only way out is the top-left arrow.
+        The page check is that greyed button (E_7_2), the action is the arrow
+        (E_7_1).
+
+        Returns:
+            bool: If handled.
+        """
+        if self.appear(E_7_2, offset=(20, 20)) \
+                and self.appear(E_7_1, offset=(20, 20), interval=CROSSCORE_RETRY_INTERVAL):
+            logger.info('Signed-in panel, press the back arrow')
+            self.device.click_record_clear()
+            self.device.click(E_7_1)
+            if not self.wait_until_disappear(E_7_2, offset=(20, 20), timeout=5, settle=2):
+                logger.warning('The signed-in panel is still there')
             return True
 
         return False
@@ -301,13 +448,22 @@ class CrosscoreUI(UI):
         """
         Handle the popups that can show up on any page.
 
-        Only one family so far: the lobby popups (公告 / 充值奖励), which the
-        client raises on entering the lobby - including when the lobby is
-        re-entered in the middle of a task.
+        Two families so far:
+
+        1. The lobby popups (公告 / 充值奖励), which the client raises on
+           entering the lobby - including when the lobby is re-entered in the
+           middle of a task.
+        2. The 「获得物品」 reward popup. It is the same template on every page
+           of the game (page_3 / page_14 / page_17 of the spec are identical),
+           and the base task raises it from claiming, delivering orders and
+           crafting alike, so it is handled once here instead of in every
+           caller.
 
         Returns:
             bool: If handled.
         """
+        if self.handle_item_popup():
+            return True
         if self.handle_lobby_popup():
             return True
 

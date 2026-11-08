@@ -76,7 +76,8 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
-      "CrosscoreMain"
+      "CrosscoreMain",
+      "CrosscoreBase"
     ]
   },
   "Starsavior": {

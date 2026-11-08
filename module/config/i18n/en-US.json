@@ -22,7 +22,7 @@
     },
     "Crosscore": {
       "name": "Cross Core",
-      "help": "Daily tasks of Cross Core (only the launch task so far)"
+      "help": "Daily tasks of Cross Core: launch, base"
     },
     "Starsavior": {
       "name": "Star Savior",
@@ -205,6 +205,10 @@
     "CrosscoreMain": {
       "name": "Launch game",
       "help": "Bring the client from a cold start, the title screen or a sub page to the main page, claiming nothing. Every other task of this game starts from there"
+    },
+    "CrosscoreBase": {
+      "name": "Base",
+      "help": "Collect base materials, rotate the staff on schedule, and buy construction orders from your own and your friends' libraries. Missing materials are crafted first"
     },
     "Starsavior2": {
       "name": "Reroll",
@@ -869,6 +873,20 @@
     "ShopPurchase": {
       "name": "諾諾商店",
       "help": "Buys the shelf out from the top, pressing MAX on each product. 單元幣 is never bought; products whose 購買 button is grey (holding cap reached, not enough coins) are skipped"
+    }
+  },
+  "CrosscoreBase": {
+    "_info": {
+      "name": "Base Settings",
+      "help": "The script never mixes teams: the first readable preset decides, and every facility is aligned to the other team"
+    },
+    "Team1Hours": {
+      "name": "Team 1 Hours",
+      "help": "How long team 1 works. Every run of Base switches to the other team; when a run leaves team 1 on duty, the next run is scheduled from this value"
+    },
+    "Team2Hours": {
+      "name": "Team 2 Hours",
+      "help": "How long team 2 works. Every run of Base switches to the other team; when a run leaves team 2 on duty, the next run is scheduled from this value"
     }
   },
   "Starsavior2": {

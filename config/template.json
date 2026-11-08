@@ -702,6 +702,23 @@
       "Storage": {}
     }
   },
+  "CrosscoreBase": {
+    "CrosscoreBase": {
+      "Team1Hours": 15.5,
+      "Team2Hours": 8.5
+    },
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "CrosscoreBase",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "Starsavior2": {
     "Starsavior2": {
       "Nickname": "",

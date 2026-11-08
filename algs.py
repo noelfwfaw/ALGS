@@ -237,6 +237,11 @@ class AlGS(GameScheduler):
         from module.crosscore.main import CrosscoreMain
         CrosscoreMain(config=self.config, device=self.device).run()
 
+    def crosscore_base(self):
+        # 基地：领素材 / 驻员换班 / 订单库买构建订单。
+        from module.crosscore.base import CrosscoreBase
+        CrosscoreBase(config=self.config, device=self.device).run()
+
     # ==================== Star Savior (星之救援者) ====================
     #
     # ❗这是**工具**不是任务（`task.yaml` 里 `page: 'tool'`、没有 `Scheduler` 组）：
