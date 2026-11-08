@@ -165,6 +165,8 @@ Crosscore:
     CrosscoreExplore:
       - Scheduler
       - CrosscoreExplore
+    CrosscoreExercise:
+      - Scheduler
     CrosscoreBase:
       - CrosscoreBase
       - Scheduler

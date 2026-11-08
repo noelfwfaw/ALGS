@@ -81,6 +81,7 @@
       "CrosscoreTask",
       "CrosscorePass",
       "CrosscoreExplore",
+      "CrosscoreExercise",
       "CrosscoreBase"
     ]
   },

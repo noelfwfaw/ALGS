@@ -37,7 +37,8 @@ from module.base.utils import crop
 from module.crosscore.assets import (BASE_CLAIM, BASE_ORDER, BASE_STAFF,
                                      CRAFT_BACK,
                                      CRAFT_BLACKBOX, CRAFT_CONFIRM, CRAFT_FUSED,
-                                     CRAFT_MIN, CRAFT_PIEZO, CRAFT_PLUS, E_5_1,
+                                     CRAFT_MIN, CRAFT_PIEZO, CRAFT_PLUS,
+                                     CRAFT_RESULT, E_5_1,
                                      MAIN_GOTO_BASE, ORDER_BUILD,
                                      ORDER_CONFIRM, ORDER_CONFIRM_TITLE,
                                      ORDER_CRAFT, ORDER_FRIEND, ORDER_LACK,
@@ -801,6 +802,15 @@ class CrosscoreBase(CrosscoreUI):
             self.device.click(CRAFT_CONFIRM)
         rewarded = False
         for _ in self.loop(timeout=8):
+            if self.appear(CRAFT_RESULT, offset=(20, 20)):
+                # 合成结束的两种结算页（整屏「合成成功」/「获得物品」弹窗）底部
+                # 都是「·点击空白处继续·」，点空白关掉它。合成对话框还在下面，
+                # 交给后面的返回按钮收尾。
+                logger.info('Craft result, press the blank area')
+                self.device.click(self.tap_point((640, 560), 'CRAFT_RESULT_CLICK'))
+                self.wait_until_appear(CRAFT_PLUS, offset=(20, 20), timeout=5)
+                rewarded = True
+                break
             if self.handle_item_popup():
                 rewarded = True
             if rewarded:

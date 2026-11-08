@@ -257,6 +257,11 @@ class AlGS(GameScheduler):
         from module.crosscore.explore import CrosscoreExplore
         CrosscoreExplore(config=self.config, device=self.device).run()
 
+    def crosscore_exercise(self):
+        # 模拟军演：只打对手列表第一个，打满模拟次数后到军演商店买东西。
+        from module.crosscore.exercise import CrosscoreExercise
+        CrosscoreExercise(config=self.config, device=self.device).run()
+
     def crosscore_base(self):
         # 基地：领素材 / 驻员换班 / 订单库买构建订单。
         from module.crosscore.base import CrosscoreBase

@@ -44,6 +44,10 @@ CRAFT_BACK = Button(area={'crosscore': (49, 25, 110, 70)}, color={'crosscore': (
 CRAFT_PLUS = Button(area={'crosscore': (1078, 339, 1130, 378)}, color={'crosscore': (216, 163, 54)}, button={'crosscore': (1078, 339, 1130, 378)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_PLUS.png'})
 CRAFT_MIN = Button(area={'crosscore': (894, 341, 978, 379)}, color={'crosscore': (202, 202, 202)}, button={'crosscore': (894, 341, 978, 379)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_MIN.png'})
 CRAFT_CONFIRM = Button(area={'crosscore': (1023, 597, 1104, 650)}, color={'crosscore': (195, 146, 49)}, button={'crosscore': (1023, 597, 1104, 650)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_CONFIRM.png'})
+# 合成结算页（「合成成功」整屏 / 「获得物品」弹窗）底部的「·点击空白处继续·」。
+# 两种结算页位置一致，不点掉会盖住合成对话框，导致退不出去
+# （2026-11-09 真机：第二次合成后卡死在这里）。
+CRAFT_RESULT = Button(area={'crosscore': (568, 532, 712, 552)}, color={'crosscore': (52, 53, 60)}, button={'crosscore': (568, 532, 712, 552)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_RESULT.png'})
 ORDER_BUILD = Button(area={'crosscore': (1092, 444, 1161, 514)}, color={'crosscore': (122, 117, 113)}, button={'crosscore': (992, 648, 1160, 669)}, file={'crosscore': './assets/crosscore/crosscore/ORDER_BUILD.png'})
 ORDER_CONFIRM_TITLE = Button(area={'crosscore': (536, 298, 735, 346)}, color={'crosscore': (100, 104, 112)}, button={'crosscore': (536, 298, 735, 346)}, file={'crosscore': './assets/crosscore/crosscore/ORDER_CONFIRM_TITLE.png'})
 ORDER_CONFIRM = Button(area={'crosscore': (760, 421, 842, 474)}, color={'crosscore': (196, 147, 50)}, button={'crosscore': (760, 421, 842, 474)}, file={'crosscore': './assets/crosscore/crosscore/ORDER_CONFIRM.png'})
@@ -160,3 +164,43 @@ EXPLORE_NO_FUEL = Button(area={'crosscore': (200, 152, 330, 185)}, color={'cross
 
 # 对话框外的空白角落，点一下关掉「燃料补给」。纯坐标 → **永远不能进 `appear()` 家族**。
 EXPLORE_DIALOG_OUTSIDE = Button(area={'crosscore': (1100, 620, 1220, 700)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (1100, 620, 1220, 700)}, name='EXPLORE_DIALOG_OUTSIDE')
+
+# ==================== 模拟军演 ====================
+
+# 入口链：出击页「模拟军演」→ 模拟军演页「镜像竞技」→ 选对手页。
+EXERCISE_ENTRY = Button(area={'crosscore': (251, 335, 361, 391)}, color={'crosscore': (60, 64, 73)}, button={'crosscore': (251, 335, 361, 391)}, file={'crosscore': './assets/crosscore/crosscore/模拟军演.png'}, name='EXERCISE_ENTRY')
+EXERCISE_MIRROR = Button(area={'crosscore': (405, 397, 626, 464)}, color={'crosscore': (111, 113, 118)}, button={'crosscore': (405, 397, 626, 464)}, file={'crosscore': './assets/crosscore/crosscore/镜像竞技.png'}, name='EXERCISE_MIRROR')
+
+# 选对手页的判据：第一行「排名」小牌子。三行对手都有，但结算页的「排名:」没有这块底板，
+# 实测跨页最高 0.669。
+EXERCISE_OPPONENT = Button(area={'crosscore': (826, 146, 883, 184)}, color={'crosscore': (111, 111, 117)}, button={'crosscore': (826, 146, 883, 184)}, file={'crosscore': './assets/crosscore/crosscore/选对手.png'}, name='EXERCISE_OPPONENT')
+
+# 选对手页左下「商店兑换」与右下「进攻部署」（后者只有坐标，由代码内 Button 承担）。
+EXERCISE_SHOP = Button(area={'crosscore': (218, 636, 377, 677)}, color={'crosscore': (201, 154, 54)}, button={'crosscore': (218, 636, 377, 677)}, file={'crosscore': './assets/crosscore/crosscore/军演商店.png'}, name='EXERCISE_SHOP')
+
+# VS 页「挑战」。
+EXERCISE_CHALLENGE = Button(area={'crosscore': (762, 627, 910, 668)}, color={'crosscore': (211, 162, 59)}, button={'crosscore': (762, 627, 910, 668)}, file={'crosscore': './assets/crosscore/crosscore/挑战.png'}, name='EXERCISE_CHALLENGE')
+
+# 「战斗胜利」只在赢时匹配，用来写日志；结算页本身用标题下方的装饰线判定，
+# 输赢都有（`军演结算.png` 由 战斗胜利.png 的 y 122~140 裁出，跨页最高 0.724）。
+EXERCISE_WIN = Button(area={'crosscore': (30, 27, 390, 127)}, color={'crosscore': (98, 100, 105)}, button={'crosscore': (30, 27, 390, 127)}, file={'crosscore': './assets/crosscore/crosscore/战斗胜利.png'}, name='EXERCISE_WIN')
+EXERCISE_RESULT = Button(area={'crosscore': (35, 122, 385, 140)}, color={'crosscore': (42, 44, 51)}, button={'crosscore': (35, 122, 385, 140)}, file={'crosscore': './assets/crosscore/crosscore/军演结算.png'}, name='EXERCISE_RESULT')
+
+# 商店：购买对话框里的「购买」与「最大」，两种对话框的购买按钮位置相同。
+EXERCISE_BUY = Button(area={'crosscore': (789, 520, 935, 557)}, color={'crosscore': (222, 176, 66)}, button={'crosscore': (789, 520, 935, 557)}, file={'crosscore': './assets/crosscore/crosscore/道具购买.png'}, name='EXERCISE_BUY')
+EXERCISE_BUY_QTY = Button(area={'crosscore': (790, 521, 915, 557)}, color={'crosscore': (215, 171, 63)}, button={'crosscore': (790, 521, 915, 557)}, file={'crosscore': './assets/crosscore/crosscore/道具购买（有数量）.png'}, name='EXERCISE_BUY_QTY')
+EXERCISE_MAX = Button(area={'crosscore': (978, 412, 1028, 443)}, color={'crosscore': (211, 163, 59)}, button={'crosscore': (978, 412, 1028, 443)}, file={'crosscore': './assets/crosscore/crosscore/最大数量.png'}, name='EXERCISE_MAX')
+
+# 商店页判据：左上「演习」标题（对话框里也会匹配，所以购买分支要先于它判断）。
+EXERCISE_SHOP_PAGE = Button(area={'crosscore': (60, 110, 130, 150)}, color={'crosscore': (46, 49, 46)}, button={'crosscore': (60, 110, 130, 150)}, file={'crosscore': './assets/crosscore/crosscore/军演商店页.png'}, name='EXERCISE_SHOP_PAGE')
+
+# 星币 / 技术点两张商品卡：买完的商品会变暗排到队尾，所以一直点左上第一格，
+# 直到第一格里出现这两个图标（只在这两张卡上出现，纯图标匹配，不入 `appear()`）。
+EXERCISE_COIN_ITEM = Button(area={'crosscore': (1155, 205, 1275, 290)}, color={'crosscore': (81, 91, 106)}, button={'crosscore': (1155, 205, 1275, 290)}, file={'crosscore': './assets/crosscore/crosscore/星币商品.png'}, name='EXERCISE_COIN_ITEM')
+EXERCISE_TECH_ITEM = Button(area={'crosscore': (1155, 435, 1275, 515)}, color={'crosscore': (51, 66, 64)}, button={'crosscore': (1155, 435, 1275, 515)}, file={'crosscore': './assets/crosscore/crosscore/技术点商品.png'}, name='EXERCISE_TECH_ITEM')
+
+# 纯坐标点击：第一行对手、商店左上第一格、结算页空白。
+# 这些 Button 只进 `device.click()`，**永远不能进 `appear()` 家族**。
+EXERCISE_OPPONENT_1 = Button(area={'crosscore': (340, 115, 1010, 255)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (340, 115, 1010, 255)}, name='EXERCISE_OPPONENT_1')
+EXERCISE_ITEM_1 = Button(area={'crosscore': (15, 135, 225, 390)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (15, 135, 225, 390)}, name='EXERCISE_ITEM_1')
+EXERCISE_RESULT_CLICK = Button(area={'crosscore': (560, 650, 720, 710)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (560, 650, 720, 710)}, name='EXERCISE_RESULT_CLICK')

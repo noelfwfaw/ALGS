@@ -47,6 +47,11 @@ class ManualConfig:
     # 战斗训练, then the one-press 日常任務. 「唤起」 stays last: it only walks the
     # client back to the main page so the block ends on a known screen, and the
     # real daily tasks sit above it.
+    #
+    # 交错战线 was reordered by the user (2026-11-09): 任务 and 通行证 go last.
+    # Both are claims on what the rest of the block did - the daily/weekly task
+    # rewards and the pass points only fill up after the sorties - so they run
+    # after 探索/军演/基地 instead of before them.
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
@@ -54,7 +59,7 @@ class ManualConfig:
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
     > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroRedeem > ChaoszeroMain
-    > CrosscoreMain > CrosscoreMail > CrosscoreTask > CrosscorePass > CrosscoreExplore > CrosscoreBase
+    > CrosscoreMain > CrosscoreMail > CrosscoreExplore > CrosscoreExercise > CrosscoreBase > CrosscoreTask > CrosscorePass
     """
 
     # 工具页（`task.yaml` 里 `page: 'tool'`）能**单独启动**的任务。

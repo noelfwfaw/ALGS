@@ -222,6 +222,10 @@
       "name": "Daily Explore",
       "help": "Enter via 「出擊 → 每日探索」 from the lobby and farm a single sub-stage as configured: pick that sub-stage's highest unlocked floor, press 「掃蕩 → 開始戰鬥」, accept the drop bonus with 「使用」, then press 「獎勵」 at the bottom right to close the result screen and return to the main screen. Sweeping consumes all stamina"
     },
+    "CrosscoreExercise": {
+      "name": "Simulation Exercise",
+      "help": "Enter via 「出擊 → 模擬軍演 → 鏡像競技」 from the lobby. Always fight the first opponent (power is ignored) for all 10 daily simulation attempts; victory and defeat both end on the same result page, which is dismissed with a tap on the blank area. Then open 「商店兌換」 and buy from the top-left item in order, using 「最大」 for stackable items and skipping 星幣 / 技術點 until only those two are left"
+    },
     "CrosscoreBase": {
       "name": "Base",
       "help": "Collect base materials, rotate the staff on schedule, and buy construction orders from your own and your friends' libraries. Missing materials are crafted first"
