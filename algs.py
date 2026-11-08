@@ -267,6 +267,11 @@ class AlGS(GameScheduler):
         from module.crosscore.base import CrosscoreBase
         CrosscoreBase(config=self.config, device=self.device).run()
 
+    def crosscore_redeem(self):
+        # 兑换码：从 GameKee 抓，新的在游戏里兑掉（官服 / B服 都试一遍）。
+        from module.crosscore.redeem import CrosscoreRedeem
+        CrosscoreRedeem(config=self.config, device=self.device).run()
+
     # ==================== Star Savior (星之救援者) ====================
     #
     # ❗这是**工具**不是任务（`task.yaml` 里 `page: 'tool'`、没有 `Scheduler` 组）：

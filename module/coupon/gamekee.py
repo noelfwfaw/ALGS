@@ -27,6 +27,11 @@ import requests
 from module.logger import logger
 
 API = 'https://www.gamekee.com/v1/game/cdk/query-list'
+# Some wikis keep the codes per server instead of in one flat list. The flat
+# endpoint then answers an empty list (measured on 交错战线/`jchx`: 0 entries),
+# while the server endpoint answers the full list for the `server_id` the URL
+# points at (`/jchx/redemptionCode/119` -> server 119, 国服).
+API_SERVER = 'https://www.gamekee.com/v1/game/cdk/queryByServerIdPageList'
 # The wiki page the header has to point at. The trailing number is the section
 # of that game's wiki and is different per game (失落之剑 20, 棕色尘埃2 12); the
 # server does not seem to read it, but a Referer from the right wiki is the
@@ -39,6 +44,12 @@ PAGE_LIMIT = 100
 # Backoff between attempts. A single network hiccup should not cost the day.
 RETRY_DELAY = (1.5, 3.0, 4.5)
 TIMEOUT = 20
+
+# `end_at` of a code that never expires is 0 in the answer. It is kept as the
+# largest possible date instead of being dropped: 交错战线 publishes its version
+# codes without an end date, and dropping them would leave the task with
+# nothing to redeem at all.
+NO_EXPIRY = datetime.datetime.max
 
 HEADERS = {
     'X-Requested-With': 'XMLHttpRequest',
@@ -53,21 +64,27 @@ class GameKeeError(Exception):
     """The site answered something the caller cannot use."""
 
 
-def fetch_codes(alias, page=1, limit=PAGE_LIMIT, timeout=TIMEOUT):
+def fetch_codes(alias, page=1, limit=PAGE_LIMIT, timeout=TIMEOUT, server_id=None):
     """
     Read the coupon list of one game and keep the codes that are still valid.
 
     Args:
         alias (str): Game alias on GameKee, i.e. the first segment of the wiki
-            URL: `lostsword` for 失落之剑, `zsca2` for 棕色尘埃2. It goes into the
-            `game-alias` header, which is the only thing the endpoint asks for.
+            URL: `lostsword` for 失落之剑, `zsca2` for 棕色尘埃2, `jchx` for
+            交错战线. It goes into the `game-alias` header, which is the only
+            thing the endpoint asks for.
         page (int): Last segment of that game's wiki URL, used for the Referer.
         limit (int): Entries per page.
         timeout (int, float): Seconds per attempt.
+        server_id (int): For a wiki that keeps its codes per server, the server
+            the page is showing, i.e. the `id` of the 「区服」 module of
+            `/v1/wiki/indexV2`. `None` (the default) asks the flat endpoint that
+            失落之剑 and 棕色尘埃2 use.
 
     Returns:
         list[dict]: Newest first, each `{'code': str, 'content': str,
-            'end_at': datetime.datetime}`.
+            'end_at': datetime.datetime}`. A code without an end date gets
+            `NO_EXPIRY`.
 
     Raises:
         GameKeeError: After every attempt failed, with the reason of the last
@@ -78,11 +95,18 @@ def fetch_codes(alias, page=1, limit=PAGE_LIMIT, timeout=TIMEOUT):
     referer = URL.format(alias=alias, page=page)
     headers['Referer'] = referer
 
+    if server_id is None:
+        url = API
+        params = {'page_no': 1, 'limit': limit}
+    else:
+        url = API_SERVER
+        params = {'server_id': server_id, 'page_no': 1, 'limit': limit}
+
     last = None
     for attempt, delay in enumerate(RETRY_DELAY, start=1):
         try:
             response = requests.get(
-                API, params={'page_no': 1, 'limit': limit},
+                url, params=params,
                 headers=headers, timeout=timeout)
         except requests.RequestException as e:
             last = f'{type(e).__name__}: {e}'
@@ -139,12 +163,16 @@ def normalize_codes(items, now=None):
     codes = []
     for item in items:
         code = (item.get('code') or '').strip()
+        if not code:
+            continue
         end_at = item.get('end_at')
-        if not code or not end_at:
-            continue
-        end_at = datetime.datetime.fromtimestamp(int(end_at))
-        if end_at <= now:
-            continue
+        if end_at:
+            end_at = datetime.datetime.fromtimestamp(int(end_at))
+            if end_at <= now:
+                continue
+        else:
+            # 0 means the wiki did not give this code an end date.
+            end_at = NO_EXPIRY
         codes.append(
             {
                 'code': code,

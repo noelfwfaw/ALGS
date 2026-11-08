@@ -59,7 +59,7 @@ class ManualConfig:
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
     > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroRedeem > ChaoszeroMain
-    > CrosscoreMain > CrosscoreMail > CrosscoreExplore > CrosscoreExercise > CrosscoreBase > CrosscoreTask > CrosscorePass
+    > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreExercise > CrosscoreBase > CrosscoreTask > CrosscorePass
     """
 
     # 工具页（`task.yaml` 里 `page: 'tool'`）能**单独启动**的任务。

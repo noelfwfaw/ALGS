@@ -24,7 +24,7 @@ repository:
       }
     }
 
-Five statuses, and every one of them means "do not try again":
+Six statuses, and every one of them means "do not try again":
 
     redeemed   the game took it
     used       the code was spent before (「已使用过的优惠券」 / 「本序列号已使用完毕」)
@@ -32,10 +32,14 @@ Five statuses, and every one of them means "do not try again":
     invalid    the server does not know the code - 棕色尘埃2 answers this with
                「无效的序列号」. Not the same thing as expired: the code may
                still be inside its `end_at` and simply never existed.
+    channel    the code is valid but belongs to the other channel - 交错战线
+               answers a B-server code on an official-server account with
+               「不符合该兑换码所限制的渠道类型」. Only 交错战线 needs this
+               status: its wiki lists both channels on one page.
     failed     the game answered something that could not be read; retrying the
                same code every day would just repeat the same failure
 
-The point of `failed` is the opposite of the other four: a code that could not
+The point of `failed` is the opposite of the other five: a code that could not
 be read is kept out of the retry loop for good, because a task that retries the
 one broken entry every day never gets to the new ones in a useful order.
 """
@@ -50,10 +54,11 @@ REDEEMED = 'redeemed'
 USED = 'used'
 EXPIRED = 'expired'
 INVALID = 'invalid'
+CHANNEL = 'channel'
 FAILED = 'failed'
 
 # Every one of them means the code will not be sent to the game again.
-SETTLED = (REDEEMED, USED, EXPIRED, INVALID, FAILED)
+SETTLED = (REDEEMED, USED, EXPIRED, INVALID, CHANNEL, FAILED)
 
 
 class CodeBook:

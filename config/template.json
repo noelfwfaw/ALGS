@@ -702,6 +702,19 @@
       "Storage": {}
     }
   },
+  "CrosscoreRedeem": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "CrosscoreRedeem",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "CrosscoreMail": {
     "Scheduler": {
       "Enable": false,

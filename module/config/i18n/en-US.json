@@ -206,6 +206,10 @@
       "name": "Launch game",
       "help": "Bring the client from a cold start, the title screen or a sub page to the main page, claiming nothing. Every other task of this game starts from there"
     },
+    "CrosscoreRedeem": {
+      "name": "Coupon codes",
+      "help": "Fetch the Cross Core coupon codes from GameKee and submit the new ones one by one in 菜单 → 设置 → 补给兑换; the toast the game raises decides the result and a settled code is not sent again. Codes of both the official server and B server are tried: the one that does not belong to this account is answered with an error, which only costs one press"
+    },
     "CrosscoreMail": {
       "name": "Mail",
       "help": "Collect every mail with one press. Whether anything is left is read from the golden highlight of the claim button; once it greys out the task goes back to the lobby"

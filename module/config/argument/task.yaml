@@ -156,6 +156,8 @@ Crosscore:
   tasks:
     CrosscoreMain:
       - Scheduler
+    CrosscoreRedeem:
+      - Scheduler
     CrosscoreMail:
       - Scheduler
     CrosscoreTask:

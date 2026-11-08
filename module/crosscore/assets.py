@@ -204,3 +204,26 @@ EXERCISE_TECH_ITEM = Button(area={'crosscore': (1155, 435, 1275, 515)}, color={'
 EXERCISE_OPPONENT_1 = Button(area={'crosscore': (340, 115, 1010, 255)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (340, 115, 1010, 255)}, name='EXERCISE_OPPONENT_1')
 EXERCISE_ITEM_1 = Button(area={'crosscore': (15, 135, 225, 390)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (15, 135, 225, 390)}, name='EXERCISE_ITEM_1')
 EXERCISE_RESULT_CLICK = Button(area={'crosscore': (560, 650, 720, 710)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (560, 650, 720, 710)}, name='EXERCISE_RESULT_CLICK')
+
+# ==================== 兑换码 ====================
+
+# 大厅右上角的菜单图标（三条横线）。点它拉出右侧菜单。
+COUPON_MENU = Button(area={'crosscore': (1203, 28, 1235, 58)}, color={'crosscore': (104, 105, 113)}, button={'crosscore': (1203, 28, 1235, 58)}, file={'crosscore': './assets/crosscore/crosscore/点开菜单.png'}, name='COUPON_MENU')
+# 菜单右侧竖排的「设置」齿轮。
+COUPON_SETTINGS = Button(area={'crosscore': (1185, 336, 1231, 385)}, color={'crosscore': (86, 88, 94)}, button={'crosscore': (1185, 336, 1231, 385)}, file={'crosscore': './assets/crosscore/crosscore/点开设置.png'}, name='COUPON_SETTINGS')
+# 设置页左侧最下面的「补给兑换」。
+COUPON_ENTRY = Button(area={'crosscore': (20, 523, 155, 567)}, color={'crosscore': (36, 38, 38)}, button={'crosscore': (20, 523, 155, 567)}, file={'crosscore': './assets/crosscore/crosscore/点击补给兑换.png'}, name='COUPON_ENTRY')
+# 兑换中心页标题。既是页面判据，也是点输入框 / 提交之前的守卫。
+COUPON_TITLE = Button(area={'crosscore': (266, 150, 358, 181)}, color={'crosscore': (74, 76, 79)}, button={'crosscore': (266, 150, 358, 181)}, file={'crosscore': './assets/crosscore/crosscore/兑换中心.png'}, name='COUPON_TITLE')
+# 兑换码输入框。纯坐标 → **永远不能进 `appear()` 家族**，只在 `COUPON_TITLE` 命中后点击。
+COUPON_INPUT = Button(area={'crosscore': (628, 384, 727, 418)}, color={'crosscore': (20, 24, 30)}, button={'crosscore': (628, 384, 727, 418)}, name='COUPON_INPUT')
+# 输入框下方的对勾。灰态和橙态的**结构一样**（模板匹配对两者都是 0.99），所以
+# 不能用 `appear()` 判断有没有点亮：脚本先 `appear()` 定位，再用 `image_color_count`
+# 数金色像素（灰态 0、橙态 3465）确认码已经输入、可以提交。
+COUPON_SUBMIT = Button(area={'crosscore': (667, 471, 793, 501)}, color={'crosscore': (242, 184, 63)}, button={'crosscore': (667, 471, 793, 501)}, file={'crosscore': './assets/crosscore/crosscore/兑换按钮.png'}, name='COUPON_SUBMIT')
+# 游戏自绘输入条右端的「确定」。纯坐标，只在输入条亮度判据成立后点击。
+COUPON_KEYBOARD_OK = Button(area={'crosscore': (1156, 650, 1226, 700)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (1156, 650, 1226, 700)}, name='COUPON_KEYBOARD_OK')
+# 右侧菜单面板打开时，点面板外的场景区域即可收起（2026-11-09 实测）。面板盖住了
+# 右上角的菜单图标，所以只能用场景里的空白点；纯坐标，只在 `COUPON_SETTINGS`
+# 命中（=菜单面板在）之后点击。
+COUPON_MENU_DISMISS = Button(area={'crosscore': (360, 280, 400, 320)}, color={'crosscore': (60, 60, 66)}, button={'crosscore': (360, 280, 400, 320)}, name='COUPON_MENU_DISMISS')
