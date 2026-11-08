@@ -165,9 +165,13 @@ page_event_story = Page(STORY_TITLE)
 EVENT_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
                     button=(124, 24, 152, 56), name='EVENT_BACK')
 
-# 大厅右侧那面活动横幅。`EVENT_ENTRY` 取的是横幅下面那行小字（这一期是
-# 「魔兽追踪者解锁」），它既当检查点也当点击点 —— 实测点它的中心就进活动页，
-# 不用再建一个 `.BUTTON`。代价是换期要重新导出这张图，见 skill 8.6。
+# 大厅右侧那面活动横幅。`EVENT_ENTRY` 取的是横幅上的活动 LOGO（这一期是
+# 「BLOOD ROYALE」那一块），它既当检查点也当点击点 —— 实测点 LOGO 中心就进活动页。
+#
+# 为什么**不**用下面那行小字（BROKEN BONDS 那一期是「魔兽追踪者解锁」）：
+# 这行字会跟着解锁进度变（BLOOD ROYALE 开局是「普通战斗解锁」，解锁新内容后
+# 自己会换），2026-11-08 换期实测旧模板只剩 0.491。LOGO 一整个赛季不变，
+# 代价是换期要重新导出这张图，见 skill 8.6。
 page_main.link(button=EVENT_ENTRY, destination=page_event)
 page_event.link(button=EVENT_BACK, destination=page_main)
 

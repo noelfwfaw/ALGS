@@ -23,13 +23,16 @@ surprise that makes people distrust the scheduler.
 
 The config is only a daily *budget* though - what the bar actually holds right
 now is another matter (the task can run at 22:00 with 11 runs left, or right
-after a manual session with 3). The game does not say a word about that: no
+after a manual session with 3). The game says almost nothing about that: no
 warning, no disabled button, the stepper just stops moving at the number the
-resource pays for. So the cap is detected by walking the stepper up, and an
-empty bar is detected by 「狩猎」 failing to close the panel. Both outcomes are
-logged with the real number, and both stop the rest of that resource's targets
-instead of letting them each re-run the whole dialog / fight / reward wait
-until the task timeout - that slow grind is what "stuck" looks like here.
+resource pays for. The one exception is the cost number after 「狩猎」, which is
+drawn red when the bar cannot pay for the selected runs. So the cap is detected
+by walking the stepper up, and an empty bar is detected by reading that red
+label *before* pressing (measured 2026-11-08, ⚔ 0/90 -> 78 red pixels,
+⚔ 90/90 -> 0). Both outcomes are logged with the real number, and both stop the
+rest of that resource's targets instead of letting them each re-run the whole
+dialog / fight / reward wait until the task timeout - that slow grind is what
+"stuck" looks like here.
 
 Per tab:
 
@@ -46,11 +49,12 @@ or not. What separates selected from not is the label's brightness - the game
 draws the selected label white and the rest grey. Measured: 190~346 pixels
 above luma 200 when selected, **0** when not.
 """
+import cv2
 import numpy as np
 
 from module.base.button import Button
 from module.base.timer import Timer
-from module.base.utils import crop
+from module.base.utils import color_mask, crop
 from module.browndust.assets import HUNT_BUTTON, HUNT_REWARD, HUNT_START
 from module.browndust.browndust_ui import BrowndustUI, page_hunt
 from module.exception import RequestHumanTakeover
@@ -132,6 +136,18 @@ HUNT_TIMES_CANCEL = Button(area=(450, 541, 540, 571), color=(0, 0, 0),  # alas-l
 # 「狩猎N次」整行。只用来回答"这一下按下去界面上有没有东西变"，不读数字 ——
 # 数字的字符块随位数变宽，取哪个框都会和「狩猎」「次」粘在一起。
 HUNT_COUNT_AREA = (598, 240, 690, 268)
+
+# 「狩猎」按钮整块。资源连一次都付不起时，游戏把按钮上的消耗数字画成红色，别处
+# 一个字都不说：按钮底色、次数档位、滑块全都不变，按下去也只是没反应。
+# 实测 (2026-11-08, 127.0.0.1:16640)：⚔ 0/90 时该框内红字 78 个像素，
+# core RGB (245, 95, 91)；⚔ 90/90 时同一框 0 个。按钮底色 (206, 202, 198)
+# 和旁边的图标离这个红色都超过 100，框再放宽也不会误数。
+# 注意 `device.image` 是 RGB（截图方法统一 BGR2RGB，模板也走 PIL 的 RGB），
+# 拿 adb 抓下来的 PNG 对色是 BGR，会差一个通道。
+HUNT_COST_AREA = (587, 538, 831, 574)
+HUNT_COST_RED = (245, 95, 91)
+HUNT_COST_THRESHOLD = 60
+HUNT_COST_PIXELS = 15
 
 # 结算页的点击点：底部那条「点击画面即可返回。」的正下方。
 #
@@ -416,6 +432,27 @@ class BrowndustHunt(BrowndustUI):
         logger.warning(f'{what} did not open')
         return False
 
+    def hunt_cost_red(self):
+        """
+        Whether the 狩猎 button draws its stamina cost in red.
+
+        This is the panel's only sentence about an empty bar. Everything else
+        looks healthy: the plate keeps its colour, the stepper keeps its number,
+        the sliders stay where they are - pressing 狩猎 simply does nothing, and
+        the old code found that out by pressing it twice for 6 seconds each.
+
+        Reading the label first is also what separates "0 runs affordable" from
+        "1 run affordable": the stepper stops at 1 in both cases, because 1 is
+        its minimum, so the number alone cannot tell them apart.
+
+        Returns:
+            bool: If the cost is red, i.e. not even one run is affordable.
+        """
+        red = cv2.countNonZero(color_mask(
+            self.image_crop(HUNT_COST_AREA), HUNT_COST_RED,
+            threshold=HUNT_COST_THRESHOLD))
+        return red >= HUNT_COST_PIXELS
+
     def hunt_spend(self, times):
         """
         Spend up to `times` runs on whatever tab/cave is open right now.
@@ -451,6 +488,14 @@ class BrowndustHunt(BrowndustUI):
         if not reached:
             self.hunt_close_dialog()
             return 0, HUNT_SPEND_BROKEN
+
+        # 红字 = 一次都付不起。档位停在 1 时"够 1 次"和"0 次"长得一模一样，
+        # 只有这个颜色能提前分开，省掉 hunt_start() 里两轮 6 秒的空按。
+        if self.hunt_cost_red():
+            logger.warning('The 狩猎 button draws its cost in red, not even one run '
+                           'is affordable')
+            self.hunt_close_dialog()
+            return 0, HUNT_SPEND_NO_RUNS
 
         started, finished = self.hunt_start()
         if not started:
@@ -516,8 +561,10 @@ class BrowndustHunt(BrowndustUI):
         Walking up one at a time is also the only way to *detect* the cap, and
         that is not a side effect worth losing: a +1 that stops redrawing the
         row means the stepper is already at the largest number the current
-        resource pays for. Nothing else in the UI says so - no warning, no grey
-        text, the button just stops moving.
+        resource pays for. Nothing else in the UI reports the cap - no warning,
+        no grey text, the stepper just stops moving. (The red cost label says
+        only "this selection is unaffordable", which is a different question;
+        it is read by `hunt_cost_red()`.)
 
         Args:
             target (int):

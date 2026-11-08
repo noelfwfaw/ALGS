@@ -264,11 +264,15 @@ pyrightconfig.json
 # WorkBuddy local workspace data (never commit)
 .workbuddy/
 
-# CodeBuddy: the skills dir is a junction into .workbuddy/skills, and junctions
-# make git walk the target as real files. Keep the link out of the index.
+# Agent skill dirs (CodeBuddy / TRAE) are junctions into .workbuddy/skills.
+# git walks a junction's target as real files, so keep the links out of the index.
+# Rules and settings stay tracked; only the linked skill bodies are ignored.
 .codebuddy/skills/
 .codebuddy/settings.local.json
+.trae/skills/
 .codebuddy/settings.json
+# IDE / agent screenshot scratch, never part of the project
+.screenshots/
 
 # IDE 生成的工程说明：每次扫描整个仓库重新生成，内容随会话变，不进版本库
 CODEBUDDY.md

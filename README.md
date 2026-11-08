@@ -25,6 +25,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - [使用](#start)
 - [配置](#config)
 - [注意事项](#notes)
+- [开发](#dev)
 - [许可](#license)
 
 <a name="games"></a>
@@ -215,6 +216,22 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - 错误推送：出问题时会按 `Alas → Error → OnePushConfig` 里的 Onepush 配置推一条消息，不用盯着 WebUI。包括脚本错误、需要人工接管、认不出页面、配置或设备初始化失败、同一任务连续失败 3 次、工具跑失败（例如刷初始重置账号没成功）；游戏卡死、误点过多、客户端异常、游戏不在运行这类会自动重启恢复的错误也会推一条。运行以失败结束时，WebUI 侧栏显示为出错状态，而不是「已完成」。没填 `provider` 时（默认 `provider: null`）不推送；配置方法见 [Onepush 配置](https://github.com/LmeSzinc/AzurLaneAutoScript/wiki/Onepush-configuration-%5BCN%5D)。
 - 客户端更新与资源下载提示只记录并停止，不会代为操作；苍雾世界的资源包是例外，脚本会确认并等待下载完成。
 - 失落之剑闲置约 3 分钟后会隐藏界面，脚本会自动恢复后再继续。
+
+<a name="dev"></a>
+
+## 🛠️ 开发
+
+以下协作资料只存在于本机，**不进版本库**：
+
+| 路径 | 内容 |
+|:---|:---|
+| `.workbuddy/skills/alas-multigame-dev/` | 技能真源：`SKILL.md` + `references/`（含 155 条硬约束） |
+| `.workbuddy/memory/` | 共用记忆：`MEMORY.md` 为权威约定，`YYYY-MM-DD.md` 为实测日志 |
+| `CODEBUDDY.md` | CodeBuddy 本机入口；可能被工具重新生成，与 `MEMORY.md` 冲突时以 `MEMORY.md` 为准 |
+
+`.codebuddy/skills/` 与 `.trae/skills/` 是指向技能真源的**目录联接**，三个工具读写的是同一份文件。
+新 clone 或换机器后：先恢复 `.workbuddy/` 与 `CODEBUDDY.md`，再运行 `dev_tools\link_agent_skills.bat`
+重建联接（幂等，可重复执行）。资料缺失时调度器照常运行，只是 AI 助手拿不到技能与历史踩坑记录。
 
 <a name="license"></a>
 

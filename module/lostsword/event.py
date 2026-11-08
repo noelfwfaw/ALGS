@@ -161,7 +161,7 @@ class LostswordEvent(EventSweep, EventMonitor, LostswordUI):
             bool: If a run was started and finished.
         """
         logger.hr('Clear stages', level=2)
-        if not self.press_until_gone(STAGE_BUTTON_POINT, self.on_sortie_page, '选择'):
+        if not self.press_until_appear(STAGE_BUTTON_POINT, self.on_sortie_page, '选择'):
             return False
 
         state = self.press_start_until_running()
@@ -177,17 +177,23 @@ class LostswordEvent(EventSweep, EventMonitor, LostswordUI):
             raise GameStuckError('Event clear did not end in time')
         return True
 
-    def press_until_gone(self, point, predicate, name, timeout=15):
+    def press_until_appear(self, point, appear, name, timeout=15):
         """
-        Press a point until the page answers with a new one.
+        Press a point until the next page is drawn.
 
         Both taps of this flow are eaten when they land while the page is still
-        sliding in, so each one is repeated while the predicate says the old page
-        is still there.
+        sliding in, so each one is repeated while the next page is missing.
+
+        Waiting for the next page rather than for the old one to leave is what
+        the button press has to prove: a transition frame matches neither page,
+        so "the old page is gone" is true during the fade and would report a
+        press that never landed. That is exactly what happened between the
+        2026-10-28 refactor and 2026-11-08 - the task announced one cleared event
+        after 0.2 s without pressing once.
 
         Args:
             point (tuple): (x, y) to press.
-            predicate (callable): True while the old page is still up.
+            appear (callable): True once the next page is up.
             name (str): For the log.
             timeout (int, float): Seconds.
 
@@ -197,11 +203,11 @@ class LostswordEvent(EventSweep, EventMonitor, LostswordUI):
         retry = Timer(1.5).start()
 
         for _ in self.loop(timeout=timeout):
-            # End - the new page answered, which also means the press landed.
-            if not predicate():
+            # End - the next page answered, which also means the press landed.
+            if appear():
                 return True
 
-            # Click - the page is still the old one, so the press was swallowed.
+            # Click - the press was swallowed, the old page is still up.
             if retry.reached():
                 retry.reset()
                 self.tap_point(*point)

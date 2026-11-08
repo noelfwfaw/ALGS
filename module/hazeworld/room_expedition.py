@@ -20,8 +20,9 @@ from datetime import timedelta
 
 from module.base.button import Button
 from module.base.timer import Timer
-from module.hazeworld.assets import (EXP_BTN_RECOMMEND, EXP_BTN_START,
-                                     ROOM_EXP_CLAIM, ROOM_EXP_RESULT_CANCEL)
+from module.hazeworld.assets import (EXP_BTN_CANCEL, EXP_BTN_RECOMMEND,
+                                     EXP_BTN_START, ROOM_EXP_CLAIM,
+                                     ROOM_EXP_RESULT_CANCEL)
 from module.hazeworld.room_data import EXPEDITION_MAX, EXPEDITION_HOURS
 from module.logger import logger
 from module.ocr.ocr import Duration
@@ -33,9 +34,12 @@ from module.ocr.ocr import Duration
 # that is already running.
 #
 # The digits are dark on the white panel, and a crop that hugs them loses one
-# now and then, so a few pixels of the panel are kept on every side.
+# now and then, so a few pixels of the panel are kept on every side. Measured
+# 2026-11-08: the digits occupy x 892-973, y 599-614, and the box below keeps
+# 8 px around them - a box that hugged the digits read "07:54:5" and lost the
+# last second.
 EXP_REMAIN = Duration(  # alas-lint: allow - a disabled-state variant of a generated asset
-    Button(area=(888, 596, 978, 618), color=(), button=(888, 596, 978, 618),
+    Button(area=(880, 590, 986, 624), color=(), button=(880, 590, 986, 624),
            name='EXP_REMAIN'),
     letter=(30, 30, 30),
     threshold=128,
@@ -67,6 +71,13 @@ DISPATCH_TIMEOUT = 30
 SELECT_TIMEOUT = 10
 SELECT_INTERVAL = 1.5
 SELECT_TRIES = 4
+
+# A dispatch ends in a burst of animation: a wave of the theme colour runs over
+# the list, and every bar is briefly as saturated as a selected one. The frame
+# the previous team leaves behind therefore reads "already selected" for the
+# next team, which is how the second team was skipped on 2026-11-08. A tab is
+# watched until its fill holds still before it is judged.
+SELECT_SETTLE = 3
 
 # Claiming a finished expedition opens the "远征探索" result popup instead of
 # returning to the panel, and the popup fades in: on the frame right after the
@@ -203,6 +214,11 @@ class RoomExpedition:
         in three seconds, which is what the click guard of the framework treats
         as a stuck game.
 
+        The frame the caller leaves behind is never judged: it was taken during
+        the dispatch animation of the previous team, where a wave of the theme
+        colour covers the list and the next team looks selected already. The tab
+        is watched until its fill holds still, then the check runs on that frame.
+
         Args:
             button (Button): The tab.
             timeout (int, float): Give up after this many seconds.
@@ -211,6 +227,7 @@ class RoomExpedition:
             bool: If the tab is selected.
         """
         logger.info(f'Select {button.name}')
+        self.wait_until_still(button, timeout=SELECT_SETTLE, skip_first_screenshot=False)
         timeout = Timer(timeout).start()
         interval = Timer(SELECT_INTERVAL)
         tries = 0
@@ -235,10 +252,10 @@ class RoomExpedition:
         Whether the selected expedition has already been sent out.
 
         A team that is out replaces the start and the recommend button with the
-        countdown and the cancel button, and neither of the two is drawn in a
-        theme colour, so a frame with both missing reads "out". A single such
-        frame can be the panel still switching to the selected expedition, so
-        the state has to hold for a moment before it is believed.
+        countdown and the cancel button. The cancel button is what the check
+        leans on: a panel that is still switching to the selected expedition
+        has no start button either, so "the start button is missing" alone
+        calls an idle team "out" on the frame of the other team.
 
         Returns:
             bool: If the team is out.
@@ -252,6 +269,9 @@ class RoomExpedition:
         # that window finds neither of them and would call an idle team "out" -
         # which is how the second team ended up never being sent.
         self.ui_wait_loading()
+        # Wait for the switch animation to settle as well: half of it is still
+        # the previous team's panel.
+        self.wait_until_still(EXP_BTN_CANCEL, timeout=SELECT_SETTLE, skip_first_screenshot=False)
         timeout = Timer(3).start()
 
         while 1:
@@ -259,6 +279,13 @@ class RoomExpedition:
             if self.expedition_button_drawn(EXP_BTN_START) \
                     or self.expedition_button_drawn(EXP_BTN_RECOMMEND):
                 return False
+            # A running team shows the grey 取消 where the start button would
+            # be. "No start button" alone is not a verdict: a panel that is
+            # still switching has none either, and that frame belongs to the
+            # other team - reading it is how this team was called "out" while
+            # the other team's countdown was reported.
+            if self.appear(EXP_BTN_CANCEL, offset=(20, 20)):
+                return True
             if timeout.reached():
                 return True
 
@@ -291,8 +318,13 @@ class RoomExpedition:
             # End
             if not self.expedition_button_drawn(EXP_BTN_START) \
                     and not self.expedition_button_drawn(EXP_BTN_RECOMMEND):
-                logger.info('Expedition is out')
-                return True
+                # The panel fades to the running layout right after the press,
+                # and the frames in between have no start button either. 取消 is
+                # what proves the team is really out, and believing the fading
+                # frame leaves the next team to be skipped.
+                if self.appear(EXP_BTN_CANCEL, offset=(20, 20)):
+                    logger.info('Expedition is out')
+                    return True
 
             if timeout.reached():
                 logger.warning('Expedition did not start, the requirements are not met?')

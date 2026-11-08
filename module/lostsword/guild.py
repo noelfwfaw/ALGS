@@ -83,8 +83,18 @@ GUILD_BADGE_SETTLE = 3
 # a side effect. Both points below are blank: the empty 公告 list of the guild
 # page, and the left margin of the donate dialog between its border and the
 # 「100000 捐献」 button.
-GUILD_TAP = Button(area=(580, 460, 640, 500), color=(0, 0, 0),  # alas-lint: allow - a click point alias
-                   button=(580, 460, 640, 500), name='GUILD_TAP')
+#
+# `GUILD_TAP` also has to miss the popup's own artwork. The reward popup draws
+# its item cards across the middle of the 公告 list, and a card opens an item
+# detail panel that nothing in this task closes - the old point (580~640,
+# 460~500) sat on one, so taking the sign-in reward hung on the detail panel
+# (reported 2026-11-08). Measured on `screenshots/lostsword/获得奖励弹窗.png`,
+# `公会页面.png` and `捐献页面.png`, all 1280x720: cards end at y 478, the golden
+# sparkle band starts at y 520, the 公告 list ends at y 621. Below the cards it
+# is dark on the popup (std 4, max 15) and blank on the guild page (std 2,
+# max 21).
+GUILD_TAP = Button(area=(500, 575, 540, 615), color=(0, 0, 0),  # alas-lint: allow - a click point alias
+                   button=(500, 575, 540, 615), name='GUILD_TAP')
 GUILD_DONATE_TAP = Button(area=(232, 596, 272, 636), color=(0, 0, 0),  # alas-lint: allow - a click point alias
                           button=(232, 596, 272, 636), name='GUILD_DONATE_TAP')
 

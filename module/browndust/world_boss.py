@@ -59,6 +59,12 @@ Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
 
 也就是说：一关一关往上推，打不穿就停在那儿，剩下的明天再来。所以这里**不**跳过
 "打不过"的那一关 —— 它是下一次的起点。
+
+2026-11-08 换到 BLOOD ROYALE 这一期（BOSS「心魔（光）」，活动开 4 天后才解锁）：
+活动页整块换皮（木牌从深红木板变成半透明玻璃条），`EVENT_ENTRY` 和五张
+`EVENT_TAB_*` / `EVENT_SCHEDULE` 全部重导（旧的四张只剩 0.19~0.47）。魔兽页的
+结构没动（`WB_EDIT_TEAM` 0.996、难度条底色 0.995），但**未解锁时底部两颗按钮是灰的、
+按下去毫无反应** —— 所以进来先读右上角的倒计时（`world_boss_started()`），没开就收工。
 """
 import re
 
@@ -138,10 +144,23 @@ RESULT_BACK_OFFSET = (120, 40)
 RESULT_DAMAGE = (872, 294, 1060, 320)
 RESULT_DAMAGE_THRESHOLD = 170
 
-# 魔兽页右上面板里的 BOSS 名字（四个汉字）。只用来认"换期了没有"：
+# 魔兽页右上面板里的 BOSS 名字（几个汉字 + 括号里的属性）。只用来认"换期了没有"：
 # 血量那个 9~13 位的大数 OCR 会丢位，名字很稳。实测魔兽页 1.000、
 # 战斗里读出来是乱码。
-PANEL_BOSS = (733, 84, 860, 112)
+#
+# 2026-11-08 换到「心魔（光）」这一期，名字整体左移了：旧的 (733,84,860,112)
+# 只框到后半截，读成 `\靡(光)`。左边界放到 700 才读全（`心魔(光)`）。
+PANEL_BOSS = (700, 78, 866, 114)
+
+# 魔兽页右上角那枚倒计时胶囊：「距离开始还剩N天」= 本期还没开，
+# 「距离结束还剩N天」= 进行中。
+#
+# 活动内容是**按周慢慢解锁**的（用户 2026-11-08 提醒）：魔兽追踪者木牌能点进来，
+# 页面也能正常画出来，但没开的时候底部「编辑队伍 / 去战斗」全是灰的，按下去
+# 什么都不发生 —— 2026-11-08 实测点「编辑队伍」三秒后魔兽页纹丝不动。
+# 只框前面四个字：后面的天数每天都在变，模板和 OCR 都稳不住。
+# 实测 `距离开始还剩4天` 读成 `o距离开始`（多一个圈，少的都是后面的字）。
+PANEL_COUNTDOWN = (945, 20, 1055, 48)
 
 # 点「去战斗」之后等魔兽页消失（进战斗会重载整个游戏，BROWN DUST II 的跑马灯）。
 BATTLE_ENTER_TIMEOUT = 30
@@ -193,6 +212,15 @@ class EventWorldBoss:
         if not self.world_boss_enter():
             return
 
+        # 活动按周解锁，魔兽这一块经常比活动本身晚几天才开。没开的时候页面照样
+        # 能进、难度条照样画得出来，只有「编辑队伍 / 去战斗」是灰的 —— 按下去
+        # 什么都不发生。硬跑下去就是：配队等 10 秒、难度读一遍、点两次「去战斗」
+        # 各等 20 秒，最后报"打不出去"。所以先读右上角的倒计时，没开就今天收工。
+        if not self.world_boss_started():
+            logger.info('[World boss] the season has not started yet, nothing to do today')
+            self.ui_goto(page_event)
+            return
+
         self.ensure_team()
         if not self.difficulty_to_lowest():
             logger.warning('Cannot go back to the lowest difficulty')
@@ -225,6 +253,34 @@ class EventWorldBoss:
             logger.info('[World boss] every difficulty is cleared, nothing left this season')
 
         self.ui_goto(page_event)
+
+    def world_boss_started(self):
+        """
+        本期魔兽开了没有。
+
+        活动内容是按周慢慢解锁的，魔兽追踪者常常比活动本身晚几天开。没开的时候
+        这一页照样进得来、难度条照样读得出第几档，只有底部「编辑队伍 / 去战斗」
+        是灰的 —— 按下去毫无反应。
+
+        判据是右上角那枚倒计时胶囊：「距离开始还剩N天」= 还没开。只框前四个字，
+        天数和「结束」都在框外（见 `PANEL_COUNTDOWN`）。cnocr 在这套字体上会丢字，
+        实测同一帧读成 `离开始还4`、`o距离开始`，所以不要求整句：只要「开始」二字
+        在、且没有「结束」，就认定没开。真的开了 OCR 读到的是「距离结束还剩N天」。
+
+        读不到（空串）按"开了"处理：真开了就照常往下跑；真没开也只是白等两次
+        20 秒，比反过来把一场真能打的仗漏掉强。
+
+        Returns:
+            bool: 开了没有。
+        """
+        ocr = Ocr(PANEL_COUNTDOWN, lang='cnocr', letter=(255, 255, 255),
+                  threshold=RESULT_DAMAGE_THRESHOLD, name='WB_COUNTDOWN')
+        self.device.screenshot()
+        text = str(ocr.ocr(self.device.image))
+        if '开始' in text or ('开' in text and '结' not in text):
+            logger.info(f'[World boss] this season has not started: {text!r}')
+            return False
+        return True
 
     def world_boss_enter(self):
         """

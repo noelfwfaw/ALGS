@@ -14,6 +14,12 @@ CORE_DIALOG_MAX = Button(area={'hazeworld': (768, 225, 822, 250)}, color={'hazew
 CORE_DIALOG_PLUS = Button(area={'hazeworld': (695, 212, 754, 266)}, color={'hazeworld': (214, 127, 65)}, button={'hazeworld': (692, 206, 757, 270)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_DIALOG_PLUS.png'})
 CORE_DIALOG_START = Button(area={'hazeworld': (590, 522, 727, 552)}, color={'hazeworld': (194, 107, 40)}, button={'hazeworld': (520, 520, 760, 565)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_DIALOG_START.png'})
 CORE_DIALOG_TITLE = Button(area={'hazeworld': (605, 133, 710, 168)}, color={'hazeworld': (223, 220, 223)}, button={'hazeworld': (605, 133, 710, 168)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_DIALOG_TITLE.png'})
+# The joint raid reminder that replaces the sweep dialog on the first sweep
+# after the daily stamina contribution reaches its cap. Title glyphs 1.000 with
+# the popup and at most 0.402 on the stage page, the sweep dialog and the
+# history screenshots; cancel button 1.000 against at most 0.697.
+CORE_RAID_POPUP = Button(area={'hazeworld': (590, 132, 690, 158)}, color={'hazeworld': (162, 161, 161)}, button={'hazeworld': (590, 132, 690, 158)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_RAID_POPUP.png'})
+CORE_RAID_POPUP_CANCEL = Button(area={'hazeworld': (419, 525, 573, 569)}, color={'hazeworld': (64, 64, 64)}, button={'hazeworld': (419, 525, 573, 569)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_RAID_POPUP_CANCEL.png'})
 CORE_RESULT_CONFIRM = Button(area={'hazeworld': (615, 607, 670, 640)}, color={'hazeworld': (187, 97, 41)}, button={'hazeworld': (510, 587, 769, 638)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_RESULT_CONFIRM.png'})
 CORE_TYPE_ARMOR = Button(area={'hazeworld': (1, 343, 10, 431)}, color={'hazeworld': (159, 135, 64)}, button={'hazeworld': (25, 360, 85, 410)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_TYPE_ARMOR.png'})
 CORE_TYPE_ATTACK = Button(area={'hazeworld': (1, 230, 10, 318)}, color={'hazeworld': (157, 132, 63)}, button={'hazeworld': (25, 245, 85, 295)}, file={'hazeworld': './assets/hazeworld/hazeworld/CORE_TYPE_ATTACK.png'})
