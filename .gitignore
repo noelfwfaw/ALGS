@@ -266,11 +266,13 @@ pyrightconfig.json
 
 # Agent skill dirs (CodeBuddy / TRAE) are junctions into .workbuddy/skills.
 # git walks a junction's target as real files, so keep the links out of the index.
-# Rules and settings stay tracked; only the linked skill bodies are ignored.
+# The whole agent workspace (skills, rules, settings) is local-only.
 .codebuddy/skills/
 .codebuddy/settings.local.json
-.trae/skills/
 .codebuddy/settings.json
+.trae/
+# 真机整屏样本，只给 dev_tools 里的一次性 probe 用（probe 本身也不进库）
+dev_tools/samples/
 # IDE / agent screenshot scratch, never part of the project
 .screenshots/
 
