@@ -49,3 +49,114 @@ ORDER_CONFIRM_TITLE = Button(area={'crosscore': (536, 298, 735, 346)}, color={'c
 ORDER_CONFIRM = Button(area={'crosscore': (760, 421, 842, 474)}, color={'crosscore': (196, 147, 50)}, button={'crosscore': (760, 421, 842, 474)}, file={'crosscore': './assets/crosscore/crosscore/ORDER_CONFIRM.png'})
 # 「告罄」条：当天已经交付过的那张构建订单仍留在原位，日限 1/1，交付条变灰。
 ORDER_SOLD = Button(area={'crosscore': (569, 207, 696, 242)}, color={'crosscore': (133, 133, 135)}, button={'crosscore': (569, 207, 696, 242)}, file={'crosscore': './assets/crosscore/crosscore/ORDER_SOLD.png'})
+
+# ---------------- 邮箱 / 任务（用户 2026-11-08 19:50 导出的 7 张截图） ----------------
+#
+# 亮/暗**不能用模板匹配判断**：TM_CCOEFF_NORMED 只比结构不比颜色，任务页
+# 亮色与暗色两张模板互相比是 0.850 / 0.855，正好压在默认阈值 0.85 上。
+# 所以 `*_DIM` 只用来做「页面在不在」的判据，可领状态一律看金色像素
+# （`utils.gold_pixels()`：亮 1500~1991 px，暗 0 px）。
+
+# 大厅右上角的信封。area 是用户框的图标本体，点中心 (1072, 43)。
+MAIN_MAIL = Button(area={'crosscore': (1052, 26, 1092, 61)}, color={'crosscore': (140, 140, 145)}, button={'crosscore': (1052, 26, 1092, 61)}, file={'crosscore': './assets/crosscore/crosscore/邮箱图标.png'})
+# 底栏「任务」页签的图标本体（文字在它下面），点中心 (712, 646)。
+MAIN_TASK = Button(area={'crosscore': (698, 632, 726, 660)}, color={'crosscore': (220, 220, 225)}, button={'crosscore': (698, 632, 726, 660)}, file={'crosscore': './assets/crosscore/crosscore/任务图标.png'})
+
+# 邮箱页左下角的「一键领取」。亮色是金黄底（1502 个金色像素），暗色是同一块
+# 按钮压暗（0 个）；area 取按钮文字带，点击点 (304, 637) 落在按钮中间。
+MAIL_CLAIM = Button(area={'crosscore': (250, 622, 358, 653)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (250, 622, 358, 653)}, file={'crosscore': './assets/crosscore/crosscore/一键领取.png'})
+MAIL_CLAIM_DIM = Button(area={'crosscore': (231, 615, 380, 661)}, color={'crosscore': (66, 56, 41)}, button={'crosscore': (231, 615, 380, 661)}, file={'crosscore': './assets/crosscore/crosscore/没有可领取邮件.png'})
+
+# 任务页右上角的「一键领取」，日常与周常**共用这一个位置**，只有亮/暗不同。
+TASK_CLAIM = Button(area={'crosscore': (1091, 86, 1202, 121)}, color={'crosscore': (255, 186, 49)}, button={'crosscore': (1091, 86, 1202, 121)}, file={'crosscore': './assets/crosscore/crosscore/任务一键领取.png'})
+TASK_CLAIM_DIM = Button(area={'crosscore': (1074, 79, 1226, 132)}, color={'crosscore': (82, 65, 33)}, button={'crosscore': (1074, 79, 1226, 132)}, file={'crosscore': './assets/crosscore/crosscore/没有任务可领取.png'})
+
+# 左侧「周常」页签（未选中态导出，选中时外面多一圈金色括号，匹配 0.874 仍可点击）。
+TASK_TAB_WEEK = Button(area={'crosscore': (21, 304, 112, 352)}, color={'crosscore': (180, 180, 180)}, button={'crosscore': (21, 304, 112, 352)}, file={'crosscore': './assets/crosscore/crosscore/周常任务.png'})
+# 「日常」页签没有导出素材：它只用来点，选中与否由 `DAILY_TAB_AREA` 的金色像素判断，
+# 所以是纯坐标条目 —— ❗没有 file，**永远不能进 `appear()` 家族**。
+TASK_TAB_DAILY = Button(area={'crosscore': (12, 222, 160, 280)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (12, 222, 160, 280)}, name='TASK_TAB_DAILY')
+
+# ---------------- 通行证 / 勘探指南（用户 2026-11-08 20:24 导出的 3 张截图） ----------------
+#
+# 页面判据用「任务」按钮（弹窗打开时它被弹窗盖住，相似度 1.000 → 0.285），弹窗判据用
+# 弹窗标题（与领取按钮的亮暗无关）。「全部领取」在弹窗压暗后仍有 0.901，所以读它之前
+# 一定要先把奖励弹窗处理掉。
+
+# 大厅左侧竖排的「勘探指南」图标本体。红色感叹号画在它右上方，不在 area 内。
+PASS_ENTRY = Button(area={'crosscore': (34, 133, 58, 156)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (34, 133, 58, 156)}, file={'crosscore': './assets/crosscore/crosscore/通行证.png'})
+# 通行证页右上角的「任务」按钮：弹窗打开时被盖住，所以同时是「本页」与「弹窗没开」的判据。
+PASS_TASK = Button(area={'crosscore': (948, 297, 1062, 337)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (948, 297, 1062, 337)}, file={'crosscore': './assets/crosscore/crosscore/通行证任务.png'})
+# 同一排的「全部领取」：领完所有等级奖励后整个按钮消失。
+PASS_CLAIM_ALL = Button(area={'crosscore': (1108, 299, 1242, 334)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (1108, 299, 1242, 334)}, file={'crosscore': './assets/crosscore/crosscore/全部领取.png'})
+# 「勘探任务」弹窗里每行任务右侧的「领取奖励」。每领一个，下一个可领的顶上来，领完的
+# 那一行从列表消失（不留暗色按钮），所以匹配/点击都用 offset 覆盖整列。
+PASS_CLAIM = Button(area={'crosscore': (917, 196, 1042, 231)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (917, 196, 1042, 231)}, file={'crosscore': './assets/crosscore/crosscore/领取奖励.png'})
+# 弹窗标题「勘探任务」，用来判断弹窗在不在：三个页签都画在时都命中。
+# ❗`领取奖励.png` 是导出工具做的遮罩图（只有按钮那一块有像素，其余全黑），不能拿它的
+# 其它区域当模板 —— 全黑模板的相似度恒为 1。所以标题单独裁了一张 `勘探任务弹窗.png`。
+PASS_POPUP = Button(area={'crosscore': (176, 84, 298, 116)}, color={'crosscore': (240, 240, 240)}, button={'crosscore': (176, 84, 298, 116)}, file={'crosscore': './assets/crosscore/crosscore/勘探任务弹窗.png'}, name='PASS_POPUP')
+
+# 弹窗左侧三个页签：选中时文字变金色（约 1030 px），未选中 0 px，所以「当前页签」看
+# 金色像素（`utils.gold_pixels()`）。没有导出素材 → 纯坐标，**永远不能进 `appear()` 家族**。
+PASS_TAB_DAILY = Button(area={'crosscore': (176, 145, 370, 192)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (176, 145, 370, 192)}, name='PASS_TAB_DAILY')
+PASS_TAB_WEEK = Button(area={'crosscore': (176, 215, 370, 262)}, color={'crosscore': (180, 180, 180)}, button={'crosscore': (176, 215, 370, 262)}, name='PASS_TAB_WEEK')
+PASS_TAB_PERIOD = Button(area={'crosscore': (176, 286, 370, 333)}, color={'crosscore': (180, 180, 180)}, button={'crosscore': (176, 286, 370, 333)}, name='PASS_TAB_PERIOD')
+# 任务框外的空白处（框左边缘 x≈150，这一下落在模糊页面左下角）：点一下关掉弹窗。
+PASS_CLOSE_TAP = Button(area={'crosscore': (56, 676, 64, 684)}, color={'crosscore': (33, 28, 16)}, button={'crosscore': (56, 676, 64, 684)}, name='PASS_CLOSE_TAP')
+
+# ---------------- 每日探索（用户 2026-11-08 20:58 导出的 13 个素材 + 26 张截图） ----------------
+#
+# 入口链：大厅「出击」→ 出击页「每日探索」→ 类别卡（资源采集 / 芯片嵌合 / 跃升行动）
+# → 子项列表（点类别卡后出现在右栏）→ 层列表（点中子项后出现在右栏）
+# → 关卡详情页（底部「扫荡」）→ 扫荡面板（「开始战斗」）→ 掉落加成提示（「使用」）
+# → 扫荡完成（点右下「奖励」标题关掉结算）。
+
+EXPLORE_SORTIE = Button(area={'crosscore': (1132, 604, 1236, 653)}, color={'crosscore': (139, 141, 142)}, button={'crosscore': (1132, 604, 1236, 653)}, file={'crosscore': './assets/crosscore/crosscore/出击.png'})
+EXPLORE_DAILY = Button(area={'crosscore': (936, 339, 1043, 384)}, color={'crosscore': (70, 74, 82)}, button={'crosscore': (936, 339, 1043, 384)}, file={'crosscore': './assets/crosscore/crosscore/每日探索.png'})
+EXPLORE_CAT_RESOURCE = Button(area={'crosscore': (535, 155, 637, 243)}, color={'crosscore': (109, 126, 138)}, button={'crosscore': (535, 155, 637, 243)}, file={'crosscore': './assets/crosscore/crosscore/资源采集.png'})
+EXPLORE_CAT_CHIP = Button(area={'crosscore': (533, 332, 633, 408)}, color={'crosscore': (89, 88, 95)}, button={'crosscore': (533, 332, 633, 408)}, file={'crosscore': './assets/crosscore/crosscore/芯片嵌合.png'})
+EXPLORE_CAT_ASCEND = Button(area={'crosscore': (526, 473, 638, 575)}, color={'crosscore': (116, 113, 114)}, button={'crosscore': (526, 473, 638, 575)}, file={'crosscore': './assets/crosscore/crosscore/跃升行动.png'})
+# 资源采集的 4 个子项在右栏的行位置（行高 96 / 间距 12）：y 140 / 244 / 356 / 463。
+EXPLORE_SUB_SKILL = Button(area={'crosscore': (855, 140, 1046, 215)}, color={'crosscore': (84, 84, 91)}, button={'crosscore': (855, 140, 1046, 215)}, file={'crosscore': './assets/crosscore/crosscore/技能磨砺.png'})
+EXPLORE_SUB_COIN = Button(area={'crosscore': (854, 244, 1027, 314)}, color={'crosscore': (106, 100, 99)}, button={'crosscore': (854, 244, 1027, 314)}, file={'crosscore': './assets/crosscore/crosscore/星币开采.png'})
+EXPLORE_SUB_TECH = Button(area={'crosscore': (850, 356, 1036, 430)}, color={'crosscore': (53, 59, 69)}, button={'crosscore': (850, 356, 1036, 430)}, file={'crosscore': './assets/crosscore/crosscore/技术分析.png'})
+EXPLORE_SUB_RELIC = Button(area={'crosscore': (854, 463, 1044, 532)}, color={'crosscore': (93, 96, 108)}, button={'crosscore': (854, 463, 1044, 532)}, file={'crosscore': './assets/crosscore/crosscore/荒墟拾遗.png'})
+# 关卡详情页左下角的「扫荡」。❗未通关的层这个按钮是灰的、点了没反应。
+EXPLORE_SWEEP = Button(area={'crosscore': (869, 599, 932, 648)}, color={'crosscore': (200, 200, 203)}, button={'crosscore': (869, 599, 932, 648)}, file={'crosscore': './assets/crosscore/crosscore/扫荡.png'})
+# 扫荡面板里的金色「开始战斗」。详情页右侧也有一个「开始战斗」，但它在 y≈587–640，
+# 和这里的 540–577 不重叠，不会互相误命中。
+EXPLORE_START = Button(area={'crosscore': (969, 540, 1063, 577)}, color={'crosscore': (177, 131, 42)}, button={'crosscore': (969, 540, 1063, 577)}, file={'crosscore': './assets/crosscore/crosscore/开始战斗.png'})
+# 「类型掉落加成剩余 N 次，是否开启？」提示框里的「使用」（金色）。左侧「不使用」不点。
+EXPLORE_CONFIRM = Button(area={'crosscore': (752, 430, 852, 470)}, color={'crosscore': (219, 167, 59)}, button={'crosscore': (752, 430, 852, 470)}, file={'crosscore': './assets/crosscore/crosscore/扫荡确认.png'})
+# 扫荡结算页右下金色的「奖励」标题：点它关掉结算框。❗不要点下面的道具图标（会开道具详情），
+# 点中间黑色区域也不会退出。
+EXPLORE_RESULT = Button(area={'crosscore': (586, 505, 652, 538)}, color={'crosscore': (180, 156, 113)}, button={'crosscore': (586, 505, 652, 538)}, file={'crosscore': './assets/crosscore/crosscore/扫荡完成.png'})
+
+# 未解锁层的挂锁图标。只用于 `utils.find_all()` 扫层列表，**不进 `appear()` 单点判定**。
+EXPLORE_LOCK = Button(area={'crosscore': (1068, 324, 1094, 352)}, color={'crosscore': (76, 78, 87)}, button={'crosscore': (1068, 324, 1094, 352)}, file={'crosscore': './assets/crosscore/crosscore/探索锁.png'}, name='EXPLORE_LOCK')
+# 层列表右上角的「固定掉落」标题：选完子项才出现，扫荡页/详情页都没有（实测 1.000 → 0.381）。
+EXPLORE_DROP = Button(area={'crosscore': (1025, 90, 1120, 118)}, color={'crosscore': (16, 20, 30)}, button={'crosscore': (1025, 90, 1120, 118)}, file={'crosscore': './assets/crosscore/crosscore/探索固定掉落.png'}, name='EXPLORE_DROP')
+
+# 子项列表的行落点（右栏，行中心 y = 160 + 108 × (i-1)）。芯片 / 跃升没有导出文字素材，
+# 只能按行点；资源采集有模板，走模板。纯坐标 → **永远不能进 `appear()` 家族**。
+EXPLORE_SUB_ROW_1 = Button(area={'crosscore': (960, 140, 1040, 180)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 140, 1040, 180)}, name='EXPLORE_SUB_ROW_1')
+EXPLORE_SUB_ROW_2 = Button(area={'crosscore': (960, 248, 1040, 288)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 248, 1040, 288)}, name='EXPLORE_SUB_ROW_2')
+EXPLORE_SUB_ROW_3 = Button(area={'crosscore': (960, 356, 1040, 396)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 356, 1040, 396)}, name='EXPLORE_SUB_ROW_3')
+EXPLORE_SUB_ROW_4 = Button(area={'crosscore': (960, 464, 1040, 504)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 464, 1040, 504)}, name='EXPLORE_SUB_ROW_4')
+EXPLORE_SUB_ROW_5 = Button(area={'crosscore': (960, 572, 1040, 612)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 572, 1040, 612)}, name='EXPLORE_SUB_ROW_5')
+
+# 层列表的行落点（右栏，行中心 y = 275 + 63 × (i-1)，实测挂锁 y 324/387/450/512）。
+EXPLORE_LAYER_ROW_1 = Button(area={'crosscore': (960, 259, 1040, 291)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 259, 1040, 291)}, name='EXPLORE_LAYER_ROW_1')
+EXPLORE_LAYER_ROW_2 = Button(area={'crosscore': (960, 322, 1040, 354)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 322, 1040, 354)}, name='EXPLORE_LAYER_ROW_2')
+EXPLORE_LAYER_ROW_3 = Button(area={'crosscore': (960, 385, 1040, 417)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 385, 1040, 417)}, name='EXPLORE_LAYER_ROW_3')
+EXPLORE_LAYER_ROW_4 = Button(area={'crosscore': (960, 448, 1040, 480)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 448, 1040, 480)}, name='EXPLORE_LAYER_ROW_4')
+EXPLORE_LAYER_ROW_5 = Button(area={'crosscore': (960, 511, 1040, 543)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 511, 1040, 543)}, name='EXPLORE_LAYER_ROW_5')
+EXPLORE_LAYER_ROW_6 = Button(area={'crosscore': (960, 574, 1040, 606)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 574, 1040, 606)}, name='EXPLORE_LAYER_ROW_6')
+
+# 燃料不足时点「开始战斗」弹出的「燃料补给」对话框标题（实测 1.000 → 其余截图 ≤0.60）。
+# 扫完当天体力后必然出现，属于正常终态，不是卡死。
+EXPLORE_NO_FUEL = Button(area={'crosscore': (200, 152, 330, 185)}, color={'crosscore': (84, 87, 91)}, button={'crosscore': (200, 152, 330, 185)}, file={'crosscore': './assets/crosscore/crosscore/燃料补给.png'}, name='EXPLORE_NO_FUEL')
+
+# 对话框外的空白角落，点一下关掉「燃料补给」。纯坐标 → **永远不能进 `appear()` 家族**。
+EXPLORE_DIALOG_OUTSIDE = Button(area={'crosscore': (1100, 620, 1220, 700)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (1100, 620, 1220, 700)}, name='EXPLORE_DIALOG_OUTSIDE')

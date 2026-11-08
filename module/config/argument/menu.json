@@ -77,6 +77,10 @@
     "page": "setting",
     "tasks": [
       "CrosscoreMain",
+      "CrosscoreMail",
+      "CrosscoreTask",
+      "CrosscorePass",
+      "CrosscoreExplore",
       "CrosscoreBase"
     ]
   },

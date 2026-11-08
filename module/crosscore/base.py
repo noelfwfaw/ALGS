@@ -35,7 +35,7 @@ from module.base.button import Button
 from module.base.timer import Timer
 from module.base.utils import crop
 from module.crosscore.assets import (BASE_CLAIM, BASE_ORDER, BASE_STAFF,
-                                     BOOT_BACK, BOOT_HOME, CRAFT_BACK,
+                                     CRAFT_BACK,
                                      CRAFT_BLACKBOX, CRAFT_CONFIRM, CRAFT_FUSED,
                                      CRAFT_MIN, CRAFT_PIEZO, CRAFT_PLUS, E_5_1,
                                      MAIN_GOTO_BASE, ORDER_BUILD,
@@ -146,36 +146,6 @@ class CrosscoreBase(CrosscoreUI):
                 self.device.click(MAIN_GOTO_BASE)
 
         logger.warning('Cannot open the base page')
-        return False
-
-    def back_to_main(self):
-        """
-        Walk back to the lobby from wherever the base task ended.
-
-        The base map has its own home button (one press, no dialog) while its
-        back arrow raises 「是否退出基地？」; every other page only has the
-        shared arrow. Home is therefore tried first.
-
-        Returns:
-            bool: If page_main is reached.
-        """
-        for _ in self.loop(timeout=60):
-            if self.ui_page_appear(page_main):
-                logger.info('Back to page_main')
-                return True
-            if self.handle_item_popup():
-                continue
-            if self.handle_lobby_popup():
-                continue
-            if self.handle_exit_dialog():
-                continue
-            if self.appear(BOOT_HOME, offset=(20, 20), interval=2):
-                self.device.click(BOOT_HOME)
-                continue
-            if self.appear(BOOT_BACK, offset=(20, 20), interval=2):
-                self.device.click(BOOT_BACK)
-
-        logger.warning('Cannot go back to page_main')
         return False
 
     # ------------------------------------------------------------------

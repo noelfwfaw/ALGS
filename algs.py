@@ -237,6 +237,26 @@ class AlGS(GameScheduler):
         from module.crosscore.main import CrosscoreMain
         CrosscoreMain(config=self.config, device=self.device).run()
 
+    def crosscore_mail(self):
+        # 邮箱：一键领取全部邮件。
+        from module.crosscore.mail import CrosscoreMail
+        CrosscoreMail(config=self.config, device=self.device).run()
+
+    def crosscore_task(self):
+        # 任务：日常 → 周常 依次一键领取。
+        from module.crosscore.task import CrosscoreTask
+        CrosscoreTask(config=self.config, device=self.device).run()
+
+    def crosscore_pass(self):
+        # 通行证（勘探指南）：每日 / 每周 / 本期任务领取 + 通行证全部领取。
+        from module.crosscore.battle_pass import CrosscorePass
+        CrosscorePass(config=self.config, device=self.device).run()
+
+    def crosscore_explore(self):
+        # 每日探索：选一个子项的最高已解锁层，扫荡消耗全部体力。
+        from module.crosscore.explore import CrosscoreExplore
+        CrosscoreExplore(config=self.config, device=self.device).run()
+
     def crosscore_base(self):
         # 基地：领素材 / 驻员换班 / 订单库买构建订单。
         from module.crosscore.base import CrosscoreBase

@@ -156,6 +156,9 @@ class GeneratedConfig:
     ChaoszeroArk_CafeOrder = True
     ChaoszeroArk_ShopPurchase = True
 
+    # Group `CrosscoreExplore`
+    CrosscoreExplore_Explore = '技能磨砺'  # 技能磨砺, 星币开采, 技术分析, 荒墟拾遗, 鼓舞嵌合, 光枢嵌合, 注刘嵌合, 链接嵌合, 体魄嵌合, 侵蚀嵌合, 迅刃嵌合, 矛盾嵌合, 自然跃升, 人造跃升, 生命跃升
+
     # Group `CrosscoreBase`
     CrosscoreBase_Team1Hours = 15.5
     CrosscoreBase_Team2Hours = 8.5

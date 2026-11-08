@@ -48,7 +48,7 @@ from module.crosscore.assets import (BOOT_BACK, BOOT_HOME, BOOT_POPUP_CLOSE,
                                      BOOT_START_GAME, DIALOG_CONFIRM, DIALOG_EXIT_BASE,
                                      E_3_1, E_4_1, E_4_2, E_5_1, E_5_2, E_6_1,
                                      E_6_2, E_7_1, E_7_2)
-from module.crosscore.page import page_main
+from module.crosscore.page import page_main, page_mail, page_pass, page_task
 from module.exception import GameStuckError
 from module.logger import logger
 from module.ui.ui import UI
@@ -81,7 +81,7 @@ class CrosscoreUI(UI):
 
     # 自己那套页面。`Page.all_pages` 是全局注册表，多游戏场景下必须只遍历
     # 本游戏的（硬约束 36），否则切到别的游戏后匹配本游戏的判据会 KeyError。
-    pages = (page_main,)
+    pages = (page_main, page_mail, page_task, page_pass)
 
     def app_start(self):
         """
@@ -467,4 +467,31 @@ class CrosscoreUI(UI):
         if self.handle_lobby_popup():
             return True
 
+        return False
+
+    def back_to_main(self):
+        """
+        Walk back to the lobby from wherever a task ended. The base map's home
+        button is tried first: its back arrow raises 「是否退出基地？」.
+
+        Returns:
+            bool: If page_main is reached.
+        """
+        for _ in self.loop(timeout=60):
+            if self.ui_page_appear(page_main):
+                logger.info('Back to page_main')
+                return True
+            if self.handle_item_popup():
+                continue
+            if self.handle_lobby_popup():
+                continue
+            if self.handle_exit_dialog():
+                continue
+            if self.appear(BOOT_HOME, offset=(20, 20), interval=2):
+                self.device.click(BOOT_HOME)
+                continue
+            if self.appear(BOOT_BACK, offset=(20, 20), interval=2):
+                self.device.click(BOOT_BACK)
+
+        logger.warning('Cannot go back to page_main')
         return False

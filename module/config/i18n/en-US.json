@@ -206,6 +206,22 @@
       "name": "Launch game",
       "help": "Bring the client from a cold start, the title screen or a sub page to the main page, claiming nothing. Every other task of this game starts from there"
     },
+    "CrosscoreMail": {
+      "name": "Mail",
+      "help": "Collect every mail with one press. Whether anything is left is read from the golden highlight of the claim button; once it greys out the task goes back to the lobby"
+    },
+    "CrosscoreTask": {
+      "name": "Tasks",
+      "help": "Collect the daily and weekly task rewards: press 「一键领取」 on the daily tab until it greys out, then do the same on the weekly tab. Story tasks are not touched"
+    },
+    "CrosscorePass": {
+      "name": "Pass",
+      "help": "Collect the pass (Exploration Guide) rewards: open 「任务」 and press 「领取奖励」 on every row of the daily, weekly and season tabs, then 「全部领取」 for the level rewards; the button disappears when nothing is left"
+    },
+    "CrosscoreExplore": {
+      "name": "Daily Explore",
+      "help": "Enter via 「出擊 → 每日探索」 from the lobby and farm a single sub-stage as configured: pick that sub-stage's highest unlocked floor, press 「掃蕩 → 開始戰鬥」, accept the drop bonus with 「使用」, then press 「獎勵」 at the bottom right to close the result screen and return to the main screen. Sweeping consumes all stamina"
+    },
     "CrosscoreBase": {
       "name": "Base",
       "help": "Collect base materials, rotate the staff on schedule, and buy construction orders from your own and your friends' libraries. Missing materials are crafted first"
@@ -873,6 +889,31 @@
     "ShopPurchase": {
       "name": "諾諾商店",
       "help": "Buys the shelf out from the top, pressing MAX on each product. 單元幣 is never bought; products whose 購買 button is grey (holding cap reached, not enough coins) are skipped"
+    }
+  },
+  "CrosscoreExplore": {
+    "_info": {
+      "name": "Daily Explore Settings",
+      "help": "Only one sub-stage is farmed per run so stamina is not spread thin; the highest unlocked floor of that sub-stage is picked automatically"
+    },
+    "Explore": {
+      "name": "Explore Stage",
+      "help": "The explore sub-stage to sweep. The script picks its highest unlocked floor and sweeps until stamina runs out",
+      "技能磨砺": "Skill Training",
+      "星币开采": "Star Coin Mining",
+      "技术分析": "Tech Analysis",
+      "荒墟拾遗": "Ruins Salvage",
+      "鼓舞嵌合": "Inspiration Fusion",
+      "光枢嵌合": "Light Hub Fusion",
+      "注刘嵌合": "Zhu Liu Fusion",
+      "链接嵌合": "Link Fusion",
+      "体魄嵌合": "Physique Fusion",
+      "侵蚀嵌合": "Erosion Fusion",
+      "迅刃嵌合": "Swift Blade Fusion",
+      "矛盾嵌合": "Paradox Fusion",
+      "自然跃升": "Nature Ascension",
+      "人造跃升": "Artificial Ascension",
+      "生命跃升": "Life Ascension"
     }
   },
   "CrosscoreBase": {

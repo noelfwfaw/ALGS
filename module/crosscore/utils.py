@@ -3,8 +3,38 @@
 import cv2
 import numpy as np
 
-from module.base.utils import crop
+from module.base.utils import color_mask, crop
 from module.logger import logger
+
+# The lit colour of a golden button (「一键领取」) and of a selected tab plate.
+# Measured on the 2026-11-08 screenshots: a lit button has 1502~1991 pixels of
+# it, a greyed-out one 0; a selected tab 774~788, an idle tab 0.
+CLAIM_GOLD = (255, 186, 50)
+CLAIM_GOLD_THRESHOLD = 30
+
+# Above this many gold pixels the plate counts as lit / selected. Lit buttons
+# measured 1436~1991 pixels, greyed ones 0, selected tabs 717~739.
+CLAIM_GOLD_PIXELS = 300
+
+
+def gold_pixels(image, area, color=CLAIM_GOLD, threshold=CLAIM_GOLD_THRESHOLD):
+    """Count gold pixels inside an area.
+
+    Template matching can not tell a lit button from a greyed-out one
+    (`TM_CCOEFF_NORMED` compares structure, and the two states of the task
+    button match each other at 0.850), so the enabled state is read from the
+    colour of the plate instead.
+
+    Args:
+        image (np.ndarray): Screenshot, 1280x720.
+        area (tuple): Area to count in.
+        color (tuple): RGB to look for.
+        threshold (int): Per-channel tolerance of `color_mask()`.
+
+    Returns:
+        int: Pixels matching `color` inside `area`.
+    """
+    return int(np.count_nonzero(color_mask(crop(image, area), color=color, threshold=threshold)))
 
 
 def find_all(image, template, region, similarity=0.85, distance=20):
