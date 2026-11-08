@@ -100,7 +100,8 @@ def read_reset_input(image):
 # 「输入昵称」弹窗里那条深灰输入框的**内侧**。
 # 2026-11-07 19:09 出错现场的截图（1280x720）量出来：框是 (409,361)-(871,409)，
 # 取内侧避开边框和闪烁的光标。昵称只有字母数字，cnocr 足够。
-NICK_BOX = Ocr((420, 366, 860, 404), lang='cnocr', name='昵称框')
+NICK_BOX_AREA = (420, 366, 860, 404)
+NICK_BOX = Ocr(NICK_BOX_AREA, lang='cnocr', name='昵称框')
 
 
 def read_nick(image):
@@ -108,8 +109,25 @@ def read_nick(image):
 
     ❗用来验「字真的进框了」。2026-11-07 19:09 昵称页 `Savior7458` 只进去
       `ior7458`（前 3 个字符被输入法吞了），日志却写着「已输入 Savior7458」。
+
+    ❗`cnocr` 在这一行小字上还会**吞字**：2026-11-08 14:55 框里其实是完整的
+      `2Jf33vvm7j`，原图读成 `283wmizj`（10 位读成 8 位），脚本据此判
+      「没输进去」，在点「确认」之前就自己中止了。所以放大 3 倍再认一次，
+      取两条里**最长**的那条 —— 和 `read_consensus()` 同一套做法
+      （那里放大后分母、分子就回来了）。
     """
-    return ''.join((NICK_BOX.ocr(image) or '').split())
+    part = crop(image, NICK_BOX_AREA)
+    best = ''
+    for scale in (1, 3):
+        if scale == 1:
+            big = part
+        else:
+            big = cv2.resize(part, None, fx=scale, fy=scale,
+                             interpolation=cv2.INTER_CUBIC)
+        text = ''.join((NICK_BOX.ocr([big], direct_ocr=True) or '').split())
+        if len(text) > len(best):
+            best = text
+    return best
 
 
 def read_name(image):

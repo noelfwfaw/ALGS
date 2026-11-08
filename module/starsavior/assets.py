@@ -32,6 +32,13 @@ E_205_1 = Button(area={'starsavior': (1190, 518, 1215, 545)}, color={'starsavior
 E_206_1 = Button(area={'starsavior': (595, 330, 673, 356)}, color={'starsavior': (203, 203, 203)}, button={'starsavior': (595, 330, 673, 356)}, file={'starsavior': './assets/starsavior/starsavior/开始游戏异常.png'})
 E_206_2 = Button(area={'starsavior': (617, 454, 667, 481)}, color={'starsavior': (86, 152, 223)}, button={'starsavior': (617, 454, 667, 481)}, file={'starsavior': './assets/starsavior/starsavior/开始游戏异常确认.BUTTON.png'})
 
+# 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
+# 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到
+# page_38，而只点敌人圈 45 次画面一动不动。
+# ❗纯坐标条目，没有 file —— 只给 press() 取 area 中心点击，永不进 appear 家族，
+#   也就没有模板会随游戏改版漂移，所以不需要（也无法）跑 button_extract。
+BATTLE_SKILL = Button(area={'starsavior': (1030, 640, 1076, 676)}, color={'starsavior': (0, 0, 0)}, button={'starsavior': (1030, 640, 1076, 676)}, name='教学战特殊技')
+
 E_100_1 = Button(area={'starsavior': (973, 131, 1238, 192)}, color={'starsavior': (232, 232, 232)}, button={'starsavior': (965, 123, 1246, 200)}, file={'starsavior': './assets/starsavior/starsavior/E_100_1.png'})
 E_101_1 = Button(area={'starsavior': (1188, 601, 1241, 649)}, color={'starsavior': (96, 100, 103)}, button={'starsavior': (1180, 593, 1249, 657)}, file={'starsavior': './assets/starsavior/starsavior/E_101_1.png'})
 E_102_1 = Button(area={'starsavior': (963, 160, 988, 188)}, color={'starsavior': (211, 210, 209)}, button={'starsavior': (955, 152, 996, 196)}, file={'starsavior': './assets/starsavior/starsavior/E_102_1.png'})

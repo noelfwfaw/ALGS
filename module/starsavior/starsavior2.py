@@ -82,7 +82,7 @@ from module.starsavior.assets import (
     E_89_1, E_8_1, E_90_1, E_91_1, E_92_1,
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
-    E_205_1, E_206_1, E_206_2,
+    E_205_1, E_206_1, E_206_2, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -346,12 +346,8 @@ AUTO_RETRY = 20
 # 淡入淡出 / 大招白屏的单帧读值不算数。
 SPEED_HOLD = 1.0
 
-# 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正
-# 要点的是右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次
-# 就把教学战推进到 page_38，而只点敌人圈 45 次画面一动不动。
-# ❗纯坐标 Button 没有 file：只给 press() 取 area 中心点击，永不进 appear 家族。
-BATTLE_SKILL = Button(area=(1030, 640, 1076, 676), color=(0, 0, 0),
-                      button=(1030, 640, 1076, 676), name='教学战特殊技')
+# 「选择特殊技攻击敌人」(引导 page_23) 那枚特殊技按钮见 assets.py 的手写条目
+# `BATTLE_SKILL`：纯坐标、没有 file，只给 press() 用，永不进 appear 家族。
 
 # 抽卡结果页底部的「观测10次」= `E_182_1`(665,654,838,679)，没资源时同一块变成
 # `E_183_1`(663,654,839,680) —— 两张 area 几乎完全重叠，模板分不出亮暗。
@@ -716,7 +712,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
         分片是因为丢字只发生在整串的最前面（输入法还没就绪）：每片 3 个字符、
         片间留 0.15s，比一次发整串稳得多。回读用 `ocr.read_nick`。
+
+        ❗回读只是**辅助**判据，最终看游戏自己：框里有字「确认」(`E_61_1`) 才
+          点亮（空框时是灰的，真机 2026-11-06 23:12）。2026-11-08 14:55 框里
+          明明是完整的 `2Jf33vvm7j`，cnocr 读成 `283wmizj`（8 位），脚本据此
+          判失败、在点「确认」之前自己中止了 —— 用户：「实际成功输入了，但是
+          没有点确认。」
         """
+        seen = ''
         for attempt in (1, 2):
             # ❗**每次都要先清空**，包括第一次：从中断的画面接着跑时，框里可能
             #   还留着上一轮被游戏拒掉的名字（真机 2026-11-07 23:30 框里是
@@ -725,13 +728,20 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.clear_nick_input()
             for i in range(0, len(nickname), 3):
                 self.device.adb_shell(['input', 'text', nickname[i:i + 3]])
-                time.sleep(0.15)
+                # 这不是在等画面，是在等输入法把这一片送进框：框里只在整串
+                # 输完后才有可读的字，中途没有可以 appear 的判据。
+                time.sleep(0.15)  # alas-lint: allow - IME 分片节奏，屏幕上没有可等的状态
             seen = read_nick(self.device.screenshot())
             if self.nick_typed_ok(seen, nickname):
                 logger.info('昵称已输入 %s' % nickname)
                 return True
-            logger.warning('昵称输入不完整：要 %r，框里读出来是 %r（第 %d 次）'
+            logger.warning('昵称回读不一致：要 %r，框里读出来是 %r（第 %d 次）'
                            % (nickname, seen, attempt))
+            # 框里明明有字、游戏也把「确认」点亮了，就别因为 OCR 认不准清空重输。
+            if seen and self.wait_until_appear(E_61_1, offset=CHAIN_OFFSET, timeout=2):
+                logger.info('昵称 %r 回读为 %r（OCR 不准），但「确认」已点亮，按已输入继续'
+                            % (nickname, seen))
+                return True
         # 不再死点确认键：那只会连点到 GameTooManyClickError，还要多花十分钟重走引导
         raise ScriptError('昵称输不进去：要 %r，两次都没进框' % nickname)
 
@@ -1643,12 +1653,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         Returns:
             bool: 这一帧看到并点掉了，返回 True。
         """
-        if not self.appear(E_206_1, offset=(10, 10)):
-            return False
-        logger.info('登录：点掉「发生错误」（NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND）')
-        self.click_button(E_206_2, '确认（开始游戏异常）')
-        self.wait_until_disappear(E_206_1, offset=(10, 10), timeout=3)
-        return True
+        if self.appear(E_206_1, offset=(10, 10)):
+            logger.info('登录：点掉「发生错误」（NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND）')
+            self.click_button(E_206_2, '确认（开始游戏异常）')
+            self.wait_until_disappear(E_206_1, offset=(10, 10), timeout=3)
+            return True
+        return False
 
     def wait_start_screen(self, timeout=180, settle=3):
         """等游戏真的画出画面再开工。
@@ -2676,14 +2686,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         for _ in self.loop(timeout=15):
             if self.appear(E_197_1, offset=(10, 10)):
                 break
-            # 齿轮还没露出来（菜单没铺开）就只等，不点
-            if not self.appear(E_205_1, offset=(10, 10)):
-                continue
-            if time.time() - last_click < 2:
-                continue
-            self.click_button(E_205_1, '设定')
-            last_click = time.time()
-            clicked += 1
+            # 齿轮露出来了（菜单铺开）才点；还没露出来就只等，不点
+            if self.appear(E_205_1, offset=(10, 10)):
+                if time.time() - last_click >= 2:
+                    self.click_button(E_205_1, '设定')
+                    last_click = time.time()
+                    clicked += 1
         else:
             # ❗用模板 `E_197_1` 判「进没进设定页」，不用 OCR：暗灰「账号管理」
             #   常被读成「号管理」（首字被左边圆图标吃掉），真机 00:49 明明
