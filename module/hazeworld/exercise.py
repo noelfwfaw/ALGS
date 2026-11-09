@@ -1,5 +1,8 @@
+import datetime
+
 from module.base.button import Button
 from module.base.timer import Timer
+from module.config.utils import server_time_offset
 from module.hazeworld.assets import (EX_BTN_BATTLE_DONE,
                                      EX_BTN_BATTLE_READY, EX_BTN_PROXY,
                                      EX_PROXY_CONFIRM, EX_PROXY_MAX,
@@ -34,6 +37,45 @@ PROXY_TIMEOUT = 600
 # run the scheduler delays behind other tasks.
 EXERCISE_INTERVAL = 12 * 60
 
+# The exercise hall is closed from Sunday 23:00 to Monday 10:00: 23:00 to 05:00
+# is the weekly settlement, and 05:00 to 10:00 is the preparation period after
+# it, neither of which takes a battle. The window is in server time, the same
+# clock `task_delay(server_update=...)` uses.
+SETTLE_START_HOUR = 23
+SETTLE_END_HOUR = 10
+
+
+def exercise_closed_until(moment=None):
+    """
+    The reopening time of the exercise hall, or None when it is open.
+
+    The hall is closed from Sunday 23:00 to Monday 10:00 (server time): the
+    weekly settlement first, the preparation period after it. A run landing in
+    there can only wait, so its time is moved to the opening time instead of
+    launching the game and getting stuck at the hall entrance.
+
+    Args:
+        moment (datetime.datetime): Local time to test, defaults to now.
+
+    Returns:
+        datetime.datetime or None: Monday 10:00 in local time when `moment` is
+            inside the closed window, None otherwise.
+    """
+    moment = moment or datetime.datetime.now()
+    server = moment - server_time_offset()
+    if server.weekday() == 6 and server.hour >= SETTLE_START_HOUR:
+        # After Sunday 23:00, the hall opens tomorrow at 10:00.
+        days = 1
+    elif server.weekday() == 0 and server.hour < SETTLE_END_HOUR:
+        # Before Monday 10:00, the hall opens today.
+        days = 0
+    else:
+        return None
+
+    end = (server + datetime.timedelta(days=days)).replace(
+        hour=SETTLE_END_HOUR, minute=0, second=0, microsecond=0)
+    return end + server_time_offset()
+
 
 class HazeworldExercise(HazeworldUI):
     """
@@ -47,7 +89,9 @@ class HazeworldExercise(HazeworldUI):
       a rank change popup in between. Slower, but the fight is visible.
 
     Tickets recover one per hour up to 15, so the next run is at most 12 hours
-    away and pulled towards the server update, see `EXERCISE_INTERVAL`.
+    away and pulled towards the server update, see `EXERCISE_INTERVAL`. The
+    closed window of Sunday 23:00 to Monday 10:00 is skipped, see
+    `exercise_closed_until()`.
 
     Pages:
         in: page_main
@@ -61,6 +105,16 @@ class HazeworldExercise(HazeworldUI):
             out: page_main
         """
         logger.hr('Exercise', level=1)
+
+        # The hall is closed for the weekly settlement and the preparation
+        # after it. Waiting is the only option, so put the task at the reopening
+        # time instead of walking into a page that will not open.
+        reopen = exercise_closed_until()
+        if reopen is not None:
+            logger.info(f'Exercise hall is closed, delay to {reopen}')
+            self.config.task_delay(target=reopen)
+            return
+
         self.ui_ensure(page_exercise)
 
         if self.config.HazeworldExercise_ProxyBattle:
@@ -73,7 +127,15 @@ class HazeworldExercise(HazeworldUI):
         # Not a daily task: tickets keep recovering after the server update,
         # see EXERCISE_INTERVAL. `task_delay()` picks whichever comes first, so
         # the pair settles on 05:00 (shared with the daily tasks) and 17:00.
-        self.config.task_delay(server_update=True, minute=EXERCISE_INTERVAL)
+        # A 12-hour delay started on a Sunday afternoon would land inside the
+        # closed window, where the next run could only skip itself, so aim at
+        # the reopening time instead.
+        reopen = exercise_closed_until(
+            datetime.datetime.now() + datetime.timedelta(minutes=EXERCISE_INTERVAL))
+        if reopen is not None:
+            self.config.task_delay(target=reopen)
+        else:
+            self.config.task_delay(server_update=True, minute=EXERCISE_INTERVAL)
 
     def exercise_ticket_left(self, retry=2):
         """

@@ -7,7 +7,8 @@
 - 它的价格不是金币，而是后勤补给通货；余额显示在顶栏最右（金币那一格没有
   数字），游戏把大数字缩写，`1366K` 就是 1366000，所以要按后缀还原。
 - 清单默认全买，只排除盾币：盾币是 1 点换无限量的兑换券，买它没意义。
-- 补货按周走（面板上写「N日后重置购买次数」），所以每周一 05:00 跑一次。
+- 补货按周走（面板上写「N日后重置购买次数」），清单买完时每周一 05:00 跑一次；
+  余额不够买下一件时第二天再来，货币每天都会涨。
 
 Prices are read off the same white strip as in the elite shop; the card grid,
 the OCR and the filter are the shared engine.

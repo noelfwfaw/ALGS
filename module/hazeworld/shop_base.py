@@ -14,9 +14,10 @@ and that is exactly what a subclass sets:
 Where the cards are and how the shelf moves is `shop_grid.py`; what the filter
 asks for is `shop_filter.py`; this module buys it.
 
-购买顺序 = 商店内从左到右、同一列先上后下；每个道具每次买 1 个。已售罄跳过；
-买之前先 OCR 余额和价签，买不起就跳过（更便宜的后面的仍会试）。商品多为月更，
-但补货按周走，所以每个商店都每周跑一次（下周一 05:00）。
+购买顺序 = 购买清单从上往下，先买高优先级的；每张卡在弹窗里点 MAX，一次把货架
+余量和余额允许的数量全部买下；余额不够买下一张想要的卡时停手，第二天 05:00 再来
+（货币每天都会涨），不再傻等一周。商品多为月更，但补货按周走，所以清单买完时
+每周跑一次（下周一 05:00）。
 """
 
 import re
@@ -25,7 +26,7 @@ from module.base.button import Button
 from module.base.timer import Timer
 from module.coupon.text import read_text
 from module.hazeworld.assets import (REWARD_POPUP, SHOP_DIALOG_CANCEL,
-                                     SHOP_DIALOG_CONFIRM)
+                                     SHOP_DIALOG_CONFIRM, SHOP_DIALOG_MAX)
 from module.hazeworld.hazeworld_ui import HazeworldUI
 from module.hazeworld.page import page_mall
 from module.hazeworld.schedule import next_week_refresh
@@ -75,6 +76,9 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
     CURRENCY_LETTER = (255, 255, 255)
     CURRENCY_THRESHOLD = 170
     CURRENCY_UNITS = ()
+    # Set by `shop_run()`: the sweep stopped because the next wanted card costs
+    # more than the balance, so the next run is tomorrow rather than next week.
+    shop_out_of_money = False
 
     def shop_run(self):
         """
@@ -94,11 +98,18 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
         # at the last column, or was interrupted mid way, would otherwise start
         # from there and buy nothing.
         self.shop_scroll_home()
-        self.shop_sweep()
+        self.shop_out_of_money = bool(self.shop_sweep())
         self.ui_goto_main()
 
     def shop_delay(self):
         """Come back next Monday 05:00 - the shops restock weekly."""
+        if self.shop_out_of_money:
+            # The currency keeps growing every day, so a short balance is a
+            # reason to come back tomorrow, not to idle for a whole week.
+            logger.info('The next wanted card costs more than the balance, '
+                        'retry at the next server update')
+            self.config.task_delay(server_update=True)
+            return
         target = next_week_refresh()
         logger.attr('Shop next reset', str(target))
         self.config.task_delay(target=target)
@@ -249,104 +260,127 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
 
     def shop_sweep(self):
         """
-        Walk the list once, left to right, buying what the filter asks for:
-        both cards of a column are bought before the next column is walked to.
-        The sweep stops at the list end or at a purchase the game would not
-        take.
+        Buy the wanted cards by priority, one card at a time, each in the
+        largest quantity the game allows.
 
-        The walk can not simply advance one column after each stop. Every
-        purchase resets the shelf to its first column (measured 2026-11-04:
-        after each 确认 the goods were back at 296:原始核心结晶, while merely
-        opening and cancelling the same dialog left them where they were), so
-        the sweep counts the columns it has handled and walks that far from
-        the start before every stop. Advancing one column instead bought the
-        first column over and over - 40 purchases of the same two items.
+        The filter list is the priority: every line is bought out before the
+        next one is touched, so a short balance still spends what there is on
+        the thing that matters most (`shop_find()`).
 
-        Once the walk clamps, the list's tail is on screen. Its first column
-        is the one just bought, and the ones further right never reach the
-        left edge at all (the clamp lands the goods off the column grid:
-        measured at x 461 and 734 against a grid of 296 + 272 n), so the tail
-        is bought where it lies, one walk back to the same view per column.
+        最大 pulls the quantity up to the stock and the balance (measured
+        2026-11-09: 剩余 98 at 300 each with 73285 gold became 98 for 29400),
+        so a card leaves the shelf in one purchase: either sold out, or the
+        balance no longer covers a second one. Both end that card, so the loop
+        always makes progress.
 
-        There is no "have I seen these goods before" guard on purpose: the
-        same item may sit in two neighbouring columns (Ⅲ型自选水晶 does), so
-        titles can not tell a broken scroll from a real one.
+        The walk can not advance one column after each stop. Every purchase
+        resets the shelf to its first column (measured 2026-11-04: after each
+        确认 the goods were back at 296:原始核心结晶, while merely opening and
+        cancelling the same dialog left them where they were), so every search
+        walks from the start again.
+
+        Returns:
+            bool: If the sweep stopped because the next wanted card costs more
+            than the balance. The caller then comes back at the next server
+            update instead of next week.
         """
-        bought = skipped = 0
+        bought = 0
+        for rank in range(self.shop_rule_count):
+            while 1:
+                card = self.shop_find(rank)
+                if card is None:
+                    break
+                # The balance check comes before any press: confirming a card
+                # the currency cannot cover only opens a rejection dialog.
+                price, balance = self.shop_price(card), self.shop_balance()
+                if price is not None and balance is not None and balance < price:
+                    logger.info(f'The card {card[3]} costs {price}, balance {balance}')
+                    logger.attr('Shop sweep', f'bought {bought}')
+                    return True
+                if self.shop_buy_card(card) != 'bought':
+                    logger.attr('Shop sweep', f'bought {bought}')
+                    return False
+                bought += 1
+        logger.attr('Shop sweep', f'bought {bought}')
+        return False
+
+    def shop_find(self, rank):
+        """
+        Walk from the start of the shelf and return the first card of `rank`
+        that still has something to sell.
+
+        The card is returned with the shelf left at the view it was read from,
+        so the caller can press it without walking again. A card of another
+        priority is not bought here: the line above it has not been cleared.
+
+        Args:
+            rank (int): Line of the filter, 0 is the first.
+
+        Returns:
+            tuple or None: The card, or None when no card of this rank is left.
+        """
         handled = 0
         while handled < SHOP_MAX_COLUMNS:
             reached = self.shop_walk_to(handled)
             columns = self.shop_columns(self.shop_cards())
             if not columns:
-                logger.info('No card readable, the sweep is done')
-                break
+                logger.info('No card readable, the shop is done')
+                return None
             logger.attr('Shop columns', ' '.join(
                 f'{x}{"+" if top and bottom else "-"}' for x, top, bottom in columns))
+            for column in columns:
+                for card in column[1:]:
+                    if card is None:
+                        continue
+                    if self.shop_filter_rank(card) != rank:
+                        continue
+                    if self.shop_sold_out(card):
+                        logger.info(f'Skip {card[3]}: sold out')
+                        continue
+                    return card
             if reached < handled:
-                logger.info('The shop list is at its end, buying the tail')
-                for offset in range(1, len(columns)):
-                    if offset > 1:
-                        # The purchase reset the shelf; walk back to this view.
-                        self.shop_walk_to(handled)
-                        columns = self.shop_columns(self.shop_cards())
-                        if offset >= len(columns):
-                            break
-                    results, stop = self.shop_buy_column(columns[offset])
-                    bought += results.count('bought')
-                    skipped += results.count('skipped')
-                    if stop:
-                        break
-                break
-            results, stop = self.shop_buy_column(columns[0])
-            bought += results.count('bought')
-            skipped += results.count('skipped')
-            if stop:
-                break
+                # The tail is on screen with the walk clamped; `columns` above
+                # already covers it (one walk back to the same view per
+                # column), so the list has been read to its end.
+                logger.info('The shop list is at its end')
+                return None
             handled += 1
-        logger.attr('Shop sweep', f'bought {bought}, skipped {skipped}')
+        return None
 
-    def shop_buy_column(self, column):
+    def shop_sold_out(self, card):
         """
-        Buy both cards of one column.
-
         Args:
-            column (list): [x_left, top_card, bottom_card] of `shop_columns`.
+            card (tuple): (row, x_left, x_right, name_a, name_b).
 
         Returns:
-            tuple: (results so far, stop) where the results are the strings of
-            `shop_buy_card` seen in this column and `stop` says a purchase was
-            refused, which ends the sweep.
+            bool: If the card carries the 售罄 banner.
         """
-        results = []
-        for card in column[1:]:
-            if card is None:
-                continue
-            result = self.shop_buy_card(card)
-            results.append(result)
-            if result not in ('bought', 'skipped'):
-                return results, True
-        return results, False
+        row, x1, x2 = card[0], card[1], card[2]
+        sy1, sy2 = SHOP_ROWS[row]['sold']
+        sold = read_text(self.device.image, (x1 + 30, sy1, x2 - 30, sy2))
+        return '售罄' in sold
 
     def shop_buy_card(self, card):
         """
-        Buy one card, once; 'bought', 'insufficient' or 'skipped'.
+        Buy one card in one purchase; 'bought', 'insufficient' or 'skipped'.
+
+        The dialog's 最大 is pressed before 确认, so this buys the whole stock
+        the currency covers instead of a single piece.
         """
         row, x1, x2, name, _ = card
         if not self.shop_filter_match(card):
             logger.info(f'Skip {name}: not on the filter')
             return 'skipped'
-        sy1, sy2 = SHOP_ROWS[row]['sold']
-        sold = read_text(self.device.image, (x1 + 30, sy1, x2 - 30, sy2))
-        if '售罄' in sold:
+        if self.shop_sold_out(card):
             logger.info(f'Skip {name}: sold out')
             return 'skipped'
-        # The balance check comes before any press: a card the currency cannot
-        # cover is skipped, and the sweep goes on to the cheaper cards behind
-        # it instead of confirming into a rejection.
+        # The balance check comes before any press: confirming a card the
+        # currency cannot cover only opens a rejection dialog. The sweep has
+        # already checked it once, this covers a balance that moved meanwhile.
         price, balance = self.shop_price(card), self.shop_balance()
         if price is not None and balance is not None and balance < price:
             logger.info(f'Skip {name}: price {price} over balance {balance}')
-            return 'skipped'
+            return 'insufficient'
 
         logger.info(f'Buy {name}')
         ty = SHOP_ROWS[row]['tap']
@@ -379,6 +413,12 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
                 press.reset()
                 pressed += 1
                 self.device.click(card_button)  # alas-lint: allow - re-press, verified by the title OCR above
+
+        # 最大 pulls the quantity up to the stock and the balance. The dialog
+        # was stilled above, so this press is not eaten by its open animation.
+        self.device.click(SHOP_DIALOG_MAX)  # alas-lint: allow - the dialog was just confirmed by its title OCR
+        self.wait_until_still(SHOP_DIALOG_AREA, timeout=2)
+        self.device.screenshot()
 
         self.device.click(SHOP_DIALOG_CONFIRM)  # alas-lint: allow - the dialog was just confirmed by its title OCR
         closed = Timer(6).start()

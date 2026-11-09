@@ -7,9 +7,9 @@ balance check reads it as is. Everything else - the two-row grid, the OCR of
 the titles, the filter, the purchase dialog - is the shared engine in
 `shop_base.py`; this module only names the shop.
 
-购买顺序 = 商店内从左到右、同一列先上后下；每个道具每次买 1 个。已售罄跳过；
-买之前先 OCR 金币余额和价签，买不起就跳过（更便宜的后面的仍会试）。商品多为
-月更，但精英演习券一类每周补货，所以本任务每周跑一次（下周一 05:00）。
+购买顺序 = 购买清单从上往下，先买高优先级的；每张卡在弹窗里点 MAX，一次把余量和
+余额允许的数量全部买下；余额不够买下一张想要的卡时停手，第二天 05:00 再来。商品
+多为月更，但补货按周走，所以清单买完时每周跑一次（下周一 05:00）。
 """
 
 from module.hazeworld.assets import EXCHANGE_TAB_ELITE, MALL_TAB_EXCHANGE

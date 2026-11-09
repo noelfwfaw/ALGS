@@ -107,11 +107,15 @@ ROOM_EXP_CLAIM = Button(area={'hazeworld': (966, 576, 1078, 614)}, color={'hazew
 ROOM_EXP_PANEL_LABEL = Button(area={'hazeworld': (86, 88, 220, 116)}, color={'hazeworld': (154, 154, 152)}, button={'hazeworld': (86, 88, 220, 116)}, file={'hazeworld': './assets/hazeworld/hazeworld/ROOM_EXP_PANEL_LABEL.png'})
 ROOM_EXP_RESULT_CANCEL = Button(area={'hazeworld': (390, 566, 606, 615)}, color={'hazeworld': (61, 63, 61)}, button={'hazeworld': (390, 566, 606, 615)}, file={'hazeworld': './assets/hazeworld/hazeworld/ROOM_EXP_RESULT_CANCEL.png'})
 ROOM_TITLE_LABEL = Button(area={'hazeworld': (253, 26, 353, 56)}, color={'hazeworld': (169, 167, 185)}, button={'hazeworld': (253, 26, 353, 56)}, file={'hazeworld': './assets/hazeworld/hazeworld/ROOM_TITLE_LABEL.png'})
-# The purchase dialog of the shop: 「取消」 on the left, 「确认」 on the right.
+# The purchase dialog of the shop: 「取消」 on the left, 「确认」 on the right,
+# and the quantity row between them: MIN - [n] + MAX.
 # Click-only buttons, nothing here is ever matched - the dialog itself is
 # detected by OCR over its title (shop.py).
 SHOP_DIALOG_CANCEL = Button(area={'hazeworld': (366, 479, 584, 521)}, color={'hazeworld': (170, 84, 87)}, button={'hazeworld': (366, 479, 584, 521)}, file=None)
 SHOP_DIALOG_CONFIRM = Button(area={'hazeworld': (685, 479, 903, 521)}, color={'hazeworld': (53, 53, 55)}, button={'hazeworld': (685, 479, 903, 521)}, file=None)
+# 「MAX」 pulls the quantity to as many as the stock and the balance allow
+# (measured 2026-11-09: 剩余 98 with 73285 gold at 300 each became 98 for 29400).
+SHOP_DIALOG_MAX = Button(area={'hazeworld': (770, 372, 874, 414)}, color={'hazeworld': (53, 53, 55)}, button={'hazeworld': (770, 372, 874, 414)}, file=None)
 SUPPORT_CARD = Button(area={'hazeworld': (45, 435, 130, 530)}, color={'hazeworld': (108, 92, 94)}, button={'hazeworld': (45, 435, 130, 530)}, file={'hazeworld': './assets/hazeworld/hazeworld/SUPPORT_CARD.png'})
 SUPPORT_CLAIM_1 = Button(area={'hazeworld': (248, 248, 356, 282)}, color={'hazeworld': (67, 68, 64)}, button={'hazeworld': (248, 248, 356, 282)}, file={'hazeworld': './assets/hazeworld/hazeworld/SUPPORT_CLAIM_1.png'})
 SUPPORT_CLAIM_2 = Button(area={'hazeworld': (248, 393, 356, 427)}, color={'hazeworld': (66, 66, 60)}, button={'hazeworld': (248, 393, 356, 427)}, file={'hazeworld': './assets/hazeworld/hazeworld/SUPPORT_CLAIM_2.png'})

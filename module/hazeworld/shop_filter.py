@@ -41,11 +41,12 @@ class ShopFilter:
         unbought even when the switch is flipped to 全部.
 
         The list is one rule per line, `#` starts a comment. Inside a line
-        `>` separates alternatives and any of them matching the OCR'd name
-        buys the card. A line starting with `!` excludes; an entry starting
-        with `!` excludes too, which is how one-line lists of older configs
-        are written - they are rewritten into the one-rule-per-line form on
-        first sight, so the settings page shows the shape the list has.
+        `>` separates names, and every name is bought in the order it was
+        written: top to bottom, left to right. A line starting with `!`
+        excludes; an entry starting with `!` excludes too, which is how
+        one-line lists of older configs are written - they are rewritten into
+        the one-rule-per-line form on first sight, so the settings page shows
+        the shape the list has.
         """
         mode = str(self.shop_config('Filter') or '自定义')
         raw = str(self.shop_config('Purchases') or '')
@@ -57,6 +58,7 @@ class ShopFilter:
 
         self.shop_include = []
         self.shop_exclude = []
+        rule = 0
         for line in raw.splitlines():
             line = line.strip()
             if not line or line.startswith('#'):
@@ -78,15 +80,21 @@ class ShopFilter:
                 elif excluded:
                     self.shop_exclude.append(part)
                 else:
-                    self.shop_include.append(part)
+                    # Every wanted name is its own priority level, in the order
+                    # it was written: top to bottom, left to right.
+                    self.shop_include.append((rule, part))
+                    rule += 1
 
         if mode == '不买':
             self.shop_include = []
         elif mode == '全部':
             # An empty keyword sits inside every name.
-            self.shop_include = ['']
+            self.shop_include = [(0, '')]
+        # How many priority levels the list has; the sweep buys them in order.
+        self.shop_rule_count = max((rank for rank, _ in self.shop_include),
+                                   default=-1) + 1
         logger.attr('Shop filter', f'{mode}: {len(self.shop_include)} include, '
-                                   f'{len(self.shop_exclude)} exclude')
+                                   f'{len(self.shop_exclude)} exclude, {rule} rules')
 
     @staticmethod
     def shop_normalize_filter(raw):
@@ -94,6 +102,10 @@ class ShopFilter:
         Rewrite an old one-line list (`A>B>!C`) as one rule per line. Lists
         that already use lines, or that carry no `!` at all, are left as the
         user wrote them.
+
+        Each include of the old form becomes its own line, in the order it was
+        written: the order is the priority now (`shop_filter_rank()`), and the
+        old form is the only place where the user's order survives.
         """
         if '\n' in raw or '!' not in raw:
             return raw
@@ -106,7 +118,7 @@ class ShopFilter:
                 exclude.append(part[1:].strip())
             else:
                 include.append(part)
-        lines = [' > '.join(include)] if include else []
+        lines = list(include)
         lines += [f'!{word}' for word in exclude if word]
         return '\n'.join(lines)
 
@@ -119,11 +131,30 @@ class ShopFilter:
             bool: If the card should be bought - an include may hit either
             read, but an exclusion on any read wins.
         """
+        return self.shop_filter_rank(card) is not None
+
+    def shop_filter_rank(self, card):
+        """
+        How early the list asks for a card; None when it is not wanted.
+
+        The list is read in the order it was written: top to bottom, left to
+        right within a line. 残响 is bought before 调度券 before 自选水晶.
+        Exclusion still beats every include.
+
+        Args:
+            card (tuple): (row, x_left, x_right, name_a, name_b).
+
+        Returns:
+            int | None: 0 for the first wanted name, 1 for the next, ...; or
+            None when the card is excluded or no name matches.
+        """
         names = card[3:]
         if any(word in name for name in names for word in self.shop_exclude):
-            return False
-        return any(self.shop_keyword_hit(word, name)
-                   for name in names for word in self.shop_include)
+            return None
+        for rank, word in self.shop_include:
+            if any(self.shop_keyword_hit(word, name) for name in names):
+                return rank
+        return None
 
     @staticmethod
     def shop_keyword_hit(word, name):

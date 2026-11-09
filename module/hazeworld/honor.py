@@ -54,6 +54,11 @@ class HazeworldHonor(HazeworldShopBase):
         resets the shelf there, so every round re-measures the shelf and taps
         the same spot. The filter still has the last word, so a week in which
         the game puts something else first is left alone instead of bought.
+        The dialog is bought with 最大, so one round takes the whole stock.
+
+        Returns:
+            bool: If the sweep stopped because the card costs more than the
+            balance, which makes the caller retry at the next server update.
         """
         bought = 0
         while bought < SHOP_HONOR_MAX_BUY:
@@ -62,10 +67,13 @@ class HazeworldHonor(HazeworldShopBase):
             if not columns or columns[0][1] is None:
                 logger.info('No card readable, the sweep is done')
                 break
-            if self.shop_buy_card(columns[0][1]) != 'bought':
-                break
+            result = self.shop_buy_card(columns[0][1])
+            if result != 'bought':
+                logger.attr('Shop sweep', f'bought {bought}')
+                return result == 'insufficient'
             bought += 1
         logger.attr('Shop sweep', f'bought {bought}')
+        return False
 
     def run(self):
         """
