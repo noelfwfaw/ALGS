@@ -370,6 +370,32 @@ class GameScheduler:
                 return game
         return None
 
+    def prefer_current_game(self, command):
+        """
+        Whether `command` belongs to the game currently on screen.
+
+        `SCHEDULER_PRIORITY` groups tasks into blocks per game, but that only
+        keeps tasks which were due **at the same moment** together. A task of
+        another game becoming due while a long block is running jumps to the
+        front of the priority list, and the emulator is switched there and back
+        again (measured 2026-11-09 03:49 `HazeworldExercise` cutting into the
+        Lostsword block, and 2026-11-10 05:00 / 05:20 two switches in twenty
+        minutes). Preferring the game on screen drains its whole due queue
+        before paying for another cold start.
+
+        `self.game` is set by `switch_game()` and still holds the previous task's
+        game when `get_next_task()` runs, which is exactly the game on screen.
+
+        Args:
+            command (str): Task name, as written in `task.yaml`.
+
+        Returns:
+            bool:
+        """
+        if self.game is None:
+            return False
+        return self.task_game(command) == self.game
+
     def peek_next_game(self):
         """
         Game of the next task that has one and is already due.
@@ -577,7 +603,7 @@ class GameScheduler:
             str: Name of the next task.
         """
         while 1:
-            task = self.config.get_next()
+            task = self.config.get_next(prefer=self.prefer_current_game)
             self.config.task = task
             self.config.bind(task)
 

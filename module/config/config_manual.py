@@ -21,6 +21,14 @@ class ManualConfig:
     # from being closed between two tasks of the same game. Missing a task here
     # drops it from the schedule entirely, so every task must be listed.
     #
+    # ❗Static blocks alone are NOT enough. They only group tasks that were due
+    #   at the same moment; a task of another game becoming due mid-block jumps
+    #   to the front of `Filter.apply()` and switches the emulator there and
+    #   back (2026-11-09 03:49 / 2026-11-10 05:00+05:20 真机). Runtime
+    #   `GameScheduler.prefer_current_game()` drains the due queue of the game
+    #   on screen before switching. Keep both: blocks define order *within* a
+    #   game, the hook defines which game gets to finish.
+    #
     # The Lostsword block was reordered by the user (2026-10-27): the free gifts
     # and the mailbox come first because they are one click each, the timed
     # modes (boss / dungeon / copy / event / star / arena) follow, and the three

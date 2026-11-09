@@ -229,8 +229,15 @@ class AlasConfig(ConfigUpdater, ManualConfig, GeneratedConfig, ConfigWatcher):
         self.pending_task = pending
         self.waiting_task = waiting
 
-    def get_next(self):
+    def get_next(self, prefer=None):
         """
+        Args:
+            prefer (callable): Optional `f(command) -> bool`. The first pending
+                task satisfying it wins over `SCHEDULER_PRIORITY`. The multi-game
+                scheduler passes a hook here to keep the game already on screen
+                running; see `alas.py::GameScheduler.prefer_current_game()`.
+                Other callers (e.g. `task_switched()`) leave it None.
+
         Returns:
             Function: Command to run
         """
@@ -240,6 +247,18 @@ class AlasConfig(ConfigUpdater, ManualConfig, GeneratedConfig, ConfigWatcher):
             AlasConfig.is_hoarding_task = False
             logger.info(f"Pending tasks: {[f.command for f in self.pending_task]}")
             task = self.pending_task[0]
+            # `Restart` is a framework task with no game of its own and must
+            # keep its place at the head of the queue; a preference hook must
+            # not push it aside indefinitely.
+            if prefer is not None and task.command != 'Restart':
+                for candidate in self.pending_task:
+                    if prefer(candidate.command):
+                        if candidate.command != task.command:
+                            logger.info(
+                                f'Prefer task `{candidate.command}` over '
+                                f'`{task.command}` by preference hook')
+                        task = candidate
+                        break
             logger.attr("Task", task)
             return task
         else:
