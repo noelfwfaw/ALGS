@@ -135,6 +135,13 @@ SHOP_CELL_MARK = 0.65
 # 列表末尾空着的那格点下去什么都不会开，只能干等十秒。卡片上总有白字（名、价、
 # 限购），空位没有任何亮点 —— 用亮度上限一眼就能分出来（实测空位最高 148）。
 SHOP_CELL_LIGHT = 180
+# 持有量已经到上限的商品（例：特殊安全單元碼 7/3），「購買」永远是灰的，买不掉。
+# 一次运行里记住它，后面再扫到就直接跳过 —— 否则每买掉一件、它往上顶一格，
+# 都会被重新点开、等十秒、再关掉。记的是**卡面**不是格子：买掉别的商品后它换格。
+# 同一张卡换格后逐像素一致，10px 的余量留给拖拽的亚像素误差；不同商品之间
+# 卡面差得远（同款同价才会撞上，而那种商品牌面本来就该一起跳过）。
+SHOP_CAPPED_SIMILARITY = 0.9
+SHOP_CAPPED_OFFSET = 10
 
 
 class ChaoszeroArk(ChaoszeroUI):
@@ -660,6 +667,46 @@ class ChaoszeroArk(ChaoszeroUI):
         image = self.image_crop((x - half_x, y - half_y, x + half_x, y + half_y))
         return bool(image.max() < SHOP_CELL_LIGHT)
 
+    def shop_cell_image(self, cell):
+        """
+        Take a copy of one product card.
+
+        Args:
+            cell (tuple): 格子中心。
+
+        Returns:
+            np.ndarray: Card image, owned by the caller.
+        """
+        x, y = cell
+        half_x, half_y = SHOP_CELL_HALF
+        return self.image_crop((x - half_x, y - half_y, x + half_x, y + half_y), copy=True)
+
+    def shop_cell_capped(self, cell):
+        """
+        Whether this cell holds a product whose 購買 was already grey in this run.
+
+        Such a product cannot be bought at all: its holding is at the cap (例：
+        特殊安全單元碼 7/3). Every purchase above it pushes it one cell up, so
+        the memory is the card image, not the slot - see `shop_capped`.
+
+        Args:
+            cell (tuple): 格子中心。
+
+        Returns:
+            bool: If this is a product already found at its cap.
+        """
+        if not self.shop_capped:
+            return False
+        x, y = cell
+        half_x, half_y = SHOP_CELL_HALF
+        offset = SHOP_CAPPED_OFFSET
+        search = self.image_crop((x - half_x - offset, y - half_y - offset,
+                                  x + half_x + offset, y + half_y + offset))
+        for capped in self.shop_capped:
+            if cv2.matchTemplate(search, capped, cv2.TM_CCOEFF_NORMED).max() > SHOP_CAPPED_SIMILARITY:
+                return True
+        return False
+
     def shop_wait_grid(self, timeout=3):
         """
         Wait until the product grid is back and fully drawn.
@@ -883,6 +930,9 @@ class ChaoszeroArk(ChaoszeroUI):
             if self.shop_cell_empty(cell):
                 logger.info('Empty slot, skip')
                 continue
+            if self.shop_cell_capped(cell):
+                logger.info('At its holding cap, skip')
+                continue
             if self.shop_cell_coin(cell):
                 logger.info('單元幣, do not buy')
                 continue
@@ -890,8 +940,14 @@ class ChaoszeroArk(ChaoszeroUI):
             if mark:
                 logger.info(f'{mark}, skip')
                 continue
+            card = self.shop_cell_image(cell)
             result = self.shop_buy(cell)
-            if result != 'skip':
+            if result == 'skip':
+                # 「購買」是灰的：持有量到上限，这一轮不会再变。记下卡面，它跟着
+                # 货架往上顶以后照样认得出来，不用再点开等一次十秒。
+                self.shop_capped.append(card)
+                continue
+            if result != 'bought':
                 return result
         return 'none'
 
@@ -920,7 +976,7 @@ class ChaoszeroArk(ChaoszeroUI):
 
         一屏两行，往下还有三行，所以扫完一屏没有能买的就向下拖一行再扫，拖不动
         就是到底了。每买一件后面的商品会往上顶，所以每买一件都回到这一屏的第一
-        格重扫。
+        格重扫。持有量到上限的商品（「購買」灰）一轮只认一次，之后整轮跳过。
 
         Pages:
             in: 諾諾商店
@@ -930,6 +986,11 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If at least one product was bought.
         """
         logger.hr('諾諾商店', level=2)
+
+        # 这一轮已经确认到持有上限的商品（「購買」灰掉）。`shop_scan()` 再扫到
+        # 它们的卡面就跳过；每次运行重新记，所以下一次任务仍会去试一次 —— 那时
+        # 上限可能已经因为用掉或升级而放开。
+        self.shop_capped = []
 
         bought = 0
         for _ in range(SHOP_SCROLL_PAGES):

@@ -18,8 +18,9 @@
    （白 ✕ = 退出，另一个 = 自动战斗），但在战斗结束、结算页出来以后，那个
    位置就变成体力「+」了，点下去会弹出「補充埃忒耳」。所以点自动战斗必须在
    「确实在战斗页」的判断里面做。
-2. **自动战斗按钮只有颜色变**：同一个图标，开是亮青色、关是暗白色。实测青色
-   像素 121/126 对 0/9，按数量判（`ui_cyan_count`），不判形状。
+2. **自动战斗按钮只有颜色变**：同一个图标，开是亮金色、关是白/灰色（2026-11-09
+   改版；旧版开是青色，按青色像素数判会永远读到 0）。实测金色像素 113 对 0，
+   按数量判（`ui_gold_count`），不判形状。
 3. **难度选择器是滑动窗口**：只显示 4 个数字，选完就缩回去，位置随窗口漂。
    所以"设难度"这个选项没做成"点某个固定坐标"，见 `sim_set_difficulty()`。
 4. **列表/页签/卡片的图案每期都换**（活动皮肤连按钮配色都换），这些都是固定
@@ -85,10 +86,10 @@ SIM_EFFICIENCY_STEP = 44
 SIM_EFFICIENCY_Y = 599
 SIM_EFFICIENCY_AREA = (860, 575, 1240, 625)
 
-# 战斗页自动战斗按钮那块区域（青色像素数就是这个框里的）。
-SIM_AUTO_AREA = (1105, 8, 1175, 64)
-# 青色像素超过这个数就算"自动战斗已开"：实测开 121/126，关 0/9。
-SIM_AUTO_CYAN = 60
+# 战斗页自动战斗按钮那块区域（金色像素数就是这个框里的）。开=亮金环，关=白环。
+SIM_AUTO_AREA = (1100, 10, 1150, 70)
+# 金色像素超过这个数就算"自动战斗已开"：实测开 113，关 0。
+SIM_AUTO_GOLD = 40
 
 # 一次入口从进战斗到结算：效率 1 实测 40~46 秒，效率 6 是连着打 6 场，
 # 所以要按 6 倍留量；单场 45 秒 × 6 ≈ 4 分半，留 10 分钟兜底。
@@ -805,10 +806,10 @@ class ChaoszeroSimulation(ChaoszeroUI):
                 started.reset()
                 if not auto:
                     auto = True
-                    if self.ui_cyan_count(SIM_AUTO_AREA) < SIM_AUTO_CYAN:
+                    if self.ui_gold_count(SIM_AUTO_AREA) < SIM_AUTO_GOLD:
                         logger.info('Auto battle is off, turn it on')
                         # 开打的那一下常被转场吃掉（实测两点没亮），而且战斗会
-                        # 一直等玩家出牌。亮起来才算成功，最多补点三次。
+                        # 一直等玩家出牌。金色圈亮起来才算成功，最多补点三次。
                         for attempt in range(3):
                             self.device.click_record_clear()
                             self.device.click(BATTLE_AUTO)  # alas-lint: allow - inside the ui_battle_appear() branch
@@ -816,15 +817,15 @@ class ChaoszeroSimulation(ChaoszeroUI):
                             while not lit.reached():
                                 self.device.screenshot()
                                 self.device.stuck_record_clear()
-                                if self.ui_cyan_count(SIM_AUTO_AREA) >= SIM_AUTO_CYAN:
+                                if self.ui_gold_count(SIM_AUTO_AREA) >= SIM_AUTO_GOLD:
                                     break
-                            if self.ui_cyan_count(SIM_AUTO_AREA) >= SIM_AUTO_CYAN:
+                            if self.ui_gold_count(SIM_AUTO_AREA) >= SIM_AUTO_GOLD:
                                 logger.info('Auto battle is on')
                                 break
                             logger.info(f'Auto battle did not light up, press again ({attempt + 1}/3)')
                         else:
-                            # 实测按下去战斗确实会自己打（这一轮最后是自动打完的），
-                            # 只是这个青色判据在部分战斗背景上读不到，所以只记一笔。
+                            # 金圈读不到时只记一笔，不把整场判死：战斗可能已经在
+                            # 自动打，误判成"没开"反而会多点两下把它关掉。
                             logger.info('Auto battle light not detected, the battle decides')
                 continue
 

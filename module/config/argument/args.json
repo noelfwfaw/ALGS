@@ -3294,6 +3294,11 @@
           "guide",
           "verify"
         ]
+      },
+      "RerollCount": {
+        "type": "input",
+        "value": 0,
+        "valuetype": "int"
       }
     },
     "Storage": {

@@ -70,17 +70,23 @@ SUB_ROWS = (EXPLORE_SUB_ROW_1, EXPLORE_SUB_ROW_2, EXPLORE_SUB_ROW_3,
             EXPLORE_SUB_ROW_4, EXPLORE_SUB_ROW_5)
 
 # Category card and the golden strip on its left edge, which is lit while the
-# category is open. The strip is a 5 px wide, 83 px tall bar that drifts
-# between x 278 and x 300 while the selection animates, so the band is wide
-# enough to hold both ends (2026-11-08, two frames of the same selection).
+# category is open. The strip is 5 px wide and ~83 px tall for 资源采集 and
+# 芯片嵌合, drifting between x 278 and x 300 while the selection animates, so
+# their bands hold both ends (2026-11-08, two frames of the same selection).
+# The three cards are **not** evenly spaced: the third one starts at y 451 (its
+# art at 473~575), and its lit strip sits at x 297~309, y 433~594 (2026-11-09
+# error frame). The old band (266, 370, 312, 465) only caught its top 34 rows
+# and read 100 gold pixels, below the threshold, so 跃升行动 was reported as
+# "did not highlight" while it was selected all along.
 CATEGORY = {
     'resource': (EXPLORE_CAT_RESOURCE, (266, 150, 312, 245)),
     'chip': (EXPLORE_CAT_CHIP, (266, 260, 312, 355)),
-    'ascend': (EXPLORE_CAT_ASCEND, (266, 370, 312, 465)),
+    'ascend': (EXPLORE_CAT_ASCEND, (266, 390, 330, 620)),
 }
 
-# A selected strip has 173~465 gold pixels, an idle one 0~46 (the artwork of
-# the neighbouring card leaks into the band). 120 sits in the middle of the gap.
+# A selected strip has 255~548 gold pixels, an idle one 10~46 (the glow of the
+# neighbouring card and the bracket line leak into the band). 120 sits in the
+# middle of the gap.
 CATEGORY_GOLD_PIXELS = 120
 
 # 资源采集 is the only category whose sub items have templates.
@@ -132,6 +138,10 @@ class CrosscoreExplore(CrosscoreUI):
                 or not self.explore_pick_layer() \
                 or not self.explore_sweep():
             logger.warning('Explore failed, retry in 15 minutes')
+            # The failure leaves the game on the explore page, which is not a
+            # registered Page: the next task's `ui_get_current_page()` would
+            # time out and die with GamePageUnknownError (2026-11-09 real run).
+            self.back_to_main()
             self.config.task_delay(minute=15)
             return
 

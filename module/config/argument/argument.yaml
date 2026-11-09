@@ -427,3 +427,10 @@ Starsavior2:
   StopAt:
     value: none
     option: [ none, nickname, guide, verify ]
+  # 刷初始次数：跑满这么多轮就停，**不重置**，号留在游戏里。
+  #   0 = 不限（默认），挂着目标就一轮轮刷到出为止。
+  # 一轮 = 登录 → 昵称 → 引导 → 旅程 → 结算 → 领奖 → 抽卡 → 验号。
+  # 中途达标（目标角色凑够）优先，照样立刻停。
+  RerollCount:
+    value: 0
+    valuetype: int

@@ -78,6 +78,14 @@ TEXT = {
         'Starsavior2.StopAt.nickname': '节点1：昵称输入前停下',
         'Starsavior2.StopAt.guide': '节点2：引导走完停下（没领奖、没抽卡）',
         'Starsavior2.StopAt.verify': '节点3：一直跑到验号',
+
+        'Starsavior2.RerollCount.name': '刷初始次数',
+        'Starsavior2.RerollCount.help':
+            '跑满这么多轮就停，**不重置**，号留在游戏里接着玩。\n'
+            '0 = 不限（默认）：挂着「目标角色」就一轮轮刷到出为止。\n'
+            '一轮 = 登录 → 昵称 → 引导 → 旅程 → 结算 → 领奖 → 抽卡 → 验号；'
+            '中途凑够目标照样当轮就停，不会多刷。\n'
+            '⚠ 和「停节点」同时设置时，先到哪个算哪个。',
     },
     'zh-TW': {
         'Menu.Starsavior.name': '星之救援者',
@@ -134,6 +142,14 @@ TEXT = {
         'Starsavior2.StopAt.nickname': '節點1：暱稱輸入前停下',
         'Starsavior2.StopAt.guide': '節點2：引導走完停下（沒領獎、沒抽卡）',
         'Starsavior2.StopAt.verify': '節點3：一直跑到驗號',
+
+        'Starsavior2.RerollCount.name': '刷初始次數',
+        'Starsavior2.RerollCount.help':
+            '跑滿這麼多輪就停，**不重置**，號留在遊戲裡接著玩。\n'
+            '0 = 不限（預設）：掛了「目標角色」就一輪輪刷到出為止。\n'
+            '一輪 = 登入 → 暱稱 → 引導 → 旅程 → 結算 → 領獎 → 抽卡 → 驗號；'
+            '中途湊夠目標照樣當輪就停，不會多刷。\n'
+            '⚠ 跟「停節點」同時設定時，先到哪個算哪個。',
     },
     'en-US': {
         'Menu.Starsavior.name': 'Star Savior',
@@ -198,6 +214,14 @@ TEXT = {
         'Starsavior2.StopAt.nickname': 'Checkpoint 1: before entering the nickname',
         'Starsavior2.StopAt.guide': 'Checkpoint 2: guides finished (no reward, no gacha)',
         'Starsavior2.StopAt.verify': 'Checkpoint 3: all the way to the roster check',
+
+        'Starsavior2.RerollCount.name': 'Reroll count',
+        'Starsavior2.RerollCount.help':
+            'Stop after this many rounds, **without resetting** — the account stays as it is.\n'
+            '0 = unlimited (default): with targets set it keeps rerolling until they drop.\n'
+            'One round = login -> nickname -> guide -> journey -> result -> rewards -> gacha -> roster check; '
+            'hitting the targets stops it earlier, no extra round.\n'
+            'WARNING: with "Stop at" set too, whichever comes first wins.',
     },
     'ja-JP': {
         'Menu.Starsavior.name': 'スターセイヴァー',
@@ -258,6 +282,14 @@ TEXT = {
         'Starsavior2.StopAt.nickname': 'ポイント1：ニックネーム入力前に停止',
         'Starsavior2.StopAt.guide': 'ポイント2：チュートリアル終了後に停止（受け取り・ガチャ前）',
         'Starsavior2.StopAt.verify': 'ポイント3：検品まで通しで実行',
+
+        'Starsavior2.RerollCount.name': '厳選回数',
+        'Starsavior2.RerollCount.help':
+            'この回数を消化したら停止します（**リセットしない**、アカウントはそのまま残ります）。\n'
+            '0 = 無制限（デフォルト）：目標キャラを設定していれば出るまで周回します。\n'
+            '1 周 = ログイン → ニックネーム → ガイド → ジャーニー → リザルト → 報酬受け取り → ガチャ → 確認。'
+            '途中で目標達成ならその周で停止し、余分には回しません。\n'
+            '⚠ 「停止ポイント」と併用した場合、先に到達した方で停止します。',
     },
 }
 

@@ -1345,6 +1345,10 @@
       "nickname": "Checkpoint 1: before entering the nickname",
       "guide": "Checkpoint 2: guides finished (no reward, no gacha)",
       "verify": "Checkpoint 3: all the way to the roster check"
+    },
+    "RerollCount": {
+      "name": "Reroll count",
+      "help": "Stop after this many rounds, **without resetting** — the account stays as it is.\n0 = unlimited (default): with targets set it keeps rerolling until they drop.\nOne round = login -> nickname -> guide -> journey -> result -> rewards -> gacha -> roster check; hitting the targets stops it earlier, no extra round.\nWARNING: with \"Stop at\" set too, whichever comes first wins."
     }
   },
   "Storage": {

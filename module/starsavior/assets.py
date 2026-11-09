@@ -31,6 +31,11 @@ E_205_1 = Button(area={'starsavior': (1190, 518, 1215, 545)}, color={'starsavior
 # ❗真机实测：工具页点 Start 有概率弹一次，**点掉「确认」之后就能正常登录**。
 E_206_1 = Button(area={'starsavior': (595, 330, 673, 356)}, color={'starsavior': (203, 203, 203)}, button={'starsavior': (595, 330, 673, 356)}, file={'starsavior': './assets/starsavior/starsavior/开始游戏异常.png'})
 E_206_2 = Button(area={'starsavior': (617, 454, 667, 481)}, color={'starsavior': (86, 152, 223)}, button={'starsavior': (617, 454, 667, 481)}, file={'starsavior': './assets/starsavior/starsavior/开始游戏异常确认.BUTTON.png'})
+# 「通知」弹窗左上角那行标题（图标 + 「通知」两字）。掉线提示「与服务器联机中断。」
+# 用的就是它，重置完回标题页时弹一次。区域 (330,230)-(416,262) 取自真机
+# 2026-11-09 04:5x 的帧，整块落在弹窗白底上，不带弹窗边沿和下面那条虚线。
+# 手写条目：这张 PNG 是整屏只留局部，跑 button_extract 会把 area 重置成整屏。
+E_207_1 = Button(area={'starsavior': (330, 230, 416, 262)}, color={'starsavior': (206, 206, 205)}, button={'starsavior': (330, 230, 416, 262)}, file={'starsavior': './assets/starsavior/starsavior/E_207_1.png'})
 
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到

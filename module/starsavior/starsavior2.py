@@ -82,7 +82,7 @@ from module.starsavior.assets import (
     E_89_1, E_8_1, E_90_1, E_91_1, E_92_1,
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
-    E_205_1, E_206_1, E_206_2, BATTLE_SKILL,
+    E_205_1, E_206_1, E_206_2, E_207_1, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -473,6 +473,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         · 选了停节点 → 跑到那个节点就停（节点1 昵称前 / 节点2 引导后 / 节点3 验号）。
         · 两个都没填 → 只跑一轮，验号完停下，**不重置**。
 
+        「刷初始次数」> 0 时跑满这么多轮就停，**不重置**；和目标角色同时用 =
+        先到哪个算哪个（达标优先）。次数在**重置之前**判，不会白丢一轮的号。
+
         ❗**不要加 `task_delay()` / 改 `Scheduler.Enable`**：这不是调度任务，
         跑完 `run()` 返回、进程结束就完事；那些调用只会往别的任务的配置里写脏东西。
         """
@@ -515,6 +518,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 self.notify_hit()
                 self.report_plan('目标达成，号留在游戏里，不重置')
                 return
+            # ❗次数上限**必须在重置之前判**。放到 `while` 头上判的话，最后一轮
+            #   会先被重置掉、回到标题页，才发现「已经刷够了」—— 白丢一个号。
+            # ❗也要排在「没有目标角色」前面：只填次数不填目标 = 老老实实刷这么多轮，
+            #   不能因为没挂目标就只跑一轮。
+            if self.reroll_count and index >= self.reroll_count:
+                self.report_plan('已刷满 %d 轮，停下（不重置，号留在游戏里）' % self.reroll_count)
+                return
             if not self.targets:
                 self.report_plan('没有目标角色：跑完这一轮就停，不重置')
                 return
@@ -536,6 +546,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.target_mode = self.read_mode()
         self.targets = self.read_targets()
         self.stop_at = self.read_stop()
+        # 刷初始次数：跑满这么多轮就停，**不重置**。0 / 留空 = 不限。
+        try:
+            self.reroll_count = max(0, int(self.config.Starsavior2_RerollCount or 0))
+        except (TypeError, ValueError):
+            logger.warning('「刷初始次数」填的不是数字，按「不限」处理')
+            self.reroll_count = 0
 
         # ❗互斥：两个都填了按「停节点」跑。GUI 的帮助文字和 `argument.yaml`
         #   都写着「填了节点就按节点跑，目标角色会被忽略」，代码以前反着来：
@@ -559,8 +575,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 else '每一只都要凑够')
         else:
             target_note = '不指定（跑一轮就停）'
-        logger.info('本轮配置：昵称 %s / 目标 %s / 停节点 %s'
-                    % (self.nickname, target_note, self.stop_at))
+        logger.info('本轮配置：昵称 %s / 目标 %s / 停节点 %s / 次数 %s'
+                    % (self.nickname, target_note, self.stop_at,
+                       self.reroll_count if self.reroll_count else '不限'))
 
     def read_targets(self):
         """GUI 的七个「目标角色」→ `check_targets()` 要的列表；一个都没选返回 None。
@@ -1660,6 +1677,34 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             return True
         return False
 
+    def dismiss_notice(self):
+        """点掉「通知」弹窗：重置完回标题页时必弹一次「与服务器联机中断。」。
+
+        ❗真机 2026-11-09 04:5x 抓的帧：一个白底弹窗，左上角「通知」标题，
+        正文「与服务器联机中断。」，下面一颗蓝「确认」。点掉就能继续，
+        不点的话它整块盖住「Touch to Start」，`wait_start_screen` 判不出
+        就绪、`login()` 也点不到按钮。
+
+        ❗判据是**两条正面条件**：`E_207_1`（那行「通知」标题，走**颜色**快筛）
+        + `E_206_2`（那颗蓝「确认」，和「发生错误」弹窗是同一颗，模板实测 1.000）。
+        只有标题没有蓝确认的（公告类通知）不点，交给上层继续等 ——
+        宁可少点一次，也不要在认错的弹窗上瞎按。
+
+        ❗`E_207_1` **不能用 `offset=(10, 10)`**（那是模板匹配）：它是白底黑字，
+          模板块里大片纯色，`TM_CCOEFF_NORMED` 在标题页的蓝白天空上会算出
+          1.0 的假阳性（2026-11-09 实测：n2 标题页 match=True，但直接算相似度
+          只有 0.044）。用 `offset=0` 走颜色快筛：弹窗上该区域 (206,206,205)，
+          标题页是 (175,192,243)，差 38 稳稳分开。
+        """
+        if self.appear(E_207_1, offset=0, threshold=10):
+            if self.appear(E_206_2, offset=(10, 10)):
+                logger.info('登录：点掉「通知」弹窗（与服务器联机中断）')
+                self.click_button(E_206_2, '确认（通知）')
+                self.wait_until_disappear(E_206_2, offset=(10, 10), timeout=5)
+                return True
+            logger.info('登录：看到「通知」弹窗但没有「确认」按钮，先不动')
+        return False
+
     def wait_start_screen(self, timeout=180, settle=3):
         """等游戏真的画出画面再开工。
 
@@ -1689,6 +1734,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.device.stuck_record_clear()
             # 启动阶段偶发的「发生错误」弹窗：点掉再判，别让它把画面判成「没就绪」
             if self.dismiss_game_error():
+                hits = 0
+                continue
+            # 重置完回标题页必弹一次「通知 / 与服务器联机中断。」，同样会盖住标题页
+            if self.dismiss_notice():
                 hits = 0
                 continue
             found = False
@@ -1721,6 +1770,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.device.screenshot()
         # 启动时那个「发生错误」弹窗会盖住整个登录页，先点掉再往下判
         self.dismiss_game_error()
+        # 重置完回标题页那个「与服务器联机中断。」同理
+        self.dismiss_notice()
 
         # 0. 已经在游戏里（引导 / 剧情 / 主界面）：标题页的「Touch to Start」根本不可见，
         #    这时再点它就是瞎点。直接认作已登录 —— `run()` 里下一段 `guide()` 会接住。
@@ -2064,6 +2115,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             #   弹窗还杵着、框里已经空了。所以「弹窗还在」就是这次没过。
             for _ in self.loop(timeout=10):
                 self.device.stuck_record_clear()
+                # 回到标题页的同一帧可能先弹「与服务器联机中断。」，点掉再判
+                if self.dismiss_notice():
+                    continue
                 if self.appear(E_1_1, offset=CHAIN_OFFSET):
                     logger.info('重置完成，回到标题页')
                     return True
@@ -2079,6 +2133,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # 弹窗已关 = 校验通过，剩下的只是加载，慢一点也值得等。
         for _ in self.loop(timeout=120):
             self.device.stuck_record_clear()
+            # 加载完到标题页的这一刻最容易弹「与服务器联机中断。」
+            if self.dismiss_notice():
+                continue
             if self.appear(E_1_1, offset=CHAIN_OFFSET):
                 logger.info('重置完成，回到标题页')
                 return True

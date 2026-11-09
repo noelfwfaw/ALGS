@@ -181,6 +181,7 @@ class GeneratedConfig:
     Starsavior2_TargetCount6 = 1
     Starsavior2_TargetCount7 = 1
     Starsavior2_StopAt = 'none'  # none, nickname, guide, verify
+    Starsavior2_RerollCount = 0
 
     # Group `Storage`
     Storage_Storage = {}

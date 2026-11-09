@@ -33,7 +33,7 @@ import numpy as np
 
 from module.base.button import Button
 from module.base.timer import Timer
-from module.chaoszero.assets import (ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
+from module.chaoszero.assets import (ANNOUNCE_CLOSE, ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
                                      BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
                                      PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, SIM_PAGE,
                                      TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
@@ -130,25 +130,27 @@ class ChaoszeroUI(UI):
         """
         return self.ui_green_count(CHAOSZERO_HP_BAR) > CHAOSZERO_HP_GREEN
 
-    def ui_cyan_count(self, area):
+    def ui_gold_count(self, area):
         """
-        Count the pixels of an area that are clearly cyan.
+        Count the pixels of an area that are clearly the auto-battle gold.
 
         The auto-battle button is the same icon in both states - crossed swords
-        inside a ring of arrows - and only the ring changes: lit cyan when auto
-        is on, plain white when it is off. Measured on the real client, cyan
-        pixels in that box: 121 / 126 with auto on, 0 / 9 with it off, so a
-        threshold well above zero separates them without reading the icon.
+        inside a ring of arrows - and only the ring changes: a glowing gold ring
+        when auto is on, a plain white one when it is off. It used to be cyan,
+        but the client changed the effect (2026-11-09): the old cyan count read
+        0 even with auto on, so every battle was pressed three more times and
+        toggled back off. Measured on the real client, gold pixels in that box:
+        113 with auto on, 0 with it off - white is excluded by the green ceiling.
 
         Args:
             area (tuple): x1, y1, x2, y2.
 
         Returns:
-            int: Number of cyan pixels.
+            int: Number of gold pixels.
         """
         image = self.image_crop(area)
         r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
-        return int(np.count_nonzero((b > 150) & (g > 130) & (r < 160)))
+        return int(np.count_nonzero((r > 180) & (g > 110) & (g < 230) & (b < 170)))
 
     def app_start(self):
         """
@@ -178,8 +180,11 @@ class ChaoszeroUI(UI):
         2. 「遊戲連接失敗」 before the title check: the dialog is drawn on top of
            the title screen, and its only key is "tap anywhere". Checking the
            title first would keep tapping a screen that is behind the dialog.
-        3. 「TOUCH TO START」 is the only thing that takes the client inside.
-        4. Anything left (logo splash, patch validation, the black frame after
+        3. The 「公告 / 更新」 popup is dropped on the lobby right after the client
+           gets online, and it covers the right-hand menu, so the lobby check
+           above cannot win while it is up. See `handle_announce()`.
+        4. 「TOUCH TO START」 is the only thing that takes the client inside.
+        5. Anything left (logo splash, patch validation, the black frame after
            the tap) is waited out; the idle artwork is the one screen here that
            needs a tap, and it has no positive check point at all - see
            `CHAOSZERO_TAP_INTERVAL`.
@@ -222,6 +227,13 @@ class ChaoszeroUI(UI):
             # Connection failure, also handled from `ui_additional()` because
             # the client raises it in the middle of a task as well.
             if self.handle_connect_failed():
+                continue
+
+            # 公告弹窗：客户端一连上服务器就把它顶在大厅上面，整屏盖住。大厅的
+            # 「故事」在它底下匹配不上（实测 0.40），不接这一支就会掉进最后那支
+            # 「什么都不认识」，点顶部只是把立绘唤醒或关掉，弹窗一直不走。
+            # 它也会在任务中途弹，所以 `ui_additional()` 里再挂一次。
+            if self.handle_announce():
                 continue
 
             # Title screen
@@ -327,6 +339,37 @@ class ChaoszeroUI(UI):
 
         return False
 
+    def handle_announce(self):
+        """
+        Close the 「公告 / 更新」 announcement popup.
+
+        The client drops it on top of the lobby when it comes online. It is a
+        full-screen panel: the lobby's 「故事」 menu behind it does not match
+        (0.40 against the template), so `page_main` is false and the boot loop
+        would end up in the "unknown screen" branch, tapping the top forever.
+
+        The check point is the strip of tabs (bell / 公告 / 更新), not the ✕:
+        the ✕ glyph is shared with the full-screen panel's ✕ at
+        (1192, 66, 1224, 98), 44 px to the right, while the tab strip matched
+        1.00 on its own screenshot and at most 0.28 on the other 56 screens
+        (boot screens, lobby frames, every task page). The click still lands on
+        the popup's own ✕ at (1148, 68, 1185, 103).
+
+        Returns:
+            bool: If the popup was on screen (and its X was pressed).
+        """
+        if self.appear(ANNOUNCE_CLOSE, offset=(20, 20)):
+            logger.info('Announcement popup, press its X')
+            self.device.click(ANNOUNCE_CLOSE)
+            # 关不掉不抛异常：`ui_additional()` 每帧都会回来，启动循环也会再转
+            # 一圈，反复警告比整个任务失败更有用。
+            if not self.wait_until_disappear(ANNOUNCE_CLOSE, offset=(20, 20),
+                                             timeout=5, settle=2):
+                logger.warning('The announcement popup is still there')
+            return True
+
+        return False
+
     def ui_quit_to_main(self):
         """
         Walk back to the lobby: three back keys, then the boot loop.
@@ -374,14 +417,22 @@ class ChaoszeroUI(UI):
         """
         Handle the popups that can show up on any page.
 
-        Only one family so far: the connection-failure strip, which the client
-        raises whenever it loses the server - on the title screen, and in the
-        middle of a task.
+        Two families so far:
+
+        - The connection-failure strip, which the client raises whenever it
+          loses the server - on the title screen, and in the middle of a task.
+        - The 「公告 / 更新」 announcement popup, which comes on top of the lobby
+          after the client gets online and also at its own schedule (a new
+          banner, a hotfix notice). It covers `page_main` completely, so without
+          this hook `ui_goto()` reports an unknown page and the task fails.
 
         Returns:
             bool: If handled.
         """
         if self.handle_connect_failed():
+            return True
+
+        if self.handle_announce():
             return True
 
         return False

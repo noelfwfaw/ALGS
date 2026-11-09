@@ -446,9 +446,10 @@ class CrosscoreUI(UI):
 
     def ui_additional(self):
         """
-        Handle the popups that can show up on any page.
+        Handle the popups that can show up on any page, then walk out of the
+        pages this game has but that are not registered as `Page`.
 
-        Two families so far:
+        Three families so far:
 
         1. The lobby popups (公告 / 充值奖励), which the client raises on
            entering the lobby - including when the lobby is re-entered in the
@@ -458,6 +459,15 @@ class CrosscoreUI(UI):
            and the base task raises it from claiming, delivering orders and
            crafting alike, so it is handled once here instead of in every
            caller.
+        3. Leaving a page that is not a registered Page (每日探索 / 模拟军演 /
+           基地建设). `ui_get_current_page()` gives up after 10 seconds and
+           raises GamePageUnknownError, so a task that starts on one of them
+           (the previous task failed there, 2026-11-09 real run) dies before it
+           does anything. Every full page of this game draws the same home and
+           back arrows as the base page, and `back_to_main()` already walks
+           with them: the home button leaves in one click, the back arrow is
+           the fallback (基地建设 raises 「是否退出基地？」 first, so the dialog
+           is handled before the arrows).
 
         Returns:
             bool: If handled.
@@ -465,6 +475,12 @@ class CrosscoreUI(UI):
         if self.handle_item_popup():
             return True
         if self.handle_lobby_popup():
+            return True
+        if self.handle_exit_dialog():
+            return True
+        if self.handle_home():
+            return True
+        if self.handle_sub_page():
             return True
 
         return False
