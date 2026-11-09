@@ -86,6 +86,11 @@ TEXT = {
             '一轮 = 登录 → 昵称 → 引导 → 旅程 → 结算 → 领奖 → 抽卡 → 验号；'
             '中途凑够目标照样当轮就停，不会多刷。\n'
             '⚠ 和「停节点」同时设置时，先到哪个算哪个。',
+
+        'Starsavior2.Round.name': '当前轮数（只读）',
+        'Starsavior2.Round.help':
+            '本次启动后已经跑到第几轮。每次点「启动」都从 0 重新计数，由脚本自己更新；'
+            '不用去日志里翻「第 N 轮」。',
     },
     'zh-TW': {
         'Menu.Starsavior.name': '星之救援者',
@@ -150,6 +155,11 @@ TEXT = {
             '一輪 = 登入 → 暱稱 → 引導 → 旅程 → 結算 → 領獎 → 抽卡 → 驗號；'
             '中途湊夠目標照樣當輪就停，不會多刷。\n'
             '⚠ 跟「停節點」同時設定時，先到哪個算哪個。',
+
+        'Starsavior2.Round.name': '目前輪數（唯讀）',
+        'Starsavior2.Round.help':
+            '本次啟動後已經跑到第幾輪。每次按「啟動」都從 0 重新計數，由腳本自己更新；'
+            '不用去日誌裡翻「第 N 輪」。',
     },
     'en-US': {
         'Menu.Starsavior.name': 'Star Savior',
@@ -222,6 +232,11 @@ TEXT = {
             'One round = login -> nickname -> guide -> journey -> result -> rewards -> gacha -> roster check; '
             'hitting the targets stops it earlier, no extra round.\n'
             'WARNING: with "Stop at" set too, whichever comes first wins.',
+
+        'Starsavior2.Round.name': 'Current round (read-only)',
+        'Starsavior2.Round.help':
+            'Which round this run is on since it started. Resets to 0 every time you press Start; '
+            'written by the script itself, so you do not have to dig through the log for "round N".',
     },
     'ja-JP': {
         'Menu.Starsavior.name': 'スターセイヴァー',
@@ -290,6 +305,11 @@ TEXT = {
             '1 周 = ログイン → ニックネーム → ガイド → ジャーニー → リザルト → 報酬受け取り → ガチャ → 確認。'
             '途中で目標達成ならその周で停止し、余分には回しません。\n'
             '⚠ 「停止ポイント」と併用した場合、先に到達した方で停止します。',
+
+        'Starsavior2.Round.name': '現在の周回数（読み取り専用）',
+        'Starsavior2.Round.help':
+            '今回の起動後に何周目かを表示します。起動のたびに 0 から数え直し、'
+            'スクリプト自身が更新するので、ログで「第 N 周」を探す必要はありません。',
     },
 }
 

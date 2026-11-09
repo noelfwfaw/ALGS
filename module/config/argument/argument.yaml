@@ -434,3 +434,11 @@ Starsavior2:
   RerollCount:
     value: 0
     valuetype: int
+  # 本次启动后跑到第几轮（只读展示，脚本自己写）。
+  # 每次点 Start 开始运行时先清 0，进入新一轮时写一次；GUI 工具页会把它单独拎出来
+  # 显示成「第 N 轮」，不用去日志里翻。
+  # `display: hide`：不作为可编辑参数渲染，只当数据通道。
+  Round:
+    value: 0
+    valuetype: int
+    display: hide

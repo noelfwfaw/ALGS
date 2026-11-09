@@ -1349,6 +1349,10 @@
     "RerollCount": {
       "name": "Reroll count",
       "help": "Stop after this many rounds, **without resetting** — the account stays as it is.\n0 = unlimited (default): with targets set it keeps rerolling until they drop.\nOne round = login -> nickname -> guide -> journey -> result -> rewards -> gacha -> roster check; hitting the targets stops it earlier, no extra round.\nWARNING: with \"Stop at\" set too, whichever comes first wins."
+    },
+    "Round": {
+      "name": "Current round (read-only)",
+      "help": "Which round this run is on since it started. Resets to 0 every time you press Start; written by the script itself, so you do not have to dig through the log for \"round N\"."
     }
   },
   "Storage": {
@@ -1413,7 +1417,8 @@
       "Running": "Running",
       "Pending": "Pending",
       "Waiting": "Waiting",
-      "NoTask": "No Task"
+      "NoTask": "No Task",
+      "Round": "Round {value}"
     },
     "AddAlas": {
       "PopupTitle": "Add new config",

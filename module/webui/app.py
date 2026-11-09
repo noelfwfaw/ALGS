@@ -653,6 +653,43 @@ class AlasGUI(Frame):
             else:
                 put_text(t("Gui.Overview.NoTask")).style("--overview-notask-text--")
 
+    def alas_update_daemon_round(self, task: str):
+        """返回一个周期回调：读配置里的 Round，重绘工具页顶部的「第 N 轮」。
+
+        参数区只在页面渲染时读一次配置，而刷初始一轮要十几分钟，用户不可能每轮
+        手动刷新页面。这里用 `clear()` + `use_scope()` 每秒重绘一小块，
+        和 `alas_update_overview_task()` 是同一套机制。
+        """
+
+        # 轮数一轮才变一次，没必要每秒重绘 DOM：记下上次的值，变了才重画。
+        last = {"value": None}
+
+        def _update():
+            if not self.alas_name:
+                return
+            try:
+                # ❗不能用 `self.alas_config.read_file()`：它会走 `config_update()`，
+                # 把 `display: hide` 且非 stored 的字段强制重置成模板默认值（见
+                # config_updater.config_update），读到的永远是 0。
+                # 也不能用 utils.read_file()：它每秒打一行 `read: ./config/alas.json`。
+                # 直接读原始 json，既拿到脚本写进去的真实轮数，又不刷屏。
+                with open(filepath_config(self.alas_name), "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                value = deep_get(config, [task, task, "Round"], 0)
+            except Exception:
+                # 任务进程正在写配置文件时可能读到半个 json，下一拍再来。
+                return
+            if value == last["value"]:
+                return
+            last["value"] = value
+            clear("daemon_round")
+            with use_scope("daemon_round"):
+                put_text(t("Gui.Overview.Round", value=value)).style(
+                    "font-size: 1.25rem; margin: .5rem 0;"
+                )
+
+        return _update
+
     def alas_game_groups(self) -> List[str]:
         """
         Menu groups that are games, in the order of the sidebar.
@@ -804,6 +841,12 @@ class AlasGUI(Frame):
         if task_help:
             with use_scope("groups"):
                 put_text(task_help).style("font-size: 1rem")
+        # 长循环工具（刷初始）的当前轮数：单独显示，免得在几百行日志里翻。
+        # 只有定义过 `{task}.{task}.Round` 的工具才显示，其它工具页不受影响。
+        if deep_get(self.ALAS_ARGS, f"{task}.{task}.Round", None) is not None:
+            with use_scope("groups"):
+                put_scope("daemon_round")
+            self.task_handler.add(self.alas_update_daemon_round(task), 1, True)
         for group, arg_dict in deep_iter(self.ALAS_ARGS[task], depth=1):
             if group[0] == "Storage":
                 continue

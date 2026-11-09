@@ -463,6 +463,18 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
         threading.Thread(target=load, daemon=True).start()
 
+    def set_round(self, value):
+        """把「第几轮」写进配置，GUI 工具页会读它显示（参数区不可见）。
+
+        ❗用 `cross_set` 而不是 `self.config.Starsavior2_Round = value`：
+          后者依赖 `config_generated.py` 已重新生成、且当前任务确实绑定了该参数，
+          漏了会静默失败。`cross_set` 直接走 modified + 落盘，不依赖绑定。
+        """
+        try:
+            self.config.cross_set('Starsavior2.Starsavior2.Round', int(value))
+        except Exception as e:
+            logger.warning('写入轮数失败（不影响刷初始）：%s' % e)
+
     def run(self):
         """工具页入口：按配置跑一轮，或者刷到目标角色为止。
 
@@ -480,11 +492,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         跑完 `run()` 返回、进程结束就完事；那些调用只会往别的任务的配置里写脏东西。
         """
         logger.hr('刷初始（工具）', level=1)
+        self.set_round(0)
         self.load_plan()
 
         index = 0
         while 1:
             index += 1
+            self.set_round(index)
             logger.hr('第 %d 轮' % index, level=1)
             self.target_hit = False
             self.click_count = 0
