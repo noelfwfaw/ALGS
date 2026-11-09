@@ -1467,7 +1467,8 @@
       "Time": "Commit time",
       "Message": "Commit message",
       "DisabledWarn": "Updater module is disabled. You need to manually restart Alas to update",
-      "DetailedHistory": "Detailed Commit History"
+      "DetailedHistory": "Detailed Commit History",
+      "NoGitRepo": "Built-in updater unavailable: this is a release archive without .git/. Download the latest release and overwrite the files (keep config/ and toolkit/), or install with git clone to enable updates."
     },
     "Remote": {
       "Running": "Remote access on",

@@ -1467,7 +1467,8 @@
       "Time": "提交时间",
       "Message": "提交信息",
       "DisabledWarn": "更新模块未启用，你需要手动重启 Alas 进行更新",
-      "DetailedHistory": "详细提交历史"
+      "DetailedHistory": "详细提交历史",
+      "NoGitRepo": "内置更新器不可用：当前是 Release 压缩包安装，没有 .git/。请下载最新 Release 覆盖文件（保留 config/ 与 toolkit/），或改用 git clone 安装以启用自动更新。"
     },
     "Remote": {
       "Running": "运行中",

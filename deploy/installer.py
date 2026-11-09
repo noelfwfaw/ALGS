@@ -15,7 +15,16 @@ class Installer(GitManager, PipManager, AdbManager, AppManager, AlasManager):
         from deploy.atomic import atomic_failure_cleanup
         atomic_failure_cleanup('./config')
         try:
-            self.git_install()
+            # The installer is an explicit user action: it must initialise the
+            # git checkout even when AutoUpdate is off (the default for release
+            # archives). `git_install()` short-circuits on that flag.
+            self.git_repository_init(
+                repo=self.Repository,
+                source='origin',
+                branch=self.Branch,
+                proxy=self.GitProxy,
+                ssl_verify=self.SSLVerify,
+            )
             self.alas_kill()
             self.pip_install()
             self.app_update()

@@ -1,10 +1,9 @@
 Deploy:
   Git:
-    # URL of AzurLaneAutoScript repository
-    # [CN user] Use 'cn' to get update from git-over-cdn service
-    # [Other] Use 'global' to get update from https://github.com/LmeSzinc/StarRailCopilot
-    Repository: 'global'
-    # Branch of Alas
+    # URL of the AlGS repository. AlGS is a separate fork: pointing this at
+    # upstream ALAS / StarRailCopilot makes `reset --hard` replace this tree.
+    Repository: 'https://github.com/noelfwfaw/ALGS.git'
+    # Branch of AlGS
     # [Developer] Use 'dev', 'app', etc, to try new features
     # [Other] Use 'master', the stable branch
     Branch: 'master'
@@ -20,9 +19,10 @@ Deploy:
     # [In most cases] Use true
     # [Other] Use false to when connected to an untrusted network
     SSLVerify: true
-    # Update Alas at startup
-    # [In most cases] Use true
-    AutoUpdate: true
+    # Update at startup. GitHub release archives have no `.git/`, and the
+    # builtin updater would run `git init` + `reset --hard` on such an install.
+    # Keep false unless this directory is a real AlGS git checkout.
+    AutoUpdate: false
 
   Python:
     # Filepath of python executable `python.exe`
@@ -82,18 +82,18 @@ Deploy:
 
   Update:
     # Use auto update and builtin updater feature
-    # This may cause problem https://github.com/LmeSzinc/AzurLaneAutoScript/issues/876
+    # Requires a real git checkout of https://github.com/noelfwfaw/ALGS
     EnableReload: true
     # Check update every X minute
     # [Disable] 0
-    # [Default] 5
-    CheckUpdateInterval: 5
+    # [Default] 0 for release archives; set 5 for git checkouts
+    CheckUpdateInterval: 0
     # Scheduled restart time
-    # If there are updates, Alas will automatically restart and update at this time every day
-    # and run all alas instances that running before restarted
+    # If there are updates, AlGS restarts and updates at this time every day
+    # and runs all instances that were running before the restart.
     # [Disable] null
-    # [Default] 03:50
-    AutoRestartTime: 03:50
+    # [Default] null for release archives; '03:50' for git checkouts
+    AutoRestartTime: null
 
   Misc:
     # Enable discord rich presence

@@ -23,6 +23,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - [功能](#features)
 - [运行排期](#schedule)
 - [使用](#start)
+- [安装与更新](#update)
 - [配置](#config)
 - [注意事项](#notes)
 - [许可](#license)
@@ -162,7 +163,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ## 🚀 使用
 
-1. 准备 MuMu 模拟器，分辨率设为 1280×720，安装并登录游戏。
+1. 准备好 `toolkit/`（见[安装与更新](#update)）与 MuMu 模拟器，分辨率设为 1280×720，安装并登录游戏。
 2. 运行 `start_algs.bat`，脚本会连接模拟器并启动管理界面。
 3. 在浏览器中打开管理界面（默认端口 22267）。
 4. 在「Alas 设置 → 模拟器设置」中填写模拟器的 adb 地址（IP 与端口），并选择已安装的游戏服务器。该选项只决定启动时先打开哪个游戏，后续按任务自动切换。
@@ -173,6 +174,16 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 界面里的任务名都带游戏前缀（苍雾 / 失落 / 棕尘 / 卡厄思 / 交错 / 星之），多游戏同时勾选时便于区分。
 
 关闭浏览器不影响后台调度。
+
+<a name="update"></a>
+
+## 🔄 安装与更新
+
+- GitHub Release 的 Source code 压缩包**只包含代码**：不含 `toolkit/`（固定的 Python 3.7.6、git、adb）和 `.git/`。`start_algs.bat` 需要 `toolkit\python.exe`，首次安装请从上游 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript) 的完整安装包复制整个 `toolkit/` 到本目录。
+- **内置更新器是 git 更新器**，靠 `git fetch` / `git log` / `git reset --hard origin/master` 工作，只适用于 `git clone https://github.com/noelfwfaw/ALGS` 出来的目录。压缩包安装没有 `.git/`，WebUI 的「更新」页会提示不可用，也不会去改写目录；升级时下载最新 Release 覆盖代码即可，**保留 `config/` 与 `toolkit/`**（任务配置、NextRun 排期、兑换码账本都在 `config/`）。
+- 默认 `AutoUpdate: false`、`CheckUpdateInterval: 0`、`AutoRestartTime: null`，避免刚解压的目录被自动 `git init` + `reset --hard` 重置。想启用内置更新器：改用 git clone 安装，再到 `config/deploy.yaml` 把三项改成 `true` / `5` / `'03:50'`。
+- 更新源固定为 AlGS 仓库；早期配置里指向上游 ALAS / StarRailCopilot 的地址（`global`、`cn`、lyoko / gitee 镜像等）会自动纠正，指向上游 CDN 更新包的通道已关闭，避免更新时把目录换成别的项目的代码。
+- 版本号与变更内容见 [Releases](https://github.com/noelfwfaw/ALGS/releases)。
 
 <a name="config"></a>
 

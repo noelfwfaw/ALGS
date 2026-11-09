@@ -12,14 +12,27 @@ class ExecutionError(Exception):
     pass
 
 
+# AlGS is a separate fork. The Windows installer must not point at upstream
+# ALAS / StarRailCopilot: `git_repository_init()` does `reset --hard`.
+ALGS_REPOSITORY = 'https://github.com/noelfwfaw/ALGS.git'
+LEGACY_REPOSITORIES = (
+    'global', 'cn',
+    'https://github.com/LmeSzinc/AzurLaneAutoScript',
+    'https://github.com/LmeSzinc/AzurLaneAutoScript.git',
+    'https://github.com/LmeSzinc/StarRailCopilot',
+    'https://github.com/LmeSzinc/StarRailCopilot.git',
+    'git://git.lyoko.io/AzurLaneAutoScript',
+)
+
+
 class ConfigModel:
     # Git
-    Repository: str = "https://github.com/LmeSzinc/AzurLaneAutoScript"
+    Repository: str = ALGS_REPOSITORY
     Branch: str = "master"
     GitExecutable: str = "./toolkit/Git/mingw64/bin/git.exe"
     GitProxy: Optional[str] = None
     SSLVerify: bool = False
-    AutoUpdate: bool = True
+    AutoUpdate: bool = False
 
     # Python
     PythonExecutable: str = "./toolkit/python.exe"
@@ -41,8 +54,8 @@ class ConfigModel:
 
     # Update
     EnableReload: bool = True
-    CheckUpdateInterval: int = 5
-    AutoRestartTime: str = "03:50"
+    CheckUpdateInterval: int = 0
+    AutoRestartTime: Optional[str] = None
 
     # Misc
     DiscordRichPresence: bool = False
@@ -115,11 +128,18 @@ class DeployConfig(ConfigModel):
         """
         Redirect deploy config, must be called after each `read()`
         """
-        # Bypass webui.config.DeployConfig.__setattr__()
-        # Don't write these into deploy.yaml
-        super().__setattr__('GitOverCdn', self.Repository in ['cn'])
-        if self.Repository in ['global', 'cn']:
-            super().__setattr__('Repository', 'https://github.com/LmeSzinc/StarRailCopilot')
+        if self.Repository in LEGACY_REPOSITORIES:
+            logger.warning(
+                f'Repository {self.Repository} is an upstream ALAS/SRC address, '
+                f'redirect to {ALGS_REPOSITORY}'
+            )
+            # Bypass DeployConfig.__setattr__(), don't write in the middle of read()
+            super().__setattr__('Repository', ALGS_REPOSITORY)
+            self.config['Repository'] = ALGS_REPOSITORY
+
+        # CDN packs are upstream ALAS / StarRailCopilot only, never AlGS.
+        # Bypass __setattr__(), don't write this into deploy.yaml.
+        super().__setattr__('GitOverCdn', False)
 
     def filepath(self, path):
         """

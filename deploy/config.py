@@ -9,14 +9,41 @@ class ExecutionError(Exception):
     pass
 
 
+# AlGS lives in its own repository. `git_repository_init()` does
+# `remote set-url origin` + `reset --hard origin/master`, so an upstream ALAS
+# default would silently replace this working tree with the Azur Lane code.
+ALGS_REPOSITORY = 'https://github.com/noelfwfaw/ALGS.git'
+
+# Legacy aliases and mirrors left over from upstream ALAS / StarRailCopilot
+# installers. Users upgrading from an old `config/deploy.yaml` may still have
+# one of these written down; redirect them instead of letting `reset --hard`
+# pull a completely different project into this directory.
+LEGACY_REPOSITORIES = (
+    'global',
+    'cn',
+    'https://github.com/LmeSzinc/AzurLaneAutoScript',
+    'https://github.com/LmeSzinc/AzurLaneAutoScript.git',
+    'https://github.com/LmeSzinc/StarRailCopilot',
+    'https://github.com/LmeSzinc/StarRailCopilot.git',
+    'https://gitee.com/LmeSzinc/AzurLaneAutoScript',
+    'https://gitee.com/lmeszinc/azur-lane-auto-script-mirror',
+    'https://e.coding.net/llop18870/alas/AzurLaneAutoScript.git',
+    'https://e.coding.net/saarcenter/alas/AzurLaneAutoScript.git',
+    'https://git.saarcenter.com/LmeSzinc/AzurLaneAutoScript.git',
+    'git://git.lyoko.io/AzurLaneAutoScript',
+)
+
+
 class ConfigModel:
     # Git
-    Repository: str = "https://github.com/LmeSzinc/AzurLaneAutoScript"
+    Repository: str = ALGS_REPOSITORY
     Branch: str = "master"
     GitExecutable: str = "./toolkit/Git/mingw64/bin/git.exe"
     GitProxy: Optional[str] = None
     SSLVerify: bool = False
-    AutoUpdate: bool = True
+    # GitHub release archives have no `.git/`. Keep the destructive git updater
+    # off by default so it never rewrites a freshly unpacked installation.
+    AutoUpdate: bool = False
 
     # Python
     PythonExecutable: str = "./toolkit/python.exe"
@@ -38,8 +65,8 @@ class ConfigModel:
 
     # Update
     EnableReload: bool = True
-    CheckUpdateInterval: int = 5
-    AutoRestartTime: str = "03:50"
+    CheckUpdateInterval: int = 0
+    AutoRestartTime: Optional[str] = None
 
     # Misc
     DiscordRichPresence: bool = False
@@ -115,31 +142,25 @@ class DeployConfig(ConfigModel):
         """
         Redirect deploy config, must be called after each `read()`
         """
-        if self.Repository in [
-            'https://gitee.com/LmeSzinc/AzurLaneAutoScript',
-            'https://gitee.com/lmeszinc/azur-lane-auto-script-mirror',
-            'https://e.coding.net/llop18870/alas/AzurLaneAutoScript.git',
-            'https://e.coding.net/saarcenter/alas/AzurLaneAutoScript.git',
-            'https://git.saarcenter.com/LmeSzinc/AzurLaneAutoScript.git',
-        ]:
-            self.Repository = 'git://git.lyoko.io/AzurLaneAutoScript'
-            self.config['Repository'] = 'git://git.lyoko.io/AzurLaneAutoScript'
+        if self.Repository in LEGACY_REPOSITORIES:
+            logger.warning(
+                f'Repository {self.Repository} is an upstream ALAS/SRC address, '
+                f'redirect to {ALGS_REPOSITORY}'
+            )
+            # Bypass module.webui.config.DeployConfig.__setattr__() so we don't
+            # write deploy.yaml in the middle of read().
+            super().__setattr__('Repository', ALGS_REPOSITORY)
+            self.config['Repository'] = ALGS_REPOSITORY
         if self.PypiMirror in [
             'https://pypi.tuna.tsinghua.edu.cn/simple'
         ]:
             self.PypiMirror = 'https://mirrors.aliyun.com/pypi/simple'
             self.config['PypiMirror'] = 'https://mirrors.aliyun.com/pypi/simple'
 
-        # Bypass webui.config.DeployConfig.__setattr__()
-        # Don't write these into deploy.yaml
-        super().__setattr__(
-            'GitOverCdn',
-            self.Repository == 'git://git.lyoko.io/AzurLaneAutoScript' and self.Branch == 'master'
-        )
-        if self.Repository in ['global']:
-            super().__setattr__('Repository', 'https://github.com/LmeSzinc/AzurLaneAutoScript')
-        if self.Repository in ['cn']:
-            super().__setattr__('Repository', 'git://git.lyoko.io/AzurLaneAutoScript')
+        # GitOverCdn packs contain upstream ALAS commits only and are not
+        # compatible with AlGS. Keep the flag off unconditionally.
+        # Bypass webui.config.DeployConfig.__setattr__(), don't write it to yaml.
+        super().__setattr__('GitOverCdn', False)
 
     def filepath(self, key):
         """

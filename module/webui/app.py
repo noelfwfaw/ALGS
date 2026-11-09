@@ -929,6 +929,8 @@ class AlasGUI(Frame):
         put_scope("updater_info")
 
         def update_table():
+            if not updater.updater_available(log=False):
+                return
             with use_scope("updater_info", clear=True):
                 local_commit = updater.get_commit(short_sha1=True)
                 upstream_commit = updater.get_commit(
@@ -1066,6 +1068,8 @@ class AlasGUI(Frame):
                     scope="updater_btn",
                     disabled=True,
                 )
+            elif state == "unavailable":
+                put_text(t("Gui.Update.NoGitRepo"), scope="updater_state")
             else:
                 put_text(
                     "Something went wrong, please contact develops",

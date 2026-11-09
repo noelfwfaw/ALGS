@@ -1,5 +1,4 @@
 from deploy.config import DeployConfig
-from deploy.git_over_cdn.client import GitOverCdnClient
 from deploy.logger import logger
 from deploy.utils import *
 
@@ -68,33 +67,16 @@ class GitManager(DeployConfig):
         logger.hr('Show Version', 1)
         self.execute(f'"{self.git}" --no-pager log --no-merges -1')
 
-    @property
-    def goc_client(self):
-        client = GitOverCdnClient(
-            url=[
-                'https://1818706573.cdn.123clouddisk.com/1818706573/pack/LmeSzinc_AzurLaneAutoScript_master',
-                'https://vip.123pan.cn/1818706573/pack/LmeSzinc_AzurLaneAutoScript_master',
-                'https://alas-goc-1254325529.cos.ap-shanghai.myqcloud.com/LmeSzinc_AzurLaneAutoScript_master',
-            ],
-            folder=self.root_filepath,
-            source='origin',
-            branch='master',
-            git=self.git,
-        )
-        client.logger = logger
-        return client
-
     def git_install(self):
-        logger.hr('Update Alas', 0)
+        logger.hr('Update AlGS', 0)
 
         if not self.AutoUpdate:
             logger.info('AutoUpdate is disabled, skip')
             return
 
-        if self.GitOverCdn:
-            if self.goc_client.update():
-                return
-
+        # GitOverCdn packs contain upstream ALAS commits only. AlGS always
+        # updates from its own git remote, and DeployConfig.config_redirect()
+        # forces GitOverCdn to False, so there is no CDN branch here.
         self.git_repository_init(
             repo=self.Repository,
             source='origin',
@@ -106,4 +88,4 @@ class GitManager(DeployConfig):
 
 if __name__ == '__main__':
     self = GitManager()
-    self.goc_client.get_status()
+    self.show_config()

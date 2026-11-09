@@ -1,4 +1,5 @@
 import datetime
+import os
 import subprocess
 import threading
 import time
@@ -56,7 +57,10 @@ class Updater(DeployConfig, GitManager, PipManager):
         )
 
         if not log:
-            return None, None, None, None
+            if n == 1:
+                return None, None, None, None
+            else:
+                return []
 
         logs = log.split("\n")
         logs = list(map(lambda log: tuple(log.split("---")), logs))
@@ -66,20 +70,55 @@ class Updater(DeployConfig, GitManager, PipManager):
         else:
             return logs
 
+    def updater_available(self, log=True):
+        """
+        GitHub release archives do not contain `.git/`, while the builtin
+        updater works on git objects only (fetch / log / reset --hard).
+        Refuse to touch such installs: `git_install()` would otherwise run
+        `git init` followed by `reset --hard origin/master` and silently
+        rewrite the whole working tree.
+
+        Args:
+            log (bool): Whether to log a warning, the UI polls this repeatedly.
+
+        Returns:
+            bool:
+        """
+        if os.path.isdir(os.path.join(self.root_filepath, '.git')):
+            return True
+        if log:
+            logger.warning(
+                'Built-in updater is unavailable: this installation has no .git/ '
+                '(GitHub release archive). Download the latest release and '
+                'overwrite the files manually, or install with `git clone`.'
+            )
+        return False
+
+    def ensure_algs_remote(self):
+        """
+        `_check_update()` fetches `origin` directly, without going through
+        `git_repository_init()` which would fix the URL. Old checkouts may
+        still have an upstream ALAS remote in `.git/config`.
+
+        Returns:
+            bool: Whether `origin` points at the configured AlGS repository.
+        """
+        current = self.execute_output(f'"{self.git}" remote get-url origin').strip()
+        if current == self.Repository:
+            return True
+        logger.info(f'Fixing git remote origin: {current or "<unset>"} -> {self.Repository}')
+        if self.execute(f'"{self.git}" remote set-url origin {self.Repository}', allow_failure=True):
+            return True
+        return self.execute(f'"{self.git}" remote add origin {self.Repository}', allow_failure=True)
+
     def _check_update(self) -> bool:
         self.state = "checking"
 
-        if State.deploy_config.GitOverCdn:
-            status = self.goc_client.get_status()
-            if status == "uptodate":
-                logger.info(f"No update")
-                return False
-            elif status == "behind":
-                logger.info(f"New update available")
-                return True
-            else:
-                # failed, should fallback to `git pull`
-                pass
+        # GitOverCdn packs are upstream ALAS only and are disabled in
+        # DeployConfig.config_redirect(); never query that channel here.
+        if not self.ensure_algs_remote():
+            logger.warning('Cannot verify git remote, skip update')
+            return False
 
         source = "origin"
         for _ in range(3):
@@ -181,7 +220,10 @@ class Updater(DeployConfig, GitManager, PipManager):
         return 1
 
     def check_update(self):
-        if self.state in (0, "failed", "finish"):
+        if self.state in (0, "failed", "finish", "unavailable"):
+            if not self.updater_available():
+                self.state = "unavailable"
+                return
             self.state = self._check_update()
 
     @retry(ExecutionError, tries=3, delay=5, logger=None)
@@ -194,6 +236,8 @@ class Updater(DeployConfig, GitManager, PipManager):
 
     def update(self):
         logger.hr("Run update")
+        if not self.updater_available():
+            return False
         try:
             self.git_install()
             self.pip_install()
@@ -203,6 +247,9 @@ class Updater(DeployConfig, GitManager, PipManager):
 
     def run_update(self):
         if self.state not in ("failed", 0, 1):
+            return
+        if not self.updater_available():
+            self.state = "unavailable"
             return
         self._start_update()
 

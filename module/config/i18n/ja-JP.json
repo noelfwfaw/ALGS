@@ -1467,7 +1467,8 @@
       "Time": "提出時間",
       "Message": "提出内容",
       "DisabledWarn": "アップデータモジュールは稼働されませんのでAlasを再起動してください",
-      "DetailedHistory": "詳しい提出履歴"
+      "DetailedHistory": "詳しい提出履歴",
+      "NoGitRepo": "内蔵アップデータは利用できません：Release アーカイブには .git/ がありません。最新 Release をダウンロードして上書きするか（config/ と toolkit/ は保持）、git clone でインストールしてください。"
     },
     "Remote": {
       "Running": "実行中",

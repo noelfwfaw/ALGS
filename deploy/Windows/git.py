@@ -114,30 +114,16 @@ class GitManager(DeployConfig):
         self.execute(f'"{self.git}" --no-pager log --no-merges -1')
         Progress.GitShowVersion()
 
-    @property
-    def goc_client(self):
-        client = GitOverCdnClient(
-            url='https://vip.123pan.cn/1815343254/pack/LmeSzinc_StarRailCopilot_master',
-            folder=self.root_filepath,
-            source='origin',
-            branch='master',
-            git=self.git,
-        )
-        client.logger = logger
-        return client
-
     def git_install(self):
-        logger.hr('Update Alas', 0)
+        logger.hr('Update AlGS', 0)
 
         if not self.AutoUpdate:
             logger.info('AutoUpdate is disabled, skip')
             Progress.GitShowVersion()
             return
 
-        if self.GitOverCdn:
-            if self.goc_client.update():
-                return
-
+        # GitOverCdn packs are built from upstream ALAS / StarRailCopilot
+        # commits only. AlGS updates exclusively from its own git remote.
         self.git_repository_init(
             repo=self.Repository,
             source='origin',
