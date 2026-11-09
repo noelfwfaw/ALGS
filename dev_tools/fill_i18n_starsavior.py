@@ -27,7 +27,7 @@ TEXT = {
         'Menu.Starsavior.name': '星之救援者',
         'Menu.Starsavior.help': '刷初始工具，在「工具」页单独启动，不跟随任务调度',
 
-        'Task.Starsavior2.name': '刷初始',
+        'Task.Starsavior2.name': '星之刷初始',
         'Task.Starsavior2.help':
             '⚠ 这个功能还在测试阶段，随时可能改行为，也可能出 bug。\n'
             '已实测环境：MuMu 模拟器 12、游戏亚服、游戏内简体中文、画质极低。'
@@ -96,7 +96,7 @@ TEXT = {
         'Menu.Starsavior.name': '星之救援者',
         'Menu.Starsavior.help': '刷初始工具，在「工具」頁單獨啟動，不跟隨任務調度',
 
-        'Task.Starsavior2.name': '刷初始',
+        'Task.Starsavior2.name': '星之刷初始',
         'Task.Starsavior2.help':
             '⚠ 這個功能還在測試階段，隨時可能改行為，也可能有 bug。\n'
             '已實測環境：MuMu 模擬器 12、遊戲亞服、遊戲內簡體中文、畫質極低。'
@@ -165,7 +165,7 @@ TEXT = {
         'Menu.Starsavior.name': 'Star Savior',
         'Menu.Starsavior.help': 'Reroll tool. Start it from the Tools page; it never joins the task queue',
 
-        'Task.Starsavior2.name': 'Reroll',
+        'Task.Starsavior2.name': 'Star Savior: Reroll',
         'Task.Starsavior2.help':
             'Warning: this tool is still in testing. Behaviour may change, and it may contain bugs.\n'
             'Tested on: MuMu emulator 12, Asia server, in-game Simplified Chinese, lowest graphics. '
@@ -242,7 +242,7 @@ TEXT = {
         'Menu.Starsavior.name': 'スターセイヴァー',
         'Menu.Starsavior.help': 'リセマラツール。「ツール」ページから個別に起動し、タスクスケジュールには従いません',
 
-        'Task.Starsavior2.name': 'リセマラ',
+        'Task.Starsavior2.name': 'スター：リセマラ',
         'Task.Starsavior2.help':
             '⚠ この機能はテスト中です。挙動が変わる可能性があり、不具合も残っています。\n'
             '検証済み環境：MuMu エミュレーター 12、アジアサーバー、ゲーム内簡体字中国語、画質は最低。'

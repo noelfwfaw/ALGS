@@ -33,6 +33,7 @@ import time
 
 import numpy as np
 
+import module.config.server as server
 from module.base.button import Button
 from module.base.timer import Timer
 from module.exception import ScriptError, TaskFailed
@@ -421,6 +422,32 @@ VERIFY = (
 # 真机 2026-11-06 22:52 输入「账号」版本，点确认**照样重置成功** —— 游戏不做字面校验。
 RESET_WORD = '重置服务器账号'
 
+# 游戏闪退检测（2026-11-09 真机）：16:58 客户端自己掉到桌面，之后所有段的
+# 按钮表一个都认不到、一路空转到 17:01「重置失败」才退出，日志里连一条
+# `App stop/start` 都没有 —— 工具是独立进程，没有调度器那套「卡死 → Restart」兜底。
+#
+# 两种退出都要认（2026-11-09 17:2x 现场 adb 实测）：
+#   ① 进程消失 —— `pidof com.studiobside.starMain` 为空；
+#   ② **退回桌面但进程还在** —— 前台是 `app.lawnchair/.LawnchairLauncher`，
+#      `pidof` 仍能读到 30928。这次用户看到的正是 ②，只看 ① 会完全漏检。
+# ❗桌面判据只认「默认 HOME 包名 / 名字里带 launcher」，不认「前台不是游戏」：
+#   Google 登录、权限弹窗、输入法都会短时间把游戏压到后台，拿"不是游戏"判
+#   会把正常流程误杀。命令输出经 grep 只回一行，比整套 `dumpsys window` 轻。
+CRASH_FRONT_CMD = ('dumpsys activity activities | '
+                   'grep -E "topResumedActivity|mResumedActivity"')
+CRASH_POLL = 3
+CRASH_CONFIRM = 2
+CRASH_GRACE = 10           # 画面就绪后再给 10 秒，别把刚起来的客户端判死
+CRASH_MAX_RESTART = 3      # 一次工具运行最多自动重启几次，防无限重启
+
+
+class GameCrashed(Exception):
+    """Internal signal: game is gone or back on the desktop, `run()` restarts it."""
+
+    def __init__(self, message, gone=False):
+        super().__init__(message)
+        self.gone = gone   # True = 进程没了，False = 只是退回桌面
+
 
 class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     """刷初始：登录 -> 引导 -> 旅程 -> 结算 -> 领奖 -> 抽卡 -> 验号（按配置决定停在哪）。
@@ -441,6 +468,145 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     stop_at = STOP_NONE
     target_hit = False
     target_detail = ()         # 验号结果（`verify()` 里覆盖），推送正文要用
+
+    # 闪退检测开关。默认关：`--step` 单跑、冷启动画面还没画出来时不查；
+    # 只有 `run()` 在 `wait_start_screen()` 之后才 arm。
+    crash_watch = False
+    crash_missing = 0
+    crash_grace_until = 0.0
+
+    def arm_crash_watch(self):
+        """画面已就绪，开始查游戏进程；重启 / 重置之后要重新调一次。"""
+        self._crash_timer = None
+        self.crash_missing = 0
+        self.crash_grace_until = time.time() + CRASH_GRACE
+        self.crash_watch = True
+
+    def loop(self, skip_first=True, timeout=None):
+        """
+        给所有状态循环挂一层闪退检测，其它行为与 `ModuleBase.loop()` 一致。
+
+        这个工具的每一段（guide / journey / settle / claim / gacha / verify /
+        reset / wait_start_screen）都走 `self.loop()`，所以挂在这里一处就能覆盖
+        全部长循环，不必逐段插检测。`check_game_crash()` 自己按秒节流。
+
+        Raises:
+            GameCrashed: 连续多次查不到游戏进程，交给 `run()` 重启并重走本轮。
+        """
+        for image in super().loop(skip_first=skip_first, timeout=timeout):
+            self.check_game_crash()
+            yield image
+
+    def check_game_crash(self):
+        """按秒查一次，连续多次确认「进程没了 / 退回桌面」才抛 `GameCrashed`。
+
+        adb 自己掉线时只跳过本轮检测：那是连接问题，重启游戏救不了。
+        """
+        if not self.crash_watch or time.time() < self.crash_grace_until:
+            return
+        timer = getattr(self, '_crash_timer', None)
+        if timer is None:
+            self._crash_timer = Timer(CRASH_POLL).start()
+            return
+        if not timer.reached():
+            return
+        timer.reset()
+
+        package = server.to_package('starsavior')
+        try:
+            alive = bool(self.device.adb_shell(['pidof', package]).strip())
+        except Exception as e:
+            logger.warning('闪退检测：adb 查进程失败（%s），跳过本轮' % e)
+            self.crash_missing = 0
+            return
+        gone = not alive
+        desktop = self.game_on_desktop() if alive else False
+        if alive and not desktop:
+            self.crash_missing = 0
+            return
+
+        self.crash_missing += 1
+        reason = '进程消失' if gone else '退回桌面'
+        logger.warning('闪退检测：%s（%d/%d）'
+                       % (reason, self.crash_missing, CRASH_CONFIRM))
+        if self.crash_missing >= CRASH_CONFIRM:
+            raise GameCrashed('%s，连续 %d 次' % (reason, self.crash_missing),
+                              gone=gone)
+
+    def desktop_package(self):
+        """默认桌面的包名，查一次就缓存（`cmd package resolve-activity`）。"""
+        cached = getattr(self, '_desktop_package', None)
+        if cached is not None:
+            return cached
+        cached = ''
+        try:
+            out = self.device.adb_shell([
+                'cmd', 'package', 'resolve-activity', '--brief',
+                '-a', 'android.intent.action.MAIN',
+                '-c', 'android.intent.category.HOME',
+            ])
+            for line in out.splitlines():
+                if '/' in line:
+                    cached = line.split('/')[0].strip()
+        except Exception as e:
+            logger.warning('闪退检测：查不到桌面包名（%s），只靠进程判据' % e)
+        self._desktop_package = cached
+        return cached
+
+    def game_on_desktop(self):
+        """前台是不是桌面。只认「默认 HOME / 名字带 launcher」，不认普通系统弹窗。"""
+        try:
+            front = self.device.adb_shell(CRASH_FRONT_CMD)
+        except Exception as e:
+            logger.warning('闪退检测：查前台失败（%s），跳过本轮' % e)
+            return False
+        # `dumpsys activity activities` 可能给多行（每个 task 一条），
+        # 只拿当前 resumed 那一行，别把历史记录里的桌面读成前台。
+        line = ''
+        for row in front.splitlines():
+            if 'topResumedActivity' in row:
+                line = row
+                break
+            if 'mResumedActivity' in row and not line:
+                line = row
+        if not line:
+            return False
+        home = self.desktop_package()
+        if home and home in line:
+            return True
+        return 'launcher' in line.lower() or 'lawnchair' in line.lower()
+
+    def restart_game(self, gone=False, force=False):
+        """闪退后把游戏拉回来；等画面交给下一轮的 `wait_start_screen()`。
+
+        Args:
+            gone (bool): 进程已经没了（此时 stop 无害）。
+            force (bool): 连续重启仍拉不回来，这次强杀冷启动。
+
+        ❗进程还在、只是退回桌面时**先不 force-stop**：`app_start()` 会把已有
+          Activity 带回前台，不打断游戏内存里的进度；真拉不回来再强杀。
+        ❗不调 `ui_goto_main()` / 任何 UI 的 boot 流程：星之救援者还没量出
+          `page_main`（`starsavior_ui.py` 里是留空的），调用会直接
+          `GamePageUnknownError`。`device.app_start()` 会作废旧帧并清看门狗。
+        """
+        logger.hr('游戏闪退，重启', level=1)
+        self.crash_watch = False
+        self.crash_missing = 0
+        try:
+            package = server.to_package('starsavior')
+            # `dev_tools/run_tool.py --step` 不走 `switch_game()`，
+            # `device.package` 还停在 alas.json 里那个游戏上，不修会启动错包。
+            if self.device.package != package:
+                logger.info('重启：device.package %s -> %s'
+                            % (self.device.package, package))
+                self.device.package = package
+            if gone or force:
+                self.device.app_stop()
+            else:
+                logger.info('重启：进程还在，先只把游戏拉回前台')
+            self.device.app_start()
+        finally:
+            self._crash_timer = None
 
     def warmup_ocr(self):
         """后台线程先把 cnocr 模型加载好。
@@ -496,63 +662,95 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.load_plan()
 
         index = 0
+        restarts = 0
         while 1:
             index += 1
             self.set_round(index)
             logger.hr('第 %d 轮' % index, level=1)
             self.target_hit = False
             self.click_count = 0
-            # ❗先等画面，再判登录：冷启动/换号后的加载画面上 `login()` 的判据
-            #   会误判成"已经在游戏里"，接着整条链在加载画面上空转。
-            self.wait_start_screen()
-            self.login()
-            self.warmup_ocr()
+            # ❗冷启动 / 换号后画面还没画出来，这段时间**不查进程**：
+            #   `app_start()` 是"先杀再启"，中间必然有几帧 `pidof` 是空的。
+            #   等 `wait_start_screen()` 认到画面再开检测。
+            self.crash_watch = False
+            try:
+                # ❗先等画面，再判登录：冷启动/换号后的加载画面上 `login()` 的判据
+                #   会误判成"已经在游戏里"，接着整条链在加载画面上空转。
+                self.wait_start_screen()
+                self.arm_crash_watch()
+                self.login()
+                self.warmup_ocr()
 
-            if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
-                self.report_plan('节点1：昵称输入框（没有输入昵称）')
-                return
-            if self.stop_at == STOP_GUIDE:
-                self.report_plan('节点2：所有引导走完（还没领奖励、没抽卡）')
-                return
+                if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
+                    self.report_plan('节点1：昵称输入框（没有输入昵称）')
+                    return
+                if self.stop_at == STOP_GUIDE:
+                    self.report_plan('节点2：所有引导走完（还没领奖励、没抽卡）')
+                    return
 
-            self.journey()
-            self.settle()
-            self.claim()
-            self.gacha()
-            self.verify()
+                self.journey()
+                self.settle()
+                self.claim()
+                self.gacha()
+                self.verify()
 
-            # 节点3：验号结束就是终点，不管目标角色（冲突时已经在 load_plan
-            # 里被清空了）。不留这一支会掉进下面的「没有目标角色」，日志里写
-            # 「只跑一轮」，看不出选的是节点3。
-            if self.stop_at == STOP_VERIFY:
-                self.report_plan('节点3：验号完成（不重置账号）')
-                return
+                # 节点3：验号结束就是终点，不管目标角色（冲突时已经在 load_plan
+                # 里被清空了）。不留这一支会掉进下面的「没有目标角色」，日志里写
+                # 「只跑一轮」，看不出选的是节点3。
+                if self.stop_at == STOP_VERIFY:
+                    self.report_plan('节点3：验号完成（不重置账号）')
+                    return
 
-            if self.target_hit:
-                self.notify_hit()
-                self.report_plan('目标达成，号留在游戏里，不重置')
-                return
-            # ❗次数上限**必须在重置之前判**。放到 `while` 头上判的话，最后一轮
-            #   会先被重置掉、回到标题页，才发现「已经刷够了」—— 白丢一个号。
-            # ❗也要排在「没有目标角色」前面：只填次数不填目标 = 老老实实刷这么多轮，
-            #   不能因为没挂目标就只跑一轮。
-            if self.reroll_count and index >= self.reroll_count:
-                self.report_plan('已刷满 %d 轮，停下（不重置，号留在游戏里）' % self.reroll_count)
-                return
-            if not self.targets:
-                self.report_plan('没有目标角色：跑完这一轮就停，不重置')
-                return
+                if self.target_hit:
+                    self.notify_hit()
+                    self.report_plan('目标达成，号留在游戏里，不重置')
+                    return
+                # ❗次数上限**必须在重置之前判**。放到 `while` 头上判的话，最后一轮
+                #   会先被重置掉、回到标题页，才发现「已经刷够了」—— 白丢一个号。
+                # ❗也要排在「没有目标角色」前面：只填次数不填目标 = 老老实实刷这么多轮，
+                #   不能因为没挂目标就只跑一轮。
+                if self.reroll_count and index >= self.reroll_count:
+                    self.report_plan('已刷满 %d 轮，停下（不重置，号留在游戏里）' % self.reroll_count)
+                    return
+                if not self.targets:
+                    self.report_plan('没有目标角色：跑完这一轮就停，不重置')
+                    return
 
-            logger.hr('第 %d 轮没达标，重置账号接着刷' % index, level=1)
-            if not self.reset():
-                logger.warning('重置失败，停止（别把号刷丢）')
-                self.report_plan('重置失败')
-                # ❗不能 `return`：进程会记 `Reason: Finish`，WebUI 里看着像
-                #   正常跑完，手机上也没有推送。抛 `TaskFailed` 交给
-                #   `GameScheduler.run()`：它负责推一条，并把这次运行记成失败。
-                raise TaskFailed(self.fail_reason(
-                    '重置账号失败，已停止。账号没有丢；游戏停在重置弹窗'
-                    '或加载页，手动点掉弹窗、回到标题页就能重跑。'))
+                logger.hr('第 %d 轮没达标，重置账号接着刷' % index, level=1)
+                # ❗重置账号时游戏会重载回标题页，进程可能短暂消失；
+                #   这一小段关掉检测，免得把自己的换号判成闪退。
+                self.crash_watch = False
+                try:
+                    reset_ok = self.reset()
+                finally:
+                    self.arm_crash_watch()
+                if not reset_ok:
+                    logger.warning('重置失败，停止（别把号刷丢）')
+                    self.report_plan('重置失败')
+                    # ❗不能 `return`：进程会记 `Reason: Finish`，WebUI 里看着像
+                    #   正常跑完，手机上也没有推送。抛 `TaskFailed` 交给
+                    #   `GameScheduler.run()`：它负责推一条，并把这次运行记成失败。
+                    raise TaskFailed(self.fail_reason(
+                        '重置账号失败，已停止。账号没有丢；游戏停在重置弹窗'
+                        '或加载页，手动点掉弹窗、回到标题页就能重跑。'))
+                # 完整跑完一轮，闪退额度重新给满（只拦「连续重启」）。
+                restarts = 0
+            except GameCrashed as e:
+                # 闪退重进不算新的一轮：GUI 的「第 N 轮」保持连续。
+                index -= 1
+                restarts += 1
+                if restarts > CRASH_MAX_RESTART:
+                    raise TaskFailed(self.fail_reason(
+                        '游戏连续闪退 %d 次，已停止自动重启。账号没有丢，'
+                        '检查模拟器内存 / 客户端后再手动启动。' % restarts))
+                logger.warning('游戏闪退（%s），重启并重走这一轮的状态机（第 %d/%d 次）'
+                               % (e, restarts, CRASH_MAX_RESTART))
+                # 游戏自己记开荒进度：例如在昵称页闪退，重进就直接落在昵称页，
+                # 不会再播教学战。各段是「每帧重扫按钮表、不记走到第几步」，
+                # 所以从 `wait_start_screen()` 重新走一遍状态机、按当前画面接，
+                # 比停在半截的那一段继续空转靠谱；接不上的段会各自 idle 收工。
+                self.restart_game(gone=e.gone, force=restarts >= 2)
+                continue
 
     def load_plan(self):
         """把 GUI 的配置落成实例状态：昵称 / 达标条件 / 目标 / 停节点。"""

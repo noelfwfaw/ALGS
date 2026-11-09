@@ -39,203 +39,203 @@
       "help": ""
     },
     "HazeworldMail": {
-      "name": "Mail",
+      "name": "Hazeworld: Mail",
       "help": "Claim mail attachments"
     },
     "HazeworldRoom": {
-      "name": "Command room",
+      "name": "Hazeworld: Command room",
       "help": "Collect resources and handle expeditions"
     },
     "HazeworldExercise": {
-      "name": "Exercise",
+      "name": "Hazeworld: Exercise",
       "help": "Spend the daily exercise tickets in the arena"
     },
     "HazeworldFriend": {
-      "name": "Friend",
+      "name": "Hazeworld: Friend",
       "help": "Like all friends"
     },
     "HazeworldTask": {
-      "name": "Mission",
+      "name": "Hazeworld: Mission",
       "help": "Claim daily, weekly and monthly mission rewards"
     },
     "HazeworldPass": {
-      "name": "Battle pass",
+      "name": "Hazeworld: Battle pass",
       "help": "Claim battle pass missions and level rewards"
     },
     "HazeworldSupport": {
-      "name": "Support character",
+      "name": "Hazeworld: Support character",
       "help": "Claim the friendship coins of support characters"
     },
     "HazeworldCore": {
-      "name": "Core material",
+      "name": "Hazeworld: Core material",
       "help": "Sweep core material stages in the resource dungeon, spends stamina"
     },
     "HazeworldShop": {
-      "name": "Elite shop",
+      "name": "Hazeworld: Elite shop",
       "help": "Buy from the elite shop of the mall exchange with a purchase list, weekly"
     },
     "HazeworldLogistics": {
-      "name": "Logistics shop",
+      "name": "Hazeworld: Logistics shop",
       "help": "Buy from the logistics shop of the exchange shop, everything but 盾币 by default, once a week"
     },
     "HazeworldHonor": {
-      "name": "Honor shop",
+      "name": "Hazeworld: Honor shop",
       "help": "Buy only the first card (定向调度券) of the honour shop in the mall, once a week"
     },
     "LostswordTreasure": {
-      "name": "Treasure",
+      "name": "Lost Sword: Treasure",
       "help": "Claim the idle rewards and use the free quick explore"
     },
     "LostswordSummon": {
-      "name": "Free summon",
+      "name": "Lost Sword: Free summon",
       "help": "Take the daily free pull in the character and pet pools"
     },
     "LostswordShop": {
-      "name": "Shop",
+      "name": "Lost Sword: Shop",
       "help": "Claim the daily, weekly and monthly free gifts"
     },
     "LostswordMail": {
-      "name": "Mailbox",
+      "name": "Lost Sword: Mailbox",
       "help": "Claim the attachments in the mailbox"
     },
     "LostswordGuild": {
-      "name": "Guild",
+      "name": "Lost Sword: Guild",
       "help": "Donate gold and spirit coins, sign in, and take both guild investments; skipped when the guild entry has no red dot"
     },
     "LostswordBoss": {
-      "name": "Boss raid",
+      "name": "Lost Sword: Boss raid",
       "help": "Fight once a day, then sweep the rest of the free tries"
     },
     "LostswordDungeon": {
-      "name": "Squad dungeon",
+      "name": "Lost Sword: Squad dungeon",
       "help": "Spend the daily try, wait for the match and the battle to clear"
     },
     "LostswordCopy": {
-      "name": "Stage sweep",
+      "name": "Lost Sword: Stage sweep",
       "help": "Open one sweepable stage and use the shared panel to sweep gold / exp / stones"
     },
     "LostswordEvent": {
-      "name": "Event",
+      "name": "Lost Sword: Event",
       "help": "Clear new events and sweep the stages already done; 探险完成 events are skipped"
     },
     "LostswordStar": {
-      "name": "Star cycle",
+      "name": "Lost Sword: Star cycle",
       "help": "Challenge the three adventure areas once each"
     },
     "LostswordArena": {
-      "name": "Arena",
+      "name": "Lost Sword: Arena",
       "help": "Spend arena tickets on opponents, promotion matches first; tickets pile up and are spent once a day, then the season missions are claimed"
     },
     "LostswordMaze": {
-      "name": "Maze",
+      "name": "Lost Sword: Maze",
       "help": "Open the maze and start the auto run; it walks until the daily limit"
     },
     "LostswordMain": {
-      "name": "Main story",
+      "name": "Lost Sword: Main story",
       "help": "Push the adventure stages on normal, then hard, then hell, until the team loses"
     },
     "LostswordRound": {
-      "name": "Round table",
+      "name": "Lost Sword: Round table",
       "help": "Raise the knight order level with gold and exp books until the resources run out"
     },
     "LostswordAffection": {
-      "name": "Affection talks",
+      "name": "Lost Sword: Affection talks",
       "help": "Talk to the six configured characters until the daily tries run out"
     },
     "LostswordTask": {
-      "name": "Task rewards",
+      "name": "Lost Sword: Task rewards",
       "help": "Claim all daily, weekly and epic task rewards"
     },
     "LostswordRedeem": {
-      "name": "Coupon codes",
+      "name": "Lost Sword: Coupon codes",
       "help": "Fetch the coupon codes from GameKee once a day and redeem the new ones in the game; used and expired codes are skipped"
     },
     "BrowndustSummon": {
-      "name": "Free gacha",
+      "name": "Brown Dust: Free gacha",
       "help": "Take the daily free pull of the costume and equipment gacha"
     },
     "BrowndustHunt": {
-      "name": "Quick Hunt",
+      "name": "Brown Dust: Quick Hunt",
       "help": "Spend the daily quick-hunt runs of the field, coin and slime areas, and of the sacred stone caves"
     },
     "BrowndustManager": {
-      "name": "Management",
+      "name": "Brown Dust: Management",
       "help": "Claim the accumulated 经营管理 rewards (一键获得)"
     },
     "BrowndustMail": {
-      "name": "Mail",
+      "name": "Brown Dust: Mail",
       "help": "Claim every attachment in 普通邮箱 (shop mail and the log page are left alone)"
     },
     "BrowndustTask": {
-      "name": "Daily Quests",
+      "name": "Brown Dust: Daily Quests",
       "help": "Claim the daily and weekly quest rewards (全部获得)"
     },
     "BrowndustEvent": {
-      "name": "Event",
+      "name": "Brown Dust: Event",
       "help": "Five things of the running event in one task: story → battles → world boss → missions → shop"
     },
     "BrowndustPass": {
-      "name": "Pass Rewards",
+      "name": "Brown Dust: Pass Rewards",
       "help": "Claim the missions and rewards of every pass with a red dot (全部获得)"
     },
     "BrowndustRedeem": {
-      "name": "Coupon codes",
+      "name": "Brown Dust: Coupon codes",
       "help": "Fetch the coupon codes of the game from GameKee once a day and redeem the new ones; used and expired codes are skipped"
     },
     "ChaoszeroArk": {
-      "name": "Ark City dailies",
+      "name": "Chaos Zero: Ark City dailies",
       "help": "Three things in 方舟都市: approve a few policies in 政策室 (each one costs a day), order once at 庭院咖啡廳 for 120 stamina, and buy out 諾諾商店 from the top (it never buys 單元幣 and skips any greyed-out 購買). If the cafe already served you today it is skipped, not treated as a failure"
     },
     "ChaoszeroSimulation": {
-      "name": "Battle training (spend stamina)",
+      "name": "Chaos Zero: Battle training (spend stamina)",
       "help": "Walks 模擬 → 戰鬥訓練 and farms the ticked tabs in order: open the stage, apply difficulty and battle efficiency, fight, make sure auto-battle is on, take the result, and repeat until the stamina or the daily attempts run out"
     },
     "ChaoszeroDaily": {
-      "name": "Daily claim (missions + mailbox)",
+      "name": "Chaos Zero: Daily claim (missions + mailbox)",
       "help": "Opens the top-right menu and does two things: (1) 日常任務 → the 全部領取 button of 當日行程; (2) the envelope in the vertical column that appears on the right edge once the menu is open → 信箱, then 全部領取 there. Both buttons are orange while something is left and grey once done. It only claims - the missions themselves are done by the 模擬 and 方舟都市 tasks"
     },
     "ChaoszeroRedeem": {
-      "name": "Coupon codes",
+      "name": "Chaos Zero: Coupon codes",
       "help": "Fetch the coupon codes from GameKee once a day, skip the codes of the CN server, and redeem the new ones in the game; used and expired codes are skipped"
     },
     "ChaoszeroMain": {
-      "name": "Launch game",
+      "name": "Chaos Zero: Launch game",
       "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"
     },
     "CrosscoreMain": {
-      "name": "Launch game",
+      "name": "Cross Core: Launch game",
       "help": "Bring the client from a cold start, the title screen or a sub page to the main page, claiming nothing. Every other task of this game starts from there"
     },
     "CrosscoreRedeem": {
-      "name": "Coupon codes",
+      "name": "Cross Core: Coupon codes",
       "help": "Fetch the Cross Core coupon codes from GameKee and submit the new ones one by one in 菜单 → 设置 → 补给兑换; the toast the game raises decides the result and a settled code is not sent again. Codes of both the official server and B server are tried: the one that does not belong to this account is answered with an error, which only costs one press"
     },
     "CrosscoreMail": {
-      "name": "Mail",
+      "name": "Cross Core: Mail",
       "help": "Collect every mail with one press. Whether anything is left is read from the golden highlight of the claim button; once it greys out the task goes back to the lobby"
     },
     "CrosscoreTask": {
-      "name": "Tasks",
+      "name": "Cross Core: Tasks",
       "help": "Collect the daily and weekly task rewards: press 「一键领取」 on the daily tab until it greys out, then do the same on the weekly tab. Story tasks are not touched"
     },
     "CrosscorePass": {
-      "name": "Pass",
+      "name": "Cross Core: Pass",
       "help": "Collect the pass (Exploration Guide) rewards: open 「任务」 and press 「领取奖励」 on every row of the daily, weekly and season tabs, then 「全部领取」 for the level rewards; the button disappears when nothing is left"
     },
     "CrosscoreExplore": {
-      "name": "Daily Explore",
+      "name": "Cross Core: Daily Explore",
       "help": "Enter via 「出擊 → 每日探索」 from the lobby and farm a single sub-stage as configured: pick that sub-stage's highest unlocked floor, press 「掃蕩 → 開始戰鬥」, accept the drop bonus with 「使用」, then press 「獎勵」 at the bottom right to close the result screen and return to the main screen. Sweeping consumes all stamina"
     },
     "CrosscoreExercise": {
-      "name": "Simulation Exercise",
+      "name": "Cross Core: Simulation Exercise",
       "help": "Enter via 「出擊 → 模擬軍演 → 鏡像競技」 from the lobby. Always fight the first opponent (power is ignored) for all 10 daily simulation attempts; victory and defeat both end on the same result page, which is dismissed with a tap on the blank area. Then open 「商店兌換」 and buy from the top-left item in order, using 「最大」 for stackable items and skipping 星幣 / 技術點 until only those two are left"
     },
     "CrosscoreBase": {
-      "name": "Base",
+      "name": "Cross Core: Base",
       "help": "Collect base materials, rotate the staff on schedule, and buy construction orders from your own and your friends' libraries. Missing materials are crafted first"
     },
     "Starsavior2": {
-      "name": "Reroll",
+      "name": "Star Savior: Reroll",
       "help": "Warning: this tool is still in testing. Behaviour may change, and it may contain bugs.\nTested on: MuMu emulator 12, Asia server, in-game Simplified Chinese, lowest graphics. Other emulators / resolutions / languages / graphics settings are untested.\nStutters and dead clicks caused by the game itself (e.g. a ~15s freeze after the journey settlement) are not worked around; the script just waits them out."
     }
   },

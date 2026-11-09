@@ -43,6 +43,11 @@ CRAFT_FUSED = Button(area={'crosscore': (775, 174, 888, 260)}, color={'crosscore
 CRAFT_BACK = Button(area={'crosscore': (49, 25, 110, 70)}, color={'crosscore': (74, 76, 86)}, button={'crosscore': (49, 25, 110, 70)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_BACK.png'})
 CRAFT_PLUS = Button(area={'crosscore': (1078, 339, 1130, 378)}, color={'crosscore': (216, 163, 54)}, button={'crosscore': (1078, 339, 1130, 378)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_PLUS.png'})
 CRAFT_MIN = Button(area={'crosscore': (894, 341, 978, 379)}, color={'crosscore': (202, 202, 202)}, button={'crosscore': (894, 341, 978, 379)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_MIN.png'})
+# 合成份数那一行的「>|」（直接跳到本配方当前能做的最大份数，游戏自己算材料上限，
+# 材料不够时只会给到能做的数，不一定是 99）。用户 2026-11-10 给的截图
+# screenshots/crosscore/合成数量最大.png，(1169,344)-(1221,373) 整屏只留局部。
+# 手写条目：别跑 button_extract，它会把整张 assets.py 重写（hard-rules 162）。
+CRAFT_MAX = Button(area={'crosscore': (1169, 344, 1221, 373)}, color={'crosscore': (225, 169, 57)}, button={'crosscore': (1169, 344, 1221, 373)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_MAX.png'})
 CRAFT_CONFIRM = Button(area={'crosscore': (1023, 597, 1104, 650)}, color={'crosscore': (195, 146, 49)}, button={'crosscore': (1023, 597, 1104, 650)}, file={'crosscore': './assets/crosscore/crosscore/CRAFT_CONFIRM.png'})
 # 合成结算页（「合成成功」整屏 / 「获得物品」弹窗）底部的「·点击空白处继续·」。
 # 两种结算页位置一致，不点掉会盖住合成对话框，导致退不出去
