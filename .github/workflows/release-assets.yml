@@ -1,0 +1,101 @@
+name: Build release packages
+
+# Build the two "download and run" archives entirely on GitHub's runners.
+# `toolkit/` is 615 MB and excluded by .gitignore, so it is NOT in the repo.
+# PyPI has no Windows wheels for mxnet==1.6.0 / av==10.0.0, so CI cannot
+# rebuild it either. Upstream ALAS ships the exact same Python 3.7 environment
+# in its full .7z release (its requirements.txt matches ours line by line),
+# so we extract toolkit/ from there and repackage it with AlGS source.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build assets for (e.g. v1.43.0)'
+        required: true
+        default: 'v1.43.0'
+
+permissions:
+  contents: write
+
+env:
+  UPSTREAM_TAG: v2026.10.09
+  UPSTREAM_ASSET: AlasApp_0.4.13_full.7z
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Resolve tag
+        id: meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag }}"
+          } else {
+            $tag = "${{ github.ref_name }}"
+          }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Building assets for $tag"
+
+      - name: Checkout AlGS at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Set up Python (build script only)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download upstream full package
+        shell: pwsh
+        run: |
+          $url = "https://github.com/LmeSzinc/AzurLaneAutoScript/releases/download/$env:UPSTREAM_TAG/$env:UPSTREAM_ASSET"
+          Write-Host "Downloading $url"
+          curl.exe -fL --retry 3 --retry-delay 5 -o upstream.7z $url
+          if ($LASTEXITCODE -ne 0) { throw "upstream package download failed" }
+          (Get-Item upstream.7z).Length / 1MB
+
+      - name: Extract toolkit
+        shell: pwsh
+        run: |
+          $seven = (Get-Command 7z -ErrorAction SilentlyContinue).Source
+          if (-not $seven) { $seven = 'C:\Program Files\7-Zip\7z.exe' }
+          if (-not (Test-Path $seven)) { throw '7-Zip not found on runner' }
+          & $seven x upstream.7z -oextract -y | Select-Object -Last 5
+          if ($LASTEXITCODE -ne 0) { throw '7z extraction failed' }
+          $tk = Get-ChildItem -Path extract -Recurse -Directory -Filter toolkit |
+                Select-Object -First 1
+          if (-not $tk) { throw 'toolkit/ not found in upstream package' }
+          Move-Item -Path $tk.FullName -Destination toolkit
+          if (-not (Test-Path toolkit/python.exe)) {
+            throw 'toolkit/python.exe missing after extraction'
+          }
+          & .\toolkit\python.exe --version
+
+      - name: Build full package and environment package
+        shell: pwsh
+        run: |
+          python -m dev_tools.make_full_package --tag "${{ steps.meta.outputs.tag }}"
+          Get-ChildItem dist -File | Select-Object Name, Length
+
+      - name: Ensure release exists and upload assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          gh release view $env:TAG | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Release $env:TAG not found, creating it"
+            gh release create $env:TAG --title "AlGS $env:TAG" --generate-notes
+            if ($LASTEXITCODE -ne 0) { throw 'failed to create release' }
+          }
+          gh release upload $env:TAG `
+            "dist/AlGS-$env:TAG-full.zip" "dist/toolkit.zip" --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'failed to upload assets' }
+          gh release view $env:TAG --json assets --jq '.assets[].name'
