@@ -179,8 +179,11 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ## 🔄 安装与更新
 
-- GitHub Release 的 Source code 压缩包**只包含代码**：不含 `toolkit/`（固定的 Python 3.7.6、git、adb）和 `.git/`。`start_algs.bat` 需要 `toolkit\python.exe`，首次安装请从上游 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript) 的完整安装包复制整个 `toolkit/` 到本目录。
-- **内置更新器是 git 更新器**，靠 `git fetch` / `git log` / `git reset --hard origin/master` 工作，只适用于 `git clone https://github.com/noelfwfaw/ALGS` 出来的目录。压缩包安装没有 `.git/`，WebUI 的「更新」页会提示不可用，也不会去改写目录；升级时下载最新 Release 覆盖代码即可，**保留 `config/` 与 `toolkit/`**（任务配置、NextRun 排期、兑换码账本都在 `config/`）。
+- ❗**新机器请下载 Release 里的完整包** `AlGS-vX.Y.Z-full.zip`（约 220 MB，内含 `toolkit/`：固定的 Python 3.7.6、adb 和全部依赖）。解压后进入 `AlGS` 文件夹，双击 `start_algs.bat` 就能启动 WebUI，不用另装 Python，也不用联网装依赖。GitHub 的 `Source code (zip)` **只有代码**、不含 `toolkit/` 和 `.git/`。
+- 只下了 `Source code (zip)` 也能用：第一次双击 `start_algs.bat` 时，脚本会自动从最新 Release 下载 `toolkit.zip`（约 213 MB，只下一次）并解压；`curl.exe` / `tar.exe` 都是 Win10 自带，缺失时回退 PowerShell。GitHub 慢的话先设置 `HTTPS_PROXY` 环境变量再运行；自动下载失败时脚本会打印完整包地址。
+- **升级**：下载新版 `Source code (zip)` 覆盖解压到原目录，**保留 `config/` 与 `toolkit/`**（任务配置、NextRun 排期、兑换码账本都在 `config/`；`toolkit/` 是运行环境）。想换干净环境也可以直接下新版完整包，再把旧 `config/` 拷过去。
+- 维护者发版打包：`toolkit\python.exe -m dev_tools.make_full_package --tag vX.Y.Z` 生成两个包，`toolkit\python.exe -m dev_tools.upload_release_assets --tag vX.Y.Z --assets dist/AlGS-vX.Y.Z-full.zip dist/toolkit.zip` 上传到 Release。
+- **内置更新器是 git 更新器**，靠 `git fetch` / `git log` / `git reset --hard origin/master` 工作，只适用于 `git clone https://github.com/noelfwfaw/ALGS` 出来的目录。压缩包安装没有 `.git/`，WebUI 的「更新」页会提示不可用，也不会去改写目录。
 - 默认 `AutoUpdate: false`、`CheckUpdateInterval: 0`、`AutoRestartTime: null`，避免刚解压的目录被自动 `git init` + `reset --hard` 重置。想启用内置更新器：改用 git clone 安装，再到 `config/deploy.yaml` 把三项改成 `true` / `5` / `'03:50'`。
 - 更新源固定为 AlGS 仓库；早期配置里指向上游 ALAS / StarRailCopilot 的地址（`global`、`cn`、lyoko / gitee 镜像等）会自动纠正，指向上游 CDN 更新包的通道已关闭，避免更新时把目录换成别的项目的代码。
 - 版本号与变更内容见 [Releases](https://github.com/noelfwfaw/ALGS/releases)。
