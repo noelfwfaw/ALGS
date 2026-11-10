@@ -608,6 +608,28 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         finally:
             self._crash_timer = None
 
+    def at_main_screen(self):
+        """
+        主界面右上四格在 = 结算已经走完、账号在大厅。
+
+        项目里多处真机量过的**正面**判据（`settle()` 用它决定要不要再扫一遍
+        「跳过新手教学」，`gacha()` 用它确认回到主界面）。不用「标题页不见了」
+        当"已经进游戏"：加载黑屏上标题页也不见（真机 2026-11-07 12:43 误判过）。
+        """
+        return self.appear(E_171_1, offset=(10, 10))
+
+    def in_game(self):
+        """
+        账号已经进游戏的正面判据。
+
+        ❗只用主界面四格，不放宽到「标题页不见了」或别的小图标：加载黑屏上
+          标题页也不见（真机 2026-11-07 12:43），近常量区域的小模板
+          `appear(offset=)` 会假阳性（硬约束 163）。重进落在引导 / 旅程页时
+          `login()` 第 0 步已按「标题页和登录弹窗都看不见 → 当作已登录」
+          直接返回，不需要这里再认。
+        """
+        return self.at_main_screen()
+
     def warmup_ocr(self):
         """后台线程先把 cnocr 模型加载好。
 
@@ -663,6 +685,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
         index = 0
         restarts = 0
+        self.resume_after_crash = False
         while 1:
             index += 1
             self.set_round(index)
@@ -676,20 +699,52 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             try:
                 # ❗先等画面，再判登录：冷启动/换号后的加载画面上 `login()` 的判据
                 #   会误判成"已经在游戏里"，接着整条链在加载画面上空转。
-                self.wait_start_screen()
+                if not self.wait_start_screen():
+                    # 认不出画面就再拉一次游戏，别硬着头皮往下点。
+                    raise GameCrashed('等不到游戏画面', gone=True)
                 self.arm_crash_watch()
-                self.login()
+                # ❗`login()` 返回 False 说明登录链没走完，后面所有段的按钮表
+                #   都不适用，继续跑只会逐段 idle 空转，最后还可能去 `reset()`
+                #   把号刷丢。明确停住，账号留着让用户手动收拾。
+                if not self.login():
+                    raise TaskFailed(self.fail_reason(
+                        '登录没走完，已停止，避免在游戏内空转把号刷丢。'
+                        '账号没有丢；把游戏停回标题页再手动重跑。'))
                 self.warmup_ocr()
 
-                if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
-                    self.report_plan('节点1：昵称输入框（没有输入昵称）')
-                    return
-                if self.stop_at == STOP_GUIDE:
-                    self.report_plan('节点2：所有引导走完（还没领奖励、没抽卡）')
-                    return
+                # ❗闪退重进：游戏保留登录态和开荒进度，重进可能直接落在主界面。
+                #   `guide/journey/settle` 的按钮表全是引导期素材，在大厅上只会
+                #   逐段 idle 空转（真机 2026-11-10 07:31:14~07:32:13 连着三段
+                #   「一个页面都没点到」）。判到主界面就直接接领奖 / 抽卡 / 验号；
+                #   判不到说明还在标题 / 登录 / 引导期，按原来的整轮状态机自愈。
+                #   ❗要放在 `login()` **之后**：账号在线时是 `login()` 点了
+                #   「Touch to Start」才真正进到大厅的。
+                resumed_late = False
+                if self.resume_after_crash:
+                    self.resume_after_crash = False
+                    self.device.screenshot()
+                    resumed_late = self.at_main_screen()
+                    if resumed_late:
+                        logger.hr('闪退重进：已在大厅，跳过开场引导 / 旅程 / 结算', level=2)
+                    else:
+                        logger.info('闪退重进：不在大厅，按当前画面重走本轮状态机')
 
-                self.journey()
-                self.settle()
+                if resumed_late:
+                    # 节点1 / 节点2 都在引导期，重进时早就过了，别继续抽卡。
+                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
+                        self.report_plan('闪退重进时已在大厅，停节点已经过了（不重置账号）')
+                        return
+                else:
+                    if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
+                        self.report_plan('节点1：昵称输入框（没有输入昵称）')
+                        return
+                    if self.stop_at == STOP_GUIDE:
+                        self.report_plan('节点2：所有引导走完（还没领奖励、没抽卡）')
+                        return
+
+                    self.journey()
+                    self.settle()
+
                 self.claim()
                 self.gacha()
                 self.verify()
@@ -745,11 +800,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         '检查模拟器内存 / 客户端后再手动启动。' % restarts))
                 logger.warning('游戏闪退（%s），重启并重走这一轮的状态机（第 %d/%d 次）'
                                % (e, restarts, CRASH_MAX_RESTART))
-                # 游戏自己记开荒进度：例如在昵称页闪退，重进就直接落在昵称页，
-                # 不会再播教学战。各段是「每帧重扫按钮表、不记走到第几步」，
-                # 所以从 `wait_start_screen()` 重新走一遍状态机、按当前画面接，
-                # 比停在半截的那一段继续空转靠谱；接不上的段会各自 idle 收工。
+                # 游戏自己记开荒进度和登录态：在昵称页闪退，重进就落在昵称页；
+                # 在结算段闪退，重进可能**直接落在大厅**（真机 2026-11-10 07:30）。
+                # 各段本来就是「每帧重扫按钮表、不记走到第几步」，所以重跑整轮
+                # 能按当前画面接；但已经在大厅时引导期那几张表一页都认不出，
+                # `run()` 会用 `resume_after_crash` 跳过那几段空转。
                 self.restart_game(gone=e.gone, force=restarts >= 2)
+                self.resume_after_crash = True
                 continue
 
     def load_plan(self):
@@ -2008,11 +2065,29 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.click_once(E_1_1, 'Touch to Start', offset=CHAIN_OFFSET, interval=3)
 
         # 2. 还没到选账号页就先点 Google
+        #
+        # ❗账号仍在线时（闪退重进 / 没重置），点完「Touch to Start」会**直接进游戏**，
+        #   根本不会弹 Google 登录页。只等 `E_3_1` 会白等 20 秒再 `return False`，
+        #   `run()` 又在游戏内空转整条引导链 —— 真机 2026-11-10 07:31:14
+        #   「登录：没等到 Sign in with Google」→ 开场引导/昵称/引导三段连着
+        #   「一个页面都没点到」。
+        #   所以这里等的其实是「登录弹窗出现」**或**「已经进游戏」，两条都是正面判据，
+        #   并且都要连续 3 帧，别被转场帧骗过去。
         if not self.appear(E_2_1, offset=CHAIN_OFFSET):  # alas-lint: allow - same as above, this branch only decides whether to click Google
-            if not self.wait_until_appear(E_3_1, offset=CHAIN_OFFSET, timeout=20, settle=3):
+            login_hits = 0
+            in_game_hits = 0
+            for _ in self.loop(timeout=20):
+                login_hits = login_hits + 1 if self.appear(E_3_1, offset=CHAIN_OFFSET) else 0
+                in_game_hits = in_game_hits + 1 if self.in_game() else 0
+                if login_hits >= 3:
+                    self.click_button(E_3_1, 'Sign in with Google')
+                    break
+                if in_game_hits >= 3:
+                    logger.info('登录：账号已在线，没有 Google 登录页，直接进游戏')
+                    return True
+            else:
                 logger.warning('登录：没等到「Sign in with Google」')
                 return False
-            self.click_button(E_3_1, 'Sign in with Google')
 
         # 3. 等账号列表滑出来、**停住**，再点账号行。
         #    列表是从上往下展开的动画，`settle=3`（0.6 秒）不够 —— 真机 19:35
