@@ -77,6 +77,28 @@ jobs:
           }
           & .\toolkit\python.exe --version
 
+      - name: Trim upstream-only extras from toolkit
+        shell: pwsh
+        run: |
+          # The upstream full .7z also ships a portable Git, a webapp launcher
+          # and Python caches. AlGS does not use them (the builtin updater is
+          # disabled for zip installs), and they add roughly 200 MB compressed.
+          foreach ($dir in @('toolkit/Git', 'toolkit/webapp', 'toolkit/Doc')) {
+            if (Test-Path $dir) {
+              Write-Host "Removing $dir"
+              Remove-Item -Recurse -Force $dir
+            }
+          }
+          Get-ChildItem -Path toolkit -Recurse -Directory -Filter __pycache__ |
+            ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
+          Get-ChildItem -Path toolkit -Recurse -File -Include *.pyc, *.pyo |
+            ForEach-Object { Remove-Item -Force $_.FullName }
+          $mb = (Get-ChildItem toolkit -Recurse -File |
+                 Measure-Object Length -Sum).Sum / 1MB
+          Write-Host ("toolkit after trim: {0:N1} MB" -f $mb)
+          & .\toolkit\python.exe --version
+          if ($LASTEXITCODE -ne 0) { throw 'trimmed toolkit is broken' }
+
       - name: Build full package and environment package
         shell: pwsh
         run: |
