@@ -179,8 +179,8 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ## 🔄 安装与更新
 
-- ❗**新机器请下载 Release 里的完整包** `AlGS-vX.Y.Z-full.zip`（约 220 MB，内含 `toolkit/`：固定的 Python 3.7.6、adb 和全部依赖）。解压后进入 `AlGS` 文件夹，双击 `start_algs.bat` 就能启动 WebUI，不用另装 Python，也不用联网装依赖。GitHub 的 `Source code (zip)` **只有代码**、不含 `toolkit/` 和 `.git/`。
-- 只下了 `Source code (zip)` 也能用：第一次双击 `start_algs.bat` 时，脚本会自动从最新 Release 下载 `toolkit.zip`（约 213 MB，只下一次）并解压；`curl.exe` / `tar.exe` 都是 Win10 自带，缺失时回退 PowerShell。GitHub 慢的话先设置 `HTTPS_PROXY` 环境变量再运行；自动下载失败时脚本会打印完整包地址。
+- ❗**新机器请下载 Release 里的完整包** `AlGS-vX.Y.Z-full.zip`（约 270 MB，内含 `toolkit/`：固定的 Python 3.7.6、adb 和全部依赖）。解压后进入 `AlGS` 文件夹，双击 `start_algs.bat` 就能启动 WebUI，不用另装 Python，也不用联网装依赖。GitHub 的 `Source code (zip)` **只有代码**、不含 `toolkit/` 和 `.git/`。
+- 只下了 `Source code (zip)` 也能用：第一次双击 `start_algs.bat` 时，脚本会自动从最新 Release 下载 `toolkit.zip`（约 190 MB，只下一次）并解压；`curl.exe` / `tar.exe` 都是 Win10 自带，缺失时回退 PowerShell。GitHub 慢的话先设置 `HTTPS_PROXY` 环境变量再运行；自动下载失败时脚本会打印完整包地址。
 - **升级**：下载新版 `Source code (zip)` 覆盖解压到原目录，**保留 `config/` 与 `toolkit/`**（任务配置、NextRun 排期、兑换码账本都在 `config/`；`toolkit/` 是运行环境）。想换干净环境也可以直接下新版完整包，再把旧 `config/` 拷过去。
 - 维护者发版：推一个 `v*` tag 就会触发 `.github/workflows/release-assets.yml`，由 GitHub Actions 在云端提取 `toolkit/`、打包并上传上面两个 asset，本机不用传大文件；也可以手动 `workflow_dispatch` 指定 tag 给已发的版本补打包。`toolkit/` 不在 git 里，CI 从上游 ALAS 的完整安装包取同一套 Python 3.7 环境（两边 `requirements.txt` 一致，`mxnet==1.6.0` 没有 Windows wheel，重装不出来）。`toolkit\python.exe -m dev_tools.make_full_package --tag vX.Y.Z` 仍可本地兜底生成两个包。
 - **内置更新器是 git 更新器**，靠 `git fetch` / `git log` / `git reset --hard origin/master` 工作，只适用于 `git clone https://github.com/noelfwfaw/ALGS` 出来的目录。压缩包安装没有 `.git/`，WebUI 的「更新」页会提示不可用，也不会去改写目录。

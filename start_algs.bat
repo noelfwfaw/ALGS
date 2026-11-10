@@ -36,7 +36,7 @@ exit /b
 set "ZIPFILE=%~dp0toolkit.zip"
 echo ============================================================
 echo  [AlGS] toolkit\python.exe not found.
-echo  Downloading the built-in Python environment ^(about 213 MB, once only^).
+echo  Downloading the built-in Python environment ^(about 190 MB, once only^).
 echo  If GitHub is slow, set HTTPS_PROXY before starting this script.
 echo ============================================================
 where curl.exe >nul 2>nul
