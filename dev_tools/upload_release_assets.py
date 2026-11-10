@@ -29,32 +29,44 @@ API = 'https://api.github.com/repos/%s' % REPO
 UPLOAD = 'https://uploads.github.com/repos/%s' % REPO
 
 
-class ProgressFile(object):
-    """File object that reports read progress; __len__ keeps Content-Length."""
+def upload_via_curl(url, path, token):
+    """Stream the body with curl.exe, not requests.
 
-    def __init__(self, path):
-        self.f = open(path, 'rb')
-        self.total = os.path.getsize(path)
-        self.done = 0
-        self.step = max(self.total // 10, 1)
-        self.next_report = self.step
-
-    def __len__(self):
-        return self.total
-
-    def read(self, size=-1):
-        chunk = self.f.read(size)
-        self.done += len(chunk)
-        if self.done >= self.next_report and self.total:
-            print('    %3d%%  %.1f / %.1f MB' % (
-                min(100, self.done * 100 // self.total),
-                self.done / 1024.0 / 1024,
-                self.total / 1024.0 / 1024), flush=True)
-            self.next_report += self.step
-        return chunk
-
-    def close(self):
-        self.f.close()
+    requests/urllib3 dies on >100 MB bodies behind proxy 7897 with
+    `socket.timeout: The write operation timed out` while `sendall()`-ing.
+    curl opens a plain CONNECT tunnel and streams the file without that
+    socket write timeout, so it is the only backend that works here.
+    """
+    import tempfile
+    fd, out = tempfile.mkstemp(prefix='alas_upload_', suffix='.json')
+    os.close(fd)
+    cmd = [
+        'curl.exe', '-f', '-s', '-S', '-X', 'POST',
+        '--max-time', '1800',
+        '--proxy', PROXY,
+        '-H', 'Authorization: token ' + token,
+        '-H', 'Content-Type: application/zip',
+        '-H', 'Accept: application/vnd.github+json',
+        '--data-binary', '@' + os.path.abspath(path),
+        '-o', out,
+        '-w', '%{http_code}',
+        url,
+    ]
+    bundle = os.path.join(ROOT, 'toolkit', 'ca-bundle.pem')
+    if os.path.isfile(bundle):
+        cmd[1:1] = ['--cacert', bundle]
+    started = time.time()
+    proc = subprocess.run(cmd, cwd=ROOT, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE, universal_newlines=True)
+    code = proc.stdout.strip()
+    print('  curl HTTP %s in %.1fs' % (code, time.time() - started), flush=True)
+    if proc.returncode != 0 or code not in ('200', '201'):
+        print('  curl stderr: %s' % proc.stderr[-500:])
+        with open(out, 'r', errors='replace') as f:
+            print('  response: %s' % f.read()[:500])
+        os.remove(out)
+        raise SystemExit('upload failed for %s' % os.path.basename(path))
+    os.remove(out)
 
 
 def git_token():
@@ -112,21 +124,7 @@ def main():
 
         url = UPLOAD + '/releases/%s/assets?name=%s' % (
             release_id, quote(name))
-        upload_headers = dict(headers)
-        upload_headers['Content-Type'] = 'application/zip'
-        upload_headers['Content-Length'] = str(size)
-        stream = ProgressFile(path)
-        started = time.time()
-        try:
-            response = requests.post(url, headers=upload_headers, data=stream,
-                                     proxies=PROXIES, timeout=(30, 1800))
-        finally:
-            stream.close()
-        print('  HTTP %s in %.1fs' % (
-            response.status_code, time.time() - started), flush=True)
-        if response.status_code not in (200, 201):
-            print(response.text[:500])
-            raise SystemExit('upload failed for %s' % name)
+        upload_via_curl(url, path, token)
 
     check = requests.get(API + '/releases/tags/' + args.tag,
                          headers=headers, proxies=PROXIES, timeout=60).json()
