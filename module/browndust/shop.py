@@ -35,6 +35,16 @@ Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
    （这一期是「怪诞裙裾」）。OCR 会把"裙裾"读成"围裙"，但 `UR` / `SR` 两个字
    每次都读对 —— 所以装备只认后缀，不认全名。
 
+6. **滚动手势会点开道具**（2026-11-10 12:57 真机）：`SHOP_SWIPE_FROM=(640,300)`
+   正落在第一排商品格子的价格区里，`swipe()` 的 down/up 太快会被游戏判成点击，
+   把某个道具的购买弹窗点开。那次日志说买「女神之泪」，失败现场截图
+   (`log/error/shop_buy_failed/1794286659158.png`) 里开着的却是「2★升星之星」：
+   弹窗吞掉了之后所有滚动和点击，而 `shop_buy()` 又拿
+   `wait_until_appear(SHOP_BUY_PANEL)` 当验收 —— 旧弹窗让这条判据恒真，
+   "这一下点空了"被当成"点开了目标商品"，最后买错、15 秒超时、0 件成交。
+   所以三条一起改：滚动用慢拖 `drag()` 且两次之间等静止；每次滚动/购买之前先清
+   残留弹窗；「弹窗出现」只有在点之前确认过它不在，才能当作点击生效的证据。
+
 另外几件：
 
 - **商品名用 OCR 读**（`(x, y+126)-(x+130, y+152)`，`letter=(255,255,255)`
@@ -151,11 +161,16 @@ SHOP_CONFIRM = Button(area=(837, 496, 1005, 524), color=(0, 0, 0),  # alas-lint:
 SHOP_DONE_OK = Button(area=(576, 385, 703, 421), color=(0, 0, 0),  # alas-lint: allow - a one-button alert, SHOP_BUY_DONE already proved it is up
                       button=(640, 403, 640, 403), name='SHOP_DONE_OK')
 
-# 滚一格。一次 swipe 在实测里大约滚 300 像素（够从顶到底，列表只有 4 排）。
+# 滚一格的落点（一次大约滚 300 像素，列表只有 3~4 排）。
+# ❗两个点都压在可点击的商品格子里：`swipe()` 的 down/up 太短促会被游戏判成
+# 点击、弹出某个道具的购买弹窗（2026-11-10 12:57 真机）。改用 `device.drag()`
+# 慢拖（分段移动 + 终点两次 140ms 停留），不会被判成 tap。坐标本身是实测过的，
+# **别挪到网格外的空白** —— 列表的滚动热区不一定覆盖那些地方。
 SHOP_SWIPE_FROM = (640, 300)
 SHOP_SWIPE_TO_TOP = (640, 620)
 SHOP_SWIPE_TO_BOTTOM = (640, 180)
-SHOP_SWIPE_DURATION = 0.3
+# 关残留购买弹窗：点 X 之后等它真的消失。
+SHOP_DIALOG_CLOSE_TIMEOUT = 5
 
 # 一轮最多买几种。列表是 7 列 × 3 排（最后一格空着），一天买不到 10 种，给 30
 # 是防死循环。
@@ -388,27 +403,68 @@ class EventShop:
         logger.warning('[Shop] cannot leave the shop')
         return False
 
+    def shop_dismiss_dialog(self):
+        """
+        关掉一个残留的购买弹窗。
+
+        滚动手势落在商品格子上时，游戏偶尔会把 down/up 判成点击，弹出**别的**
+        道具的购买弹窗。那层弹窗会吞掉之后所有滚动和点击；更麻烦的是
+        `shop_buy()` 用 `wait_until_appear(SHOP_BUY_PANEL)` 验收，旧弹窗让它
+        恒真，"这一下点空了"就被当成"点开了目标商品"（12:57 真机买错东西）。
+
+        判据量过：黄字「购买商品将立刻发放。」在列表页 0.101~0.228 不命中，
+        在弹窗上 1.000，所以每次下手之前放心问一遍。
+
+        Returns:
+            bool: 现在弹窗不在了没有。
+        """
+        if not self.appear(SHOP_BUY_PANEL, offset=(30, 30)):  # alas-lint: allow - "no dialog" is the normal path, nothing is pressed here
+            return True
+        logger.info('[Shop] purchase dialog still up, close it')
+        self.device.click(SHOP_PANEL_CLOSE)  # alas-lint: allow - the dialog was matched right above, its disappearance below is the proof
+        if not self.wait_until_disappear(SHOP_BUY_PANEL, offset=(30, 30),
+                                         timeout=SHOP_DIALOG_CLOSE_TIMEOUT, settle=2):
+            logger.warning('[Shop] the purchase dialog did not close')
+            return False
+        return True
+
     def shop_scroll_top(self):
         """
         把列表滚到最上面。
 
         进页面时的位置不一定是顶（上次退出时停在哪、重排之后又落在哪），所以每轮
-        下手之前都先归位。连 swipe 两次是因为一次大约只滚 300 像素，而列表最长
+        下手之前都先归位。连拖两次是因为一次大约只滚 300 像素，而列表最长
         有 4 排（多滚几下到底之后就不再动了，不会出事）。
+
+        ❗用 `drag()` 而不是 `swipe()`：起落点都在可点击的商品格子上，短促的
+        swipe 会被判成点击、弹出道具弹窗。两次之间还要等列表静止 —— 第二下的
+        down 落在还在惯性滚动的列表上，同样容易变成点击。
+
+        Returns:
+            bool: 有没有滚成（残留弹窗关不掉时放弃，别在弹窗上乱拖）。
         """
+        area = (SHOP_COLS[0], 92, SHOP_COLS[-1] + SHOP_CELL_WIDTH, 543)
+        if not self.shop_dismiss_dialog():
+            return False
         for _ in range(2):
-            self.device.swipe(SHOP_SWIPE_FROM, SHOP_SWIPE_TO_TOP, duration=SHOP_SWIPE_DURATION)
-        self.wait_until_still((SHOP_COLS[0], 92, SHOP_COLS[-1] + SHOP_CELL_WIDTH, 543),
-                              timeout=SHOP_SETTLE_TIMEOUT)
+            self.device.drag(SHOP_SWIPE_FROM, SHOP_SWIPE_TO_TOP)
+            self.wait_until_still(area, timeout=SHOP_SETTLE_TIMEOUT)
+        return True
 
     def shop_scroll_bottom(self):
         """
         把列表滚到最下面，让第三排完整露出来（那时它在 y 417）。
+
+        Returns:
+            bool: 有没有滚成。
         """
+        area = (SHOP_COLS[0], 417, SHOP_COLS[-1] + SHOP_CELL_WIDTH, 638)
+        if not self.shop_dismiss_dialog():
+            return False
         for _ in range(2):
-            self.device.swipe(SHOP_SWIPE_FROM, SHOP_SWIPE_TO_BOTTOM, duration=SHOP_SWIPE_DURATION)
-        self.wait_until_still((SHOP_COLS[0], 417, SHOP_COLS[-1] + SHOP_CELL_WIDTH, 638),
-                              timeout=SHOP_SETTLE_TIMEOUT)
+            self.device.drag(SHOP_SWIPE_FROM, SHOP_SWIPE_TO_BOTTOM)
+            self.wait_until_still(area, timeout=SHOP_SETTLE_TIMEOUT)
+        return True
 
     # ---- 扫描 --------------------------------------------------------------
 
@@ -654,7 +710,7 @@ class EventShop:
             # 一场 OCR 要一两秒，这期间一个点击都没有 —— 明说"我在盯着屏幕"，
             # 免得框架的卡死计时器把这当成卡住（硬约束 13）。
             self.device.stuck_record_clear()
-            # 一轮要滚六次（`swipe()` 也会记进点击历史），两轮就把框架的
+            # 一轮要滚六次（`drag()` 也会记进点击历史），两轮就把框架的
             # "同一个按钮点了 12 次"告警踩出来了。每一轮都是看了新截图重新决定
             # 的，上一轮的历史不该算在这一轮头上。
             self.device.click_record_clear()
@@ -704,13 +760,20 @@ class EventShop:
             tuple[list[ShopGoods], str]: 格子（按屏幕顺序）和扫完时停在哪（`top` /
                 `bottom`）。格子上的坐标只在那个位置成立。
         """
-        self.shop_scroll_top()
+        if not self.shop_scroll_top():
+            # 残留弹窗关不掉时别在遮罩上扫：那会把弹窗里的字当成商品名，
+            # 拿着错的坐标去买东西。下一轮会再试一次。
+            logger.warning('[Shop] cannot align the list to the top, skip this round')
+            return [], 'top'
         goods = self.shop_scan(SHOP_ROWS_TOP, page='top')
         if goods and goods[-1].sold_out:
             logger.info('[Shop] the sold-out boundary is on the first screen, skip the third row')
             return goods, 'top'
 
-        self.shop_scroll_bottom()
+        if not self.shop_scroll_bottom():
+            # 没滚到底，第二屏的坐标就不成立；只保留第一屏的结果。
+            logger.warning('[Shop] cannot align the list to the bottom, keep the first screen')
+            return goods, 'top'
         goods += self.shop_scan(SHOP_ROWS_BOTTOM, page='bottom')
         return goods, 'bottom'
 
@@ -720,11 +783,13 @@ class EventShop:
 
         Args:
             page (str): `top` 或 `bottom`。
+
+        Returns:
+            bool: 有没有滚到位（残留弹窗关不掉时是 False）。
         """
         if page == 'bottom':
-            self.shop_scroll_bottom()
-        else:
-            self.shop_scroll_top()
+            return self.shop_scroll_bottom()
+        return self.shop_scroll_top()
 
     def shop_wait_paint(self, area, timeout, require_motion=False):
         """
@@ -783,6 +848,14 @@ class EventShop:
             bool: 买成了没有。
         """
         logger.info(f'[Shop] buy {item}')
+        # ❗先确认没有残留弹窗。滚动误触会点开**别的**道具，那时
+        # `wait_until_appear(SHOP_BUY_PANEL)` 立刻命中旧弹窗，把"这一下点空了"
+        # 误判成"点开了目标商品"（12:57 真机：日志买女神之泪，屏幕上开着的
+        # 却是 2★升星之星）。只有点之前确认过弹窗不在，"弹窗出现"才能当
+        # 点击生效的证据。
+        if not self.shop_dismiss_dialog():
+            logger.warning('[Shop] a purchase dialog is stuck before buying')
+            return False
         # 这一点是扫描时从这一帧截图上读出来的格子中心，不是写死的坐标；"点到
         # 了没有"由下面弹出的购买面板回答。列表刚重排完时还在动，一下点空是
         # 可能的 —— 归位之后再给一次机会。
@@ -791,7 +864,8 @@ class EventShop:
             if self.wait_until_appear(SHOP_BUY_PANEL, offset=(30, 30), timeout=SHOP_PANEL_TIMEOUT):
                 break
             logger.info('[Shop] the cell did not open, align the list and try again')
-            self.shop_goto(item.page)
+            if not self.shop_goto(item.page):
+                return False
         else:
             logger.warning('[Shop] the purchase dialog did not show up')
             return False
@@ -812,9 +886,7 @@ class EventShop:
             # 还是收工。
             logger.warning('[Shop] the purchase did not go through')
             self.device.save_screenshot(genre='shop_buy_failed')
-            if self.appear(SHOP_BUY_PANEL, offset=(30, 30)):
-                self.device.click(SHOP_PANEL_CLOSE)  # alas-lint: allow - a plain close X
-                self.wait_until_disappear(SHOP_BUY_PANEL, offset=(30, 30), timeout=5)
+            self.shop_dismiss_dialog()
             return False
 
         # 「购买完成。」也是淡入的，等它画稳再点「确认」；点空了弹窗会留在原地，

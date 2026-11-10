@@ -35,6 +35,15 @@ Measured on the real device, 2026-10-29, season 「BROKEN BONDS」:
    没了，下面的行往上顶，而一屏本来就放不下全部任务。所以行号、行数、位置都不能
    当判据，只问"这一页还有没有东西可领"。
 
+6. **REWARD 淡入 / 道具飞入动画里会有一帧匹配不上 `HUNT_REWARD`**（稳定帧
+   12:27:45 真机量得 0.980）。2026-11-10 12:26 事故：领奖后只隔 2.8 秒就打了
+   `[Event mission claimed] 1`，日志里**既没有 `reward screen, tap to go back`
+   也没有那一下 Click** —— `mission_dismiss_reward()` 把单帧假阴性当成"结算页
+   关掉了"直接返回，一次都没点。接着返回箭头被遮罩吞掉，下一步 `ui_goto` 在
+   遮罩下认不出任何页面（`ui_reward_clean` 故意不让页面判据透过结算页），
+   空转 60 秒 → `GameStuckError`。所以"关掉了"必须是**连续几帧都没有 REWARD**，
+   不是"这一帧没看到"；离开这一页之前还要再确认一次遮罩不在。
+
 「全部领取」只领**已完成**的任务，没做完的照旧灰着，按下去不会误领 —— 所以
 这个任务不需要知道活动有几条任务、也不需要读任何文字。
 
@@ -78,6 +87,9 @@ MISSION_RESULT_TIMEOUT = 30
 MISSION_TAP_INTERVAL = 2
 # 领完一次之后再问还有没有。正常一次就领空；多给两次是防"领完之后又解锁了新的"。
 MISSION_CLAIM_TRIES = 3
+# 判定"结算页已经关掉"要连续几帧都看不到 REWARD。动画帧会有一两帧掉到 0.85
+# 之下，单帧否定会把还盖着的遮罩当成列表页（12:26 真机事故）。
+MISSION_REWARD_SETTLE = 3
 
 
 class EventMission:
@@ -228,20 +240,35 @@ class EventMission:
         空白带；"点到了没有"由下面的列表自己回答（`ui_reward_clean` 要它不再
         透过结算页匹配）。
 
+        ❗退出判据不能是"这一帧没看到 REWARD"：结算页淡入、道具飞入的动画帧
+        上 `HUNT_REWARD` 会掉到 0.85 之下，而 `ui_page_appear()` 里的
+        `ui_reward_clean()` 用的正是同一帧 —— 一假阴性就两边都成立，于是
+        一次都没点就宣布"回到列表"（12:26 真机事故）。必须连续几帧都不在，
+        才允许问列表页回来没有。
+
         Returns:
             bool: 结算页走掉了没有。
         """
-        tap = Timer(MISSION_TAP_INTERVAL).start()
+        # 故意不 .start()：未启动的 Timer 第一次 reached() 就是 True。
+        # `mission_close_reward()` 已经用 settle=2 等过动画，第一下可以立刻按；
+        # 按不动再由 2 秒节流补按（硬约束 153）。
+        tap = Timer(MISSION_TAP_INTERVAL)
+        clean = 0
         for _ in self.loop(timeout=MISSION_RESULT_TIMEOUT):
             if self.appear(HUNT_REWARD, offset=(20, 20)):
+                clean = 0
                 if tap.reached():
                     tap.reset()
                     logger.info('[Event mission] reward screen, tap to go back')
                     self.device.click(MISSION_REWARD_TAP)  # alas-lint: allow - the reward screen has no button, it says 点击画面即可返回
                 continue
+            clean += 1
+            if clean < MISSION_REWARD_SETTLE:
+                continue
             # 结算页散掉了，列表还没画回来时这一行会返回 False，下一帧再问。
             if self.ui_page_appear(page_event_mission, offset=(20, 20)):
                 return True
+            clean = 0
 
         logger.warning('[Event mission] the reward screen did not go away')
         return False
@@ -255,13 +282,27 @@ class EventMission:
         日志会变得看不懂（实测第一次就是 `page_event -> page_main` 连点两次）。
         这里明说"先等回活动页"，最后一步再交给 `ui_goto_main()`。
 
+        ❗离开之前先确认 REWARD 结算页不在。它是一层「点击画面即可返回」的
+        遮罩，压着的时候返回箭头会被吞掉；而 `ui_page_appear()` 在遮罩下
+        故意不认页面，下一步 `ui_goto` 就会认不出任何页、空转 60 秒（12:26
+        真机事故）。点一下没反应不等于失败，按 10 秒窗口重试一轮（153）。
+
         Returns:
             bool: 回到活动页了没有。
         """
-        self.device.click(MISSION_BACK)  # alas-lint: allow - leaving the page, the event tab below confirms it
-        if not self.wait_until_appear(EVENT_TAB_MISSION, offset=(20, 20),
+        for _ in range(2):
+            if self.appear(HUNT_REWARD, offset=(20, 20)):
+                logger.info('[Event mission] leftover reward screen, tap it away')
+                if not self.mission_dismiss_reward():
+                    # 遮罩点不掉就别再白点返回箭头，交给 `ui_additional()` 的
+                    # 全局兜底，免得这里连着空等 80 秒。
+                    break
+            self.device.click(MISSION_BACK)  # alas-lint: allow - leaving the page, the event tab below confirms it
+            if self.wait_until_appear(EVENT_TAB_MISSION, offset=(20, 20),
                                       timeout=MISSION_BACK_TIMEOUT):
-            logger.warning('[Event mission] cannot leave the 任务 page')
-            return False
-        self.wait_until_still(MISSION_TAB_AREA, timeout=5)
-        return True
+                self.wait_until_still(MISSION_TAB_AREA, timeout=5)
+                return True
+            logger.info('[Event mission] still on the 任务 page, retry the back arrow')
+
+        logger.warning('[Event mission] cannot leave the 任务 page')
+        return False

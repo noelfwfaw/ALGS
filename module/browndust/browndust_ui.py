@@ -62,6 +62,13 @@ from module.ui.ui import UI
 BROWNDUST_TAP_BLANK = Button(area=(20, 430, 60, 470), color=(0, 0, 0),  # alas-lint: allow - a blank spot, there is no image to match
                              button=(20, 430, 60, 470), name='BROWNDUST_TAP_BLANK')
 
+# REWARD 结算页上写着「点击画面即可返回。」，没有按钮可以判。各任务里的
+# `TASK_REWARD_TAP` / `PASS_REWARD_TAP` / `MANAGER_REWARD_TAP` /
+# `MISSION_REWARD_TAP` 都是这一点，全局兜底也用同一个位置。纯坐标 Button
+# 只用于 click，绝不进 appear() 家族（硬约束 82）。
+REWARD_DISMISS_TAP = Button(area=(600, 680, 640, 720), color=(0, 0, 0),  # alas-lint: allow - a tap point on the reward overlay, there is no image to match
+                            button=(620, 700, 620, 700), name='REWARD_DISMISS_TAP')
+
 # 冷启动要等客户端加载（实机 30~90 秒，慢的模拟器更久），再乘上弹窗和重启的次数。
 BROWNDUST_BOOT_TIMEOUT = 600
 
@@ -487,22 +494,47 @@ class BrowndustUI(UI):
 
         return False
 
+    def handle_reward_screen(self):
+        """
+        Dismiss a leftover REWARD banner that no Page can walk out of.
+
+        「全部领取」/「全部获得」/「快速狩猎」领到的奖励弹的都是同一条半透明
+        REWARD 带子，写着「点击画面即可返回。」。`ui_page_appear()` 里的
+        `ui_reward_clean()` 故意不让页面判据透过这层带子，所以只要哪一步把
+        它留在屏幕上，之后的 `ui_goto` 就一个页面都认不出来 —— 2026-11-10
+        12:26 真机就是这样空转 60 秒进 `GameStuckError` 的。
+
+        这里只做全局兜底：各任务自己领奖时不用 `ui_goto`，所以不会抢它们的
+        结算页。2 秒间隔是为了动画吞掉一下之后还能补按，又不至于连点。
+
+        Returns:
+            bool: If handled.
+        """
+        if not self.appear(HUNT_REWARD, offset=(20, 20), interval=2):  # alas-lint: allow - "not on screen (or throttled)" means nothing to dismiss, this path presses nothing
+            return False
+        logger.info('Reward screen left over, tap to go back')
+        self.device.click(REWARD_DISMISS_TAP)  # alas-lint: allow - the overlay has no button, it says 点击画面即可返回
+        return True
+
     def ui_additional(self):
         """
         Handle the popups that show up on any page.
 
-        Two families, in this order:
+        Three families, in this order:
 
         1. The store's 「支付失败」 dialog. It has to be checked first: the lobby
            branch below dismisses things by tapping the shaded area outside the
            panel, which does nothing to this dialog - it would keep returning
            True and the loop would tap forever while the dialog stays.
-        2. The lobby's daily popups.
+        2. A leftover REWARD banner, which hides every page check point.
+        3. The lobby's daily popups.
 
         Returns:
             bool: If handled.
         """
         if self.handle_payment_error():
+            return True
+        if self.handle_reward_screen():
             return True
 
         # 大厅弹窗的判据，两条都要满足：
