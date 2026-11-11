@@ -330,6 +330,30 @@ class AlGS(GameScheduler):
         from module.trickcal.trickcal_login import TrickcalLogin
         TrickcalLogin(config=self.config, device=self.device).run()
 
+    def trickcal_mail(self):
+        from module.trickcal.mail import TrickcalMail
+        TrickcalMail(config=self.config, device=self.device).run()
+
+    def trickcal_friend(self):
+        from module.trickcal.friend import TrickcalFriend
+        TrickcalFriend(config=self.config, device=self.device).run()
+
+    def trickcal_task(self):
+        from module.trickcal.task import TrickcalTask
+        TrickcalTask(config=self.config, device=self.device).run()
+
+    def trickcal_shop(self):
+        from module.trickcal.shop import TrickcalShop
+        TrickcalShop(config=self.config, device=self.device).run()
+
+    def trickcal_normal_shop(self):
+        from module.trickcal.normal_shop import TrickcalNormalShop
+        TrickcalNormalShop(config=self.config, device=self.device).run()
+
+    def trickcal_pass(self):
+        from module.trickcal.pass_task import TrickcalPass
+        TrickcalPass(config=self.config, device=self.device).run()
+
 
 if __name__ == '__main__':
     logger.hr('AlGS', level=0)

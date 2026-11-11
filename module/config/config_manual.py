@@ -60,6 +60,7 @@ class ManualConfig:
     # Both are claims on what the rest of the block did - the daily/weekly task
     # rewards and the pass points only fill up after the sorties - so they run
     # after 探索/军演/基地 instead of before them.
+    # 嘟嘟脸的任务奖励同理，排在同游戏的最后（2026-11-11）。
     SCHEDULER_PRIORITY = """
     Restart
     > Hazeworldevent > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
@@ -68,7 +69,7 @@ class ManualConfig:
     > BrowndustRedeem
     > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroPass > ChaoszeroRedeem > ChaoszeroMain
     > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreExercise > CrosscoreBase > CrosscoreTask > CrosscorePass
-    > TrickcalLogin
+    > TrickcalLogin > TrickcalMail > TrickcalFriend > TrickcalTask > TrickcalShop > TrickcalNormalShop > TrickcalPass
     """
 
     # 工具页（`task.yaml` 里 `page: 'tool'`）能**单独启动**的任务。

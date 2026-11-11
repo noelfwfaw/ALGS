@@ -864,5 +864,83 @@
     "Storage": {
       "Storage": {}
     }
+  },
+  "TrickcalMail": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalMail",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalFriend": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalFriend",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalTask": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalTask",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalShop": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalShop",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalNormalShop": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalNormalShop",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalPass": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalPass",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
   }
 }

@@ -202,3 +202,15 @@ Trickcal:
   tasks:
     TrickcalLogin:
       - Scheduler
+    TrickcalMail:
+      - Scheduler
+    TrickcalFriend:
+      - Scheduler
+    TrickcalTask:
+      - Scheduler
+    TrickcalShop:
+      - Scheduler
+    TrickcalNormalShop:
+      - Scheduler
+    TrickcalPass:
+      - Scheduler

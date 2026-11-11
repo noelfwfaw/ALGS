@@ -99,7 +99,13 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
-      "TrickcalLogin"
+      "TrickcalLogin",
+      "TrickcalMail",
+      "TrickcalFriend",
+      "TrickcalTask",
+      "TrickcalShop",
+      "TrickcalNormalShop",
+      "TrickcalPass"
     ]
   }
 }

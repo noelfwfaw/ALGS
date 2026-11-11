@@ -30,7 +30,7 @@
     },
     "Trickcal": {
       "name": "Trickcal",
-      "help": "Trickcal login and daily sign-in"
+      "help": "Trickcal login, daily sign-in, mailbox, friends, tasks, the shop free gifts, bulk purchase in the normal shop and the adventure pass"
     }
   },
   "Task": {
@@ -253,6 +253,30 @@
     "TrickcalLogin": {
       "name": "Trickcal Login",
       "help": "Launch the client, walk through the title screen and login, claim the daily sign-in reward, dismiss the reward and announcement popups, and stop at the lobby. A return-event panel normally does not appear; if it does, it is only closed and no return rewards are claimed. Runs once after the daily reset."
+    },
+    "TrickcalMail": {
+      "name": "Trickcal Mail",
+      "help": "Open the mailbox from the envelope at the top right of the lobby, claim every attachment with the bottom-right claim-all button, dismiss the confirmation reward popup, and return to the lobby. Runs once after the daily reset."
+    },
+    "TrickcalFriend": {
+      "name": "Trickcal Friends",
+      "help": "Open the friend list from the top right of the lobby. The claim-all button lights up when friends have sent leaves, and is only clicked while lit; then send one back with the send-all button and return to the lobby. Neither button opens a popup, so the run does not wait for one."
+    },
+    "TrickcalTask": {
+      "name": "Trickcal Tasks",
+      "help": "Open the task list from the checklist at the top right of the lobby (it opens on the daily tab), claim with the bottom-right claim-all button, then claim the bottom-left point-track reward if it is lit; switch to the weekly tab and repeat the same order, then return to the lobby. A button is only clicked while lit; grey means there is nothing to claim."
+    },
+    "TrickcalShop": {
+      "name": "Trickcal Shop",
+      "help": "Open the premium shop from the bottom bar of the lobby and visit the three tabs in order - 水晶葉商店 (the daily free pack), 每週禮包 and 每月禮包 - claiming the free pack in the top-left slot of each (price 0). Claiming pops the generic reward panel; the panel showing up is the receipt, and no panel means that pack was already taken this period, so it is skipped. The task then returns to the lobby."
+    },
+    "TrickcalNormalShop": {
+      "name": "Trickcal Normal Shop",
+      "help": "Open the normal shop from the 商店 icon at the bottom of the lobby and buy only the 日常商店 tab - the other tabs spend different currencies and are never touched. Tick all six items with 全選, press 一鍵購買, confirm the purchase dialog, dismiss the reward panel and return to the lobby."
+    },
+    "TrickcalPass": {
+      "name": "Trickcal Adventure Pass",
+      "help": "Open the 冒險通行證 card at the top left of the lobby (the blue ticket, not the level pass next to it) and press the bottom-right 一鍵領取 to take every unlocked reward at once. The button is dim when there is nothing to claim, and the run then returns immediately. The reward panel is dismissed automatically."
     }
   },
   "Scheduler": {

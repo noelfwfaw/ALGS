@@ -30,19 +30,34 @@ Boot loop, rewritten 2026-11-11 after three real runs (shape of
 - The 7 exported frames are historical snapshots. Only the lobby and the
   popup layouts are stable; do not tighten the title check back to 0.85.
 
-`page_main` is the only registered page (see page.py). Popups that cover the
-lobby are handled here so `ui_get_current_page()` can settle. Without a check
-button, `ui_goto_main()` would raise GamePageUnknownError and take the whole
-scheduler down when `WhenTaskQueueEmpty` is set to `goto_main`.
+`page_main` and `page_mail` are the registered pages (see page.py). Popups that
+cover either of them are handled here so `ui_get_current_page()` can settle.
+Without a check button, `ui_goto_main()` would raise GamePageUnknownError and
+take the whole scheduler down when `WhenTaskQueueEmpty` is set to `goto_main`.
+
+The reward popup is a reusable component, not a method of this class: see
+`module/trickcal/reward.py`. It is composed in through inheritance, so the boot
+loop and every task (mailbox claim today) share one implementation and one tap
+point.
+
+The shop's **item detail** (the 取消 / 购买 panel, see `shop.py`) is handled here
+for the same reason: it is opaque, it covers the 「尊享商店」 title, and it can be
+left open by any of the three free packs. `ui_additional()` cancels it, never
+buys it, so a leftover panel cannot make `ui_goto()` wait for a page it will
+never recognise (151).
 """
 
 from module.base.timer import Timer
 from module.config.server import to_package
 from module.exception import GameStuckError
 from module.logger import logger
-from module.trickcal.assets import (E_1_1, E_2_1, E_2_2, E_3_1, E_4_1,
-                                    E_5_1, E_5_2, E_6_1, E_6_2)
-from module.trickcal.page import page_main
+from module.trickcal.assets import (E_1_1, E_2_1, E_2_2, E_3_1, E_5_1,
+                                    E_5_2, E_6_1, E_6_2, SHOP_BUY_CANCEL,
+                                    SHOP_BUY_CONFIRM)
+from module.trickcal.page import (page_friend, page_mail, page_main,
+                                  page_normal_shop, page_pass, page_shop,
+                                  page_task, page_task_weekly)
+from module.trickcal.reward import RewardPopup
 from module.ui.ui import UI
 
 OFFSET = (20, 20)
@@ -53,6 +68,8 @@ BOOT_IDLE_TAP = 5
 # Keep the boot loop alive after the first lobby frame. At 0.2s per frame this
 # is ~15s; counting frames instead of wall time means a slow device only
 # watches longer, it cannot lose the settle window to one slow screenshot.
+# Only cold starts pay it: a boot that starts and ends on `page_main` returns
+# on the first frame (see `handle_app_boot`).
 BOOT_LOBBY_SETTLE_FRAMES = 75
 # The rotating title illustration drops this text to 0.69 on a real frame
 # while every other frame stays at or below 0.29. 0.60 sits between them;
@@ -61,16 +78,21 @@ TITLE_SIMILARITY = 0.60
 # Looser title check for the idle fallback only. The real title frame with a
 # different illustration scores 0.64; the return-event page scores 0.08.
 IDLE_SIMILARITY = 0.45
+BUY_POPUP_OFFSET = (20, 20)
+# 按一下没反应是常态（153），2 秒重试一次，不和别的点击抢计时器。
+BUY_POPUP_INTERVAL = 2
 
 
-class TrickcalUI(UI):
+class TrickcalUI(RewardPopup, UI):
     """
     UI class of 嘟嘟脸恶作剧.
     """
 
     page_main = page_main
 
-    pages = (page_main,)
+    # 少一个页面 `ui_get_current_page()` 就永远认不出，`ui_goto` 会静默死等 60 秒。
+    pages = (page_main, page_mail, page_friend, page_task, page_task_weekly,
+             page_shop, page_normal_shop, page_pass)
 
     def app_start(self):
         """
@@ -102,11 +124,15 @@ class TrickcalUI(UI):
         the upper bound (152). Every handler throttles its own click with
         `interval=2` (153).
 
-        The lobby is not the end of the launch: this client replaces it with
-        the return-event panel several seconds later, so the loop keeps closing
-        popups for `BOOT_LOBBY_SETTLE_FRAMES` consecutive clean frames before
-        returning (42 / 176). An unnamed screen is never tapped blindly: the
-        idle fallback needs a loose title-text match first.
+        After a cold start the lobby is not the end of the launch: this client
+        replaces it with the return-event panel several seconds later, so the
+        loop keeps closing popups for `BOOT_LOBBY_SETTLE_FRAMES` consecutive
+        clean frames before returning (42 / 176). That wait is skipped when the
+        loop never left `page_main`: the client was already logged in, the panel
+        is either behind us or will be closed by `ui_additional()` in the next
+        `ui_ensure()`, and every game switch used to pay ~15s for nothing. An
+        unnamed screen is never tapped blindly: the idle fallback needs a loose
+        title-text match first.
 
         Args:
             skip_first_screenshot (bool): Reuse a cached frame if there is one.
@@ -122,6 +148,11 @@ class TrickcalUI(UI):
         timer = Timer(timeout, count=3).start()
         idle = Timer(BOOT_IDLE_TAP).start()
         lobby_stable = 0
+        # 只有这一轮真的走过登录流程（见过非大厅的画面）才需要盯回归活动页：
+        # 它在大厅出现约 10 秒之后才整屏弹出。进循环时就已经在大厅，说明客户端
+        # 早就登录完了，那一屏要么已经过去，要么后弹时由 `ui_additional()` 关掉，
+        # 没必要每次接手一个已在运行的客户端都空等 15 秒（真机实测 75 帧 ≈15s）。
+        cold_start = False
 
         while 1:
             if skip_first_screenshot:
@@ -132,15 +163,19 @@ class TrickcalUI(UI):
                 self.device.screenshot()
             self.device.stuck_record_clear()
 
-            # End: a clean lobby is not enough. The return-event panel replaces
-            # the whole screen seconds after the first lobby frame, so keep the
-            # loop alive and keep closing popups until the lobby has stayed
-            # clean for a while (42 / 176).
+            # End: a clean lobby is not enough after a cold start. The
+            # return-event panel replaces the whole screen seconds after the
+            # first lobby frame, so keep the loop alive and keep closing popups
+            # until the lobby has stayed clean for a while (42 / 176).
             if self.ui_page_appear(page_main):
                 if self.ui_additional():
+                    cold_start = True
                     lobby_stable = 0
                     idle.reset()
                     continue
+                if not cold_start:
+                    logger.info('Game is already at page_main, skip the lobby settle')
+                    return True
                 lobby_stable += 1
                 idle.reset()
                 if lobby_stable >= BOOT_LOBBY_SETTLE_FRAMES:
@@ -149,6 +184,7 @@ class TrickcalUI(UI):
                 continue
 
             # A full-screen popup replaced the lobby; start the settle over.
+            cold_start = True
             lobby_stable = 0
             if self.handle_boot_popups(idle):
                 continue
@@ -262,29 +298,72 @@ class TrickcalUI(UI):
             return True
         return False
 
-    def handle_reward_popup(self):
-        """
-        Tap 「请点击屏幕继续」 on the reward popup.
-
-        Returns:
-            bool: If the popup was dismissed.
-        """
-        if self.appear(E_4_1, offset=OFFSET, interval=2):
-            logger.info('Sign-in reward popup, tap to continue')
-            self.device.click(E_4_1)
-            return True
-        return False
-
     def ui_additional(self):
         """
-        Close the two popups that can cover the lobby.
+        Close the popups that can cover the lobby or the mailbox.
+
+        The reward popup goes first: it is a translucent overlay, so both the
+        lobby check and the mailbox check stay "true" behind it and either
+        could be reported as reached while a reward panel is up.
+
+        The shop's item detail comes second. It is opaque and covers the whole
+        grid **and** the 「尊享商店」 title, so with it up `page_shop` reads as
+        unknown and `ui_goto()` would silently wait 60 seconds (151). Here it is
+        cancelled, never bought: this hook runs on every page and knows nothing
+        about what is being bought, so `TrickcalShop` is the only place that
+        presses 购买.
 
         Returns:
             bool: If a popup was handled this frame.
         """
+        if self.handle_reward_popup():
+            return True
+        if self.handle_buy_popup():
+            return True
         if self.handle_return_event():
             return True
         if self.handle_announcement():
+            return True
+        return False
+
+    def buy_popup_appear(self):
+        """
+        Whether the shop's item detail (the purchase dialog) is on screen.
+
+        The dialog is **one widget for every pack**: 每日 / 每周 / 每月免费礼包
+        only change the title and the description line, while 取消 and 购买 keep
+        both their art and their position. Measured on the real frame (2026-11-11
+        23:03): both buttons score 1.000 on it and at most 0.185 on the three
+        shop tabs, the lobby, the mailbox, the transition frame and the reward
+        popup - so one pair of assets serves all three packs.
+
+        Both buttons are required. A 购买-shaped patch alone is not a dialog and
+        pressing it would buy whatever happens to be behind it.
+
+        Returns:
+            bool: True if both buttons are on screen.
+        """
+        return self.appear(SHOP_BUY_CANCEL, offset=BUY_POPUP_OFFSET) \
+            and self.appear(SHOP_BUY_CONFIRM, offset=BUY_POPUP_OFFSET)
+
+    def handle_buy_popup(self, confirm=False):
+        """
+        Press 购买 (or 取消) of the item detail, throttled to one tap per 2s.
+
+        Args:
+            confirm (bool): True presses 購買, False presses 取消.
+
+        Returns:
+            bool: If a button was pressed on this frame.
+        """
+        button = SHOP_BUY_CONFIRM if confirm else SHOP_BUY_CANCEL
+        other = SHOP_BUY_CANCEL if confirm else SHOP_BUY_CONFIRM
+        # `other` 不带 interval：它只是"弹窗还在"的证明。节流只加在要按的那颗上，
+        # 否则冷却期里会被读成"弹窗不在"（mail.py 踩过同一个坑）。
+        if self.appear(other, offset=BUY_POPUP_OFFSET) \
+                and self.appear(button, offset=BUY_POPUP_OFFSET, interval=BUY_POPUP_INTERVAL):
+            logger.info(f'Item detail, press 「{button.name}」')
+            self.device.click(button)  # alas-lint: allow - 上一条 appear() 就是这一帧的判据
             return True
         return False
 
