@@ -47,6 +47,11 @@ class GameScheduler:
     # ten minutes because the Lostsword process was alive in the background).
     game_in_foreground: bool = False
 
+    # Set when a game declines to boot for a scheduled reason (server
+    # maintenance). Its boot loop has already re-scheduled the game's tasks, so
+    # `_loop()` skips the task instead of running it on a dead screen.
+    boot_declined: bool = False
+
     # Namespace -> (module, class name) of the game UI class, filled by the
     # subclass. Empty in a single game setup, which turns every game switch
     # below into a no-op.
@@ -550,11 +555,21 @@ class GameScheduler:
         `app_start()` also brings a game that is only running in the background
         to the front, so the flag below is set even when nothing was launched.
 
+        A game may decline to boot: 卡厄思梦境 raises `TaskEnd` from its boot
+        loop on the server-maintenance screen after re-scheduling its tasks.
+        That is a normal end, not a crash - swallow it here so neither the
+        scheduler nor `dev_tools/run_task.py` sees an uncaught exception.
+
         Pages:
             in: any
             out: page_main
         """
-        self.game_ui().app_start()
+        try:
+            self.game_ui().app_start()
+        except TaskEnd as e:
+            logger.warning(f'Game `{self.game}` declined to boot: {e}')
+            self.boot_declined = True
+            return
         self.game_in_foreground = True
 
     def goto_main(self):
@@ -726,6 +741,10 @@ class GameScheduler:
                     logger.info("Update event detected")
                     logger.info(f"[{self.config_name}] exited.")
                     break
+            # A game can also decline to boot from inside a task (`Restart`
+            # calls `start()` itself). The flag belongs to the task that set
+            # it: never let it skip the next task, which may be another game.
+            self.boot_declined = False
             # Get task
             task = self.get_next_task()
             # Init device and change server
@@ -739,6 +758,14 @@ class GameScheduler:
                 self.switch_game(game)
             elif task == 'Restart':
                 self.switch_game(self.peek_next_game(), boot=False)
+            if self.boot_declined:
+                # The game's boot loop already pushed NextRun past the
+                # maintenance window. Reload the config so the next pick sees
+                # it, and leave the game stopped for the other games' tasks.
+                self.boot_declined = False
+                logger.info(f'Skip task `{task}`, the game declined to boot')
+                del_cached_property(self, 'config')
+                continue
             # Skip first restart
             if self.is_first_task and task == 'Restart':
                 logger.info('Skip task `Restart` at scheduler start')

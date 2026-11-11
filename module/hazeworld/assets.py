@@ -37,6 +37,15 @@ EXCHANGE_TAB_ELITE = Button(area={'hazeworld': (21, 209, 214, 266)}, color={'haz
 # the selected one). The sub shops listed above it keep their y, so this area
 # is the elite one moved down by the row pitch.
 EXCHANGE_TAB_LOGISTICS = Button(area={'hazeworld': (21, 386, 214, 436)}, color={'hazeworld': (54, 44, 35)}, button={'hazeworld': (21, 386, 214, 436)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXCHANGE_TAB_LOGISTICS.png'})
+E_1_1 = Button(area={'hazeworld': (1192, 184, 1219, 214)}, color={'hazeworld': (107, 101, 107)}, button={'hazeworld': (1184, 176, 1227, 222)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_1_1.png'})
+E_2_1 = Button(area={'hazeworld': (15, 347, 179, 388)}, color={'hazeworld': (59, 64, 78)}, button={'hazeworld': (7, 339, 187, 396)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_2_1.png'})
+E_3_1 = Button(area={'hazeworld': (1046, 563, 1202, 602)}, color={'hazeworld': (118, 124, 138)}, button={'hazeworld': (1038, 555, 1210, 610)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_3_1.png'})
+E_4_1 = Button(area={'hazeworld': (730, 106, 1007, 177)}, color={'hazeworld': (65, 91, 100)}, button={'hazeworld': (722, 98, 1015, 185)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_4_1.png'})
+E_5_1 = Button(area={'hazeworld': (837, 633, 922, 675)}, color={'hazeworld': (47, 47, 44)}, button={'hazeworld': (829, 625, 930, 683)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_5_1.png'})
+E_5_2 = Button(area={'hazeworld': (148, 20, 200, 55)}, color={'hazeworld': (42, 43, 42)}, button={'hazeworld': (140, 12, 208, 63)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_5_2.png'})
+E_6_1 = Button(area={'hazeworld': (761, 216, 824, 255)}, color={'hazeworld': (81, 83, 80)}, button={'hazeworld': (753, 208, 832, 263)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_6_1.png'})
+E_6_2 = Button(area={'hazeworld': (570, 519, 694, 562)}, color={'hazeworld': (205, 111, 43)}, button={'hazeworld': (562, 511, 702, 570)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_6_2.png'})
+E_7_1 = Button(area={'hazeworld': (584, 591, 693, 635)}, color={'hazeworld': (227, 121, 47)}, button={'hazeworld': (576, 583, 701, 643)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_7_1.png'})
 MALL_TAB_EXCHANGE = Button(area={'hazeworld': (655, 95, 835, 170)}, color={'hazeworld': (83, 66, 58)}, button={'hazeworld': (655, 95, 835, 170)}, file={'hazeworld': './assets/hazeworld/hazeworld/MALL_TAB_EXCHANGE.png'})
 # The tab one seat right of 兑换商店; its selected look carries the orange
 # underline at y 173-176, which the area includes so it can not be mistaken

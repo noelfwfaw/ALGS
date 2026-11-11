@@ -27,6 +27,10 @@
 
 `app_start()` 只负责"从任何一屏走到主界面"。登录奖励、签到面板这些还没实测到，
 等真机跑过一天再往里加，不预先猜。
+
+**服务器维护是这条流程的例外**：客户端会把整个标题/大厅换成一张维护公告页，
+上面没有任何能进游戏的按钮。`handle_maintenance()` 认出它就结束任务、把本游戏
+的任务排到维护结束，见 `alas.py` 的 `boot_declined`。
 """
 
 import numpy as np
@@ -37,6 +41,7 @@ from module.chaoszero.assets import (ANNOUNCE_CLOSE, ARK_TITLE, ARK_WAR_AUTO, AR
                                      BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
                                      PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, SIM_PAGE,
                                      TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
+from module.chaoszero.maintenance import Maintenance
 from module.chaoszero.page import page_main
 from module.exception import GameStuckError
 from module.logger import logger
@@ -69,8 +74,7 @@ CHAOSZERO_HP_GREEN = 500
 # 所以这个节流就是它的处理方式；8 秒足够让游戏的转场动画先走完。
 CHAOSZERO_TAP_INTERVAL = 8
 
-
-class ChaoszeroUI(UI):
+class ChaoszeroUI(Maintenance, UI):
     """
     UI class of 卡厄思梦境.
     """
@@ -176,6 +180,9 @@ class ChaoszeroUI(UI):
 
         The order of the checks is the order the screens appear in:
 
+        0. Server maintenance ends the task (`TaskEnd`) instead of the loop -
+           the client stays on that screen for hours, so neither waiting nor
+           tapping can reach the lobby. See `handle_maintenance()`.
         1. A lobby ends the loop - the right-hand menu is drawn, nothing else is.
         2. 「遊戲連接失敗」 before the title check: the dialog is drawn on top of
            the title screen, and its only key is "tap anywhere". Checking the
@@ -218,6 +225,12 @@ class ChaoszeroUI(UI):
             # clicked for 60 seconds" as a hang (hard rule 13). `timeout` below
             # is what ends a boot that really is stuck.
             self.device.stuck_record_clear()
+
+            # Server maintenance. Checked before `page_main`: the client
+            # replaces the whole screen, so there is no lobby behind it, and
+            # this branch ends the task without sending a single tap.
+            if self.handle_maintenance():
+                continue
 
             # End
             if self.ui_page_appear(page_main):
@@ -417,8 +430,11 @@ class ChaoszeroUI(UI):
         """
         Handle the popups that can show up on any page.
 
-        Two families so far:
+        Three families so far:
 
+        - Server maintenance, which replaces the whole screen and can be raised
+          in the middle of a task as well. Checked first: while it is up the
+          other two cannot be on screen. See `handle_maintenance()`.
         - The connection-failure strip, which the client raises whenever it
           loses the server - on the title screen, and in the middle of a task.
         - The 「公告 / 更新」 announcement popup, which comes on top of the lobby
@@ -429,6 +445,9 @@ class ChaoszeroUI(UI):
         Returns:
             bool: If handled.
         """
+        if self.handle_maintenance():
+            return True
+
         if self.handle_connect_failed():
             return True
 

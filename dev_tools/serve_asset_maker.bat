@@ -10,7 +10,9 @@ set "PORT=22268"
 set "PY=%~dp0..\toolkit\python.exe"
 if not exist "%PY%" set "PY=python"
 
-start "AlGS Asset Maker Server" /min "%PY%" -m http.server %PORT%
+rem --bind 127.0.0.1: http.server listens on 0.0.0.0 by default, which would put
+rem this folder on the LAN. Nothing here needs to leave the machine.
+start "AlGS Asset Maker Server" /min "%PY%" -m http.server %PORT% --bind 127.0.0.1
 timeout /t 2 >nul
 rem The ?v= cache buster matters: http.server has no Cache-Control, so a tab that
 rem opened the page before an edit can keep showing the old copy. Every launch

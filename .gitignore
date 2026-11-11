@@ -264,13 +264,14 @@ pyrightconfig.json
 # WorkBuddy local workspace data (never commit)
 .workbuddy/
 
-# Agent skill dirs (CodeBuddy / TRAE) are junctions into .workbuddy/skills.
+# Agent skill dirs (CodeBuddy / TRAE / OpenCode) are junctions into .workbuddy/skills.
 # git walks a junction's target as real files, so keep the links out of the index.
 # The whole agent workspace (skills, rules, settings) is local-only.
 .codebuddy/skills/
 .codebuddy/settings.local.json
 .codebuddy/settings.json
 .trae/
+.opencode/skills/
 # 真机整屏样本，只给 dev_tools 里的一次性 probe 用（probe 本身也不进库）
 dev_tools/samples/
 # 本机目录联接脚本：把 .codebuddy / .trae 的 skills 指到 .workbuddy，只在开发机用

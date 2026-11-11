@@ -27,6 +27,8 @@
    坐标点击点，判断交给"页面标题在不在"。
 """
 
+import re
+
 import numpy as np
 
 from module.base.timer import Timer
@@ -36,6 +38,7 @@ from module.chaoszero.assets import (BATTLE_AUTO, BATTLE_EXIT, DIALOG_ENTER,
 from module.chaoszero.chaoszero_ui import ChaoszeroUI, page_main
 from module.exception import GameStuckError
 from module.logger import logger
+from module.ocr.ocr import Ocr
 
 # 主界面右侧竖排菜单第三项「模擬」的图标中心。
 SIM_ENTRY = (1218, 260)
@@ -94,6 +97,17 @@ SIM_AUTO_GOLD = 40
 # 一次入口从进战斗到结算：效率 1 实测 40~46 秒，效率 6 是连着打 6 场，
 # 所以要按 6 倍留量；单场 45 秒 × 6 ≈ 4 分半，留 10 分钟兜底。
 SIM_FIGHT_TIMEOUT = 600
+
+# 顶栏「117/290」：只框斜杠前的当前体力。框宽了会把 /290 和「+」带进来，
+# cnocr 实测把「/」读成 7（(1145,16,1232,48) → '117729'）；收紧成
+# (1150,18,1210,46) 稳定读成 '117/'，取第一个数字串即可。
+SIM_STAMINA_AREA = (1150, 18, 1210, 46)
+SIM_STAMINA_THRESHOLD = 150
+SIM_STAMINA_OCR_TIMEOUT = 3
+# 单场体力：普通页签 20、記憶碎片 60（列表每行右边印着，2026-10-30 实测）。
+# 117/20 算出效率上限 5，正好对应底部「進入」上那枚红色 120 = 20×6。
+SIM_STAMINA_PER_BATTLE = 20
+SIM_STAMINA_PER_MEMORY = 60
 
 
 class ChaoszeroSimulation(ChaoszeroUI):
@@ -415,29 +429,29 @@ class ChaoszeroSimulation(ChaoszeroUI):
         """
         Scroll the stage list back to its first row.
 
-        往下拖会被顶部夹住，所以「第一行的标题拖完没变」就是到顶了。之所以每次
-        开打前都要归位：这一屏的序号是「从上往下第几行」，不归位点到的就是别的
-        关卡（实测踩过：滚到一半再点，开出来的是第 1 项）。
+        ❗**固定拖满三次，别用「拖完画面没变」提前收工**：2026-11-10 20:00
+        真机两轮都只拖了两次就判到顶（回弹尾巴那几帧看着是静止的），列表其实
+        还偏着一行，配「第 1 项」却点开了第 2 项。向下拖到顶会被夹住，多拖
+        没有副作用 —— 最长的記憶碎片 11 行，三次 480px 绰绰有余。
+
+        之所以每次开打前都要归位：这一屏的序号是「从上往下第几行」，不归位
+        点到的就是别的关卡。
 
         Pages:
             in: page_training
             out: page_training
 
         Returns:
-            bool: True when the first row is back at the top.
+            bool: True when the list has been pulled back.
         """
-        for _ in range(SIM_SCROLL_DOWN_TIMES + 1):
-            # 往下一格就够验证了；拖远了会甩出橡皮筋，列表歪着半天回不来。
-            before = self.sim_title_strip(0)
+        for _ in range(SIM_SCROLL_DOWN_TIMES):
             self.device.click_record_clear()
             self.device.drag((SIM_ROW_X, 200), (SIM_ROW_X, 680),
                              point_random=(0, 0, 0, 0), hold_duration=0.2)
             self.sim_list_settle()
-            if self.sim_same_picture(before, self.sim_title_strip(0)):
-                return True
-
-        logger.warning('The stage list did not scroll back to its first row')
-        return False
+        # 最后一次拖动可能留下橡皮筋尾巴，再等它停稳才允许点行。
+        self.sim_list_settle()
+        return True
 
     def sim_list_down(self, rows):
         """
@@ -469,7 +483,10 @@ class ChaoszeroSimulation(ChaoszeroUI):
         """
         Put the configured row where the tap has to land.
 
-        第 1-4 项：列表归位到顶部，直接点那一格。
+        第 1-4 项：列表归位到顶部，用「每行右边体力数字」的**实际位置**点，
+        别写死常量 —— 列表整体偏一点（回弹没走完、版本改了行距）时，常量 y
+        会落到相邻那一行上，配第 1 项却开第 2 项。挑戰页签不印体力，读不到
+        才退回 `SIM_ROWS`。
         第 5 项往后：先归位，再往下滚 `stage - 4` 行，把目标顶到第 4 格 ——
         第 4 格（y=637）永远是整个列表里最稳的一格。
 
@@ -491,6 +508,11 @@ class ChaoszeroSimulation(ChaoszeroUI):
             return 0
 
         if stage <= len(SIM_ROWS):
+            rows = self.sim_bright_rows()
+            if len(rows) >= stage:
+                logger.info(f'Row {stage} sits at y={rows[stage - 1]}')
+                return rows[stage - 1]
+            logger.info('No stamina digits on this tab, use the fixed row y')
             return SIM_ROWS[stage - 1]
 
         wanted = stage - len(SIM_ROWS)
@@ -540,7 +562,8 @@ class ChaoszeroSimulation(ChaoszeroUI):
 
     def sim_configure(self):
         """
-        Apply the difficulty and the battle efficiency.
+        Apply the difficulty. The efficiency is set per round by
+        `sim_apply_efficiency()`, because it depends on the stamina left.
 
         Pages:
             in: page_team
@@ -553,12 +576,84 @@ class ChaoszeroSimulation(ChaoszeroUI):
         else:
             logger.info('Difficulty left as the game has it')
 
-        efficiency = int(self.config.ChaoszeroSimulation_TrainingEfficiency)
-        if 1 <= efficiency <= 6:
-            if not self.sim_set_efficiency(efficiency):
-                logger.warning('The battle efficiency may not be the configured one')
-        else:
+    def sim_stamina_left(self):
+        """
+        Read the current stamina in the top bar.
+
+        Returns:
+            int: Stamina left, -1 when the counter cannot be read.
+        """
+        ocr = Ocr(SIM_STAMINA_AREA, lang='cnocr', letter=(255, 255, 255),
+                  threshold=SIM_STAMINA_THRESHOLD, name='CZ_STAMINA')
+        for _ in self.loop(timeout=SIM_STAMINA_OCR_TIMEOUT):
+            text = str(ocr.ocr(self.device.image))
+            match = re.search(r'(\d+)', text)
+            if match:
+                stamina = int(match.group(1))
+                logger.info(f'Stamina left: {stamina}')
+                return stamina
+        logger.warning('Cannot read the stamina counter, keep the configured efficiency')
+        return -1
+
+    @staticmethod
+    def sim_affordable_efficiency(stamina, per, configured):
+        """
+        The highest efficiency the remaining stamina can pay for.
+
+        Args:
+            stamina (int): Current stamina, -1 when unknown.
+            per (int): Stamina of one battle.
+            configured (int): Configured efficiency, the upper bound.
+
+        Returns:
+            int: 0 when even one battle is unaffordable, -1 when unknown.
+        """
+        if stamina < 0 or per <= 0:
+            return -1
+        affordable = stamina // per
+        if affordable < 1:
+            return 0
+        return min(configured, affordable)
+
+    def sim_apply_efficiency(self, name):
+        """
+        Cap the battle efficiency by the stamina actually left.
+
+        配置里的效率是**上限**：体力 117、单场 20 时效率 6 要 120，点「進入」
+        没反应，脚本白等三次就收工，体力留到第二天回满 290 全溢出。
+        这里按 `floor(stamina / per_battle)` 降到 5（100），每轮打完重算，
+        能清多少清多少。读不到体力就退回配置值，绝不瞎降。
+
+        Pages:
+            in: page_team
+            out: page_team
+
+        Args:
+            name (str): Tab name, for the log.
+
+        Returns:
+            bool: False when even efficiency 1 is unaffordable.
+        """
+        configured = int(self.config.ChaoszeroSimulation_TrainingEfficiency)
+        if not 1 <= configured <= 6:
             logger.info('Battle efficiency left as the game has it')
+            return True
+
+        per = SIM_STAMINA_PER_MEMORY if name == '記憶碎片' else SIM_STAMINA_PER_BATTLE
+        stamina = self.sim_stamina_left()
+        efficiency = self.sim_affordable_efficiency(stamina, per, configured)
+        if efficiency == 0:
+            logger.info(f'{name}: stamina {stamina} < {per}, skip the battle')
+            return False
+        if efficiency < 0:
+            efficiency = configured
+        elif efficiency < configured:
+            logger.info(f'{name}: stamina {stamina} caps the efficiency at '
+                        f'{efficiency} (configured {configured}, {per} per battle)')
+
+        if not self.sim_set_efficiency(efficiency):
+            logger.warning('The battle efficiency may not be the wanted one')
+        return True
 
     def sim_orange_span(self, area):
         """
@@ -717,6 +812,10 @@ class ChaoszeroSimulation(ChaoszeroUI):
         """
         Repeat one battle until the stamina or the daily attempts run out.
 
+        每轮开打前都重算一次效率：上一轮把体力打掉以后，原来的档位可能已经
+        付不起了（117 → 效率 5 打掉 100 → 剩 17 → 效率 1 也要 20）。不重算的
+        话会卡在「點進入三次没反应」，剩下的体力全留到第二天回满溢出。
+
         Pages:
             in: page_team
             out: page_team
@@ -732,6 +831,9 @@ class ChaoszeroSimulation(ChaoszeroUI):
         limit = times if times > 0 else 99
 
         for _ in range(limit):
+            if not self.sim_apply_efficiency(name):
+                logger.info(f'{name}: stop after {fought} round(s), stamina too low')
+                break
             if not self.sim_fight_once():
                 logger.info(f'{name}: stop after {fought} round(s)')
                 break

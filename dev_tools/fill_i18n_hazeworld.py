@@ -77,6 +77,14 @@ TRANSLATIONS = {
             'Hazeworld': {'name': '苍雾世界', 'help': '苍雾世界的日常任务'},
         },
         'Task': {
+            'Hazeworldevent': {
+                'name': '限时活动·艾吉斯未解之迷',
+                'help': '在限时活动「艾吉斯未解之迷」里扫荡已通关的关卡：进入活动 → 选带 CLEAR 的关卡 → 点「扫荡」'
+                        '→ MAX 拉满次数 → 开始扫荡 → 确认结算，一次把体力清完。\n'
+                        '前提：关卡必须已经通关。脚本只点「扫荡」，不点「作战准备」，不负责开荒；'
+                        '没通关就启用本任务会停在选关页，请先手动通关。\n'
+                        'MAX 会自动把次数拉到体力用尽；剩余体力连一把都不够时不点「开始扫荡」，直接收工排到次日。',
+            },
             'HazeworldMail': {'name': '邮件', 'help': '领取邮箱里的附件'},
             'HazeworldRoom': {'name': '指挥室', 'help': '收取指挥室资源，并处理远征'},
             'HazeworldExercise': {'name': '演习', 'help': '用每天的演习券打完竞技场'},
@@ -211,6 +219,14 @@ TRANSLATIONS = {
             'Hazeworld': {'name': '蒼霧世界', 'help': '蒼霧世界的日常任務'},
         },
         'Task': {
+            'Hazeworldevent': {
+                'name': '限時活動·艾吉斯未解之迷',
+                'help': '在限時活動「艾吉斯未解之迷」裡掃蕩已通關的關卡：進入活動 → 選帶 CLEAR 的關卡 → 點「掃蕩」'
+                        '→ MAX 拉滿次數 → 開始掃蕩 → 確認結算，一次把體力清完。\n'
+                        '前提：關卡必須已經通關。腳本只點「掃蕩」，不點「作戰準備」，不負責開荒；'
+                        '未通關就啟用本任務會停在選關頁，請先手動通關。\n'
+                        'MAX 會自動把次數拉到體力用盡；剩餘體力連一把都不夠時不點「開始掃蕩」，直接收工排到次日。',
+            },
             'HazeworldMail': {'name': '郵件', 'help': '領取信箱裡的附件'},
             'HazeworldRoom': {'name': '指揮室', 'help': '收取指揮室資源，並處理遠征'},
             'HazeworldExercise': {'name': '演習', 'help': '用每天的演習券打完競技場'},
@@ -348,6 +364,14 @@ TRANSLATIONS = {
             'Hazeworld': {'name': 'Hazeworld', 'help': 'Daily routines of Hazeworld'},
         },
         'Task': {
+            'Hazeworldevent': {
+                'name': 'Event: 艾吉斯未解之迷',
+                'help': 'Sweep a cleared stage in the limited event 「艾吉斯未解之迷」: enter the event, pick a stage '
+                        'marked CLEAR, press Sweep, then MAX to spend all stamina, Start Sweep and confirm the result.\n'
+                        'The stage must be cleared already. The script presses Sweep only, never Battle Prep, and does '
+                        'not clear stages for you; clear it manually before enabling this task or it stalls on the stage list.\n'
+                        'MAX spends stamina down to the last affordable run; when even one sweep is unaffordable, the script stops without pressing Start Sweep and schedules the next daily run.',
+            },
             'HazeworldMail': {'name': 'Mail', 'help': 'Claim mail attachments'},
             'HazeworldRoom': {'name': 'Command room',
                               'help': 'Collect resources and handle expeditions'},
@@ -498,6 +522,14 @@ TRANSLATIONS = {
             'Hazeworld': {'name': 'ヘイズワールド', 'help': 'ヘイズワールドの日課'},
         },
         'Task': {
+            'Hazeworldevent': {
+                'name': '期間限定イベント・艾吉斯未解之迷',
+                'help': '期間限定イベント「艾吉斯未解之迷」でクリア済みステージを掃蕩：イベントに入り、CLEAR 表示の'
+                        'ステージを選び、「掃蕩」→ MAX で回数を最大化 → 開始掃蕩 → 結果確認、でスタミナを一度に消費する。\n'
+                        '前提：ステージはクリア済みであること。スクリプトは「掃蕩」だけを押し、「作戦準備」は押さない。'
+                        '未クリアの開拓はしないので、手動でクリアしてから有効にすること。\n'
+                        'MAX がスタミナを使い切るまで回数を自動調整する。1 回分も足りなくなったら「開始掃蕩」を押さずに終了し、翌日の日次更新まで待つ。',
+            },
             'HazeworldMail': {'name': 'メール', 'help': 'メールの添付を受け取る'},
             'HazeworldRoom': {'name': '司令室', 'help': '司令室の資源回収と遠征'},
             'HazeworldExercise': {'name': '演習', 'help': '毎日の演習券でアリーナを消化する'},

@@ -1,6 +1,7 @@
 from module.base.utils import get_color
 from module.config.deep import deep_get
-from module.hazeworld.assets import LOADING_TEXT, REWARD_POPUP, SUPPORT_REWARD
+from module.hazeworld.assets import (CORE_RAID_POPUP, CORE_RAID_POPUP_CANCEL,
+                                     LOADING_TEXT, REWARD_POPUP, SUPPORT_REWARD)
 from module.hazeworld.boot import Boot, match_loading
 from module.hazeworld.claim import Claim
 from module.logger import logger
@@ -191,18 +192,59 @@ class HazeworldUI(Claim, Boot, UI):
 
         return False
 
+    def handle_joint_raid(self):
+        """
+        Dismiss the joint raid reminder that swallows the first sweep.
+
+        While the joint raid event is running, the first sweep after the daily
+        stamina contribution reaches its cap opens a reminder instead of the
+        sweep dialog: "今日已消耗体力（300/300）" with 取消 / 前往讨伐. The
+        stage page stays visible behind it and its sweep button is not covered,
+        so a loop that only waits for the dialog keeps pressing a button the
+        modal swallows and gives up after its timeout. Cancel is the only
+        useful answer, 前往讨伐 leaves the stage page for the raid.
+
+        The card is static, so the title glyphs are matched instead of a
+        colour. Measured 2026-11-08: 1.000 with the popup, at most 0.402 on the
+        stage page, the sweep dialog and the history screenshots.
+
+        This is a game-wide modal, not a core-only one: every Hazeworld loop
+        that spends stamina must call it right after the screenshot and before
+        any other press. Cancel does NOT re-open the sweep dialog, the sweep
+        button has to be pressed once more afterwards.
+
+        Pages:
+            in: any
+            out: any
+
+        Returns:
+            bool: If the reminder is on screen. True is returned even when the
+                cancel button is not clickable yet, that frame is a fading card
+                and nothing else on the page should be pressed.
+        """
+        if self.appear(CORE_RAID_POPUP, offset=(20, 20)):
+            if self.appear_then_click(CORE_RAID_POPUP_CANCEL, offset=(10, 10), interval=2):
+                logger.info('Joint raid reminder, cancel')
+            return True
+        return False
+
     def ui_additional(self):
         """
         Popups that may appear on any page.
 
-        The resource-initialisation screen is checked last: it costs a template
-        match on every frame of every task, and it only ever shows right after
-        a launch (measured 2026-11-04: a `ui_goto` died on it 60 seconds in
-        because the screen came up after the boot had already seen the lobby).
+        The joint raid reminder comes first: it is a modal that replaces the
+        sweep dialog, so neither the page check nor any other button is usable
+        while it is up. The resource-initialisation screen is checked last: it
+        costs a template match on every frame of every task, and it only ever
+        shows right after a launch (measured 2026-11-04: a `ui_goto` died on
+        it 60 seconds in because the screen came up after the boot had already
+        seen the lobby).
 
         Returns:
             bool: If handled.
         """
+        if self.handle_joint_raid():
+            return True
         if self.handle_exit_confirm():
             return True
         if self.handle_reward():

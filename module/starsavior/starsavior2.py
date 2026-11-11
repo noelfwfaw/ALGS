@@ -111,6 +111,23 @@ ACCOUNT_DIALOG = (296, 154, 984, 593)
 # 用来区分"战斗还没打完"和"这段真的结束了"。
 BATTLE_WATCH = (300, 300, 980, 560)
 
+# ❗闪退重进可能落在「主界面 + 新手引导遮罩」：整屏被半透明黑幕压暗，
+#   右侧亮蓝「主流路线」高亮框是唯一能点的东西，右上四格 E_171_1 在遮罩
+#   背后照样 1.000（硬约束 42）—— `at_main_screen()` 会假阳性，接着跳过
+#   引导链，浮层吞掉邮箱/任务/抽卡/验号/重置的每一次点击（真机
+#   2026-11-10 15:40~15:41，最后「重置失败」+ `Reason: Error`）。
+#   真机 15:41 抓帧：框区域 mean 119 / 整屏 mean 42（比值 2.82）、
+#   亮蓝占比 0.191；对比 30 张其它真机帧，比值 0.57~1.91、亮蓝占比 0
+#   （唯一 ratio=1.91 的 REWARD 结算页靠 blue=0 排除）。
+TUTORIAL_ROUTE_AREA = (1035, 330, 1280, 430)
+TUTORIAL_ROUTE_TAP = Button(area=TUTORIAL_ROUTE_AREA, color=(0, 0, 0),  # alas-lint: allow - a pure tap point, the overlay check is a pixel test, never a template match
+                            button=(1157, 380, 1157, 380), name='TUTORIAL_ROUTE_TAP')
+TUTORIAL_ROUTE_DARK = 60
+TUTORIAL_ROUTE_RATIO = 1.8
+TUTORIAL_ROUTE_BLUE = 0.10
+TUTORIAL_ROUTE_TIMEOUT = 8
+TUTORIAL_ROUTE_SETTLE = 2
+
 # 判据和点击不在同一处的按钮：{判据: 真正要点的}。
 # 「添加其他账号」是固定文字，可以当判据；上面那行账号的名字每次都不一样，
 # 只能当点击目标。
@@ -200,6 +217,14 @@ RETRY_AT = {
 #   它由 `login()` 单独点一次。
 LOGIN = (
     E_3_1, E_2_1,
+)
+
+# 账号已在线时点完「Touch to Start」会**直接进开场动画 / 剧情**，不弹 Google 登录页。
+# 这四张是 `press()` 里量过的「右上 SKIP 横栏」三套版式（真机 2026-11-06 23:45）：
+# 剧情页 0.95 命中，标题页 / 主界面全 0.000，正好当「已经进游戏」的正面判据。
+# ❗不收 E_115_1（纯黑过场兜底）：加载黑屏也是黑的，会撞硬约束 163 的假阳性。
+STORY_SKIP = (
+    E_5_1, E_69_1, E_202_1, E_202_2,
 )
 
 # 引导 1~52（到昵称之前）
@@ -608,6 +633,71 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         finally:
             self._crash_timer = None
 
+    def tutorial_route_overlay(self):
+        """
+        「主界面 + 新手引导遮罩」的纯像素判据。
+
+        半透明黑幕把整屏压暗，只留右侧那块亮蓝「主流路线」高亮框可点。
+        用**相对亮度**（框 / 整屏）而不是绝对阈值：换主题、换亮度也不会漂。
+        三条同时成立才算：整屏偏暗、框明显比整屏亮、框里亮蓝像素够多。
+        30 张其它真机帧上全部为 False（含 REWARD 结算页，它亮但蓝=0）。
+
+        Returns:
+            bool: 引导遮罩还在不在。
+        """
+        # 刚进这一段时 device 可能还没 image 属性（真机撞过 AttributeError），
+        # 用 getattr 兜一下；拿不到帧就当"没有遮罩"，交给上层继续判。
+        image = getattr(self.device, 'image', None)
+        if image is None:
+            return False
+        a = np.asarray(image, dtype=np.int32)[..., :3]
+        whole = a.mean()
+        x0, y0, x1, y1 = TUTORIAL_ROUTE_AREA
+        box = a[y0:y1, x0:x1]
+        r, g, b = box[:, :, 0], box[:, :, 1], box[:, :, 2]
+        blue = float(((b > 190) & (g > 150) & (r < 190)).mean())
+        ratio = box.mean() / max(whole, 1)
+        return (whole < TUTORIAL_ROUTE_DARK
+                and ratio >= TUTORIAL_ROUTE_RATIO
+                and blue >= TUTORIAL_ROUTE_BLUE)
+
+    def dismiss_tutorial_route(self):
+        """
+        点掉新手引导高亮框，让 `guide()` 能按当前画面接住。
+
+        点一下没反应不等于失败（硬约束 153）：这里等**连续两帧**都看不到
+        遮罩才算收工，动画中间帧的一次假阴性不会提前放过它。
+
+        Returns:
+            bool: True = 浮层已经不在（本来就没有，或点掉了）。
+        """
+        if not self.tutorial_route_overlay():  # alas-lint: allow - "no overlay" is the normal path, nothing is pressed here
+            return True
+        logger.info('闪退重进：还在新手引导浮层，点「主流路线」继续')
+        self.device.click(TUTORIAL_ROUTE_TAP)  # alas-lint: allow - matched by the pixel test above, its disappearance below is the proof
+        clean = 0
+        for _ in self.loop(timeout=TUTORIAL_ROUTE_TIMEOUT):
+            if self.tutorial_route_overlay():
+                clean = 0
+                continue
+            clean += 1
+            if clean >= TUTORIAL_ROUTE_SETTLE:
+                return True
+        logger.warning('闪退重进：新手引导浮层没点掉')
+        return False
+
+    def resumed_at_hall(self):
+        """
+        闪退重进后是不是真的在**可交互**的大厅。
+
+        `at_main_screen()` 只认右上四格，引导遮罩背后照样成立；必须再排除
+        `tutorial_route_overlay()`，否则会跳过引导链、让遮罩吞掉后面所有点击。
+
+        Returns:
+            bool: 可以跳过开场引导 / 旅程 / 结算。
+        """
+        return self.at_main_screen() and not self.tutorial_route_overlay()
+
     def at_main_screen(self):
         """
         主界面右上四格在 = 结算已经走完、账号在大厅。
@@ -629,6 +719,27 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
           直接返回，不需要这里再认。
         """
         return self.at_main_screen()
+
+    def in_game_screen(self):
+        """
+        「账号已经进游戏」的正面判据，补上**大厅以外**的游戏内画面。
+
+        `in_game()` 只认主界面右上四格；账号已在线时点完 `E_1_1` 直接进的是
+        开场动画 / 剧情页，那里既没有四格也没有 Google 登录弹窗，
+        `login()` 第 2 步就会白等 20 秒再 `return False`（真机 2026-11-10
+        17:25:57~17:26:17）。四张量过的 SKIP 横栏模板正好覆盖这一段。
+
+        ❗仍然不用「标题页不见了」：加载黑屏上标题页也不见（163）。
+
+        Returns:
+            bool: 已经在游戏内（大厅 / 开场动画 / 剧情页）。
+        """
+        if self.in_game():
+            return True
+        for button in STORY_SKIP:
+            if self.appear(button, offset=CHAIN_OFFSET):
+                return True
+        return False
 
     def warmup_ocr(self):
         """后台线程先把 cnocr 模型加载好。
@@ -706,6 +817,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 # ❗`login()` 返回 False 说明登录链没走完，后面所有段的按钮表
                 #   都不适用，继续跑只会逐段 idle 空转，最后还可能去 `reset()`
                 #   把号刷丢。明确停住，账号留着让用户手动收拾。
+                #   ❗❗但这条让容错比 v1.42.1 之前（忽略返回值、继续扫状态机）
+                #   低得多：只要 `login()` 认不出「已经登录」就会整轮判死。
+                #   所以 `login()` 必须认全游戏内画面 —— 主界面四格、开场动画、
+                #   剧情页（SKIP 横栏，见 `in_game_screen()`）。17:10 / 17:25
+                #   两次误报都栽在只认四格；别再把它回退成「白等 20 秒就停」。
                 if not self.login():
                     raise TaskFailed(self.fail_reason(
                         '登录没走完，已停止，避免在游戏内空转把号刷丢。'
@@ -719,15 +835,23 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   判不到说明还在标题 / 登录 / 引导期，按原来的整轮状态机自愈。
                 #   ❗要放在 `login()` **之后**：账号在线时是 `login()` 点了
                 #   「Touch to Start」才真正进到大厅的。
+                #   ❗❗但 `at_main_screen()` 单看右上四格会**假阳性**：重置后的
+                #   新号重进会落在「主界面 + 新手引导遮罩」，四格在半透明黑幕
+                #   背后照样 1.000。2026-11-10 15:40 真机就这样跳过了引导链，
+                #   浮层吞掉之后每一次点击，最后「重置失败」+ `Reason: Error`。
+                #   所以先点掉引导浮层，再用「四格在 + 遮罩不在」判真大厅；
+                #   遮罩还在就回退整轮状态机，绝不跳过。
                 resumed_late = False
                 if self.resume_after_crash:
                     self.resume_after_crash = False
                     self.device.screenshot()
-                    resumed_late = self.at_main_screen()
+                    self.dismiss_tutorial_route()
+                    self.device.screenshot()
+                    resumed_late = self.resumed_at_hall()
                     if resumed_late:
                         logger.hr('闪退重进：已在大厅，跳过开场引导 / 旅程 / 结算', level=2)
                     else:
-                        logger.info('闪退重进：不在大厅，按当前画面重走本轮状态机')
+                        logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
 
                 if resumed_late:
                     # 节点1 / 节点2 都在引导期，重进时早就过了，别继续抽卡。
@@ -2073,12 +2197,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   「一个页面都没点到」。
         #   所以这里等的其实是「登录弹窗出现」**或**「已经进游戏」，两条都是正面判据，
         #   并且都要连续 3 帧，别被转场帧骗过去。
+        #   ❗❗「已经进游戏」不能只认主界面四格：账号在线时进的是**开场动画 / 剧情页**
+        #   （右上 LOG / AUTO / SKIP 横栏），四格要等结算走完才出现。v1.42.1 只判
+        #   `in_game()`，真机 2026-11-10 17:25 就这样把已登录的号判成
+        #   「没等到 Sign in with Google」并整轮 `TaskFailed`。改用 `in_game_screen()`。
         if not self.appear(E_2_1, offset=CHAIN_OFFSET):  # alas-lint: allow - same as above, this branch only decides whether to click Google
             login_hits = 0
             in_game_hits = 0
             for _ in self.loop(timeout=20):
                 login_hits = login_hits + 1 if self.appear(E_3_1, offset=CHAIN_OFFSET) else 0
-                in_game_hits = in_game_hits + 1 if self.in_game() else 0
+                in_game_hits = in_game_hits + 1 if self.in_game_screen() else 0
                 if login_hits >= 3:
                     self.click_button(E_3_1, 'Sign in with Google')
                     break
@@ -2093,13 +2221,26 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #    列表是从上往下展开的动画，`settle=3`（0.6 秒）不够 —— 真机 19:35
         #    在动画中间点了一次，落在还没铺开的地方，弹窗原地不动。
         for _ in range(3):
+            # 点完账号可能已经进游戏：账号列表不会再出现，别把它判成登录失败
+            # （真机 2026-11-10 17:10:52「登录：没等到账号列表」就是这么来的）。
+            if self.in_game_screen():
+                logger.info('登录：已经进游戏，账号列表不用再等')
+                return True
             if not self.wait_until_appear(E_2_1, offset=CHAIN_OFFSET, timeout=15, settle=4):
+                if self.in_game_screen():
+                    logger.info('登录：账号列表没再出现，但已经进游戏')
+                    return True
                 logger.warning('登录：没等到账号列表')
                 return False
             self.wait_until_still(ACCOUNT_DIALOG, timeout=3, threshold=3.0)
             self.click_button(E_2_3, '选账号')
             # 弹窗关掉才算真的点中了；没关就再点一次
             if self.wait_until_disappear(E_2_1, offset=CHAIN_OFFSET, timeout=6, settle=2):
+                return True
+            # ❗弹窗判据在转场里会闪（17:10 实测 6 秒没凑齐连续 2 帧不可见），
+            #   但游戏可能已经登录成功；先问一次「是不是进游戏了」，别直接重试。
+            if self.in_game_screen():
+                logger.info('登录：账号弹窗没判成消失，但已经进游戏')
                 return True
         logger.warning('登录：点了账号但弹窗没关')
         return False

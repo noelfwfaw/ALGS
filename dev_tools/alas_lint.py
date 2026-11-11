@@ -30,7 +30,7 @@ if ROOT not in sys.path:
 # Packages that hold game tasks. The framework itself is allowed to do things a
 # task module is not, e.g. sleeping while polling a device.
 TASK_PACKAGES = ('module/hazeworld', 'module/lostsword', 'module/browndust', 'module/chaoszero',
-                 'module/crosscore')
+                 'module/crosscore', 'module/starsavior')
 
 SEVERITY_ORDER = {'high': 0, 'medium': 1, 'low': 2}
 

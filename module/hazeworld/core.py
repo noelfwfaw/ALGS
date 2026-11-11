@@ -5,11 +5,10 @@ from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.hazeworld.assets import (CORE_BTN_SWEEP, CORE_DIALOG_MAX,
                                      CORE_DIALOG_PLUS, CORE_DIALOG_START,
-                                     CORE_DIALOG_TITLE, CORE_RAID_POPUP,
-                                     CORE_RAID_POPUP_CANCEL,
-                                     CORE_RESULT_CONFIRM, CORE_TYPE_ARMOR,
-                                     CORE_TYPE_ATTACK, CORE_TYPE_BURST,
-                                     CORE_TYPE_CRIT, CORE_TYPE_LIFE)
+                                     CORE_DIALOG_TITLE, CORE_RESULT_CONFIRM,
+                                     CORE_TYPE_ARMOR, CORE_TYPE_ATTACK,
+                                     CORE_TYPE_BURST, CORE_TYPE_CRIT,
+                                     CORE_TYPE_LIFE)
 from module.hazeworld.hazeworld_ui import HazeworldUI, page_core
 from module.logger import logger
 from module.ocr.ocr import Digit, DigitCounter
@@ -346,37 +345,8 @@ class HazeworldCore(HazeworldUI):
             return False
         return self.core_sweep_wait()
 
-    def handle_joint_raid(self):
-        """
-        Dismiss the joint raid reminder that swallows the first sweep.
-
-        While the joint raid event is running, the first sweep after the daily
-        stamina contribution reaches its cap opens a reminder instead of the
-        sweep dialog: "今日已消耗体力（300/300）" with 取消 / 前往讨伐. The
-        stage page stays visible behind it and its sweep button is not covered,
-        so a loop that only waits for the dialog keeps pressing a button the
-        modal swallows and gives up after DIALOG_TIMEOUT. Cancel is the only
-        useful answer, 前往讨伐 leaves the stage page for the raid.
-
-        The card is static, so the title glyphs are matched instead of a
-        colour. Measured 2026-11-08: 1.000 with the popup, at most 0.402 on the
-        stage page, the sweep dialog and the history screenshots.
-
-        Pages:
-            in: page_core
-            out: page_core
-
-        Returns:
-            bool: If the reminder is on screen. True is returned even when the
-                cancel button is not clickable yet, that frame is a fading card
-                and nothing else on the page should be pressed.
-        """
-        if self.appear(CORE_RAID_POPUP, offset=(20, 20)):
-            if self.appear_then_click(CORE_RAID_POPUP_CANCEL, offset=(10, 10), interval=2):
-                logger.info('Joint raid reminder, cancel')
-            return True
-        return False
-
+    # `handle_joint_raid()` is inherited from HazeworldUI: the reminder is a
+    # game-wide modal, the event task needs the same handler.
     def core_sweep_start(self, count):
         """
         Open the sweep dialog, set the run count and press start.
@@ -402,6 +372,8 @@ class HazeworldCore(HazeworldUI):
         while 1:
             self.device.screenshot()
 
+            # 截图之后、任何点击之前：弹窗是模态；取消后面板不会自动回来，
+            # 下一帧会重新按一次「扫荡」。
             if self.handle_joint_raid():
                 continue
 
@@ -477,6 +449,11 @@ class HazeworldCore(HazeworldUI):
         while 1:
             self.device.screenshot()
             self.device.stuck_record_clear()
+
+            # 白卡可能压住结算页；不先取消的话，背后那颗没被盖住的扫荡键
+            # 会让下面的「Sweep did not start」误判成体力不够。
+            if self.handle_joint_raid():
+                continue
 
             if self.appear(CORE_RESULT_CONFIRM, offset=(20, 20)):
                 self.device.click(CORE_RESULT_CONFIRM)

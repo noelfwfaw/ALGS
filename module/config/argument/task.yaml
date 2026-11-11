@@ -23,6 +23,8 @@ Hazeworld:
   menu: 'collapse'
   page: 'setting'
   tasks:
+    Hazeworldevent:
+      - Scheduler
     HazeworldMail:
       - Scheduler
       - HazeworldMail

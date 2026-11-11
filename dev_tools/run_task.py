@@ -74,6 +74,11 @@ def main():
 
     if not args.no_boot:
         algs.start()
+        if algs.boot_declined:
+            # Server maintenance: the boot loop already re-scheduled the tasks.
+            # Running this task now would only tap a screen with no game on it.
+            logger.warning(f'Game `{game}` declined to boot, skip task `{task}`')
+            return
     algs.game_in_foreground = True
 
     algs.run(inflection.underscore(task))

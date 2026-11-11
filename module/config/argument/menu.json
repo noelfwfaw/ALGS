@@ -11,6 +11,7 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
+      "Hazeworldevent",
       "HazeworldMail",
       "HazeworldRoom",
       "HazeworldExercise",

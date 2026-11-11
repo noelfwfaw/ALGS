@@ -62,7 +62,7 @@ class ManualConfig:
     # after 探索/军演/基地 instead of before them.
     SCHEDULER_PRIORITY = """
     Restart
-    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
+    > Hazeworldevent > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem

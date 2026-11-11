@@ -38,48 +38,52 @@
       "name": "Restart",
       "help": ""
     },
+    "Hazeworldevent": {
+      "name": "Event: 艾吉斯未解之迷",
+      "help": "Sweep a cleared stage in the limited event 「艾吉斯未解之迷」: enter the event, pick a stage marked CLEAR, press Sweep, then MAX to spend all stamina, Start Sweep and confirm the result.\nThe stage must be cleared already. The script presses Sweep only, never Battle Prep, and does not clear stages for you; clear it manually before enabling this task or it stalls on the stage list.\nMAX spends stamina down to the last affordable run; when even one sweep is unaffordable, the script stops without pressing Start Sweep and schedules the next daily run."
+    },
     "HazeworldMail": {
-      "name": "Hazeworld: Mail",
+      "name": "Mail",
       "help": "Claim mail attachments"
     },
     "HazeworldRoom": {
-      "name": "Hazeworld: Command room",
+      "name": "Command room",
       "help": "Collect resources and handle expeditions"
     },
     "HazeworldExercise": {
-      "name": "Hazeworld: Exercise",
+      "name": "Exercise",
       "help": "Spend the daily exercise tickets in the arena"
     },
     "HazeworldFriend": {
-      "name": "Hazeworld: Friend",
+      "name": "Friend",
       "help": "Like all friends"
     },
     "HazeworldTask": {
-      "name": "Hazeworld: Mission",
+      "name": "Mission",
       "help": "Claim daily, weekly and monthly mission rewards"
     },
     "HazeworldPass": {
-      "name": "Hazeworld: Battle pass",
+      "name": "Battle pass",
       "help": "Claim battle pass missions and level rewards"
     },
     "HazeworldSupport": {
-      "name": "Hazeworld: Support character",
+      "name": "Support character",
       "help": "Claim the friendship coins of support characters"
     },
     "HazeworldCore": {
-      "name": "Hazeworld: Core material",
+      "name": "Core material",
       "help": "Sweep core material stages in the resource dungeon, spends stamina"
     },
     "HazeworldShop": {
-      "name": "Hazeworld: Elite shop",
+      "name": "Elite shop",
       "help": "Buy from the elite shop of the mall exchange with a purchase list, weekly"
     },
     "HazeworldLogistics": {
-      "name": "Hazeworld: Logistics shop",
+      "name": "Logistics shop",
       "help": "Buy from the logistics shop of the exchange shop, everything but 盾币 by default, once a week"
     },
     "HazeworldHonor": {
-      "name": "Hazeworld: Honor shop",
+      "name": "Honor shop",
       "help": "Buy only the first card (定向调度券) of the honour shop in the mall, once a week"
     },
     "LostswordTreasure": {
@@ -863,7 +867,7 @@
     },
     "TrainingEfficiency": {
       "name": "Battle efficiency",
-      "help": "1-6 runs per entry; cost = stamina per run x efficiency"
+      "help": "1-6 runs per entry; cost = stamina per run x efficiency. This is an upper bound: it is lowered to what the current stamina can pay for each round, so stamina never sits at full. 0 leaves the game's setting"
     },
     "TrainingTimes": {
       "name": "Rounds per tab",
