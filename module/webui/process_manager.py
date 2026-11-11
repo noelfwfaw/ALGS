@@ -235,10 +235,20 @@ class ProcessManager:
                 _instances.add(instance)
 
         try:
-            with open("./config/reloadalas", mode="r") as f:
-                for line in f.readlines():
-                    line = line.strip()
-                    _instances.add(ProcessManager.get_manager(line))
+            # utf-8 first: that is what `updater` writes now. Files left over
+            # from the cp936 default (Chinese instance names) would otherwise
+            # raise UnicodeDecodeError here and take the whole WebUI down on
+            # restart, so fall back to gbk rather than die.
+            try:
+                with open("./config/reloadalas", mode="r", encoding="utf-8") as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                logger.warning("reloadalas is not utf-8, falling back to gbk")
+                with open("./config/reloadalas", mode="r", encoding="gbk", errors="replace") as f:
+                    lines = f.readlines()
+            for line in lines:
+                line = line.strip()
+                _instances.add(ProcessManager.get_manager(line))
         except FileNotFoundError:
             pass
 

@@ -408,27 +408,51 @@ pre.rich-traceback-code {
     grid-auto-flow: column;
 }
 
-/* The per-game "run everything" buttons get a row of their own: the scheduler
-   bar is only as wide as the panel, and two labels of six characters each do
-   not fit next to the start button without squeezing them into a column. */
-#pywebio-scope-scheduler-bar {
+/* Both bars wrap: the scheduler bar so the title and the start button never
+   squeeze each other in a 16rem column, the log bar because the per-game
+   buttons sit on a line of their own underneath its title. */
+#pywebio-scope-scheduler-bar,
+#pywebio-scope-log-bar {
     flex-wrap: wrap;
 }
 
-#pywebio-scope-scheduler-bar > p {
+#pywebio-scope-scheduler-bar > p,
+#pywebio-scope-log-bar > p {
     white-space: nowrap;
 }
 
+/* The per-game "run everything" buttons live in the log bar, not the scheduler
+   bar: the scheduler column is 16~20rem wide (`alas-pc.css`) and a column of
+   seven bars there was eating the space the running / pending / waiting panels
+   need. The log column is the wide one, so they wrap into two rows there and
+   cost the log a few dozen pixels instead of half a card.
+   `> *` on purpose - `put_button` goes through `put_buttons` with one item, so
+   each game arrives as a wrapper around its button rather than a bare button.
+   Flex handles either shape; a grid template would have to know which.
+   The 11.5rem floor is set by the longest label (eleven CJK characters), which
+   is about 170px at this size, so the text stays on one line.
+   Keep this file ASCII: it is served through `add_css()`, and one CJK
+   character in here used to take the whole WebUI down (see utils.add_css). */
 #pywebio-scope-start_all_btn {
     flex: 1 1 100%;
-    display: grid;
-    grid-auto-flow: row;
-    gap: 0.3125rem;
-    margin-top: 0.625rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.3125rem;
+}
+
+#pywebio-scope-start_all_btn > * {
+    flex: 1 1 11.5rem;
+    min-width: 0;
 }
 
 #pywebio-scope-start_all_btn button {
     width: 100%;
+    height: 100%;
+    min-height: 2rem;
+    padding: 0.1875rem 0.375rem;
+    font-size: 0.8125rem;
+    line-height: 1.15;
 }
 
 #pywebio-scope-log {

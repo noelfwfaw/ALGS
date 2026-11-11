@@ -368,13 +368,16 @@ def filepath_icon(filename):
 
 
 def add_css(filepath):
-    with open(filepath, "r") as f:
+    # utf-8 explicitly: the default is cp936 on a Chinese Windows, and one CJK
+    # character in a stylesheet comment is enough to kill the whole page with
+    # UnicodeDecodeError before anything is rendered.
+    with open(filepath, "r", encoding="utf-8") as f:
         css = f.read().replace("\n", "")
         run_js(f"""$('head').append('<style>{css}</style>')""")
 
 
 def _read(path):
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 

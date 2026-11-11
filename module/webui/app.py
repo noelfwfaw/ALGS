@@ -423,7 +423,6 @@ class AlasGUI(Frame):
                         "font-size: 1.25rem; margin: auto .5rem auto;"
                     ),
                     put_scope("scheduler_btn"),
-                    put_scope("start_all_btn"),
                 ],
             )
             put_scope(
@@ -451,21 +450,6 @@ class AlasGUI(Frame):
                 ],
             )
 
-        with use_scope("start_all_btn"):
-            groups = self.alas_game_groups()
-            if groups:
-                put_buttons(
-                    [
-                        {
-                            "label": t("Gui.Button.StartAll", t(f"Menu.{group}.name")),
-                            "value": group,
-                            "color": "on",
-                        }
-                        for group in groups
-                    ],
-                    onclick=self.alas_start_all,
-                )
-
         switch_scheduler = BinarySwitchButton(
             label_on=t("Gui.Button.Stop"),
             label_off=t("Gui.Button.Start"),
@@ -492,9 +476,30 @@ class AlasGUI(Frame):
                             put_scope("log_scroll_btn"),
                         ],
                     ),
+                    # Last on purpose: the bar wraps, and a full-width block
+                    # placed before it would push the scroll button onto a
+                    # second line of its own.
+                    put_scope("start_all_btn"),
                 ],
             )
             put_scope("log", [put_html("")])
+
+        with use_scope("start_all_btn"):
+            for group in self.alas_game_groups():
+                # One `put_button` per game instead of one `put_buttons`: that
+                # renders a joined button group (no gap, square ends), which
+                # reads as one solid block. Separate buttons let the stylesheet
+                # wrap them into rows - see `#pywebio-scope-start_all_btn`.
+                #
+                # They live in the log bar, not in the scheduler bar: the
+                # scheduler column is 16~20rem wide (`alas-pc.css`) and those
+                # seven rows were taking the space the running / pending /
+                # waiting panels need. The log column is the wide one.
+                put_button(
+                    label=t("Gui.Button.StartAll", t(f"Menu.{group}.name")),
+                    onclick=partial(self.alas_start_all, group),
+                    color="on",
+                )
 
         log.console.width = log.get_width()
 

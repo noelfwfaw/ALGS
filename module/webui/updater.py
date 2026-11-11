@@ -296,7 +296,9 @@ class Updater(DeployConfig, GitManager, PipManager):
         if self.update():
             if State.restart_event is not None:
                 self.state = "reload"
-                with open("./config/reloadalas", mode="w") as f:
+                # utf-8 explicitly: instance names may be Chinese, and the
+                # default cp936 writer would hand a file to a utf-8 reader.
+                with open("./config/reloadalas", mode="w", encoding="utf-8") as f:
                     f.writelines(names)
                 from module.webui.app import clearup
 
