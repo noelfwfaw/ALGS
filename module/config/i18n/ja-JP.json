@@ -27,6 +27,10 @@
     "Starsavior": {
       "name": "スターセイヴァー",
       "help": "リセマラツール。「ツール」ページから個別に起動し、タスクスケジュールには従いません"
+    },
+    "Trickcal": {
+      "name": "Trickcal",
+      "help": "Trickcal のログインとデイリーサインイン"
     }
   },
   "Task": {
@@ -241,6 +245,10 @@
     "Starsavior2": {
       "name": "スター：リセマラ",
       "help": "⚠ この機能はテスト中です。挙動が変わる可能性があり、不具合も残っています。\n検証済み環境：MuMu エミュレーター 12、アジアサーバー、ゲーム内簡体字中国語、画質は最低。他のエミュレーター / 解像度 / 言語 / 画質は未検証です。\nゲーム側のカクつきやクリックが効かない現象（旅の清算後に十数秒止まる等）は処理しません。"
+    },
+    "TrickcalLogin": {
+      "name": "Trickcal ログイン",
+      "help": "タイトル画面からログインし、デイリーサインイン報酬を受け取り、報酬・お知らせのポップアップを閉じてロビーで終了します。復帰イベントは通常表示されませんが、表示された場合は閉じるだけで報酬は受け取りません。日次更新後に 1 回実行します。"
     }
   },
   "Scheduler": {
@@ -293,7 +301,8 @@
       "com.neowizgames.game.browndust2": "BROWNDUST",
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
-      "com.studiobside.starMain": "STARSAVIOR"
+      "com.studiobside.starMain": "STARSAVIOR",
+      "com.bilibili.trickcalcn": "TRICKCAL"
     },
     "ServerName": {
       "name": "ゲーム内サーバー",
@@ -304,7 +313,8 @@
       "browndust-0": "[BROWNDUST] default",
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
-      "starsavior-0": "[STARSAVIOR] default"
+      "starsavior-0": "[STARSAVIOR] default",
+      "trickcal-0": "[TRICKCAL] default"
     },
     "ScreenshotMethod": {
       "name": "スクリーンショット方式",

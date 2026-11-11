@@ -39,6 +39,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 棕色尘埃2 Brown Dust II | 8 | 08:00 | 活动五步合并为一个任务 |
 | 卡厄思梦境 Chaos Zero Nightmare | 5 | 05:00 | 刷新时间暂定 |
 | 交错战线 Crosscore | 8 | 05:00 | 兑换码、邮箱、任务、通行证、每日探索、模拟军演、基地 |
+| 嘟嘟脸恶作剧 Trickcal | 1 | 05:00（默认） | 登录 + 每日签到；回归活动默认只关闭、不领奖 |
 
 星之救援者以独立工具的形式提供刷初始功能，不参与排期，从 WebUI 的「工具」页面手动启动。每轮依次完成登录、引导、旅程、领奖、抽卡与验号；达到设定目标后保留账号，未达标则重置账号重新登录。
 

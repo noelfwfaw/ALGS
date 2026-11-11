@@ -27,6 +27,10 @@
     "Starsavior": {
       "name": "Star Savior",
       "help": "Reroll tool. Start it from the Tools page; it never joins the task queue"
+    },
+    "Trickcal": {
+      "name": "Trickcal",
+      "help": "Trickcal login and daily sign-in"
     }
   },
   "Task": {
@@ -241,6 +245,10 @@
     "Starsavior2": {
       "name": "Star Savior: Reroll",
       "help": "Warning: this tool is still in testing. Behaviour may change, and it may contain bugs.\nTested on: MuMu emulator 12, Asia server, in-game Simplified Chinese, lowest graphics. Other emulators / resolutions / languages / graphics settings are untested.\nStutters and dead clicks caused by the game itself (e.g. a ~15s freeze after the journey settlement) are not worked around; the script just waits them out."
+    },
+    "TrickcalLogin": {
+      "name": "Trickcal Login",
+      "help": "Start from the title screen, claim the daily sign-in reward, dismiss the reward and announcement popups, and stop at the lobby. A return-event panel normally does not appear; if it does, it is only closed and no return rewards are claimed. Runs once after the daily reset."
     }
   },
   "Scheduler": {
@@ -293,7 +301,8 @@
       "com.neowizgames.game.browndust2": "BROWNDUST",
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
-      "com.studiobside.starMain": "STARSAVIOR"
+      "com.studiobside.starMain": "STARSAVIOR",
+      "com.bilibili.trickcalcn": "TRICKCAL"
     },
     "ServerName": {
       "name": "Server in Game Client",
@@ -304,7 +313,8 @@
       "browndust-0": "[BROWNDUST] default",
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
-      "starsavior-0": "[STARSAVIOR] default"
+      "starsavior-0": "[STARSAVIOR] default",
+      "trickcal-0": "[TRICKCAL] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",

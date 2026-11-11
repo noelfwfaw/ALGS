@@ -27,6 +27,10 @@
     "Starsavior": {
       "name": "星之救援者",
       "help": "刷初始工具，在「工具」页单独启动，不跟随任务调度"
+    },
+    "Trickcal": {
+      "name": "嘟嘟脸恶作剧",
+      "help": "嘟嘟脸恶作剧的登录与签到"
     }
   },
   "Task": {
@@ -241,6 +245,10 @@
     "Starsavior2": {
       "name": "星之刷初始",
       "help": "⚠ 这个功能还在测试阶段，随时可能改行为，也可能出 bug。\n已实测环境：MuMu 模拟器 12、游戏亚服、游戏内简体中文、画质极低。其他模拟器 / 分辨率 / 语言 / 画质都没测过，可能点错或者卡住。\n游戏自身的卡顿、点击没反应（比如旅程结算后卡十几秒）脚本不会去处理，等它自己好。"
+    },
+    "TrickcalLogin": {
+      "name": "嘟嘟登录",
+      "help": "从标题屏开始登录，领取当天签到奖励、关闭获得奖励弹窗与公告，最后停在主界面。正常不会经过回归活动；回归活动面板弹出时只把它关掉，不领取回归奖励。每天日更后跑一次。"
     }
   },
   "Scheduler": {
@@ -293,7 +301,8 @@
       "com.neowizgames.game.browndust2": "BROWNDUST",
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
-      "com.studiobside.starMain": "STARSAVIOR"
+      "com.studiobside.starMain": "STARSAVIOR",
+      "com.bilibili.trickcalcn": "TRICKCAL"
     },
     "ServerName": {
       "name": "游戏内服务器",
@@ -304,7 +313,8 @@
       "browndust-0": "[BROWNDUST] default",
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
-      "starsavior-0": "[STARSAVIOR] default"
+      "starsavior-0": "[STARSAVIOR] default",
+      "trickcal-0": "[TRICKCAL] default"
     },
     "ScreenshotMethod": {
       "name": "模拟器截图方案",

@@ -16,7 +16,8 @@
           "com.neowizgames.game.browndust2",
           "com.smilegate.chaoszero.stove.google",
           "com.megagame.crosscore",
-          "com.studiobside.starMain"
+          "com.studiobside.starMain",
+          "com.bilibili.trickcalcn"
         ]
       },
       "ServerName": {
@@ -29,7 +30,8 @@
           "browndust-0",
           "chaoszero-0",
           "crosscore-0",
-          "starsavior-0"
+          "starsavior-0",
+          "trickcal-0"
         ]
       },
       "ScreenshotMethod": {
@@ -3349,6 +3351,51 @@
         "type": "input",
         "value": 0,
         "valuetype": "int",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalLogin": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalLogin",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
         "display": "hide"
       }
     },

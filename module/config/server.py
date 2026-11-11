@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior', 'trickcal']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -38,6 +38,10 @@ VALID_PACKAGE = {
     # `adb shell pm list packages` 读出来的（同机还装着 BlueArchive，名字相近，
     # 别抄错）。
     'com.studiobside.starMain': 'starsavior',
+    # 嘟嘟脸恶作剧 (Trickcal), B站国服客户端. 包名 `com.bilibili.trickcalcn`
+    # 由 `adb -s 127.0.0.1:16448 shell pm list packages -3` 读出（2026-11-11），
+    # 与卡厄思梦境、交错战线装在同一个模拟器实例，归 config/chaoszero.json 管。
+    'com.bilibili.trickcalcn': 'trickcal',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -51,6 +55,7 @@ VALID_SERVER_LIST = {
     'chaoszero': ['default'],
     'crosscore': ['default'],
     'starsavior': ['default'],
+    'trickcal': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

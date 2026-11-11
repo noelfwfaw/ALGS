@@ -30,6 +30,7 @@ class AlGS(GameScheduler):
         'chaoszero': ('module.chaoszero.chaoszero_ui', 'ChaoszeroUI'),
         'crosscore': ('module.crosscore.crosscore_ui', 'CrosscoreUI'),
         'starsavior': ('module.starsavior.starsavior_ui', 'StarsaviorUI'),
+        'trickcal': ('module.trickcal.trickcal_ui', 'TrickcalUI'),
     }
 
     @property
@@ -309,6 +310,18 @@ class AlGS(GameScheduler):
 
         self.config.bind('Starsavior2')
         Starsavior2(config=self.config, device=device).run()
+
+    # ==================== Trickcal (嘟嘟脸恶作剧) ====================
+    #
+    # 登录流程由 dev_tools/spec_build.py 从页面卡片生成（chain=True，按钮驱动）。
+    # 保留这个段落头：spec_build.add_entry() 靠它定位，否则新任务方法会被
+    # 插到 `if __name__ == '__main__'` 前面（苍雾活动踩过一次）。
+
+
+
+    def trickcal_login(self):
+        from module.trickcal.trickcal_login import TrickcalLogin
+        TrickcalLogin(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

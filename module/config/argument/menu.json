@@ -93,5 +93,12 @@
     "tasks": [
       "Starsavior2"
     ]
+  },
+  "Trickcal": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "TrickcalLogin"
+    ]
   }
 }

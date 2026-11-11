@@ -190,3 +190,13 @@ Starsavior:
   tasks:
     Starsavior2:
       - Starsavior2
+
+
+# ==================== Trickcal ====================
+
+Trickcal:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    TrickcalLogin:
+      - Scheduler
