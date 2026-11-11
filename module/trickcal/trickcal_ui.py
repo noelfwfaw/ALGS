@@ -81,7 +81,10 @@ class TrickcalUI(UI):
         Returns:
             bool: If the lobby (`E_7_1`) was reached.
         """
-        for _ in self.loop(timeout=timeout):
+        # skip_first=False 是必须的：device.app_start() 会把 self.image 置为
+        # None 作废旧帧，而 loop() 默认首帧复用旧截图、不去截一张，
+        # 第一句 appear() 就会拿 None 进 Button.match() 崩掉（15:14 真机实测）。
+        for _ in self.loop(skip_first=False, timeout=timeout):
             # 冷启动的 logo / 加载 / 登录是游戏自己走的过程，可能几十秒没有
             # 任何判据。纯等待不归看门狗管，上限交给本循环自己的 timeout。
             self.device.stuck_record_clear()
