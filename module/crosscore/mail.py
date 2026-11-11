@@ -4,7 +4,7 @@ The mailbox is a full page opened from the envelope at the top right of the
 lobby. Its 「一键领取」 sits at the bottom left; pressing it raises the global
 「获得物品」 popup, which `CrosscoreUI.handle_item_popup()` already knows, and
 greys the button out once every mail is claimed (2026-11-08 用户导出的
-`邮箱页面.png` / `没有可领取邮件.png`).
+`邮箱页面.png` / `MAIL_CLAIM_DIM.png`).
 
 The lit/greyed state is read from gold pixels, not from template matching: the
 two states of the button are structurally almost identical (`TM_CCOEFF_NORMED`

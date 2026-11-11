@@ -230,6 +230,13 @@ class AlGS(GameScheduler):
         from module.chaoszero.daily import ChaoszeroDaily
         ChaoszeroDaily(config=self.config, device=self.device).run()
 
+    def chaoszero_pass(self):
+        # 通行證（阿爾基亞農補給）：任务奖励 + 等级奖励。
+        # 文件名不能用 pass.py：`pass` 是保留字，`from module.chaoszero.pass import`
+        # 直接 SyntaxError（交错战线也是 battle_pass.py）。
+        from module.chaoszero.battle_pass import ChaoszeroPass
+        ChaoszeroPass(config=self.config, device=self.device).run()
+
     def chaoszero_redeem(self):
         # 兑换码：从 GameKee 抓，新的在游戏里兑掉（不按服务器过滤）。
         from module.chaoszero.redeem import ChaoszeroRedeem

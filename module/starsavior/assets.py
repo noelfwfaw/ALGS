@@ -17,20 +17,20 @@ E_204_1 = Button(area={'starsavior': (652, 274, 820, 305)}, color={'starsavior':
 E_204_2 = Button(area={'starsavior': (672, 476, 735, 505)}, color={'starsavior': (223, 223, 221)}, button={'starsavior': (664, 468, 743, 513)}, file={'starsavior': './assets/starsavior/starsavior/E_204_2.png'})
 
 # E_205_1 = 主界面系统菜单里的「设定」齿轮（菜单列最下面那个）。
-# 素材是用户 2026-11-07 14:18 重新导出的 `设置.png`（整屏只留局部），
+# 素材是用户 2026-11-07 14:18 重新导出的 `E_205_1.png`（整屏只留局部），
 # 离线量过：图标 **x 1190~1215 / y 518~545，中心 (1202, 531)**。
 # ❗`button` 就是围绕这个中心取的 —— 用户原话「所有的点击都要在中间」，
 #   以前写死 (1220, 536) 偏右 18px，正好落在齿轮右边的空白上，
 #   点完页面纹丝不动，重置整轮失败（真机 14:17）。
-E_205_1 = Button(area={'starsavior': (1190, 518, 1215, 545)}, color={'starsavior': (156, 158, 163)}, button={'starsavior': (1188, 517, 1216, 545)}, file={'starsavior': './assets/starsavior/starsavior/设置.png'})
+E_205_1 = Button(area={'starsavior': (1190, 518, 1215, 545)}, color={'starsavior': (156, 158, 163)}, button={'starsavior': (1188, 517, 1216, 545)}, file={'starsavior': './assets/starsavior/starsavior/E_205_1.png'})
 
 # E_206_1 / E_206_2 = 启动时偶发的「错误通知：发生错误。
 # (6 NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND)」弹窗（用户 2026-11-07 15:00 导出的
-# `开始游戏异常.png`）。判据取弹窗正文那两行字（area 595~673 / 330~356），
+# `E_206_1.png`）。判据取弹窗正文那两行字（area 595~673 / 330~356），
 # 按钮是下面那颗蓝色「确认」（area 617~667 / 454~481，中心 642,467）。
 # ❗真机实测：工具页点 Start 有概率弹一次，**点掉「确认」之后就能正常登录**。
-E_206_1 = Button(area={'starsavior': (595, 330, 673, 356)}, color={'starsavior': (203, 203, 203)}, button={'starsavior': (595, 330, 673, 356)}, file={'starsavior': './assets/starsavior/starsavior/开始游戏异常.png'})
-E_206_2 = Button(area={'starsavior': (617, 454, 667, 481)}, color={'starsavior': (86, 152, 223)}, button={'starsavior': (617, 454, 667, 481)}, file={'starsavior': './assets/starsavior/starsavior/开始游戏异常确认.BUTTON.png'})
+E_206_1 = Button(area={'starsavior': (595, 330, 673, 356)}, color={'starsavior': (203, 203, 203)}, button={'starsavior': (595, 330, 673, 356)}, file={'starsavior': './assets/starsavior/starsavior/E_206_1.png'})
+E_206_2 = Button(area={'starsavior': (617, 454, 667, 481)}, color={'starsavior': (86, 152, 223)}, button={'starsavior': (617, 454, 667, 481)}, file={'starsavior': './assets/starsavior/starsavior/E_206_2.png'})
 # 「通知」弹窗左上角那行标题（图标 + 「通知」两字）。掉线提示「与服务器联机中断。」
 # 用的就是它，重置完回标题页时弹一次。区域 (330,230)-(416,262) 取自真机
 # 2026-11-09 04:5x 的帧，整块落在弹窗白底上，不带弹窗边沿和下面那条虚线。

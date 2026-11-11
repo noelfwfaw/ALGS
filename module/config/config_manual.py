@@ -66,7 +66,7 @@ class ManualConfig:
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
-    > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroRedeem > ChaoszeroMain
+    > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroPass > ChaoszeroRedeem > ChaoszeroMain
     > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreExercise > CrosscoreBase > CrosscoreTask > CrosscorePass
     > TrickcalLogin
     """

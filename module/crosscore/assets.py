@@ -67,21 +67,21 @@ ORDER_SOLD = Button(area={'crosscore': (569, 207, 696, 242)}, color={'crosscore'
 # （`utils.gold_pixels()`：亮 1500~1991 px，暗 0 px）。
 
 # 大厅右上角的信封。area 是用户框的图标本体，点中心 (1072, 43)。
-MAIN_MAIL = Button(area={'crosscore': (1052, 26, 1092, 61)}, color={'crosscore': (140, 140, 145)}, button={'crosscore': (1052, 26, 1092, 61)}, file={'crosscore': './assets/crosscore/crosscore/邮箱图标.png'})
+MAIN_MAIL = Button(area={'crosscore': (1052, 26, 1092, 61)}, color={'crosscore': (140, 140, 145)}, button={'crosscore': (1052, 26, 1092, 61)}, file={'crosscore': './assets/crosscore/crosscore/MAIN_MAIL.png'})
 # 底栏「任务」页签的图标本体（文字在它下面），点中心 (712, 646)。
-MAIN_TASK = Button(area={'crosscore': (698, 632, 726, 660)}, color={'crosscore': (220, 220, 225)}, button={'crosscore': (698, 632, 726, 660)}, file={'crosscore': './assets/crosscore/crosscore/任务图标.png'})
+MAIN_TASK = Button(area={'crosscore': (698, 632, 726, 660)}, color={'crosscore': (220, 220, 225)}, button={'crosscore': (698, 632, 726, 660)}, file={'crosscore': './assets/crosscore/crosscore/MAIN_TASK.png'})
 
 # 邮箱页左下角的「一键领取」。亮色是金黄底（1502 个金色像素），暗色是同一块
 # 按钮压暗（0 个）；area 取按钮文字带，点击点 (304, 637) 落在按钮中间。
-MAIL_CLAIM = Button(area={'crosscore': (250, 622, 358, 653)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (250, 622, 358, 653)}, file={'crosscore': './assets/crosscore/crosscore/一键领取.png'})
-MAIL_CLAIM_DIM = Button(area={'crosscore': (231, 615, 380, 661)}, color={'crosscore': (66, 56, 41)}, button={'crosscore': (231, 615, 380, 661)}, file={'crosscore': './assets/crosscore/crosscore/没有可领取邮件.png'})
+MAIL_CLAIM = Button(area={'crosscore': (250, 622, 358, 653)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (250, 622, 358, 653)}, file={'crosscore': './assets/crosscore/crosscore/MAIL_CLAIM.png'})
+MAIL_CLAIM_DIM = Button(area={'crosscore': (231, 615, 380, 661)}, color={'crosscore': (66, 56, 41)}, button={'crosscore': (231, 615, 380, 661)}, file={'crosscore': './assets/crosscore/crosscore/MAIL_CLAIM_DIM.png'})
 
 # 任务页右上角的「一键领取」，日常与周常**共用这一个位置**，只有亮/暗不同。
-TASK_CLAIM = Button(area={'crosscore': (1091, 86, 1202, 121)}, color={'crosscore': (255, 186, 49)}, button={'crosscore': (1091, 86, 1202, 121)}, file={'crosscore': './assets/crosscore/crosscore/任务一键领取.png'})
-TASK_CLAIM_DIM = Button(area={'crosscore': (1074, 79, 1226, 132)}, color={'crosscore': (82, 65, 33)}, button={'crosscore': (1074, 79, 1226, 132)}, file={'crosscore': './assets/crosscore/crosscore/没有任务可领取.png'})
+TASK_CLAIM = Button(area={'crosscore': (1091, 86, 1202, 121)}, color={'crosscore': (255, 186, 49)}, button={'crosscore': (1091, 86, 1202, 121)}, file={'crosscore': './assets/crosscore/crosscore/TASK_CLAIM.png'})
+TASK_CLAIM_DIM = Button(area={'crosscore': (1074, 79, 1226, 132)}, color={'crosscore': (82, 65, 33)}, button={'crosscore': (1074, 79, 1226, 132)}, file={'crosscore': './assets/crosscore/crosscore/TASK_CLAIM_DIM.png'})
 
 # 左侧「周常」页签（未选中态导出，选中时外面多一圈金色括号，匹配 0.874 仍可点击）。
-TASK_TAB_WEEK = Button(area={'crosscore': (21, 304, 112, 352)}, color={'crosscore': (180, 180, 180)}, button={'crosscore': (21, 304, 112, 352)}, file={'crosscore': './assets/crosscore/crosscore/周常任务.png'})
+TASK_TAB_WEEK = Button(area={'crosscore': (21, 304, 112, 352)}, color={'crosscore': (180, 180, 180)}, button={'crosscore': (21, 304, 112, 352)}, file={'crosscore': './assets/crosscore/crosscore/TASK_TAB_WEEK.png'})
 # 「日常」页签没有导出素材：它只用来点，选中与否由 `DAILY_TAB_AREA` 的金色像素判断，
 # 所以是纯坐标条目 —— ❗没有 file，**永远不能进 `appear()` 家族**。
 TASK_TAB_DAILY = Button(area={'crosscore': (12, 222, 160, 280)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (12, 222, 160, 280)}, name='TASK_TAB_DAILY')
@@ -93,18 +93,18 @@ TASK_TAB_DAILY = Button(area={'crosscore': (12, 222, 160, 280)}, color={'crossco
 # 一定要先把奖励弹窗处理掉。
 
 # 大厅左侧竖排的「勘探指南」图标本体。红色感叹号画在它右上方，不在 area 内。
-PASS_ENTRY = Button(area={'crosscore': (34, 133, 58, 156)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (34, 133, 58, 156)}, file={'crosscore': './assets/crosscore/crosscore/通行证.png'})
+PASS_ENTRY = Button(area={'crosscore': (34, 133, 58, 156)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (34, 133, 58, 156)}, file={'crosscore': './assets/crosscore/crosscore/PASS_ENTRY.png'})
 # 通行证页右上角的「任务」按钮：弹窗打开时被盖住，所以同时是「本页」与「弹窗没开」的判据。
-PASS_TASK = Button(area={'crosscore': (948, 297, 1062, 337)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (948, 297, 1062, 337)}, file={'crosscore': './assets/crosscore/crosscore/通行证任务.png'})
+PASS_TASK = Button(area={'crosscore': (948, 297, 1062, 337)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (948, 297, 1062, 337)}, file={'crosscore': './assets/crosscore/crosscore/PASS_TASK.png'})
 # 同一排的「全部领取」：领完所有等级奖励后整个按钮消失。
-PASS_CLAIM_ALL = Button(area={'crosscore': (1108, 299, 1242, 334)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (1108, 299, 1242, 334)}, file={'crosscore': './assets/crosscore/crosscore/全部领取.png'})
+PASS_CLAIM_ALL = Button(area={'crosscore': (1108, 299, 1242, 334)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (1108, 299, 1242, 334)}, file={'crosscore': './assets/crosscore/crosscore/PASS_CLAIM_ALL.png'})
 # 「勘探任务」弹窗里每行任务右侧的「领取奖励」。每领一个，下一个可领的顶上来，领完的
 # 那一行从列表消失（不留暗色按钮），所以匹配/点击都用 offset 覆盖整列。
-PASS_CLAIM = Button(area={'crosscore': (917, 196, 1042, 231)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (917, 196, 1042, 231)}, file={'crosscore': './assets/crosscore/crosscore/领取奖励.png'})
+PASS_CLAIM = Button(area={'crosscore': (917, 196, 1042, 231)}, color={'crosscore': (255, 186, 50)}, button={'crosscore': (917, 196, 1042, 231)}, file={'crosscore': './assets/crosscore/crosscore/PASS_CLAIM.png'})
 # 弹窗标题「勘探任务」，用来判断弹窗在不在：三个页签都画在时都命中。
-# ❗`领取奖励.png` 是导出工具做的遮罩图（只有按钮那一块有像素，其余全黑），不能拿它的
-# 其它区域当模板 —— 全黑模板的相似度恒为 1。所以标题单独裁了一张 `勘探任务弹窗.png`。
-PASS_POPUP = Button(area={'crosscore': (176, 84, 298, 116)}, color={'crosscore': (240, 240, 240)}, button={'crosscore': (176, 84, 298, 116)}, file={'crosscore': './assets/crosscore/crosscore/勘探任务弹窗.png'}, name='PASS_POPUP')
+# ❗`PASS_CLAIM.png` 是导出工具做的遮罩图（只有按钮那一块有像素，其余全黑），不能拿它的
+# 其它区域当模板 —— 全黑模板的相似度恒为 1。所以标题单独裁了一张 `PASS_POPUP.png`。
+PASS_POPUP = Button(area={'crosscore': (176, 84, 298, 116)}, color={'crosscore': (240, 240, 240)}, button={'crosscore': (176, 84, 298, 116)}, file={'crosscore': './assets/crosscore/crosscore/PASS_POPUP.png'}, name='PASS_POPUP')
 
 # 弹窗左侧三个页签：选中时文字变金色（约 1030 px），未选中 0 px，所以「当前页签」看
 # 金色像素（`utils.gold_pixels()`）。没有导出素材 → 纯坐标，**永远不能进 `appear()` 家族**。
@@ -121,31 +121,31 @@ PASS_CLOSE_TAP = Button(area={'crosscore': (56, 676, 64, 684)}, color={'crosscor
 # → 关卡详情页（底部「扫荡」）→ 扫荡面板（「开始战斗」）→ 掉落加成提示（「使用」）
 # → 扫荡完成（点右下「奖励」标题关掉结算）。
 
-EXPLORE_SORTIE = Button(area={'crosscore': (1132, 604, 1236, 653)}, color={'crosscore': (139, 141, 142)}, button={'crosscore': (1132, 604, 1236, 653)}, file={'crosscore': './assets/crosscore/crosscore/出击.png'})
-EXPLORE_DAILY = Button(area={'crosscore': (936, 339, 1043, 384)}, color={'crosscore': (70, 74, 82)}, button={'crosscore': (936, 339, 1043, 384)}, file={'crosscore': './assets/crosscore/crosscore/每日探索.png'})
-EXPLORE_CAT_RESOURCE = Button(area={'crosscore': (535, 155, 637, 243)}, color={'crosscore': (109, 126, 138)}, button={'crosscore': (535, 155, 637, 243)}, file={'crosscore': './assets/crosscore/crosscore/资源采集.png'})
-EXPLORE_CAT_CHIP = Button(area={'crosscore': (533, 332, 633, 408)}, color={'crosscore': (89, 88, 95)}, button={'crosscore': (533, 332, 633, 408)}, file={'crosscore': './assets/crosscore/crosscore/芯片嵌合.png'})
-EXPLORE_CAT_ASCEND = Button(area={'crosscore': (526, 473, 638, 575)}, color={'crosscore': (116, 113, 114)}, button={'crosscore': (526, 473, 638, 575)}, file={'crosscore': './assets/crosscore/crosscore/跃升行动.png'})
+EXPLORE_SORTIE = Button(area={'crosscore': (1132, 604, 1236, 653)}, color={'crosscore': (139, 141, 142)}, button={'crosscore': (1132, 604, 1236, 653)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SORTIE.png'})
+EXPLORE_DAILY = Button(area={'crosscore': (936, 339, 1043, 384)}, color={'crosscore': (70, 74, 82)}, button={'crosscore': (936, 339, 1043, 384)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_DAILY.png'})
+EXPLORE_CAT_RESOURCE = Button(area={'crosscore': (535, 155, 637, 243)}, color={'crosscore': (109, 126, 138)}, button={'crosscore': (535, 155, 637, 243)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_CAT_RESOURCE.png'})
+EXPLORE_CAT_CHIP = Button(area={'crosscore': (533, 332, 633, 408)}, color={'crosscore': (89, 88, 95)}, button={'crosscore': (533, 332, 633, 408)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_CAT_CHIP.png'})
+EXPLORE_CAT_ASCEND = Button(area={'crosscore': (526, 473, 638, 575)}, color={'crosscore': (116, 113, 114)}, button={'crosscore': (526, 473, 638, 575)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_CAT_ASCEND.png'})
 # 资源采集的 4 个子项在右栏的行位置（行高 96 / 间距 12）：y 140 / 244 / 356 / 463。
-EXPLORE_SUB_SKILL = Button(area={'crosscore': (855, 140, 1046, 215)}, color={'crosscore': (84, 84, 91)}, button={'crosscore': (855, 140, 1046, 215)}, file={'crosscore': './assets/crosscore/crosscore/技能磨砺.png'})
-EXPLORE_SUB_COIN = Button(area={'crosscore': (854, 244, 1027, 314)}, color={'crosscore': (106, 100, 99)}, button={'crosscore': (854, 244, 1027, 314)}, file={'crosscore': './assets/crosscore/crosscore/星币开采.png'})
-EXPLORE_SUB_TECH = Button(area={'crosscore': (850, 356, 1036, 430)}, color={'crosscore': (53, 59, 69)}, button={'crosscore': (850, 356, 1036, 430)}, file={'crosscore': './assets/crosscore/crosscore/技术分析.png'})
-EXPLORE_SUB_RELIC = Button(area={'crosscore': (854, 463, 1044, 532)}, color={'crosscore': (93, 96, 108)}, button={'crosscore': (854, 463, 1044, 532)}, file={'crosscore': './assets/crosscore/crosscore/荒墟拾遗.png'})
+EXPLORE_SUB_SKILL = Button(area={'crosscore': (855, 140, 1046, 215)}, color={'crosscore': (84, 84, 91)}, button={'crosscore': (855, 140, 1046, 215)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_SKILL.png'})
+EXPLORE_SUB_COIN = Button(area={'crosscore': (854, 244, 1027, 314)}, color={'crosscore': (106, 100, 99)}, button={'crosscore': (854, 244, 1027, 314)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_COIN.png'})
+EXPLORE_SUB_TECH = Button(area={'crosscore': (850, 356, 1036, 430)}, color={'crosscore': (53, 59, 69)}, button={'crosscore': (850, 356, 1036, 430)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_TECH.png'})
+EXPLORE_SUB_RELIC = Button(area={'crosscore': (854, 463, 1044, 532)}, color={'crosscore': (93, 96, 108)}, button={'crosscore': (854, 463, 1044, 532)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_RELIC.png'})
 # 关卡详情页左下角的「扫荡」。❗未通关的层这个按钮是灰的、点了没反应。
-EXPLORE_SWEEP = Button(area={'crosscore': (869, 599, 932, 648)}, color={'crosscore': (200, 200, 203)}, button={'crosscore': (869, 599, 932, 648)}, file={'crosscore': './assets/crosscore/crosscore/扫荡.png'})
+EXPLORE_SWEEP = Button(area={'crosscore': (869, 599, 932, 648)}, color={'crosscore': (200, 200, 203)}, button={'crosscore': (869, 599, 932, 648)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SWEEP.png'})
 # 扫荡面板里的金色「开始战斗」。详情页右侧也有一个「开始战斗」，但它在 y≈587–640，
 # 和这里的 540–577 不重叠，不会互相误命中。
-EXPLORE_START = Button(area={'crosscore': (969, 540, 1063, 577)}, color={'crosscore': (177, 131, 42)}, button={'crosscore': (969, 540, 1063, 577)}, file={'crosscore': './assets/crosscore/crosscore/开始战斗.png'})
+EXPLORE_START = Button(area={'crosscore': (969, 540, 1063, 577)}, color={'crosscore': (177, 131, 42)}, button={'crosscore': (969, 540, 1063, 577)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_START.png'})
 # 「类型掉落加成剩余 N 次，是否开启？」提示框里的「使用」（金色）。左侧「不使用」不点。
-EXPLORE_CONFIRM = Button(area={'crosscore': (752, 430, 852, 470)}, color={'crosscore': (219, 167, 59)}, button={'crosscore': (752, 430, 852, 470)}, file={'crosscore': './assets/crosscore/crosscore/扫荡确认.png'})
+EXPLORE_CONFIRM = Button(area={'crosscore': (752, 430, 852, 470)}, color={'crosscore': (219, 167, 59)}, button={'crosscore': (752, 430, 852, 470)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_CONFIRM.png'})
 # 扫荡结算页右下金色的「奖励」标题：点它关掉结算框。❗不要点下面的道具图标（会开道具详情），
 # 点中间黑色区域也不会退出。
-EXPLORE_RESULT = Button(area={'crosscore': (586, 505, 652, 538)}, color={'crosscore': (180, 156, 113)}, button={'crosscore': (586, 505, 652, 538)}, file={'crosscore': './assets/crosscore/crosscore/扫荡完成.png'})
+EXPLORE_RESULT = Button(area={'crosscore': (586, 505, 652, 538)}, color={'crosscore': (180, 156, 113)}, button={'crosscore': (586, 505, 652, 538)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_RESULT.png'})
 
 # 未解锁层的挂锁图标。只用于 `utils.find_all()` 扫层列表，**不进 `appear()` 单点判定**。
-EXPLORE_LOCK = Button(area={'crosscore': (1068, 324, 1094, 352)}, color={'crosscore': (76, 78, 87)}, button={'crosscore': (1068, 324, 1094, 352)}, file={'crosscore': './assets/crosscore/crosscore/探索锁.png'}, name='EXPLORE_LOCK')
+EXPLORE_LOCK = Button(area={'crosscore': (1068, 324, 1094, 352)}, color={'crosscore': (76, 78, 87)}, button={'crosscore': (1068, 324, 1094, 352)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_LOCK.png'}, name='EXPLORE_LOCK')
 # 层列表右上角的「固定掉落」标题：选完子项才出现，扫荡页/详情页都没有（实测 1.000 → 0.381）。
-EXPLORE_DROP = Button(area={'crosscore': (1025, 90, 1120, 118)}, color={'crosscore': (16, 20, 30)}, button={'crosscore': (1025, 90, 1120, 118)}, file={'crosscore': './assets/crosscore/crosscore/探索固定掉落.png'}, name='EXPLORE_DROP')
+EXPLORE_DROP = Button(area={'crosscore': (1025, 90, 1120, 118)}, color={'crosscore': (16, 20, 30)}, button={'crosscore': (1025, 90, 1120, 118)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_DROP.png'}, name='EXPLORE_DROP')
 
 # 子项列表的行落点（右栏，行中心 y = 160 + 108 × (i-1)）。芯片 / 跃升没有导出文字素材，
 # 只能按行点；资源采集有模板，走模板。纯坐标 → **永远不能进 `appear()` 家族**。
@@ -165,7 +165,7 @@ EXPLORE_LAYER_ROW_6 = Button(area={'crosscore': (960, 574, 1040, 606)}, color={'
 
 # 燃料不足时点「开始战斗」弹出的「燃料补给」对话框标题（实测 1.000 → 其余截图 ≤0.60）。
 # 扫完当天体力后必然出现，属于正常终态，不是卡死。
-EXPLORE_NO_FUEL = Button(area={'crosscore': (200, 152, 330, 185)}, color={'crosscore': (84, 87, 91)}, button={'crosscore': (200, 152, 330, 185)}, file={'crosscore': './assets/crosscore/crosscore/燃料补给.png'}, name='EXPLORE_NO_FUEL')
+EXPLORE_NO_FUEL = Button(area={'crosscore': (200, 152, 330, 185)}, color={'crosscore': (84, 87, 91)}, button={'crosscore': (200, 152, 330, 185)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_NO_FUEL.png'}, name='EXPLORE_NO_FUEL')
 
 # 对话框外的空白角落，点一下关掉「燃料补给」。纯坐标 → **永远不能进 `appear()` 家族**。
 EXPLORE_DIALOG_OUTSIDE = Button(area={'crosscore': (1100, 620, 1220, 700)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (1100, 620, 1220, 700)}, name='EXPLORE_DIALOG_OUTSIDE')
@@ -173,36 +173,36 @@ EXPLORE_DIALOG_OUTSIDE = Button(area={'crosscore': (1100, 620, 1220, 700)}, colo
 # ==================== 模拟军演 ====================
 
 # 入口链：出击页「模拟军演」→ 模拟军演页「镜像竞技」→ 选对手页。
-EXERCISE_ENTRY = Button(area={'crosscore': (251, 335, 361, 391)}, color={'crosscore': (60, 64, 73)}, button={'crosscore': (251, 335, 361, 391)}, file={'crosscore': './assets/crosscore/crosscore/模拟军演.png'}, name='EXERCISE_ENTRY')
-EXERCISE_MIRROR = Button(area={'crosscore': (405, 397, 626, 464)}, color={'crosscore': (111, 113, 118)}, button={'crosscore': (405, 397, 626, 464)}, file={'crosscore': './assets/crosscore/crosscore/镜像竞技.png'}, name='EXERCISE_MIRROR')
+EXERCISE_ENTRY = Button(area={'crosscore': (251, 335, 361, 391)}, color={'crosscore': (60, 64, 73)}, button={'crosscore': (251, 335, 361, 391)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_ENTRY.png'}, name='EXERCISE_ENTRY')
+EXERCISE_MIRROR = Button(area={'crosscore': (405, 397, 626, 464)}, color={'crosscore': (111, 113, 118)}, button={'crosscore': (405, 397, 626, 464)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_MIRROR.png'}, name='EXERCISE_MIRROR')
 
 # 选对手页的判据：第一行「排名」小牌子。三行对手都有，但结算页的「排名:」没有这块底板，
 # 实测跨页最高 0.669。
-EXERCISE_OPPONENT = Button(area={'crosscore': (826, 146, 883, 184)}, color={'crosscore': (111, 111, 117)}, button={'crosscore': (826, 146, 883, 184)}, file={'crosscore': './assets/crosscore/crosscore/选对手.png'}, name='EXERCISE_OPPONENT')
+EXERCISE_OPPONENT = Button(area={'crosscore': (826, 146, 883, 184)}, color={'crosscore': (111, 111, 117)}, button={'crosscore': (826, 146, 883, 184)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_OPPONENT.png'}, name='EXERCISE_OPPONENT')
 
 # 选对手页左下「商店兑换」与右下「进攻部署」（后者只有坐标，由代码内 Button 承担）。
-EXERCISE_SHOP = Button(area={'crosscore': (218, 636, 377, 677)}, color={'crosscore': (201, 154, 54)}, button={'crosscore': (218, 636, 377, 677)}, file={'crosscore': './assets/crosscore/crosscore/军演商店.png'}, name='EXERCISE_SHOP')
+EXERCISE_SHOP = Button(area={'crosscore': (218, 636, 377, 677)}, color={'crosscore': (201, 154, 54)}, button={'crosscore': (218, 636, 377, 677)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_SHOP.png'}, name='EXERCISE_SHOP')
 
 # VS 页「挑战」。
-EXERCISE_CHALLENGE = Button(area={'crosscore': (762, 627, 910, 668)}, color={'crosscore': (211, 162, 59)}, button={'crosscore': (762, 627, 910, 668)}, file={'crosscore': './assets/crosscore/crosscore/挑战.png'}, name='EXERCISE_CHALLENGE')
+EXERCISE_CHALLENGE = Button(area={'crosscore': (762, 627, 910, 668)}, color={'crosscore': (211, 162, 59)}, button={'crosscore': (762, 627, 910, 668)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_CHALLENGE.png'}, name='EXERCISE_CHALLENGE')
 
 # 「战斗胜利」只在赢时匹配，用来写日志；结算页本身用标题下方的装饰线判定，
-# 输赢都有（`军演结算.png` 由 战斗胜利.png 的 y 122~140 裁出，跨页最高 0.724）。
-EXERCISE_WIN = Button(area={'crosscore': (30, 27, 390, 127)}, color={'crosscore': (98, 100, 105)}, button={'crosscore': (30, 27, 390, 127)}, file={'crosscore': './assets/crosscore/crosscore/战斗胜利.png'}, name='EXERCISE_WIN')
-EXERCISE_RESULT = Button(area={'crosscore': (35, 122, 385, 140)}, color={'crosscore': (42, 44, 51)}, button={'crosscore': (35, 122, 385, 140)}, file={'crosscore': './assets/crosscore/crosscore/军演结算.png'}, name='EXERCISE_RESULT')
+# 输赢都有（`EXERCISE_RESULT.png` 由 EXERCISE_WIN.png 的 y 122~140 裁出，跨页最高 0.724）。
+EXERCISE_WIN = Button(area={'crosscore': (30, 27, 390, 127)}, color={'crosscore': (98, 100, 105)}, button={'crosscore': (30, 27, 390, 127)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_WIN.png'}, name='EXERCISE_WIN')
+EXERCISE_RESULT = Button(area={'crosscore': (35, 122, 385, 140)}, color={'crosscore': (42, 44, 51)}, button={'crosscore': (35, 122, 385, 140)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_RESULT.png'}, name='EXERCISE_RESULT')
 
 # 商店：购买对话框里的「购买」与「最大」，两种对话框的购买按钮位置相同。
-EXERCISE_BUY = Button(area={'crosscore': (789, 520, 935, 557)}, color={'crosscore': (222, 176, 66)}, button={'crosscore': (789, 520, 935, 557)}, file={'crosscore': './assets/crosscore/crosscore/道具购买.png'}, name='EXERCISE_BUY')
-EXERCISE_BUY_QTY = Button(area={'crosscore': (790, 521, 915, 557)}, color={'crosscore': (215, 171, 63)}, button={'crosscore': (790, 521, 915, 557)}, file={'crosscore': './assets/crosscore/crosscore/道具购买（有数量）.png'}, name='EXERCISE_BUY_QTY')
-EXERCISE_MAX = Button(area={'crosscore': (978, 412, 1028, 443)}, color={'crosscore': (211, 163, 59)}, button={'crosscore': (978, 412, 1028, 443)}, file={'crosscore': './assets/crosscore/crosscore/最大数量.png'}, name='EXERCISE_MAX')
+EXERCISE_BUY = Button(area={'crosscore': (789, 520, 935, 557)}, color={'crosscore': (222, 176, 66)}, button={'crosscore': (789, 520, 935, 557)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_BUY.png'}, name='EXERCISE_BUY')
+EXERCISE_BUY_QTY = Button(area={'crosscore': (790, 521, 915, 557)}, color={'crosscore': (215, 171, 63)}, button={'crosscore': (790, 521, 915, 557)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_BUY_QTY.png'}, name='EXERCISE_BUY_QTY')
+EXERCISE_MAX = Button(area={'crosscore': (978, 412, 1028, 443)}, color={'crosscore': (211, 163, 59)}, button={'crosscore': (978, 412, 1028, 443)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_MAX.png'}, name='EXERCISE_MAX')
 
 # 商店页判据：左上「演习」标题（对话框里也会匹配，所以购买分支要先于它判断）。
-EXERCISE_SHOP_PAGE = Button(area={'crosscore': (60, 110, 130, 150)}, color={'crosscore': (46, 49, 46)}, button={'crosscore': (60, 110, 130, 150)}, file={'crosscore': './assets/crosscore/crosscore/军演商店页.png'}, name='EXERCISE_SHOP_PAGE')
+EXERCISE_SHOP_PAGE = Button(area={'crosscore': (60, 110, 130, 150)}, color={'crosscore': (46, 49, 46)}, button={'crosscore': (60, 110, 130, 150)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_SHOP_PAGE.png'}, name='EXERCISE_SHOP_PAGE')
 
 # 星币 / 技术点两张商品卡：买完的商品会变暗排到队尾，所以一直点左上第一格，
 # 直到第一格里出现这两个图标（只在这两张卡上出现，纯图标匹配，不入 `appear()`）。
-EXERCISE_COIN_ITEM = Button(area={'crosscore': (1155, 205, 1275, 290)}, color={'crosscore': (81, 91, 106)}, button={'crosscore': (1155, 205, 1275, 290)}, file={'crosscore': './assets/crosscore/crosscore/星币商品.png'}, name='EXERCISE_COIN_ITEM')
-EXERCISE_TECH_ITEM = Button(area={'crosscore': (1155, 435, 1275, 515)}, color={'crosscore': (51, 66, 64)}, button={'crosscore': (1155, 435, 1275, 515)}, file={'crosscore': './assets/crosscore/crosscore/技术点商品.png'}, name='EXERCISE_TECH_ITEM')
+EXERCISE_COIN_ITEM = Button(area={'crosscore': (1155, 205, 1275, 290)}, color={'crosscore': (81, 91, 106)}, button={'crosscore': (1155, 205, 1275, 290)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_COIN_ITEM.png'}, name='EXERCISE_COIN_ITEM')
+EXERCISE_TECH_ITEM = Button(area={'crosscore': (1155, 435, 1275, 515)}, color={'crosscore': (51, 66, 64)}, button={'crosscore': (1155, 435, 1275, 515)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_TECH_ITEM.png'}, name='EXERCISE_TECH_ITEM')
 
 # 纯坐标点击：第一行对手、商店左上第一格、结算页空白。
 # 这些 Button 只进 `device.click()`，**永远不能进 `appear()` 家族**。
@@ -213,19 +213,19 @@ EXERCISE_RESULT_CLICK = Button(area={'crosscore': (560, 650, 720, 710)}, color={
 # ==================== 兑换码 ====================
 
 # 大厅右上角的菜单图标（三条横线）。点它拉出右侧菜单。
-COUPON_MENU = Button(area={'crosscore': (1203, 28, 1235, 58)}, color={'crosscore': (104, 105, 113)}, button={'crosscore': (1203, 28, 1235, 58)}, file={'crosscore': './assets/crosscore/crosscore/点开菜单.png'}, name='COUPON_MENU')
+COUPON_MENU = Button(area={'crosscore': (1203, 28, 1235, 58)}, color={'crosscore': (104, 105, 113)}, button={'crosscore': (1203, 28, 1235, 58)}, file={'crosscore': './assets/crosscore/crosscore/COUPON_MENU.png'}, name='COUPON_MENU')
 # 菜单右侧竖排的「设置」齿轮。
-COUPON_SETTINGS = Button(area={'crosscore': (1185, 336, 1231, 385)}, color={'crosscore': (86, 88, 94)}, button={'crosscore': (1185, 336, 1231, 385)}, file={'crosscore': './assets/crosscore/crosscore/点开设置.png'}, name='COUPON_SETTINGS')
+COUPON_SETTINGS = Button(area={'crosscore': (1185, 336, 1231, 385)}, color={'crosscore': (86, 88, 94)}, button={'crosscore': (1185, 336, 1231, 385)}, file={'crosscore': './assets/crosscore/crosscore/COUPON_SETTINGS.png'}, name='COUPON_SETTINGS')
 # 设置页左侧最下面的「补给兑换」。
-COUPON_ENTRY = Button(area={'crosscore': (20, 523, 155, 567)}, color={'crosscore': (36, 38, 38)}, button={'crosscore': (20, 523, 155, 567)}, file={'crosscore': './assets/crosscore/crosscore/点击补给兑换.png'}, name='COUPON_ENTRY')
+COUPON_ENTRY = Button(area={'crosscore': (20, 523, 155, 567)}, color={'crosscore': (36, 38, 38)}, button={'crosscore': (20, 523, 155, 567)}, file={'crosscore': './assets/crosscore/crosscore/COUPON_ENTRY.png'}, name='COUPON_ENTRY')
 # 兑换中心页标题。既是页面判据，也是点输入框 / 提交之前的守卫。
-COUPON_TITLE = Button(area={'crosscore': (266, 150, 358, 181)}, color={'crosscore': (74, 76, 79)}, button={'crosscore': (266, 150, 358, 181)}, file={'crosscore': './assets/crosscore/crosscore/兑换中心.png'}, name='COUPON_TITLE')
+COUPON_TITLE = Button(area={'crosscore': (266, 150, 358, 181)}, color={'crosscore': (74, 76, 79)}, button={'crosscore': (266, 150, 358, 181)}, file={'crosscore': './assets/crosscore/crosscore/COUPON_TITLE.png'}, name='COUPON_TITLE')
 # 兑换码输入框。纯坐标 → **永远不能进 `appear()` 家族**，只在 `COUPON_TITLE` 命中后点击。
 COUPON_INPUT = Button(area={'crosscore': (628, 384, 727, 418)}, color={'crosscore': (20, 24, 30)}, button={'crosscore': (628, 384, 727, 418)}, name='COUPON_INPUT')
 # 输入框下方的对勾。灰态和橙态的**结构一样**（模板匹配对两者都是 0.99），所以
 # 不能用 `appear()` 判断有没有点亮：脚本先 `appear()` 定位，再用 `image_color_count`
 # 数金色像素（灰态 0、橙态 3465）确认码已经输入、可以提交。
-COUPON_SUBMIT = Button(area={'crosscore': (667, 471, 793, 501)}, color={'crosscore': (242, 184, 63)}, button={'crosscore': (667, 471, 793, 501)}, file={'crosscore': './assets/crosscore/crosscore/兑换按钮.png'}, name='COUPON_SUBMIT')
+COUPON_SUBMIT = Button(area={'crosscore': (667, 471, 793, 501)}, color={'crosscore': (242, 184, 63)}, button={'crosscore': (667, 471, 793, 501)}, file={'crosscore': './assets/crosscore/crosscore/COUPON_SUBMIT.png'}, name='COUPON_SUBMIT')
 # 游戏自绘输入条右端的「确定」。纯坐标，只在输入条亮度判据成立后点击。
 COUPON_KEYBOARD_OK = Button(area={'crosscore': (1156, 650, 1226, 700)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (1156, 650, 1226, 700)}, name='COUPON_KEYBOARD_OK')
 # 右侧菜单面板打开时，点面板外的场景区域即可收起（2026-11-09 实测）。面板盖住了

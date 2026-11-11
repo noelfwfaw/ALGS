@@ -39,8 +39,8 @@ from module.base.button import Button
 from module.base.timer import Timer
 from module.chaoszero.assets import (ANNOUNCE_CLOSE, ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
                                      BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
-                                     PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, SIM_PAGE,
-                                     TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
+                                     PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, REWARD_HINT,
+                                     SIM_PAGE, TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
 from module.chaoszero.maintenance import Maintenance
 from module.chaoszero.page import page_main
 from module.exception import GameStuckError
@@ -73,6 +73,11 @@ CHAOSZERO_HP_GREEN = 500
 # "什么都不认识"时隔多久点一下画面。闲置立绘只认得出"没有 UI"，没有正面判据，
 # 所以这个节流就是它的处理方式；8 秒足够让游戏的转场动画先走完。
 CHAOSZERO_TAP_INTERVAL = 8
+
+# 领取按钮「有东西可领」的统一判据：像素饱和（max(R,G,B) - min(R,G,B)）超过这个值
+# 算"彩色"。客户端把可领按钮画成主题色（橙），领完变灰白 —— 数彩色占比在任何
+# 主题下都成立，数某个色相则会在换皮那天失效（硬约束 195）。
+CHAOSZERO_CLAIM_SATURATION = 60
 
 class ChaoszeroUI(Maintenance, UI):
     """
@@ -134,6 +139,18 @@ class ChaoszeroUI(Maintenance, UI):
         """
         return self.ui_green_count(CHAOSZERO_HP_BAR) > CHAOSZERO_HP_GREEN
 
+    def reward_appear(self):
+        """
+        Whether the generic 「獲得道具」 window is on screen.
+
+        當日行程、信箱、通行證 三个面板领完东西都弹这同一个窗，所以这里只认一次
+        （实测真窗口 0.993，其它画面 ≤0.51）。硬约束 185：全局模态弹窗上提 UI 基类。
+
+        Returns:
+            bool: True if the reward window is up.
+        """
+        return bool(self.appear(REWARD_HINT, offset=(20, 20)))
+
     def ui_gold_count(self, area):
         """
         Count the pixels of an area that are clearly the auto-battle gold.
@@ -155,6 +172,32 @@ class ChaoszeroUI(Maintenance, UI):
         image = self.image_crop(area)
         r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
         return int(np.count_nonzero((r > 180) & (g > 110) & (g < 230) & (b < 170)))
+
+    def ui_colored_ratio(self, area, threshold=CHAOSZERO_CLAIM_SATURATION):
+        """
+        Ratio of the pixels of an area that are clearly coloured.
+
+        This is the state judge of every 「全部領取」 / claim button in this game:
+        painted in the accent colour while there is something to hand out, and
+        grey-white once it is done. Counting the saturation instead of one hue
+        keeps it alive when the client restyles itself (硬约束 195) - the
+        當日行程 button did change theme once already.
+
+        Measured (1280x720, RGB, `astype(int)` first): 當日行程 全部領取 68.9%
+        while claimable and 0.0% once claimed; the 通行證 pill's arrow 27.5% vs
+        0.0%; a task row's round button 49.5% vs 0.0%.
+
+        Args:
+            area (tuple): x1, y1, x2, y2.
+            threshold (int): max - min above which a pixel counts as coloured.
+
+        Returns:
+            float: 0.0 - 1.0.
+        """
+        # ❗先 astype(int)：uint8 相减会回绕，任意颜色都能被算成彩色。
+        image = self.image_crop(area).astype(int)
+        delta = image.max(axis=2) - image.min(axis=2)
+        return float(np.count_nonzero(delta > threshold)) / delta.size
 
     def app_start(self):
         """

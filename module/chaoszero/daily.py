@@ -22,11 +22,9 @@
 所以调度排在它们后面。
 """
 
-import numpy as np
-
 from module.base.timer import Timer
 from module.chaoszero.assets import (DAILY_CLAIM, DAILY_MENU_ITEM, DAILY_TITLE,
-                                     LOBBY_ARK, MAIL_CLAIM, MAIL_TITLE, REWARD_HINT)
+                                     LOBBY_ARK, MAIL_CLAIM, MAIL_TITLE)
 from module.chaoszero.chaoszero_ui import CHAOSZERO_TAP_CENTRE, ChaoszeroUI
 from module.chaoszero.page import page_main
 from module.logger import logger
@@ -51,11 +49,10 @@ MAIL_CLOSE = (1202, 67)
 DAILY_CLAIM_AREA = (140, 570, 345, 636)
 MAIL_CLAIM_AREA = (51, 626, 309, 678)
 
-# 「有得领」= 按钮是**彩色**的。判据数饱和像素（max(R,G,B) - min(R,G,B) > 60），
-# 不认色相：橙色主题、蓝色主题、绿色主题都成立，领完变灰白时直接归零。
+# 「有得领」= 按钮是**彩色**的。占比由 `ChaoszeroUI.ui_colored_ratio()` 算
+# （饱和像素 max-min > 60 的占比，不认色相），这里只是这两枚按钮的阈值。
 # 实测（1280x720，astype(int) 之后算）：當日行程 有得领 68.9% / 领完 0.0%；
 #                                       信箱     有得领 91.1% / 领完 0.0%。
-CLAIM_SATURATION = 60
 CLAIM_COLORED = 0.35
 
 # 按钮在不在，用**亮度**模板判（`match_luma`）：同一颗胶囊有彩色/灰白两态，
@@ -84,10 +81,6 @@ class ChaoszeroDaily(ChaoszeroUI):
         """Returns: bool: 右上角的菜单面板开着。"""
         return bool(self.appear(DAILY_MENU_ITEM, offset=(20, 20)))
 
-    def reward_appear(self):
-        """Returns: bool: 「獲得道具」那个奖励窗开着。"""
-        return bool(self.appear(REWARD_HINT, offset=(20, 20)))
-
     def ui_claimable(self, area):
         """
         Whether a 全部領取 button still has something to hand out.
@@ -96,7 +89,8 @@ class ChaoszeroDaily(ChaoszeroUI):
         rewards to hand out, and in plain grey once the day is done. Counting
         the saturation instead of one specific hue keeps the check alive when
         the client restyles itself - the layout did change on 2026-11-11, and
-        the colour is no safer a bet than the coordinates.
+        the colour is no safer a bet than the coordinates. The ratio itself
+        lives in `ChaoszeroUI.ui_colored_ratio()`, this is just the threshold.
 
         Args:
             area (tuple): x1, y1, x2, y2 of the button.
@@ -104,11 +98,7 @@ class ChaoszeroDaily(ChaoszeroUI):
         Returns:
             bool: If the button is coloured (= claimable).
         """
-        # ❗通道相减之前必须 astype(int)：uint8 回绕会把任意颜色都算成彩色。
-        image = self.image_crop(area).astype(int)
-        saturation = image.max(axis=2) - image.min(axis=2)
-        colored = np.count_nonzero(saturation > CLAIM_SATURATION)
-        return bool(colored > CLAIM_COLORED * saturation.size)
+        return bool(self.ui_colored_ratio(area) > CLAIM_COLORED)
 
     # ---------------------------------------------------------------- 通用
 
@@ -201,15 +191,40 @@ class ChaoszeroDaily(ChaoszeroUI):
         """
         timeout = Timer(timeout, count=3).start()
         retry = Timer(2, count=2)
+        # 面板关掉到大厅画出来这段最多等 3 秒。等不到就交给 `ui_quit_to_main()`：
+        # 关掉「作戰」之后大厅有可能直接停在**闲置立绘**（UI 全收起来），
+        # 那会儿 page_main 一直不成立，在这里空转只会白白卡满 30 秒
+        # （2026-11-11 20:43 真机：32.6 关掉面板 → 44:00 才超时，中间啥也没做）。
+        # ❗不要给 `gone` 加 `count`：带 count 的 `reached()` 第一次就返回 True，
+        # 面板一消失就会立刻跳出，那会儿大厅还在淡入（实测 1.0 秒后才能匹配）。
+        gone = Timer(3)
+        # 收菜单也节流 1 秒：菜单淡出的那两帧还在匹配，连点两下会把菜单又打开。
+        close_menu = Timer(1, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.ui_page_appear(page_main):
                 return True
+            if not still_open():
+                # 这两个面板都是从 ≡ 菜单里点开的，关掉以后底下**还是那个菜单**：
+                # 菜单盖住 MAIN_MENU_STORY（故事）和 LOBBY_ARK（方舟都市）两块，
+                # 不收掉它就一直不是大厅。再点一次 ≡ 收掉菜单。
+                if self.appear(DAILY_MENU_ITEM, offset=(20, 20)):
+                    if close_menu.reached():
+                        close_menu.reset()
+                        logger.info('Back to the menu, close it')
+                        self.device.click_record_clear()
+                        self.tap_point(*MENU_BTN)
+                    continue
+                if not gone.started():
+                    gone.start()
+                if gone.reached():
+                    break
+                continue
+            gone.clear()
             if retry.reached():
                 retry.reset()
-                if still_open():
-                    self.device.click_record_clear()
-                    self.tap_point(*close_point)
+                self.device.click_record_clear()
+                self.tap_point(*close_point)
         else:
             logger.warning('The panel did not close')
 
@@ -235,7 +250,15 @@ class ChaoszeroDaily(ChaoszeroUI):
             bool: If the panel is open.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(3, count=2)
+        # 每个键各用 1 秒节流，别共用一个：共用一个 3 秒节流时，点完 ≡ 要等满
+        # 3 秒才轮到点「日常任務」，点完菜单项又要等 3 秒才切页签
+        # （通行证那边是 6 秒的同一个坑，2026-11-11 实测 5.9 秒）。
+        menu = Timer(1, count=2)
+        item = Timer(2, count=2)
+        tab = Timer(1, count=2)
+        # 点完菜单项到「作戰」总览画出来这一段（约 1 秒）两个判据都不成立，
+        # 给 2 秒缓冲再切页签，免得在加载中的页面上乱按。
+        loading = Timer(2, count=1)
         # 「日常任務」打开的是「作戰」总览，标签会停在上次看的那一页，
         # 所以点完菜单还要再点一次左侧的「當日行程」。
         opened = False
@@ -244,23 +267,44 @@ class ChaoszeroDaily(ChaoszeroUI):
             if self.daily_appear():
                 logger.info('當日行程 is open')
                 return True
-            if not retry.reached():
-                continue
-            retry.reset()
-            self.device.click_record_clear()
 
             if self.appear(DAILY_MENU_ITEM, offset=(20, 20)):
-                logger.info('Menu, open 日常任務')
-                self.device.click(DAILY_MENU_ITEM)
                 opened = True
-            elif self.appear(LOBBY_ARK, offset=(20, 20)):
+                if item.reached():
+                    item.reset()
+                    loading.reset()
+                    # 菜单还在淡入时点会被吞掉（通行证那边实测点完 4 秒仍停在菜单上），
+                    # 等它静止再点，一次就中。
+                    self.wait_until_still(DAILY_MENU_ITEM.area, timeout=2)
+                    self.device.click_record_clear()
+                    logger.info('Menu, open 日常任務')
+                    self.device.click(DAILY_MENU_ITEM)
+                continue
+
+            if self.appear(LOBBY_ARK, offset=(20, 20)):
                 opened = False
-                logger.info('Lobby, open the top-right menu')
-                self.tap_point(*MENU_BTN)
-            elif opened:
-                logger.info('作戰 hub, switch to 當日行程')
-                self.tap_point(*DAILY_TAB)
-            else:
+                if menu.reached():
+                    menu.reset()
+                    self.device.click_record_clear()
+                    logger.info('Lobby, open the top-right menu')
+                    self.tap_point(*MENU_BTN)
+                continue
+
+            # 点过「日常任務」了：等「作戰」总览画出来，然后切页签。
+            # ❗这段**不能**掉进下面那个"闲置立绘"分支：在加载中的页面上点 ≡ 会把
+            # 菜单打开，而菜单正好盖住 LOBBY_ARK 那条判据，后面 panel_quit 就再也
+            # 认不出大厅，空转 30 秒（2026-11-11 20:41 真机就是这么卡住的）。
+            if opened:
+                if loading.reached() and tab.reached():
+                    tab.reset()
+                    self.device.click_record_clear()
+                    logger.info('作戰 hub, switch to 當日行程')
+                    self.tap_point(*DAILY_TAB)
+                continue
+
+            if menu.reached():
+                menu.reset()
+                self.device.click_record_clear()
                 logger.info('Lobby is idle, tap to wake it up')
                 self.tap_point(*MENU_BTN)
         else:
@@ -335,21 +379,31 @@ class ChaoszeroDaily(ChaoszeroUI):
             bool: If the mailbox is open.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(3, count=2)
+        # 同 daily_open()：≡ 和信封各一个 1 秒节流，别共用一个 3 秒的。
+        menu = Timer(1, count=2)
+        envelope = Timer(2, count=2)
+        # 点完信封到信箱滑进来约两三秒，这期间两个判据都不成立，别回头去点 ≡。
+        loading = Timer(6, count=1)
 
         for _ in self.loop(timeout=timeout):
             if self.mail_appear():
                 logger.info('信箱 is open')
                 return True
-            if not retry.reached():
-                continue
-            retry.reset()
-            self.device.click_record_clear()
 
             if self.appear(DAILY_MENU_ITEM, offset=(20, 20)):
-                logger.info('Menu, open 信箱')
-                self.tap_point(*MAIL_BTN)
-            else:
+                if envelope.reached():
+                    envelope.reset()
+                    loading.reset()
+                    # 同 daily_open()：菜单淡入时的点击会被吞掉。
+                    self.wait_until_still(DAILY_MENU_ITEM.area, timeout=2)
+                    self.device.click_record_clear()
+                    logger.info('Menu, open 信箱')
+                    self.tap_point(*MAIL_BTN)
+                continue
+
+            if loading.reached() and menu.reached():
+                menu.reset()
+                self.device.click_record_clear()
                 logger.info('Lobby, open the top-right menu')
                 self.tap_point(*MENU_BTN)
         else:
