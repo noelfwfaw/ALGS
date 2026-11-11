@@ -19,19 +19,19 @@ LANGS = ('zh-CN', 'zh-TW', 'en-US', 'ja-JP')
 MENU = {
     'zh-CN': {
         'name': '嘟嘟脸恶作剧',
-        'help': '嘟嘟脸恶作剧的登录与签到（国服客户端，装在第二个模拟器实例）',
+        'help': '嘟嘟脸恶作剧的登录与签到',
     },
     'zh-TW': {
         'name': '嘟嘟臉惡作劇',
-        'help': '嘟嘟臉惡作劇的登入與簽到（國服客戶端，裝在第二個模擬器實例）',
+        'help': '嘟嘟臉惡作劇的登入與簽到',
     },
     'en-US': {
         'name': 'Trickcal',
-        'help': 'Trickcal login and daily sign-in (CN client, on the second emulator instance)',
+        'help': 'Trickcal login and daily sign-in',
     },
     'ja-JP': {
         'name': 'Trickcal',
-        'help': 'Trickcal のログインとデイリーサインイン（中国版、2 番目のエミュレータ）',
+        'help': 'Trickcal のログインとデイリーサインイン',
     },
 }
 
@@ -39,25 +39,25 @@ TASKS = {
     'TrickcalLogin': {
         'zh-CN': {
             'name': '嘟嘟登录',
-            'help': '从标题屏开始登录，领取当天签到奖励、关闭获得奖励弹窗与公告，最后停在主界面。'
+            'help': '启动客户端并走完标题屏与登录，领取当天签到奖励、关闭获得奖励弹窗与公告，最后停在主界面。'
                     '正常不会经过回归活动；回归活动面板弹出时只把它关掉，不领取回归奖励。每天日更后跑一次。',
         },
         'zh-TW': {
             'name': '嘟嘟登入',
-            'help': '從標題畫面開始登入，領取當日簽到獎勵、關閉獲得獎勵彈窗與公告，最後停在主畫面。'
+            'help': '啟動客戶端並走完標題畫面與登入，領取當日簽到獎勵、關閉獲得獎勵彈窗與公告，最後停在主畫面。'
                     '正常不會經過回歸活動；回歸活動面板彈出時只把它關掉，不領取回歸獎勵。每天日更後跑一次。',
         },
         'en-US': {
             'name': 'Trickcal Login',
-            'help': 'Start from the title screen, claim the daily sign-in reward, dismiss the reward '
-                    'and announcement popups, and stop at the lobby. A return-event panel normally '
-                    'does not appear; if it does, it is only closed and no return rewards are claimed. '
-                    'Runs once after the daily reset.',
+            'help': 'Launch the client, walk through the title screen and login, claim the daily '
+                    'sign-in reward, dismiss the reward and announcement popups, and stop at the '
+                    'lobby. A return-event panel normally does not appear; if it does, it is only '
+                    'closed and no return rewards are claimed. Runs once after the daily reset.',
         },
         'ja-JP': {
             'name': 'Trickcal ログイン',
-            'help': 'タイトル画面からログインし、デイリーサインイン報酬を受け取り、報酬・お知らせの'
-                    'ポップアップを閉じてロビーで終了します。復帰イベントは通常表示されませんが、'
+            'help': 'クライアントを起動してタイトル画面からログインし、デイリーサインイン報酬を受け取り、'
+                    '報酬・お知らせのポップアップを閉じてロビーで終了します。復帰イベントは通常表示されませんが、'
                     '表示された場合は閉じるだけで報酬は受け取りません。日次更新後に 1 回実行します。',
         },
     },

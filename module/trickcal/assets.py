@@ -13,4 +13,4 @@ from module.base.template import Template
 # Don't modify it manually.
 
 E_1_1 = Button(area={'trickcal': (468, 645, 789, 695)}, color={'trickcal': (199, 153, 158)}, button={'trickcal': (460, 637, 797, 703)}, file={'trickcal': './assets/trickcal/trickcal/E_1_1.png'})
-E_7_1 = Button(area={'trickcal': (20, 600, 1260, 710)}, color={'trickcal': (133, 129, 93)}, button={'trickcal': (12, 592, 1268, 718)}, file={'trickcal': './assets/trickcal/trickcal/E_7_1.png'})
+E_7_1 = Button(area={'trickcal': (790, 600, 920, 715)}, color={'trickcal': (124, 116, 79)}, button={'trickcal': (782, 592, 928, 723)}, file={'trickcal': './assets/trickcal/trickcal/E_7_1.png'})

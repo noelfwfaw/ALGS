@@ -27,7 +27,6 @@ spec keeps this file. What DOES come from the spec: the 10 buttons in
 assets.py, the `Trickcal` menu group, SCHEDULER_PRIORITY and algs.py.
 """
 
-from module.exception import TaskFailed
 from module.logger import logger
 from module.trickcal.trickcal_ui import TrickcalUI
 
@@ -42,17 +41,20 @@ class TrickcalLogin(TrickcalUI):
             out: page_main
         """
         logger.hr('Trickcal login', level=1)
-        # 调度器 start() / run_task 不带 --no-boot 时已经走过
-        # app_start() + handle_app_boot()。这里补 --no-boot、游戏在后台、
-        # 以及停在登录流程中间页三种情况；已在大厅时 boot 首帧即返回。
+        # `start()` / `run_task` already walked app_start() + handle_app_boot().
+        # This covers --no-boot, a backgrounded client and a client left in the
+        # middle of the login flow; on a clean lobby the boot loop returns on
+        # its first frame.
+        # Both return True on success; a stuck boot raises instead of returning
+        # False, so the result is intentionally discarded.
         if not self.device.app_is_running():
             logger.info('Game is not in the foreground, launch it')
-            reached = self.app_start()
+            _ = self.app_start()
         else:
-            reached = self.handle_app_boot()
-        if not reached:
-            # 这次没做成：按失败间隔早点重试，并让 run() 记 Reason: Error、
-            # 推一条失败，不能当成正常跑完再排到次日。
-            self.config.task_delay(success=False)
-            raise TaskFailed('Trickcal did not reach the lobby')
+            _ = self.handle_app_boot()
+        # A boot that never reaches the lobby raises GameStuckError. That is
+        # "the game did not come up", not "this run failed": GameScheduler.run()
+        # catches it, archives the error, pushes a recoverable warning and calls
+        # Restart. Turning it into TaskFailed here would double-report and skip
+        # the restart (ladder in SKILL.md section 6.3).
         self.config.task_delay(server_update=True)

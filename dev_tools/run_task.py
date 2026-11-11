@@ -8,7 +8,7 @@ else (delays, error handling) works as usual, so the run also writes
 Usage:
     ./toolkit/python.exe -m dev_tools.run_task LostswordShop
     ./toolkit/python.exe -m dev_tools.run_task LostswordAffection --no-boot
-    ./toolkit/python.exe -m dev_tools.run_task ChaoszeroMain --serial 127.0.0.1:16448
+    ./toolkit/python.exe -m dev_tools.run_task ChaoszeroMain --serial <adb-serial>
     ./toolkit/python.exe -m dev_tools.run_task ChaoszeroSimulation --config chaoszero
 
 The game is taken from the task name (`Lostsword*` / `Hazeworld*`), so the
@@ -25,6 +25,7 @@ import inflection
 from algs import AlGS
 from module.config.config import Function
 from module.config.server import set_server, to_package
+from module.exception import GameNotRunningError, GameStuckError, GameTooManyClickError
 from module.logger import logger
 
 
@@ -73,7 +74,14 @@ def main():
     algs.device.click_record_clear()
 
     if not args.no_boot:
-        algs.start()
+        try:
+            algs.start()
+        except (GameStuckError, GameNotRunningError, GameTooManyClickError) as e:
+            # `switch_game()` swallows these in the scheduler, but run_task
+            # calls `start()` directly. Keep the same ladder: let the task's
+            # `run()` report the failure through `GameScheduler.run()` instead
+            # of dying with a bare traceback before anything is recorded.
+            logger.warning(f'Game `{game}` did not come up during boot: {e}')
         if algs.boot_declined:
             # Server maintenance: the boot loop already re-scheduled the tasks.
             # Running this task now would only tap a screen with no game on it.

@@ -248,7 +248,7 @@
     },
     "TrickcalLogin": {
       "name": "Trickcal Login",
-      "help": "Start from the title screen, claim the daily sign-in reward, dismiss the reward and announcement popups, and stop at the lobby. A return-event panel normally does not appear; if it does, it is only closed and no return rewards are claimed. Runs once after the daily reset."
+      "help": "Launch the client, walk through the title screen and login, claim the daily sign-in reward, dismiss the reward and announcement popups, and stop at the lobby. A return-event panel normally does not appear; if it does, it is only closed and no return rewards are claimed. Runs once after the daily reset."
     }
   },
   "Scheduler": {
