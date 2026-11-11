@@ -12,9 +12,11 @@
          信封 (1231, 203) 就是信箱
           → 「全部領取」→「獲得道具」→ 点一下关掉
 
-两枚「全部領取」都是**橙色 = 还有得领、灰白 = 今天领完了**，所以"没东西可领"是
-正常结束，不是失败。最右侧那列竖排按钮只有菜单打开时才画出来，别拿它当大厅判据
-（我在大厅截图上找过信封，那里根本没有）。
+两枚「全部領取」都是**彩色 = 还有得领、灰白 = 今天领完了**，所以"没东西可领"是
+正常结束，不是失败。判据只数**饱和度**、不认具体色相：客户端换皮时按钮的
+颜色会变（今天是橙的，改版改成蓝的绿的一样成立），只数橙色会在换皮那天把
+"有得领"读成"没得领"。最右侧那列竖排按钮只有菜单打开时才画出来，别拿它当
+大厅判据（我在大厅截图上找过信封，那里根本没有）。
 
 这个任务只负责领、不负责做：當日行程里那些任务由 模擬 / 方舟都市 去完成，
 所以调度排在它们后面。
@@ -40,10 +42,29 @@ DAILY_TAB = (65, 153)
 DAILY_CLOSE = (1217, 82)
 MAIL_CLOSE = (1202, 67)
 
-# 两枚「全部領取」里橙色像素的占比：还有得领时 55~83%，领完了 0%。
-DAILY_CLAIM_AREA = (138, 548, 431, 600)
+# 两枚「全部領取」的判定区。2026-11-11 维护后 當日行程 的版面变了：按钮往下
+# 挪了 30px（(138,548,431,600) → (142,574)-(340,630)），也不再和「100」
+# 里程碑挤在同一行，所以这里只框那颗胶囊本身。
+# ❗版面一改，`DAILY_CLAIM.png` 就必须一起重截，否则模板对不上，任务会空手关面板：
+# 2026-11-11 19:41 + 18:54 两次就是这么丢的（`ui_claimable` 判「有得领」、
+# `appear(DAILY_CLAIM)` 判「不在」，13ms 内放弃）。
+DAILY_CLAIM_AREA = (140, 570, 345, 636)
 MAIL_CLAIM_AREA = (51, 626, 309, 678)
-CLAIM_ORANGE = 0.2
+
+# 「有得领」= 按钮是**彩色**的。判据数饱和像素（max(R,G,B) - min(R,G,B) > 60），
+# 不认色相：橙色主题、蓝色主题、绿色主题都成立，领完变灰白时直接归零。
+# 实测（1280x720，astype(int) 之后算）：當日行程 有得领 68.9% / 领完 0.0%；
+#                                       信箱     有得领 91.1% / 领完 0.0%。
+CLAIM_SATURATION = 60
+CLAIM_COLORED = 0.35
+
+# 按钮在不在，用**亮度**模板判（`match_luma`）：同一颗胶囊有彩色/灰白两态，
+# 同一张模板对两态分别是 1.000 / 0.963（彩色模板直接对灰白态 `match` 只有
+# 0.754，不够 0.85）。大厅、作戰 hub 等其它页面最高 0.134。
+CLAIM_SIMILARITY = 0.85
+# 面板滑入要一两秒，刚认出来那一帧按钮可能还没画到位。等按钮出现再下结论，
+# 别拿单帧否定（硬约束 153）。
+CLAIM_APPEAR_TIMEOUT = 8
 
 
 class ChaoszeroDaily(ChaoszeroUI):
@@ -71,29 +92,39 @@ class ChaoszeroDaily(ChaoszeroUI):
         """
         Whether a 全部領取 button still has something to hand out.
 
+        The button is drawn in an accent colour (orange today) while it has
+        rewards to hand out, and in plain grey once the day is done. Counting
+        the saturation instead of one specific hue keeps the check alive when
+        the client restyles itself - the layout did change on 2026-11-11, and
+        the colour is no safer a bet than the coordinates.
+
         Args:
             area (tuple): x1, y1, x2, y2 of the button.
 
         Returns:
-            bool: If the button is orange (= claimable).
+            bool: If the button is coloured (= claimable).
         """
+        # ❗通道相减之前必须 astype(int)：uint8 回绕会把任意颜色都算成彩色。
         image = self.image_crop(area).astype(int)
-        r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
-        orange = np.count_nonzero((r > 200) & (g > 110) & (g < 190) & (b < 90))
-        return bool(orange > CLAIM_ORANGE * image.shape[0] * image.shape[1])
+        saturation = image.max(axis=2) - image.min(axis=2)
+        colored = np.count_nonzero(saturation > CLAIM_SATURATION)
+        return bool(colored > CLAIM_COLORED * saturation.size)
 
     # ---------------------------------------------------------------- 通用
 
-    def claim_and_close(self, button, area, timeout=30):
+    def claim_and_close(self, button, area, timeout=30, expect_reward=False):
         """
         Press one 全部領取 and settle whatever it opens.
 
-        當日行程 does **not** raise a 「獲得道具」 window: the milestone icons just
-        get their ticks and the button turns grey (measured 2026-11-04). The
-        mailbox does pop the window. So the claim counts as done on either
-        signal - the window showing up, or the button going grey - and a press
-        that changes nothing is repeated instead of being taken for a claim
-        (the first of two taps was eaten that day).
+        Both panels pop a 「獲得道具」 window, and it pops half a second
+        **after** the button goes grey - returning on the grey signal alone
+        leaves the window to `panel_quit()`, whose X closes the panel behind it
+        and never lands (measured 2026-11-11 19:42 on the mailbox: claim at
+        07.354, grey at 08.023, no 「Reward window closed」 in the log).
+        當日行程 does the same: 2026-11-11 19:52 the claim showed 1,500 + 60 and
+        the panel would not close for 30 seconds until the window was tapped
+        (2026-11-10 20:02 `The panel did not close`). The 「does not raise a
+        window」 note here was measured on 2026-11-04 and is no longer true.
 
         Pages:
             in: 有那个按钮的面板
@@ -101,8 +132,10 @@ class ChaoszeroDaily(ChaoszeroUI):
 
         Args:
             button (Button): The 全部領取 button of the page.
-            area (tuple): x1, y1, x2, y2 of that button, for the orange check.
+            area (tuple): x1, y1, x2, y2 of that button, for the colour check.
             timeout (int): Seconds.
+            expect_reward (bool): The panel always pops a 「獲得道具」 window,
+                so the grey button alone does not mean the claim is finished.
 
         Returns:
             bool: If the claim went through.
@@ -110,6 +143,8 @@ class ChaoszeroDaily(ChaoszeroUI):
         timeout = Timer(timeout, count=3).start()
         press = Timer(2.5, count=2)
         tap = Timer(2, count=2)
+        # 按钮变灰以后最多再等 5 秒的奖励窗；`expect_reward` 才用。
+        grey = Timer(5, count=1)
         seen = False
 
         for _ in self.loop(timeout=timeout):
@@ -117,18 +152,30 @@ class ChaoszeroDaily(ChaoszeroUI):
                 seen = True
                 if tap.reached():
                     tap.reset()
-                    self.tap_point(*CHAOSZERO_TAP_CENTRE)
+                    # CHAOSZERO_TAP_CENTRE 是纯坐标 Button，不是 (x, y)；
+                    # 以前写成 tap_point(*...) 会在走到这支时 TypeError。
+                    self.device.click(CHAOSZERO_TAP_CENTRE)  # alas-lint: allow - only reached inside `if self.reward_appear()`, the 「獲得道具」 window is on screen
                 continue
             if seen:
                 logger.info('Reward window closed')
                 return True
-            if not self.ui_claimable(area):
-                logger.info('Claim took, the 全部領取 button is grey now')
-                return True
-            if press.reached():
+            claimable = self.ui_claimable(area)
+            if not claimable:
+                if not expect_reward:
+                    logger.info('Claim took, the 全部領取 button is grey now')
+                    return True
+                # 按钮灰了还要把「獲得道具」等出来再点掉。
+                if not grey.started():
+                    grey.start()
+                if grey.reached():
+                    logger.info('Claim took, no reward window showed up')
+                    return True
+            elif expect_reward:
+                grey.clear()
+            if claimable and press.reached():
                 press.reset()
                 self.device.click_record_clear()
-                self.device.click(button)  # alas-lint: allow - the caller checked the page and the button, and the orange check above re-runs every frame
+                self.device.click(button)  # alas-lint: allow - the caller checked the page and the button, and the colour check above re-runs every frame
         else:
             if not seen:
                 logger.warning('The claim did not take, the button is still orange')
@@ -224,6 +271,18 @@ class ChaoszeroDaily(ChaoszeroUI):
         """
         Press 全部領取 on 當日行程 and close the reward window.
 
+        判定顺序是「先等按钮画出来，再看它是不是彩色」：
+
+        - 2026-11-11 19:41（以及 18:54 那次）翻车的直接原因是**版面变了**：
+          维护后「全部領取」往下挪了 30px，`appear(DAILY_CLAIM, offset=(20,20))`
+          的搜索窗只到 y=568，够不到 y=578 的按钮，于是打一句
+          `The 全部領取 button is not on screen` 就把面板关掉、什么都没领。
+          `ui_claimable` 那会儿是对的（橙色 → 有得领），错的是模板。
+          教训：**版面一改就要重截素材**，判据再对也救不回旧坐标。
+        - 顺带别拿单帧否定：`daily_open()` 只看标题就放行，按钮可能还没画到位。
+          这里用亮度模板等按钮出现（彩色/灰白两态都成立，1.000 / 0.963），
+          等到再判颜色，等不到就如实报 warning。
+
         Pages:
             in: 當日行程
             out: 當日行程
@@ -234,20 +293,26 @@ class ChaoszeroDaily(ChaoszeroUI):
         Returns:
             bool: If nothing is left to claim, or the claim went through.
         """
-        # daily_open() 的模板判据在面板还在淡入时就放行，半透明帧会把橙色读暗，
-        # 错判成「没东西可领」静默跳过。先用均值比色等一帧完全画好的。
-        self.wait_until_settled(DAILY_TITLE, timeout=5)
-
-        if not self.ui_claimable(DAILY_CLAIM_AREA):
-            logger.info('Nothing to claim on 當日行程')
-            return True
-
-        if self.appear(DAILY_CLAIM, offset=(20, 20)):
+        for _ in self.loop(timeout=CLAIM_APPEAR_TIMEOUT):
+            if not DAILY_CLAIM.match_luma(self.device.image, offset=(20, 20),
+                                          similarity=CLAIM_SIMILARITY):
+                # 按钮还没画出来（面板在淡入），下一帧再看。
+                continue
+            if not self.ui_claimable(DAILY_CLAIM_AREA):
+                logger.info('Nothing to claim on 當日行程')
+                return True
             logger.info('Claim the daily track')
             return self.claim_and_close(DAILY_CLAIM, DAILY_CLAIM_AREA,
-                                        timeout=timeout)
+                                        timeout=timeout, expect_reward=True)
 
-        logger.warning('The 全部領取 button is not on screen')
+        # 等不到按钮。分开报：「有得领但找不到按钮」= 版面变了，素材要重截；
+        # 「颜色也是灰的」= 面板没打开/不在当页。
+        if self.ui_claimable(DAILY_CLAIM_AREA):
+            logger.warning('The 全部領取 button is not on screen but the area is '
+                           'still coloured, the panel layout probably changed, '
+                           're-shoot DAILY_CLAIM.png')
+        else:
+            logger.warning('The 全部領取 button is not on screen')
         return False
 
     # ---------------------------------------------------------------- 信箱
@@ -306,18 +371,24 @@ class ChaoszeroDaily(ChaoszeroUI):
             bool: If nothing is left to claim, or the claim went through.
         """
         # 同 daily_claim()：信箱面板滑进来的时候，别拿半透明帧读颜色。
-        self.wait_until_settled(MAIL_TITLE, timeout=5)
-
-        if not self.ui_claimable(MAIL_CLAIM_AREA):
-            logger.info('No unclaimed mail')
-            return True
-
-        if self.appear(MAIL_CLAIM, offset=(20, 20)):
+        # 2026-11-11 18:54 就是这样丢的一次：面板 1 秒前才认出来，按钮还没滑到位，
+        # 颜色说「有得领」、模板说「不在」，于是空手关掉面板。
+        for _ in self.loop(timeout=CLAIM_APPEAR_TIMEOUT):
+            if not MAIL_CLAIM.match_luma(self.device.image, offset=(20, 20),
+                                         similarity=CLAIM_SIMILARITY):
+                continue
+            if not self.ui_claimable(MAIL_CLAIM_AREA):
+                logger.info('No unclaimed mail')
+                return True
             logger.info('Claim all mail')
             return self.claim_and_close(MAIL_CLAIM, MAIL_CLAIM_AREA,
-                                        timeout=timeout)
+                                        timeout=timeout, expect_reward=True)
 
-        logger.warning('The mail 全部領取 button is not on screen')
+        if self.ui_claimable(MAIL_CLAIM_AREA):
+            logger.warning('The mail 全部領取 button is not on screen but the area '
+                           'is still coloured, re-shoot MAIL_CLAIM.png')
+        else:
+            logger.warning('The mail 全部領取 button is not on screen')
         return False
 
     # ---------------------------------------------------------------- 入口

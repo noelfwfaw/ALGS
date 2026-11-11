@@ -30,8 +30,15 @@
 評估計時，所以批得越多、評估來得越快。配置里 `PolicyTimes = 0` 表示"把卡叠里
 待批的都用完"。
 
-咖啡廳每天只能点一次：点过之后「點餐」按钮还在，但按下去菜单不再弹出。所以
-"菜单没弹出来"就是"今天已经点过了"，不是失败。
+咖啡廳的「今天还能不能点」只看右下「點餐」按钮右上角那枚角标，不试点：
+红菱形 = 还有次数（page_2 实测红色像素 4.8%），橙色圆底白勾 = 今天已经点过
+（红色 0%、橙色 5.2%）。两种状态下按钮本身都能匹配上（CAFE_ORDER 0.911 /
+1.000），所以旧版"点一下看菜单弹不弹"的写法等于先盲点了一次。
+
+流程固定为：进咖啡廳 → 判角标（没有次数就直接退出去諾諾商店）→ 有次数才按
+「點餐」→ 选「內用」→ 确认 → 过场与「獲得道具」→ 回到咖啡廳再判一次角标。
+这一次是**退出检测**：橙勾出现才算这次点餐真的用掉了；之后点左上返回键回
+方舟都市，主流程接着进諾諾商店。
 """
 
 import cv2
@@ -88,9 +95,9 @@ ARK_WAR_OK_POINT = (1046, 676)
 ARK_WAR_OK_AREA = (854, 655, 1240, 700)
 ARK_WAR_OK_BLUE = 0.4
 
-# 咖啡廳。
-CAFE_ORDER_POINT = (1088, 634)     # 右下角「點餐」
-CAFE_DINEIN_POINT = (805, 195)     # 菜單里的「內用」
+# 咖啡廳。菜單打開时点「內用」卡片中心（spec 框 740,246-843,340），
+# 卡片任意位置都能选中，取中心是为了转场时也不落到卡片外。
+CAFE_DINEIN_POINT = (791, 293)
 CAFE_CONFIRM = (940, 628)          # 菜單底部的「點餐」
 # 菜单底部那枚「點餐」：没选东西时是灰白（均值 158,158,158，橙色像素 0%），选中
 # 「內用」以后整枚变橙（实测均值 240,134,61，橙色像素 88.8%）。用它判"选没选中"。
@@ -98,6 +105,18 @@ CAFE_CONFIRM = (940, 628)          # 菜單底部的「點餐」
 # 于是一直判"没选中"，`cafe_order()` 在 20 秒里对着「內用」连点了 100 次。
 CAFE_CONFIRM_AREA = (830, 615, 1050, 645)
 CAFE_CONFIRM_ORANGE = 0.4
+# 「點餐」按钮右上角的角标，这是"今天还有没有次数"的唯一判据：
+#   红菱形（中心发白）= 还有次数，page_2 红色像素 4.82%；
+#   橙色圆底白勾     = 今天已经点过，红色 0%、橙色 5.18%。
+# 按钮本体两种状态都能匹配（CAFE_ORDER 0.911 / 1.000），分辨不出状态，
+# 所以不能靠"点一下看菜单弹不弹"——那等于替用户盲点一次。
+CAFE_ORDER_BADGE = (1180, 595, 1255, 665)
+CAFE_ORDER_BADGE_RED = 0.02
+CAFE_ORDER_BADGE_ORANGE = 0.02
+
+# 页面切换一律按状态机走：入口/返回箭头还在就每帧再点，目标页判据一命中就
+# 退出。不要用固定重试间隔——转场 2~3 秒，等 N 秒再点要么在转场里多点一次，
+# 要么把被吃掉的点击白等过去（2026-11-11 真机日志）。
 
 # 諾諾商店。三列网格、一屏两行六格，商品从上往下排；买掉一件后面的会往上顶，
 # 所以每买一件就从头重新扫，不记位置。
@@ -230,6 +249,36 @@ class ChaoszeroArk(ChaoszeroUI):
         orange = np.count_nonzero((r > 200) & (g > 90) & (g < 180) & (b < 110))
         return bool(orange > CAFE_CONFIRM_ORANGE * image.shape[0] * image.shape[1])
 
+    def cafe_orderable(self):
+        """
+        Whether the cafe still has an order left today.
+
+        The badge on 點餐 is a red diamond while the daily order is available,
+        and turns into an orange circle with a white tick once it is taken.
+
+        Returns:
+            bool: If the badge is the red diamond.
+        """
+        image = self.image_crop(CAFE_ORDER_BADGE).astype(int)
+        r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
+        red = np.count_nonzero((r > 170) & (g < 100) & (b < 110))
+        return bool(red > CAFE_ORDER_BADGE_RED * image.shape[0] * image.shape[1])
+
+    def cafe_ordered(self):
+        """
+        Whether today's cafe order has been taken.
+
+        This is the exit check after ordering: the red diamond is gone and an
+        orange circle with a white tick sits on the 點餐 button.
+
+        Returns:
+            bool: If the badge is the orange tick.
+        """
+        image = self.image_crop(CAFE_ORDER_BADGE).astype(int)
+        r, g, b = image[:, :, 0], image[:, :, 1], image[:, :, 2]
+        orange = np.count_nonzero((r > 190) & (g > 130) & (g < 200) & (b < 120))
+        return bool(orange > CAFE_ORDER_BADGE_ORANGE * image.shape[0] * image.shape[1])
+
     # ---------------------------------------------------------------- 走去方舟都市
 
     def ark_enter(self, timeout=90):
@@ -253,23 +302,22 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If 方舟都市 is open.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(3, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.ark_appear():
                 logger.info('At 方舟都市')
                 return True
 
-            if not retry.reached():
-                continue
-            retry.reset()
+            # 状态机：入口还在就再点一次，页面一换下一帧就退出。不设固定重试
+            # 间隔——转场要 2~3 秒，等 N 秒再点要么在转场里多点一次，要么把
+            # 被吃掉的点击白等过去。
             self.device.click_record_clear()
 
             if self.appear(LOBBY_ARK, offset=(20, 20)):
-                logger.info('Lobby, open 方舟都市')
+                logger.debug('Lobby, open 方舟都市')
                 self.tap_point(*ARK_ENTRY)
             else:
-                logger.info('Lobby is idle, tap the top to wake the UI up')
+                logger.debug('Lobby is idle, tap the top to wake the UI up')
                 self.tap_point(*ARK_WAKE)
         else:
             logger.warning('Can not open 方舟都市')
@@ -418,7 +466,6 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If the approval screen is up.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(3, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.approval_appear():
@@ -440,16 +487,13 @@ class ChaoszeroArk(ChaoszeroUI):
                 timeout.reset()
                 continue
 
-            if not retry.reached():
-                continue
-            retry.reset()
             self.device.click_record_clear()
 
             if self.policy_appear():
-                logger.info('政策室, open the proposal deck')
+                logger.debug('政策室, open the proposal deck')
                 self.tap_point(*POLICY_CARDS)
             else:
-                logger.info('方舟都市, open 政策室')
+                logger.debug('方舟都市, open 政策室')
                 self.tap_point(*ARK_POLICY)
         else:
             logger.warning('The approval screen did not open')
@@ -573,15 +617,12 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If 方舟都市 is back.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(2, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.ark_appear():
                 return True
-            if retry.reached():
-                retry.reset()
-                self.device.click_record_clear()
-                self.device.click(CHAOSZERO_BACK)  # alas-lint: allow - the loop only gets here after ruling out 方舟都市, so we are inside it; the arrow is fixed chrome
+            self.device.click_record_clear()
+            self.device.click(CHAOSZERO_BACK)  # alas-lint: allow - the loop only gets here after ruling out 方舟都市, so we are inside it; the arrow is fixed chrome
         else:
             logger.warning('Did not get back to 方舟都市')
             return False
@@ -736,7 +777,6 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If the shop is open.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(3, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.shop_appear():
@@ -744,11 +784,8 @@ class ChaoszeroArk(ChaoszeroUI):
                 self.shop_wait_grid()
                 logger.info('At 諾諾商店')
                 return True
-            if not retry.reached():
-                continue
-            retry.reset()
             self.device.click_record_clear()
-            logger.info('方舟都市, open 諾諾商店')
+            logger.debug('方舟都市, open 諾諾商店')
             self.tap_point(*ARK_SHOP)
         else:
             logger.warning('Can not open 諾諾商店')
@@ -769,19 +806,12 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If 方舟都市 is back.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(2, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.ark_appear():
                 return True
-            if retry.reached():
-                retry.reset()
-                if self.appear(SHOP_TITLE, offset=(20, 20)):
-                    self.device.click_record_clear()
-                    self.device.click(CHAOSZERO_BACK)
-                else:
-                    logger.warning('Not at 諾諾商店 any more')
-                    return False
+            self.device.click_record_clear()
+            self.device.click(CHAOSZERO_BACK)  # alas-lint: allow - only called after shop_open(), so we are inside 諾諾商店; the arrow is fixed chrome
         else:
             logger.warning('Did not get back to 方舟都市')
             return False
@@ -1023,16 +1053,12 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If the cafe is open.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(3, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.cafe_appear():
                 return True
-            if not retry.reached():
-                continue
-            retry.reset()
             self.device.click_record_clear()
-            logger.info('方舟都市, open 庭院咖啡廳')
+            logger.debug('方舟都市, open 庭院咖啡廳')
             self.tap_point(*ARK_CAFE)
         else:
             logger.warning('Can not open 庭院咖啡廳')
@@ -1040,14 +1066,15 @@ class ChaoszeroArk(ChaoszeroUI):
 
     def cafe_menu(self, timeout=25):
         """
-        Press 點餐 and tell whether the menu comes up.
+        Press 點餐 and wait for the menu to slide in.
 
-        The cafe only serves one order a day: after that the button is still
-        there but does nothing, so "no menu" is a normal answer, not an error.
+        The caller has already read the badge with `cafe_orderable()`, so a menu
+        that never comes up is a real failure now - "already ordered today" is
+        answered before this method is called, not by trying the button.
 
         Pages:
             in: 庭院咖啡廳
-            out: 庭院咖啡廳（菜單开着或不开）
+            out: 庭院咖啡廳（菜單开着）
 
         Args:
             timeout (int): Seconds.
@@ -1116,20 +1143,67 @@ class ChaoszeroArk(ChaoszeroUI):
         # 才刚开始过场，点空了也看不出来）。
         self.wait_until_disappear(CAFE_DINEIN, offset=(20, 20), timeout=10, settle=2)
 
-        # 过场 + 获得道具 + 回到咖啡廳，都在这一段里。
+        # 过场 + 「獲得道具」 + 回到咖啡廳，都在这一段里。回到咖啡廳还不够：
+        # 菜单关掉只说明点中了「點餐」，转场吃掉点击时订单并不会生效。角标从
+        # 红菱形变成橙勾才是"这一次真的用掉了"的证据，也是主流程的退出检测。
         timeout = Timer(timeout, count=3).start()
         tap = Timer(3, count=2)
+        red_frames = 0
 
         for _ in self.loop(timeout=timeout):
             if self.cafe_appear():
-                logger.info('Stamina claimed')
-                return True
+                if self.cafe_ordered():
+                    logger.info('Stamina claimed, no cafe order left today')
+                    return True
+                # 已经回到咖啡廳而角标还是红菱形：转场吃掉点击时订单不会生效。
+                # 连续几帧都这样就直接判失败，不空等 180 秒。
+                red_frames += 1
+                if red_frames >= 5:
+                    logger.warning('Back at the cafe but the order is still available')
+                    return False
+            else:
+                red_frames = 0
             if tap.reached():
                 tap.reset()
                 self.device.click(CHAOSZERO_TAP_CENTRE)  # alas-lint: allow - the branch above already ruled out every known page; a centre tap is the only thing that moves a reward/preview window on
         else:
-            logger.warning('The cafe never came back after ordering')
+            logger.warning('The cafe never came back with the order consumed')
             return False
+
+    def cafe_run(self):
+        """
+        Visit 庭院咖啡廳 once and leave it, order or not.
+
+        「今天还能不能点」只看「點餐」按钮右上角的角标，不去试点：红菱形是还有
+        次数，橙色圆底白勾是今天已经点过。没有次数就什么都不按、直接退出，之后
+        固定进諾諾商店；有次数才按顺序走菜单、內用、确认，点完再判一次角标。
+
+        Pages:
+            in: 方舟都市
+            out: 方舟都市
+
+        Returns:
+            bool: If the cafe was visited and left cleanly.
+        """
+        logger.hr('庭院咖啡廳', level=2)
+
+        if not self.ark_enter(timeout=45) or not self.cafe_open():
+            logger.warning('Can not open 庭院咖啡廳')
+            return False
+
+        if not self.cafe_orderable():
+            logger.info('No cafe order left today, leave it')
+            return self.ark_back_to_city()
+
+        if not self.cafe_menu():
+            logger.warning('The menu did not open although the order is available')
+            return self.ark_back_to_city()
+
+        if not self.cafe_order():
+            logger.warning('The cafe order did not finish')
+            return self.ark_back_to_city()
+
+        return self.ark_back_to_city()
 
     # ---------------------------------------------------------------- 收尾
 
@@ -1148,7 +1222,8 @@ class ChaoszeroArk(ChaoszeroUI):
             bool: If the lobby is back.
         """
         timeout = Timer(timeout, count=3).start()
-        retry = Timer(2, count=2)
+        # 系统返回键连按会把客户端弹出游戏，留 1 秒节流；这不是等页面切换。
+        retry = Timer(1, count=2)
 
         for _ in self.loop(timeout=timeout):
             if self.ui_page_appear(page_main):
@@ -1200,11 +1275,8 @@ class ChaoszeroArk(ChaoszeroUI):
             logger.info('Policy approval is off')
 
         if self.config.ChaoszeroArk_CafeOrder:
-            if self.ark_enter(timeout=45) and self.cafe_open():
-                if self.cafe_menu():
-                    self.cafe_order()
-                else:
-                    logger.info('The cafe menu does not open, today is already taken')
+            # 入口判角标 → 有次数才点 → 点完再判一次（退出检测）→ 回方舟都市。
+            self.cafe_run()
         else:
             logger.info('Cafe order is off')
 
