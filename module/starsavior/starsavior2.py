@@ -493,6 +493,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     stop_at = STOP_NONE
     target_hit = False
     target_detail = ()         # 验号结果（`verify()` 里覆盖），推送正文要用
+    last_scan = ()             # 本轮读到的 SSR（`verify()` 里覆盖），每轮推送正文要用
 
     # press() 在引导段看到标题/登录页时置 True；guide_press() 读到后重新登录。
     # 默认 False：别的段不传 stop_on_login，行为不变。
@@ -836,6 +837,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.set_round(index)
             logger.hr('第 %d 轮' % index, level=1)
             self.target_hit = False
+            self.target_detail = ()
+            self.last_scan = ()
             self.click_count = 0
             # ❗冷启动 / 换号后画面还没画出来，这段时间**不查进程**：
             #   `app_start()` 是"先杀再启"，中间必然有几帧 `pidof` 是空的。
@@ -906,6 +909,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 self.claim()
                 self.gacha()
                 self.verify()
+                # 每轮验号完都推一次结果（含没达标/没读到 SSR），推完继续下一轮。
+                # 不在这里等用户确认；目标达成 / 停节点 / 刷满次数仍按下面的逻辑停。
+                self.notify_round(index)
 
                 # 节点3：验号结束就是终点，不管目标角色（冲突时已经在 load_plan
                 # 里被清空了）。不留这一支会掉进下面的「没有目标角色」，日志里写
@@ -915,7 +921,6 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     return
 
                 if self.target_hit:
-                    self.notify_hit()
                     self.report_plan('目标达成，号留在游戏里，不重置')
                     return
                 # ❗次数上限**必须在重置之前判**。放到 `while` 头上判的话，最后一轮
@@ -1230,16 +1235,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         logger.info('账号：%s' % ('已留在游戏里，没有重置' if not self.targets or self.target_hit
                                  else '见上一段日志'))
 
-    def notify_hit(self):
-        """刷到目标时推一条消息，**复用「错误推送」那份设置**。
+    def notify_round(self, index):
+        """每轮验号后推一条结果，**复用「错误推送」那份设置**。
 
         ❗不另加配置项：读 `Error.OnePushConfig`（`config/alas.json` 里
           `Error` 组那段 onepush YAML，本地推送 / webhook / telegram 都行），
-          填什么就发什么。用户 2026-11-07 17:5x：「链接到消息推送，利用原错误
-          推送设置。就是刷好了就发信息。」
+          填什么就发什么。
 
-        ❗只在目标达成时发，重置继续刷的那几轮不打扰。没配 / 发失败都只记
-          一条日志，绝不影响刷初始本身。
+        ❗每轮都发（达标 / 未达标 / 没读到 SSR），发完立刻继续下一轮，不等
+          用户确认；目标达成、停节点、刷满次数仍由 `run()` 决定停不停。
+          没配 / 发失败都只记一条日志，绝不影响刷初始本身。
         """
         data, conf = load_onepush_conf(getattr(self.config, 'Error_OnePushConfig', ''))
         provider = data.get('provider')
@@ -1248,20 +1253,53 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             return False
 
         detail = self.target_detail or ()
+        chars = self.format_scan_characters(self.last_scan or ())
+        if self.target_hit:
+            status = '目标达成'
+            ending = '账号留在游戏里，没有重置。'
+        elif self.stop_at == STOP_VERIFY:
+            status = '验号完成（停节点）'
+            ending = '已按停节点停下，没有重置。'
+        elif not self.targets:
+            status = '仅记录（未设置目标）'
+            ending = '未设置目标，这一轮结束。'
+        elif self.reroll_count and index >= self.reroll_count:
+            status = '未达成（已刷满 %d 轮）' % self.reroll_count
+            ending = '已刷满设定轮数，停下，不重置。'
+        else:
+            status = '未达成'
+            ending = '继续下一轮。'
+
         # ❗标题和正文都必须带 `AlGS`：钉钉连接器的 flow 里挂了关键词过滤
         #   （`trigger_filter_break: flow input not contain keywords`），
         #   输入里不出现关键词就直接 break，钉钉侧表现为「没收到消息」，
         #   而 HTTP 照样 200，`handle_notify` 也照样记 success —— 完全看不出来。
-        #   原生的错误推送靠标题「Alas推送」过的，刷初始这条 2026-11-07 在连接器
-        #   里补了 `ALGS` 关键词（大小写不敏感，但别改成不含这两个词的文案）。
-        lines = ['AlGS 刷初始：目标达成，账号留在游戏里，没有重置。',
+        lines = ['AlGS 刷初始：第 %d 轮，%s。' % (index, status),
                  '昵称：%s' % self.nickname]
-        for row in detail:
-            lines.append('%s：%d/%d 只%s'
-                         % (row['label'], row['got'], row['need'],
-                            '' if row['hit'] else '（还没够）'))
+        if self.targets:
+            target_note = ' / '.join('%s × %d 只' % (row['label'], row['count'])
+                                     for row in self.targets)
+            lines.append('目标：%s → %s'
+                         % (target_note, '已达成' if self.target_hit else '未达成'))
+            if detail:
+                for row in detail:
+                    lines.append('  %s：%d/%d 只%s'
+                                 % (row['label'], row['got'], row['need'],
+                                    '' if row['hit'] else '（还没够）'))
+            else:
+                lines.append('目标进度：本轮没读到 SSR')
+        else:
+            lines.append('目标：未设置（只做记录）')
+
+        if chars:
+            lines.append('本轮 SSR（%d 种）：' % len(chars))
+            lines.extend('  ' + char for char in chars)
+        else:
+            lines.append('本轮 SSR：没读到')
+        lines.append(ending)
+
         content = '\n'.join(lines)
-        title = 'AlGS 刷初始：刷好了'
+        title = 'AlGS 刷初始：第 %d 轮 %s' % (index, status)
         try:
             from module.notify import handle_notify
             ok = handle_notify(conf, title=title, content=content)
@@ -3052,6 +3090,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         """
         logger.hr('验号', level=2)
         self.target_hit = False
+        self.target_detail = ()
+        self.last_scan = ()
 
         # 入口：菜单页的「救援者」`E_176_2`(825,321,878,391) —— 用户 21:30 指的。
         # 路径是 主界面 → 四格菜单 `E_171_1` → 菜单页 → 救援者。
@@ -3079,6 +3119,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.back_to_list()
 
         accounts = self.scan_rescuers()
+        self.last_scan = accounts
         if not accounts:
             logger.warning('验号：一个 SSR 都没读到')
             return False
