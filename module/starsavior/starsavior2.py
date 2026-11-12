@@ -353,6 +353,15 @@ BATTLE_RING_AREAS = (
 AUTO_BATTLE_AREA = (1140, 105, 1280, 180)
 AUTO_BATTLE_ON = 0.05
 
+# 评鉴战进场后**延迟 1~2 秒**才出现的对话条。真机 2026-11-12 22:36 的五帧
+# 量准：空窗 / 引导结束都是 0.000，引导中 0.855~0.857。判据不是「画面变没变」
+# ——这个游戏背景、人物、红色准心、血条特效全在动——而是右上这块**固定 UI**
+# 的「中性亮色」占比。白框有字、有人像也不影响，亮色底仍占 85%。
+BATTLE_DIALOG_AREA = (880, 120, 1260, 200)
+BATTLE_DIALOG_NEUTRAL = 0.35
+BATTLE_DIALOG_GRACE = 3.0      # E_134_1 点掉后，等延迟对话出现的最长时间
+BATTLE_DIALOG_CLICK = (1100, 170)  # 点在对话框正文上，只推进这一句
+
 # 一段 press 里倍速补档最多点几下。1x→3x 只要 2 下；旅程里「跳过新手教学」
 # 和进新关卡会让倍速自己掉回 1x（用户 2026-11-06 20:28），留余量。
 # ❗没有这个上限就会像 2026-11-07 02:41 那样：VICTORY 页上把一片纯暗块
@@ -364,11 +373,6 @@ AUTO_BATTLE_ON = 0.05
 #   8 下 × 约 4 秒间隔 ≈ 30 秒，够熬过开场过场；仍然是有上限的，
 #   不会回到 02:41 那种连点 60 次的局面。
 SPEED_PRESS_CLICKS = 8
-
-# 评鉴战说明（page_127~134，最后一步 E_134_1）点完之前，AUTO 最多每 20 秒
-# 试一次。真机 2026-11-07 03:38:39 点早了：说明覆盖层挡着，游戏不接；
-# 03:39:36 点掉 E_134_1、03:39:39 说明才结束，那之后点才是有效时机。
-AUTO_RETRY = 20
 
 # 补档采样的间隔（秒）。连续两次独立采样都读到低档才允许点，
 # 淡入淡出 / 大招白屏的单帧读值不算数。
@@ -1475,6 +1479,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         blocked = set()        # 点了不消失的按钮，本段不再点
         tries = {}             # 每个按钮点了几次（判断"是不是真点不动"）
         enter_tries = 0        # page_4「进游戏」点了几次还没看到游戏内画面
+        # 评鉴战延迟对话：E_134_1 点掉后先等它出现，出现后逐句点掉再开 AUTO。
+        battle_dialog_pending = False
+        battle_dialog_seen = False
+        battle_dialog_until = 0.0
+        battle_dialog_click = 0.0
         # ❗点完且验证「消失」的按钮，2 秒内不再点：关闭动画的残帧还会被
         #   匹配上一帧（真机 2026-11-07 15:20 E_119_1 点完 0.3s 验证消失、
         #   0.2s 后又命中，多打一击被动画吞掉，还留下误导性的
@@ -1518,7 +1527,6 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   画面切进过场、39 秒没有倍速按钮，45 秒一到就去点训练，最终停在 2x。
         recheck_wait = Timer(120)
         speed_after = False    # 窗口是「因为看到 3x」关掉的 —— 下一次点训练才关补档
-        auto_last_click = 0.0  # 上次点 AUTO 的时刻（说明链里按 AUTO_RETRY 节流）
         # 登录后 page_4 的 E_4_2 还要点一次才进游戏；只允许这一次，
         # 点掉并验证消失后关闭。已经在游戏里（有 SKIP/四格）就不给这次机会。
         login_pending = login_start_pending and not self.in_game_screen()
@@ -1850,22 +1858,47 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     # 刚点掉、还在播关闭动画：残帧不算数，别在动画上浪费点击
                     continue
                 if self.appear(button, offset=CHAIN_OFFSET):
-                    # AUTO 已经开着就别再点（再点一次会关掉）；封掉本段。
-                    if button is E_134_2 and self.auto_battle_started(self.device.image):
-                        blocked.add(button.name)
-                        logger.info('%s：自动战斗已开启，本段不再点' % button.name)
-                        continue
-                    # ❗**时机门控**：评鉴战说明链（page_127~134，最后一步
-                    #   `E_134_1`）没点完之前，只允许提前点 1 次 AUTO。
-                    #   真机 2026-11-07 03:38:39 就是点早了：说明覆盖层挡着，
-                    #   游戏不接这一下，2.6 秒后判据又被说明白字骗成「已开启」
-                    #   （后被改成连续两帧），按钮一封，03:39:39 真正进战斗时
-                    #   AUTO 还是关的，角色站着不动等到 600 秒超时。
-                    #   03:39:36 点掉 `E_134_1`、03:39:39 说明才结束 —— 那之后
-                    #   再点 AUTO 才是有效时机，所以这里放开重试。
-                    if (button is E_134_2 and 'E_134_1' not in hit
-                            and time.time() - auto_last_click < AUTO_RETRY):
-                        continue
+                    # ❗AUTO 的时机门控：评鉴战说明链（page_127~134）没过完
+                    #   之前，AUTO 按钮虽然可见，但点了会被吞。2026-11-12 22:04
+                    #   就是 23 秒时先点了一次，说明页白字被白像素判据误判成
+                    #   「自动战斗已开启」，按钮一封，等 32 秒真正进战斗后
+                    #   又要重新解封、重新点。
+                    # ❗不要用 `in_battle()` 当“引导结束”：用户 2026-11-07 03:42
+                    #   确认过，进入战斗就有 BOSS 血条；引导本身延迟 1~2 秒才出现，
+                    #   这段空窗和引导结束后的画面一样，血条分不出来。
+                    #   这里以 `E_134_1`（说明链最后一步）为界，并且**只认右上
+                    #   对话条**：空窗和结束画面一样，但中间一定出现过白框。
+                    if button is E_134_2:
+                        if 'E_134_1' not in hit:
+                            continue
+                        now = time.time()
+                        if self.battle_dialog_visible(self.device.image):
+                            # 对话还在：点正文推进，别碰 AUTO。这个游戏背景、
+                            # 人物、准心都在动，不能靠整屏差异判断。
+                            battle_dialog_seen = True
+                            battle_dialog_pending = True
+                            if now - battle_dialog_click >= 0.8:
+                                self.tap_at(BATTLE_DIALOG_CLICK[0], BATTLE_DIALOG_CLICK[1],
+                                            '点击评鉴战引导对话')
+                                battle_dialog_click = now
+                            continue
+                        if battle_dialog_pending:
+                            if battle_dialog_seen:
+                                battle_dialog_pending = False
+                                logger.info('%s：评鉴战引导对话已结束，可以点 AUTO'
+                                            % button.name)
+                            elif now < battle_dialog_until:
+                                # 空窗期：延迟对话可能还没出现，先不点 AUTO。
+                                continue
+                            else:
+                                battle_dialog_pending = False
+                        # 已经开着就别再点（再点一次会关掉）；封掉本段。
+                        # 这里的白像素判据只在战斗内使用，对话框可见时
+                        # auto_battle_started() 会直接返回 False。
+                        if self.auto_battle_started(self.device.image):
+                            blocked.add(button.name)
+                            logger.info('%s：自动战斗已开启，本段不再点' % button.name)
+                            continue
                     # ❗跳过新手教学之后必须**先重新看到 3x 才点训练**：1x 下训练
                     #   结算的对话不自动推进，真机 2026-11-07 04:42:22 就是
                     #   119_1 点完 0.7 秒就点训练，然后卡在「训练成功!」那一屏。
@@ -1922,8 +1955,6 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         speed_after = False
                         speed_ok = False
                         logger.info(f'{note}：训练已开始，本段不再补档')
-                    if button is E_134_2:
-                        auto_last_click = now
 
                     # ❗**不用 `device.click(target)`**：它在 `button` 矩形里
                     # **随机取点**，而 spec 框出来的矩形经常比按钮本身大一圈
@@ -2003,6 +2034,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     #   和 in_story 分支同一个安全前提：确认框只可能是我自己点出来的。
                     if button is E_115_1:
                         confirm.reset()
+                    if button is E_134_1:
+                        # 说明链最后一步点下去就开始等；真正开打后右上会
+                        # 延迟 1~2 秒弹对话条，AUTO 必须等它走完。
+                        battle_dialog_pending = True
+                        battle_dialog_seen = False
+                        battle_dialog_until = click_at + BATTLE_DIALOG_GRACE
+                        battle_dialog_click = 0.0
                     if button is E_134_2:
                         vanished = self.wait_auto_battle_start(timeout=6)
                     else:
@@ -2029,6 +2067,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         if vanished:
                             # 开关按钮开了一次就封掉，下帧别把它关回去。
                             blocked.add(button.name)
+                            # ❗下一场战斗的第一次点击必须回到 area 中心。
+                            #   否则 `tries` 会把上一场的重试次数带进来，
+                            #   新一场第一下就落到偏移点，2026-11-12 21:53
+                            #   因此连吃两次 6 秒超时（第 2/3 次才点动）。
+                            tries.pop(button.name, None)
                     else:
                         logger.info('%s 点完 %.1fs 后%s'
                                     % (button.name, done_at - click_at,
@@ -2095,10 +2138,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         # 评鉴战说明最后一步（page_134）点掉 = 真正开打在即。
                         # 之前 AUTO 若在说明阶段被白字骗成「已开启」而封禁，
                         # 这里要放开一次，让它在正确时机补上（真机 03:39:39）。
-                        if button is E_134_1 and E_134_2.name in blocked:
-                            blocked.discard(E_134_2.name)
-                            logger.info('%s：评鉴战说明已过，解除对 %s 的封禁'
-                                        % (note, E_134_2.name))
+                        if button is E_134_1:
+                            if E_134_2.name in blocked:
+                                blocked.discard(E_134_2.name)
+                                logger.info('%s：评鉴战说明已过，解除对 %s 的封禁'
+                                            % (note, E_134_2.name))
                     # 见了就正面收工：`stop_after_button` 里的按钮点掉且验证
                     # 消失后，这一段的使命就完成了，不用等 idle。
                     # ❗专为 settle 第二遍：它的任务只剩「接住 168 之后弹出的
@@ -3265,13 +3309,34 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         return {'time': row.get('time') or '', 'characters': chars}
 
     @staticmethod
+    def battle_dialog_visible(image):
+        """评鉴战右上对话条在不在（见 BATTLE_DIALOG_AREA）。
+
+        真机 2026-11-12 22:36 五帧：空窗 0.001/0.000，第一句 0.857，
+        最后一句 0.855，引导结束 0.000。背景、人物、准心、血条都在动，
+        所以只看这块固定 UI 的**中性亮色占比**，不做整屏帧差。
+        """
+        if image is None:
+            return False
+        x1, y1, x2, y2 = BATTLE_DIALOG_AREA
+        area = image[y1:y2, x1:x2]
+        gray = area.mean(axis=2)
+        diff = area.max(axis=2) - area.min(axis=2)
+        neutral = (gray > 160) & (diff < 30)
+        return float(neutral.mean()) > BATTLE_DIALOG_NEUTRAL
+
+    @staticmethod
     def auto_battle_started(image):
         """自动战斗开没开：右上「总伤害量」白字出现（见 AUTO_BATTLE_AREA）。
 
         ❗`E_134_2` 是**开关按钮**，点完不会消失；用 `wait_until_disappear`
         判成功会连点 3 次把开关切回关，评鉴战就停在等待玩家操作。
+        ❗评鉴战对话条也是白色，会大面积盖住 AUTO_BATTLE_AREA。引导期间
+        必须先判对话，否则 22:04 那样把对话白框误判成「自动战斗已开启」。
         """
         if image is None:
+            return False
+        if Starsavior2.battle_dialog_visible(image):
             return False
         x1, y1, x2, y2 = AUTO_BATTLE_AREA
         area = image[y1:y2, x1:x2]
