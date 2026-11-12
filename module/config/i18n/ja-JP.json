@@ -346,7 +346,7 @@
     },
     "ScreenshotMethod": {
       "name": "スクリーンショット方式",
-      "help": "自動選択では一度ベンチマークを実行し、最速の方式に切り替えます\n一般的な速度: nemu_ipc ~= ldopengl >> DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB\nnemu_ipc は MuMu プレイヤー専用、ldopengl は LDPlayer 専用です。ベンチマークではどちらも測定されないため、手動で選択してください\nツール - パフォーマンステスト で最速の方式を確認できます",
+      "help": "自動選択では一度ベンチマークを実行し、最速の方式に切り替えます\n一般的な速度: nemu_ipc ~= ldopengl >> DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB\nnemu_ipc は MuMu プレイヤー 12 (>=3.8.13)、ldopengl は LDPlayer 9/14 専用です。対応するエミュレーターを検出するとベンチマークに自動追加され、検出できない場合は手動で選択してください\naScreenCap / aScreenCap_nc は Android 5~9 でのみ使用できます\nツール - パフォーマンステスト で最速の方式を確認できます",
       "auto": "最速を自動選択",
       "ADB": "ADB",
       "ADB_nc": "ADB_nc",
@@ -360,7 +360,7 @@
     },
     "ControlMethod": {
       "name": "操作方式",
-      "help": "速度: minitouch > Hermit >>> uiautomator2 ~= ADB\nminitouch を推奨。vmos 以外では Hermit は非推奨",
+      "help": "速度: minitouch > Hermit > MaaTouch > uiautomator2 ~= ADB\n既定では MaaTouch を推奨（安定・互換性が高い）。minitouch はより高速ですが uiautomator2 サービスに依存します。Hermit は VMOS 専用です",
       "ADB": "ADB",
       "uiautomator2": "uiautomator2",
       "minitouch": "minitouch",

@@ -346,7 +346,7 @@
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",
-      "help": "When using auto-select, a benchmark will be performed and automatically changed to the fastest screenshot method.\nGeneral speed: nemu_ipc ~= ldopengl >> DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB.\nnemu_ipc only works on MuMu Player and ldopengl only on LDPlayer; the benchmark does not test either, so select them manually.\nRun Tools - Performance Test to find the fastest method.",
+      "help": "When using auto-select, a benchmark will be performed and automatically changed to the fastest screenshot method.\nGeneral speed: nemu_ipc ~= ldopengl >> DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB.\nnemu_ipc requires MuMu Player 12 (>=3.8.13) and ldopengl requires LDPlayer 9/14. Both are included in the benchmark automatically when the matching emulator is detected; otherwise select them manually.\naScreenCap / aScreenCap_nc only work on Android 5~9.\nRun Tools - Performance Test to find the fastest method.",
       "auto": "Auto-select the fastest",
       "ADB": "ADB ",
       "ADB_nc": "ADB_nc",
@@ -360,7 +360,7 @@
     },
     "ControlMethod": {
       "name": "Control Method",
-      "help": "Speed: minitouch > Hermit >>> uiautomator2 ~= ADB\nminitouch is recommended, hermit is not recommended unless on vmos",
+      "help": "Speed: minitouch > Hermit > MaaTouch > uiautomator2 ~= ADB\nMaaTouch is recommended by default (stable and compatible); minitouch is faster but depends on the uiautomator2 service; Hermit is only for VMOS",
       "ADB": "ADB",
       "uiautomator2": "uiautomator2",
       "minitouch": "minitouch",

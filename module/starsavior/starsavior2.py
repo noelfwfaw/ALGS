@@ -729,6 +729,22 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         """
         return self.at_main_screen()
 
+    def at_journey(self):
+        """
+        当前画面是不是**旅程 HUD**。
+
+        旅程页没有右上四格，也没有剧情 SKIP，只有顶部倍速 `E_116_1`
+        （`JourneyPlay` 场景）。闪退重进 / 点完 Touch to Start 时游戏会直接
+        恢复到旅程，不能只靠大厅和 SKIP 判。
+
+        2026-11-12 20:55 两张真机截图 0.981 / 0.986；另外 24 张历史截图
+        最高只有 0.067，标题页、登录页、结算页都不命中。
+
+        Returns:
+            bool: 当前在旅程 HUD。
+        """
+        return self.appear(E_116_1, offset=CHAIN_OFFSET)
+
     def in_game_screen(self):
         """
         「账号已经进游戏」的正面判据，补上**大厅以外**的游戏内画面。
@@ -738,12 +754,18 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         `login()` 第 2 步就会白等 20 秒再 `return False`（真机 2026-11-10
         17:25:57~17:26:17）。四张量过的 SKIP 横栏模板正好覆盖这一段。
 
+        ❗旅程页也要单独认：它既没有四格也没有 SKIP，但顶部倍速一直可见。
+          2026-11-12 20:52 闪退后客户端直接恢复到 `JourneyPlay`，旧判据
+          让 `login()` 白等 20 秒后判失败，实际 6 秒就已经在旅程里。
+
         ❗仍然不用「标题页不见了」：加载黑屏上标题页也不见（163）。
 
         Returns:
-            bool: 已经在游戏内（大厅 / 开场动画 / 剧情页）。
+            bool: 已经在游戏内（大厅 / 开场动画 / 剧情页 / 旅程）。
         """
         if self.in_game():
+            return True
+        if self.at_journey():
             return True
         for button in STORY_SKIP:
             if self.appear(button, offset=CHAIN_OFFSET):
@@ -861,19 +883,22 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   ❗❗但这条让容错比 v1.42.1 之前（忽略返回值、继续扫状态机）
                 #   低得多：只要 `login()` 认不出「已经登录」就会整轮判死。
                 #   所以 `login()` 必须认全游戏内画面 —— 主界面四格、开场动画、
-                #   剧情页（SKIP 横栏，见 `in_game_screen()`）。17:10 / 17:25
-                #   两次误报都栽在只认四格；别再把它回退成「白等 20 秒就停」。
+                #   剧情页（SKIP 横栏）、旅程 HUD（顶部倍速），见 `in_game_screen()`。
+                #   17:10 / 17:25 / 20:53 三次误报都栽在判据不全；
+                #   别再把它回退成「白等 20 秒就停」。
                 if not self.login():
                     raise TaskFailed(self.fail_reason(
                         '登录没走完，已停止，避免在游戏内空转把号刷丢。'
                         '账号没有丢；把游戏停回标题页再手动重跑。'))
                 self.warmup_ocr()
 
-                # ❗闪退重进：游戏保留登录态和开荒进度，重进可能直接落在主界面。
+                # ❗闪退重进：游戏保留登录态和开荒进度，重进可能直接落在主界面
+                #   或旅程（2026-11-12 20:52 就是旅程闪退后恢复到 JourneyPlay）。
                 #   `guide/journey/settle` 的按钮表全是引导期素材，在大厅上只会
                 #   逐段 idle 空转（真机 2026-11-10 07:31:14~07:32:13 连着三段
                 #   「一个页面都没点到」）。判到主界面就直接接领奖 / 抽卡 / 验号；
-                #   判不到说明还在标题 / 登录 / 引导期，按原来的整轮状态机自愈。
+                #   判到旅程就跳过引导、从当前旅程画面续跑；判不到说明还在
+                #   标题 / 登录 / 引导期，按原来的整轮状态机自愈。
                 #   ❗要放在 `login()` **之后**：账号在线时是 `login()` 点了
                 #   「Touch to Start」才真正进到大厅的。
                 #   ❗❗但 `at_main_screen()` 单看右上四格会**假阳性**：重置后的
@@ -883,6 +908,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   所以先点掉引导浮层，再用「四格在 + 遮罩不在」判真大厅；
                 #   遮罩还在就回退整轮状态机，绝不跳过。
                 resumed_late = False
+                resumed_journey = False
                 if self.resume_after_crash:
                     self.resume_after_crash = False
                     self.device.screenshot()
@@ -892,13 +918,34 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     if resumed_late:
                         logger.hr('闪退重进：已在大厅，跳过开场引导 / 旅程 / 结算', level=2)
                     else:
-                        logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
+                        # 服务器也记旅程进度：闪退重进会直接落在 `JourneyPlay`，
+                        # 这时再走 `guide()` 整条引导表一页都认不出，只会空转。
+                        # 旅程本身是无状态的按钮表，可以接着当前画面继续跑。
+                        resumed_journey = self.at_journey()
+                        if resumed_journey:
+                            logger.hr('闪退重进：已在旅程，跳过开场引导，继续旅程', level=2)
+                        else:
+                            logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
+
+                # 工具手动停在中途再重跑时也会直接落在旅程；这不一定是闪退，
+                # 但同样不该重走开场引导，直接从当前旅程画面续跑。
+                if not resumed_late and not resumed_journey and self.at_journey():
+                    resumed_journey = True
+                    logger.info('登录：已在旅程，跳过开场引导，继续旅程')
 
                 if resumed_late:
                     # 节点1 / 节点2 都在引导期，重进时早就过了，别继续抽卡。
                     if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
                         self.report_plan('闪退重进时已在大厅，停节点已经过了（不重置账号）')
                         return
+                elif resumed_journey:
+                    # 节点1 / 节点2 都在引导期，重进时已经过了旅程入口，别继续跑。
+                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
+                        self.report_plan('闪退重进时已在旅程，停节点已经过了（不重置账号）')
+                        return
+                    # 旅程没走完，跳过开场引导，从当前旅程画面继续。
+                    self.journey()
+                    self.settle()
                 else:
                     if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
                         self.report_plan('节点1：昵称输入框（没有输入昵称）')
@@ -2365,6 +2412,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   （右上 LOG / AUTO / SKIP 横栏），四格要等结算走完才出现。v1.42.1 只判
         #   `in_game()`，真机 2026-11-10 17:25 就这样把已登录的号判成
         #   「没等到 Sign in with Google」并整轮 `TaskFailed`。改用 `in_game_screen()`。
+        #   ❗闪退重进还可能直接落到**旅程 HUD**（没有四格 / SKIP，只有顶部倍速），
+        #   2026-11-12 20:53 因此白等 20 秒；`in_game_screen()` 现在也认旅程。
         if not self.appear(E_2_1, offset=CHAIN_OFFSET):  # alas-lint: allow - same as above, this branch only decides whether to click Google
             login_hits = 0
             in_game_hits = 0

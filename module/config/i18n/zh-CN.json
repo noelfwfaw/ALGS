@@ -346,7 +346,7 @@
     },
     "ScreenshotMethod": {
       "name": "模拟器截图方案",
-      "help": "使用自动选择时，将执行一次性能测试并自动更改为最快的截图方案\n一般情况下的速度: nemu_ipc ~= ldopengl >> DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB\nnemu_ipc 仅 MuMu 模拟器可用，ldopengl 仅雷电模拟器可用，性能测试不会自动测这两种，需要手动选择\n运行 工具 - 性能测试 以寻找最快的方案",
+      "help": "使用自动选择时，将执行一次性能测试并自动更改为最快的截图方案\n一般情况下的速度: nemu_ipc ~= ldopengl >> DroidCast_raw >> aScreenCap_nc > ADB_nc >>> aScreenCap > uiautomator2 ~= ADB\nnemu_ipc 仅 MuMu 12 (>=3.8.13) 可用，ldopengl 仅雷电 9/14 可用；识别到对应模拟器时会自动加入性能测试，否则需要手动选择\naScreenCap / aScreenCap_nc 仅 Android 5~9 可用\n运行 工具 - 性能测试 以寻找最快的方案",
       "auto": "自动选择最快的",
       "ADB": "ADB",
       "ADB_nc": "ADB_nc",
@@ -360,7 +360,7 @@
     },
     "ControlMethod": {
       "name": "模拟器控制方案",
-      "help": "速度: minitouch > Hermit >>> uiautomator2 ~= ADB\n建议选minitouch，不建议选Hermit除非在vmos下",
+      "help": "速度: minitouch > Hermit > MaaTouch > uiautomator2 ~= ADB\n默认推荐 MaaTouch（稳定、兼容性好）；minitouch 更快但依赖 uiautomator2 服务；Hermit 仅在 VMOS 下使用",
       "ADB": "ADB",
       "uiautomator2": "uiautomator2",
       "minitouch": "minitouch",
