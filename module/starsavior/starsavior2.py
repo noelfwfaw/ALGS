@@ -2944,10 +2944,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if self.appear(E_171_2, offset=(10, 10)):
             self.click_button(E_171_2, '打开邮箱')
             self.wait_until_disappear(E_171_2, offset=(10, 10), timeout=3, settle=2)
-        # ❗`idle=5`（默认 12）：邮箱里点掉「全部领取」之后就没有可点的了，
+        # ❗`idle=2`（默认 12）：邮箱里点掉「全部领取」之后就没有可点的了，
         #   12 秒纯属白等（真机 2026-11-07 17:22「邮箱：12 秒没有可点的按钮」，
-        #   用户：「缩短时间」）。
-        self.press(MAIL, '邮箱', timeout=180, idle=5)
+        #   用户：「缩短时间」）。2026-11-12 23:05 又出现 5 秒空等，用户要求改 2 秒。
+        self.press(MAIL, '邮箱', timeout=180, idle=2)
         self.claim_task()
 
     def claim_task(self):
