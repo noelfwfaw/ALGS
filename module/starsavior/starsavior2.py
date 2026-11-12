@@ -745,6 +745,36 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 return True
         return False
 
+    def wait_enter_game(self, timeout=30):
+        """点完 Touch to Start 后，等读条结束并确认**真的**进了游戏。
+
+        ❗不能用「按钮消失了」当成功：读条会短暂盖住 Touch to Start，
+        0.2 秒后按钮消失、1 秒后标题页又回来，实际没进去
+        （真机 2026-11-12 17:42）。只认 `in_game_screen()` 的正面判据；
+        标题页连续 3 帧回来就判这次没进去，交给调用方重试。
+
+        Returns:
+            bool: True = 已经在游戏内（大厅 / 开场动画 / 剧情页）。
+        """
+        game_hits = 0
+        title_frames = 0
+        for _ in self.loop(timeout=timeout):
+            self.device.stuck_record_clear()
+            game_hits = game_hits + 1 if self.in_game_screen() else 0
+            if game_hits >= 3:
+                return True
+            if (self.appear(E_3_1, offset=CHAIN_OFFSET)
+                    or self.appear(E_2_1, offset=CHAIN_OFFSET)):
+                return False
+            if (self.appear(E_4_2, offset=CHAIN_OFFSET)
+                    or self.appear(E_1_1, offset=CHAIN_OFFSET)):
+                title_frames += 1
+                if title_frames >= 3:
+                    return False
+            else:
+                title_frames = 0
+        return False
+
     def warmup_ocr(self):
         """后台线程先把 cnocr 模型加载好。
 
@@ -1355,6 +1385,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         hit = [] if hit_out is None else hit_out   # 这一段点过的按钮名（按点击顺序，用来报页号；传 list 进来可以在段外查它点过什么）
         blocked = set()        # 点了不消失的按钮，本段不再点
         tries = {}             # 每个按钮点了几次（判断"是不是真点不动"）
+        enter_tries = 0        # page_4「进游戏」点了几次还没看到游戏内画面
         # ❗点完且验证「消失」的按钮，2 秒内不再点：关闭动画的残帧还会被
         #   匹配上一帧（真机 2026-11-07 15:20 E_119_1 点完 0.3s 验证消失、
         #   0.2s 后又命中，多打一击被动画吞掉，还留下误导性的
@@ -1770,6 +1801,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         target = BATTLE_SKILL
                     content = self.text_for(button)
 
+                    # 「进游戏」最多点 3 次；不管按钮消没消失都计数，
+                    # 防止标题页反复回来时无限点。
+                    if button in (E_1_1, E_4_2) and login_pending:
+                        enter_tries += 1
+                        if enter_tries > 3:
+                            logger.warning(
+                                'Touch to Start 连点 3 次还没进游戏，交给重新登录')
+                            self.need_relogin = True
+                            return False
+
                     self.click_count = getattr(self, 'click_count', 0) + 1
                     logger.info('第 %d 次点击：%s（%s）'
                                 % (self.click_count, button.name, note))
@@ -1874,9 +1915,19 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     else:
                         vanished = self.wait_until_disappear(
                             button, offset=CHAIN_OFFSET, timeout=3, settle=2)
-                    # page_4 的「进游戏」只算一次；之后它再出现就是标题页。
-                    if button is E_4_2 and vanished:
-                        login_pending = False
+                    # page_4 的「进游戏」不能只看按钮消失：读条会短暂盖住它，
+                    # 0.2 秒后消失、1 秒后标题又回来，实际没进去（2026-11-12 17:42）。
+                    # 只认 in_game_screen() 的正面判据；标题回来就保持 pending，
+                    # 冷却 2 秒后再点一次；3 次都进不去才交给 guide_press() 重登。
+                    if button in (E_1_1, E_4_2) and vanished and login_pending:
+                        if self.wait_enter_game(timeout=30):
+                            login_pending = False
+                            enter_tries = 0
+                            logger.info('Touch to Start 点完，确认已进入游戏')
+                        else:
+                            logger.warning(
+                                'Touch to Start 点完没进游戏（标题又回来了），'
+                                '已点 %d/3 次' % enter_tries)
                     done_at = time.time()
                     if button is E_134_2:
                         logger.info('%s 点完 %.1fs 后自动战斗%s'
@@ -2225,9 +2276,23 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   紧接着 guide() 又把 E_4_2 当引导页点回登录循环。
         on_title = (self.appear(E_1_1, offset=CHAIN_OFFSET)
                     or self.appear(E_4_2, offset=CHAIN_OFFSET))
-        if not on_login and not on_title:  # alas-lint: allow - "标题页和登录弹窗都看不见"才是"已经进游戏了"的答案，这条分支不点任何东西
-            logger.info('登录：不在标题页，当作已登录')
-            return True
+        if not on_login and not on_title:
+            # ❗读条/转场会短暂把标题盖掉：不能只看“标题不见了”就判已登录
+            #   （真机 2026-11-12 17:42：Touch to Start 消失 0.2 秒后又被读条
+            #   盖住，1 秒后标题回来）。先等几秒，看到游戏内正面判据才算；
+            #   标题/登录页回来就继续走登录。
+            for _ in self.loop(timeout=3):
+                if self.in_game_screen():
+                    logger.info('登录：已在游戏内（正面判据）')
+                    return True
+                if (self.appear(E_3_1, offset=CHAIN_OFFSET)
+                        or self.appear(E_2_1, offset=CHAIN_OFFSET)
+                        or self.appear(E_1_1, offset=CHAIN_OFFSET)
+                        or self.appear(E_4_2, offset=CHAIN_OFFSET)):
+                    break
+            else:
+                logger.info('登录：不在标题页，当作已登录')
+                return True
 
         # 1. 标题页 → 登录方式页。已经在登录/选账号页就别点「Touch to Start」，
         #    它在弹窗背后一直可见，点了等于取消（真机 19:32 / 19:33 各撞一次）。
