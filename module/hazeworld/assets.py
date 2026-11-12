@@ -38,7 +38,7 @@ EXCHANGE_TAB_ELITE = Button(area={'hazeworld': (21, 209, 214, 266)}, color={'haz
 # is the elite one moved down by the row pitch.
 EXCHANGE_TAB_LOGISTICS = Button(area={'hazeworld': (21, 386, 214, 436)}, color={'hazeworld': (54, 44, 35)}, button={'hazeworld': (21, 386, 214, 436)}, file={'hazeworld': './assets/hazeworld/hazeworld/EXCHANGE_TAB_LOGISTICS.png'})
 E_1_1 = Button(area={'hazeworld': (1192, 184, 1219, 214)}, color={'hazeworld': (107, 101, 107)}, button={'hazeworld': (1184, 176, 1227, 222)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_1_1.png'})
-E_2_1 = Button(area={'hazeworld': (15, 347, 179, 388)}, color={'hazeworld': (59, 64, 78)}, button={'hazeworld': (7, 339, 187, 396)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_2_1.png'})
+E_2_1 = Button(area={'hazeworld': (38, 241, 172, 278)}, color={'hazeworld': (40, 46, 63)}, button={'hazeworld': (30, 233, 180, 286)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_2_1.png'})
 E_3_1 = Button(area={'hazeworld': (1046, 563, 1202, 602)}, color={'hazeworld': (118, 124, 138)}, button={'hazeworld': (1038, 555, 1210, 610)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_3_1.png'})
 E_4_1 = Button(area={'hazeworld': (730, 106, 1007, 177)}, color={'hazeworld': (65, 91, 100)}, button={'hazeworld': (722, 98, 1015, 185)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_4_1.png'})
 E_5_1 = Button(area={'hazeworld': (837, 633, 922, 675)}, color={'hazeworld': (47, 47, 44)}, button={'hazeworld': (829, 625, 930, 683)}, file={'hazeworld': './assets/hazeworld/hazeworld/E_5_1.png'})

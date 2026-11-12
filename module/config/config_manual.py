@@ -61,9 +61,12 @@ class ManualConfig:
     # rewards and the pass points only fill up after the sorties - so they run
     # after 探索/军演/基地 instead of before them.
     # 嘟嘟脸的任务奖励同理，排在同游戏的最后（2026-11-11）。
+    #
+    # 苍雾的限时活动（艾吉斯未解之迷）排在「核心制造」后面，用户 2026-11-12 指定：
+    # 原来的位置在同游戏最前面，现在只在核心制造之后、通行证之前。
     SCHEDULER_PRIORITY = """
     Restart
-    > Hazeworldevent > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
+    > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > Hazeworldevent > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
     > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem

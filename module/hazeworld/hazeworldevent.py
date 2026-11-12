@@ -42,6 +42,27 @@ from module.logger import logger
 # 但开得越大越慢：64 个模板全屏扫一遍要 1 秒，外扩 60 像素只要 50 毫秒。
 CHAIN_OFFSET = 60
 
+# 个别按钮要单独放宽搜索余量。左列的活动入口是一竖条文字，位置随活动增减上下移动：
+# 2026-11-12 联合讨伐结束，新活动「怪怪惊魂夜」插到第一项，把「艾吉斯未解之迷」从
+# 第一项挤到第二项（下移约 110px），默认的 60 不够用。只在这条竖列里上下放宽、
+# 横向收紧，免得扫到页面中部的同名文字。
+CHAIN_OFFSETS = {
+    E_2_1: (24, 200),
+}
+
+
+def chain_offset(button):
+    """
+    Search margin of one chain button.
+
+    Args:
+        button (Button): Button of `GUIDE_CHAIN`.
+
+    Returns:
+        int or tuple: `(x, y)` margin, default `CHAIN_OFFSET`.
+    """
+    return CHAIN_OFFSETS.get(button, CHAIN_OFFSET)
+
 # 扫荡弹窗里「当前体力 ≫ 扣除后剩余」那一行的右侧数字。
 # 体力够时是白/黄字；不够时游戏把它标红（10:45 真机：右上 35/260、单场 42）。
 # 归一化 1280x720 实测：不足帧该区域红色像素 0.131，
@@ -244,7 +265,7 @@ class Hazeworldevent(HazeworldUI):
                     continue
                 if button.name in typed:
                     continue
-                if self.appear(button, offset=CHAIN_OFFSET):
+                if self.appear(button, offset=chain_offset(button)):
                     # 点完「开始扫荡」就交给结算等待，别再回链条里让常驻
                     # 主页键抢帧；E_7_1 若已直接出现也走同一套确认流程。
                     if button is E_6_2:
@@ -275,7 +296,7 @@ class Hazeworldevent(HazeworldUI):
                         started = True
                         quiet.limit = idle
                     # 等它从画面上消失：没了才说明这一步真的生效了。
-                    gone = self.wait_until_disappear(button, offset=CHAIN_OFFSET,
+                    gone = self.wait_until_disappear(button, offset=chain_offset(button),
                                                      timeout=4, settle=2)
                     if gone:
                         stubborn.pop(button.name, None)
