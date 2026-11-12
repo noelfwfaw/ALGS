@@ -37,6 +37,12 @@ E_206_2 = Button(area={'starsavior': (617, 454, 667, 481)}, color={'starsavior':
 # 手写条目：这张 PNG 是整屏只留局部，跑 button_extract 会把 area 重置成整屏。
 E_207_1 = Button(area={'starsavior': (330, 230, 416, 262)}, color={'starsavior': (206, 206, 205)}, button={'starsavior': (330, 230, 416, 262)}, file={'starsavior': './assets/starsavior/starsavior/E_207_1.png'})
 
+# 「最终旅程结果」结算第一屏的标题（白字，位于屏幕上方）。
+# 这张屏的蓝色「确认」和「获得全新祝福」复用同一颗 E_139_1，但新版 UI 下
+# E_139_1 模板对不上（2026-11-12 20:11 真机截图只有 0.476），脚本因此不点。
+# 判据改用标题本身；命中后由 press 点下方确认 (639,660)，不再拿确认键当触发。
+E_208_1 = Button(area={'starsavior': (560, 148, 720, 177)}, color={'starsavior': (200, 200, 200)}, button={'starsavior': (546, 643, 733, 678)}, file={'starsavior': './assets/starsavior/starsavior/E_208_1.png'})
+
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到
 # page_38，而只点敌人圈 45 次画面一动不动。

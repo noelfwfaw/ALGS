@@ -83,7 +83,7 @@ from module.starsavior.assets import (
     E_89_1, E_8_1, E_90_1, E_91_1, E_92_1,
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
-    E_205_1, E_206_1, E_206_2, E_207_1, BATTLE_SKILL,
+    E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -287,13 +287,15 @@ JOURNEY = (
     E_134_1, E_134_2,
 )
 
-# 结算 -> 签到 -> 解锁 -> 后续引导（33 个）
+# 结算 -> 签到 -> 解锁 -> 后续引导（34 个）
 #
 # ❗`E_119_1`（跳过新手教学）也放进来：这个弹窗**跨段出现** ——
 #   旅程里点过一次，清引导到 168 之后它又弹一次（用户 2026-11-06 21:17
 #   「复用旅程里的跳过新手教学就行」）。
 SETTLE = (
-    E_119_1, E_135_1, E_136_1, E_137_1, E_138_1, E_139_1, E_140_1,
+    # E_208_1「最终旅程结果」标题必须排在 E_139_1 前：这屏的确认键模板
+    # 在新版 UI 下匹配不上，靠标题命中后点固定确认坐标。
+    E_119_1, E_135_1, E_136_1, E_137_1, E_138_1, E_208_1, E_139_1, E_140_1,
     E_141_1, E_142_1, E_144_1, E_145_1, E_146_1, E_147_1,
     E_148_1, E_149_1, E_150_1, E_151_1, E_152_1, E_153_1,
     E_154_1, E_155_1, E_156_1, E_157_1, E_158_1, E_159_1,
@@ -387,6 +389,8 @@ GACHA_FULL_AREA = (0, 0, 1280, 720)       # 判"画面换没换"用全屏，最�
 #   下面这些是手动点通了才记下来的（按钮真正的视觉中心）。
 GACHA_TAP_RESULT = (751, 672)    # 结果页「观测10次」（area 中心是 666，偏上 6px）
 GACHA_TAP_CONFIRM = (540, 678)   # 结果页「确认」（area (507,654,549,677) 只框到左半）
+# 「最终旅程结果」的蓝色确认中心：标题 E_208_1 只是判据，点击落在这里。
+RESULT_CONFIRM = (639, 660)
 GACHA_TAP_DRAW = (1142, 672)     # 抽卡界面「观测10次」
 GACHA_TAP_DIALOG = (728, 492)    # 确认框「确认」
 GACHA_RESULT_BOX = (665, 654, 838, 679)   # 结果页底部的「观测10次」
@@ -1909,6 +1913,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         cx, cy = self.retry_point(target.area, retry)
                         logger.info('%s：第 %d 次没点动，换框内另一点 (%d, %d)'
                                     % (button.name, retry, cx, cy))
+                    # E_208_1 的 area 是标题，点击点必须落到下面的蓝色确认；
+                    # 覆盖上面的重试点，标题命中后每次都点同一个确认位置。
+                    if button is E_208_1:
+                        cx, cy = RESULT_CONFIRM
                     self.device.click(Button(  # alas-lint: allow - 只把落点钉到 area 内某个点，没有 file、不进 appear 家族；判据仍然是上面那条 appear
                         area=(cx - 2, cy - 2, cx + 2, cy + 2),
                         color=(0, 0, 0),
@@ -2546,7 +2554,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   评鉴战本身要 60~70 秒才出 VICTORY（03:51:13 开 AUTO → 03:52:2x 胜利），
         #   40 秒会在胜利前 30 秒就收工，所以放到 75 秒。
         self.press(JOURNEY, '旅程：倍速 / 训练 / 评鉴战', timeout=600, idle=75,
-                   speed=True)
+                   speed=True, stop_on=(E_208_1,))
 
     def settle(self):
         """旅程结算：点掉两个签到 -> 解锁 -> 后续引导 -> 主界面。
