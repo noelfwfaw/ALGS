@@ -494,6 +494,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     target_hit = False
     target_detail = ()         # 验号结果（`verify()` 里覆盖），推送正文要用
 
+    # press() 在引导段看到标题/登录页时置 True；guide_press() 读到后重新登录。
+    # 默认 False：别的段不传 stop_on_login，行为不变。
+    need_relogin = False
+
     # 闪退检测开关。默认关：`--step` 单跑、冷启动画面还没画出来时不查；
     # 只有 `run()` 在 `wait_start_screen()` 之后才 arm。
     crash_watch = False
@@ -1257,7 +1261,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
     def press(self, buttons, note, timeout=300, idle=12, once=False, dialogue=False,
               frames=False, speed=False, skip=True, stop_on=(), stop_after_page=None,
-              stop_after_button=(), hit_out=None, restore_after=None):
+              stop_after_button=(), hit_out=None, restore_after=None,
+              stop_on_login=False, login_start_pending=False):
         """
         把一串按钮按顺序点完，直到连着 `idle` 秒什么都认不到。
 
@@ -1324,8 +1329,21 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 又点一次，等于在登录页点"取消"，真机实测直接弹出「已取消登入。」
                 （2026-11-06 19:32）。
 
+            stop_on_login (bool): 引导段专用：每帧先判**标题页 / 登录弹窗**，
+                命中就不点、把 `need_relogin` 置 True 并收工，交给
+                `guide_press()` 重新登录。
+
+                ❗非引导按钮（page_4 的 `E_4_2`、page_61 的 `E_61_1`）
+                不在 `GUIDE_PAGES` 里，`guide_page()` 返回 None，**永不过期**；
+                被踢回标题后它们每帧都会重新命中，继续点就是
+                「Touch to Start → 登录失败 → 确认 → 标题」死循环。
+
+            login_start_pending (bool): 允许再点一次 page_4 的 `E_4_2`
+                （登录后「点一次进游戏」）。点掉并验证消失后自动关闭；
+                之后同一段里再看到它，就是被踢回标题，不是引导页。
+
         Returns:
-            bool: True 表示这一段自然结束，False 表示超时。
+            bool: True 表示这一段自然结束，False 表示超时/中途需要重登。
         """
         logger.hr(note, level=2)
         quiet = Timer(idle).start()
@@ -1381,6 +1399,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         recheck_wait = Timer(120)
         speed_after = False    # 窗口是「因为看到 3x」关掉的 —— 下一次点训练才关补档
         auto_last_click = 0.0  # 上次点 AUTO 的时刻（说明链里按 AUTO_RETRY 节流）
+        # 登录后 page_4 的 E_4_2 还要点一次才进游戏；只允许这一次，
+        # 点掉并验证消失后关闭。已经在游戏里（有 SKIP/四格）就不给这次机会。
+        login_pending = login_start_pending and not self.in_game_screen()
         for _ in self.loop(timeout=timeout):
             # 剧情 / 加载 / 战斗 / 抽卡动画是游戏自己走完的过程，不该归看门狗管
             # （硬约束 152）：60 秒没点击就 stuck_record_check -> app_is_running()，
@@ -1388,6 +1409,25 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             # 直接抛 GameNotRunningError，整段被掐断（真机 00:14 journey、00:31
             # gacha 各崩一次）。上限交给本循环自己的 Timer(timeout)。
             self.device.stuck_record_clear()
+            # ===== 中途回到标题 / 登录页：立刻收工，交给 guide_press() =====
+            # ❗不能只靠按钮表：标题页的 E_4_2 / E_1_1 会被当成引导页一直点，
+            #   直到 GameTooManyClickError（2026-11-12 17:02 实测 14 次）。
+            #   登录弹窗 E_3_1 / 账号列表 E_2_1 也不能点，交给 login()。
+            if stop_on_login:
+                if (self.appear(E_3_1, offset=CHAIN_OFFSET)
+                        or self.appear(E_2_1, offset=CHAIN_OFFSET)):
+                    logger.warning(f'{note}：出现登录 / 选账号弹窗，停止这一段，准备重新登录')
+                    self.need_relogin = True
+                    return False
+                # pending 期间允许表去点 page_4 那一次；in_game_screen() 只在
+                # 标题模板命中时才算，避免每帧多扫五张 SKIP 模板。
+                if (not login_pending
+                        and (self.appear(E_1_1, offset=CHAIN_OFFSET)
+                             or self.appear(E_4_2, offset=CHAIN_OFFSET))
+                        and not self.in_game_screen()):
+                    logger.warning(f'{note}：回到标题页（Touch to Start），停止这一段，准备重新登录')
+                    self.need_relogin = True
+                    return False
             # 旅程的终点是评鉴战 VICTORY 页。它上面一个 JOURNEY 表里的按钮
             # 都没有，只有右下角「离开」(E_135_1，属 SETTLE 段)。以前靠
             # idle=40 秒自然收工，倍速补档又每 2 秒 reset 一次 quiet，
@@ -1834,6 +1874,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     else:
                         vanished = self.wait_until_disappear(
                             button, offset=CHAIN_OFFSET, timeout=3, settle=2)
+                    # page_4 的「进游戏」只算一次；之后它再出现就是标题页。
+                    if button is E_4_2 and vanished:
+                        login_pending = False
                     done_at = time.time()
                     if button is E_134_2:
                         logger.info('%s 点完 %.1fs 后自动战斗%s'
@@ -2177,7 +2220,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   05:05:07 就是这样：「登录：不在标题页，当作已登录」→ 卡登录。
         on_login = (self.appear(E_3_1, offset=CHAIN_OFFSET)
                     or self.appear(E_2_1, offset=CHAIN_OFFSET))
-        if not on_login and not self.appear(E_1_1, offset=CHAIN_OFFSET):  # alas-lint: allow - "标题页和登录弹窗都看不见"才是"已经进游戏了"的答案，这条分支不点任何东西
+        # ❗标题页可能只认得出 E_4_2、认不出 E_1_1（2026-11-12 17:02 被踢回
+        #   标题时表里点的就是 E_4_2）。只判 E_1_1 会把标题页误判成「已登录」，
+        #   紧接着 guide() 又把 E_4_2 当引导页点回登录循环。
+        on_title = (self.appear(E_1_1, offset=CHAIN_OFFSET)
+                    or self.appear(E_4_2, offset=CHAIN_OFFSET))
+        if not on_login and not on_title:  # alas-lint: allow - "标题页和登录弹窗都看不见"才是"已经进游戏了"的答案，这条分支不点任何东西
             logger.info('登录：不在标题页，当作已登录')
             return True
 
@@ -2186,7 +2234,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         already = (self.appear(E_3_1, offset=CHAIN_OFFSET)
                    or self.appear(E_2_1, offset=CHAIN_OFFSET))
         if not already:  # alas-lint: allow - "已经过了标题页"才是要不要点的答案，且这一步不点任何东西
-            self.click_once(E_1_1, 'Touch to Start', offset=CHAIN_OFFSET, interval=3)
+            # 两个模板是同一个位置的两个取样：重置后是 E_1_1，被踢回标题
+            # 的现场是 E_4_2（2026-11-12 17:02）。哪个在就点哪个。
+            if self.appear(E_4_2, offset=CHAIN_OFFSET):
+                self.click_once(E_4_2, 'Touch to Start', offset=CHAIN_OFFSET, interval=3)
+            else:
+                self.click_once(E_1_1, 'Touch to Start', offset=CHAIN_OFFSET, interval=3)
 
         # 2. 还没到选账号页就先点 Google
         #
@@ -2245,6 +2298,45 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         logger.warning('登录：点了账号但弹窗没关')
         return False
 
+    def guide_press(self, buttons, note, start_pending=False, **kwargs):
+        """`press()` 的引导包装：中途回到标题/登录页就重登，再从当前画面接。
+
+        服务器记开荒进度，重登后不会重开教学；而 `press()` 是无状态的
+        （每帧重扫按钮表、不记步数），所以重登成功后**重跑同一段**即可。
+
+        ❗重登只试一次。再掉回标题就 `TaskFailed` 停住，不把
+          「登录 → 掉线 → 登录」做成新的死循环。
+
+        Args:
+            buttons (tuple): 同 `press()`。
+            note (str): 同 `press()`。
+            start_pending (bool): 这一段的开头是否还允许点一次 page_4 的
+                `E_4_2`（登录后「点一次进游戏」）。只有 `guide()` 第一段
+                给 True；被踢回标题后重跑时也会重新允许一次。
+
+        Returns:
+            bool: 同 `press()`。
+        """
+        pending = start_pending
+        for attempt in range(2):
+            self.need_relogin = False
+            ok = self.press(buttons, note, stop_on_login=True,
+                            login_start_pending=pending, **kwargs)
+            if not self.need_relogin:
+                return ok
+            if attempt:
+                raise TaskFailed(self.fail_reason(
+                    '引导中途回到标题/登录页，重新登录后再次掉回，已停止（账号没丢）。'))
+            logger.warning('%s：中途回到标题/登录页，重新登录后从当前画面继续' % note)
+            if not self.login():
+                raise TaskFailed(self.fail_reason(
+                    '引导中途回到标题/登录页，重新登录没走完，已停止'
+                    '（账号没丢；把游戏停回标题页再手动重跑）。'))
+            # 重登后可能还要点一次 page_4 才真正进游戏；`press()` 只在
+            # 不在游戏内时才把这次机会留着（有 SKIP/四格就不给）。
+            pending = True
+        return False
+
     def guide(self, stop_at_nickname=False):
         """登录之后的开场引导，一直走到昵称确认。
 
@@ -2269,8 +2361,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   ❗不把 NICK 并进这一段：这段是 `dialogue=True`，SKIP 失效时会点画面
         #     中央，而「昵称之后不许点中间」（用户 2026-11-06 20:17）。看到昵称框
         #     就立刻收工，交给下面那个 `dialogue=False` 的「昵称」段去输入。
-        self.press(GUIDE_A, '开场引导', dialogue=True, frames=True, idle=40,
-                   stop_on=(E_60_2,))
+        self.guide_press(GUIDE_A, '开场引导', start_pending=True,
+                         dialogue=True, frames=True, idle=40,
+                         stop_on=(E_60_2,))
         if stop_at_nickname:
             # ❗节点1：**只走到昵称框、不打字**。
             #   昵称弹窗可能还没出来（教学战本身要 20~40 秒），所以没看见就继续
@@ -2279,9 +2372,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             if not self.appear(E_60_2, offset=CHAIN_OFFSET):  # alas-lint: allow - 判据是正面条件（昵称输入框），"看不见"= 弹窗还没出来（教学战/转场），这里只决定要不要再扫一遍；误判的代价是多点一段引导，不会点错
                 # 上面那段 press 是 `dialogue=True`，走不完教学战就会静默收工，
                 # 所以没看到昵称框就再扫一遍（`stop_on` 一露头就停，不会去点「确认」）。
-                self.press(GUIDE_A + NICK + GUIDE_B, '引导（走到昵称前）',
-                           timeout=420, frames=True, dialogue=True,
-                           stop_on=(E_60_2,))
+                self.guide_press(GUIDE_A + NICK + GUIDE_B, '引导（走到昵称前）',
+                                 timeout=420, frames=True, dialogue=True,
+                                 stop_on=(E_60_2,))
             if self.appear(E_60_2, offset=CHAIN_OFFSET):
                 logger.hr('引导：已停在昵称输入框（节点1，没有输入昵称）', level=2)
             else:
@@ -2298,7 +2391,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   这里提前收工也不亏：下一段「引导（进旅程之前）」扫的是
         #   `GUIDE_A + NICK + GUIDE_B` 合表，`E_60_2` / `E_61_1` 都在里面，
         #   真没点完下一段会接手。
-        self.press(NICK, '昵称', timeout=90, idle=6)
+        self.guide_press(NICK, '昵称', timeout=90, idle=6)
         # ❗`frames=True`：教学战里有"怪物的亮圆框"，那是引导要求点的目标，
         #   表里没有对应素材，只能靠几何找框。用户 2026-11-06 22:54 确认「加」。
         #   只开 `frames`、**不开 `dialogue`** —— 仍然是"点框"不"点中央"，
@@ -2328,8 +2421,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   只在「关卡选择」页出现，拿它当判据永远不会命中。
         #   `stop_on` 本身已经限制成「没有 SKIP、没有血条」的干净画面才判，
         #   所以引导页和教学战不会误伤。
-        self.press(GUIDE_A + NICK + GUIDE_B, '引导（进旅程之前）', timeout=420,
-                   frames=True, dialogue=True, stop_on=(E_116_1,))
+        self.guide_press(GUIDE_A + NICK + GUIDE_B, '引导（进旅程之前）', timeout=420,
+                         frames=True, dialogue=True, stop_on=(E_116_1,))
         return True
 
     def journey(self):

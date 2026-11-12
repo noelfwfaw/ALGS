@@ -334,7 +334,7 @@ Starsavior2:
   TargetMode:
     value: any
     option: [ any, all ]
-  # 目标角色：卡池 SSR 名单，抄自 `assets/starsavior/roster.txt`（46 只）。
+  # 目标角色：卡池 SSR 名单，抄自 `assets/starsavior/roster.txt`（47 只，2026-11-12 更新）。
   #
   # ❗**最多可以挂 7 只**（`Target` + `Target2`~`Target7`），判定方式跟着上面的
   #   `TargetMode` 走：`any` 只看有没有某一个角色凑够它自己的数量，`all` 要求每一只都凑够。
@@ -344,7 +344,7 @@ Starsavior2:
     value: none
     option: &ssr_pool [
       none,
-      '瑟莱丝@锐利甜心',
+      '亚瑟菈@偏爱魔女',
       '露娜@航行者救援团',
       '卡奈莉亚@流浪者',
       '赛拉@梦魇',
@@ -377,6 +377,7 @@ Starsavior2:
       '夏尔@莫纳斯提尔之心',
       '瑟莱丝@西部收复部队',
       'M教授@兰帕迪斯',
+      '克温@兰帕迪斯',
       '哈莉@地狱救援者',
       '佩特拉@佩特拉联合',
       '丝卡蕾@小暴君',

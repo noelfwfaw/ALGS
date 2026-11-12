@@ -6,7 +6,7 @@
 
     python -m module.config.config_updater
 
-补齐剩下的键（比如 `Storage.*`、`Target.<46 只角色>`，后者的默认值就是角色名本身）。
+补齐剩下的键（比如 `Storage.*`、`Target.<47 只角色>`，后者的默认值就是角色名本身）。
 
     python dev_tools/fill_i18n_starsavior.py
 """
