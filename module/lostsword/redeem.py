@@ -26,7 +26,8 @@
 """
 
 from module.base.timer import Timer
-from module.coupon.codes import EXPIRED, FAILED, REDEEMED, USED, CodeBook
+from module.coupon.codes import (clear_record_if_requested, EXPIRED, FAILED,
+                                 REDEEMED, USED, CodeBook)
 from module.coupon.gamekee import GameKeeError, fetch_codes
 from module.logger import logger
 from module.lostsword.assets import (ARENA_BTN_CLOSE, REDEEM_BTN_CONFIRM,
@@ -40,6 +41,8 @@ from module.lostsword.utils import read_text
 # 账本。放在 `config/state/` 而不是 `config/` 顶层：那里每个 json 都会被
 # `alas_instance()` 当成一个调度器实例（硬约束 118）。
 COUPON_LEDGER = './config/state/lostsword_codes.json'
+# 任务名，用来定位共用的一次性开关 `Coupon.ClearRecord`。
+COUPON_TASK = 'LostswordRedeem'
 
 # 大厅右上角的三条横线。这个图标本身带红点、背后是会动的链条，做不成模板，
 # 所以按坐标点，点完用菜单里的齿轮（`REDEEM_ENTRY`）验证菜单真的开了。
@@ -113,6 +116,8 @@ class LostswordRedeem(LostswordUI, CouponInput):
             return
 
         book = CodeBook(COUPON_LEDGER)
+        # 勾了「清除兑换码记录」就先清空账本，开关在这里自动复位。
+        clear_record_if_requested(self.config, COUPON_TASK, book)
         book.log_summary()
         todo = book.pending(codes)
         # `pending()` 顺手把过期码记进账本，这里落一次盘。

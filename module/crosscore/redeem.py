@@ -34,8 +34,8 @@ be picked up as a scheduler instance by `alas_instance()` (hard rule 118).
 """
 
 from module.base.timer import Timer
-from module.coupon.codes import (CHANNEL, EXPIRED, FAILED, INVALID, REDEEMED,
-                                 USED, CodeBook)
+from module.coupon.codes import (CHANNEL, clear_record_if_requested, EXPIRED,
+                                 FAILED, INVALID, REDEEMED, USED, CodeBook)
 from module.coupon.gamekee import GameKeeError, fetch_codes
 from module.coupon.text import read_text
 from module.crosscore.assets import (BOOT_BACK, COUPON_ENTRY, COUPON_INPUT,
@@ -55,6 +55,8 @@ COUPON_PAGE = 119
 COUPON_SERVER_ID = 119
 
 COUPON_LEDGER = './config/state/crosscore_codes.json'
+# 任务名，用来定位共用的一次性开关 `Coupon.ClearRecord`。
+COUPON_TASK = 'CrosscoreRedeem'
 
 # The game's own input bar: a full-width white strip at the bottom. 253 while it
 # is out, 43 while it is away (measured on the two 2026-11-09 screenshots).
@@ -141,6 +143,8 @@ class CrosscoreRedeem(CrosscoreUI):
             return
 
         book = CodeBook(COUPON_LEDGER)
+        # 勾了「清除兑换码记录」就先清空账本，开关在这里自动复位。
+        clear_record_if_requested(self.config, COUPON_TASK, book)
         book.log_summary()
         todo = book.pending(codes)
         # `pending()` marks the codes that have expired on the way, save that.

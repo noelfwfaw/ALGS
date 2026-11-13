@@ -46,6 +46,9 @@ class GeneratedConfig:
     # Group `DropRecord`
     DropRecord_SaveFolder = './screenshots'
 
+    # Group `Coupon`
+    Coupon_ClearRecord = False
+
     # Group `HazeworldTask`
     HazeworldTask_ClaimDaily = True
     HazeworldTask_ClaimWeekly = True

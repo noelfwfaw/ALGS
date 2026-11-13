@@ -104,6 +104,7 @@ Lostsword:
       - LostswordTask
     LostswordRedeem:
       - Scheduler
+      - Coupon
 
 # ==================== Brown Dust II ====================
 
@@ -130,6 +131,7 @@ Browndust:
       - Scheduler
     BrowndustRedeem:
       - Scheduler
+      - Coupon
 
 # ==================== Chaos Zero Nightmare (卡厄思梦境) ====================
 
@@ -149,6 +151,7 @@ Chaoszero:
       - Scheduler
     ChaoszeroRedeem:
       - Scheduler
+      - Coupon
     ChaoszeroMain:
       - Scheduler
 
@@ -162,6 +165,7 @@ Crosscore:
       - Scheduler
     CrosscoreRedeem:
       - Scheduler
+      - Coupon
     CrosscoreMail:
       - Scheduler
     CrosscoreTask:

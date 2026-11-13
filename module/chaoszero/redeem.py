@@ -49,8 +49,8 @@ from module.chaoszero.assets import (REDEEM_ACCOUNT_TAB, REDEEM_CLOSE,
                                      REDEEM_SUBMIT, REDEEM_TITLE)
 from module.chaoszero.chaoszero_ui import ChaoszeroUI
 from module.chaoszero.page import page_main
-from module.coupon.codes import (EXPIRED, FAILED, INVALID, REDEEMED, USED,
-                                 CodeBook)
+from module.coupon.codes import (clear_record_if_requested, EXPIRED, FAILED,
+                                 INVALID, REDEEMED, USED, CodeBook)
 from module.coupon.gamekee import GameKeeError, fetch_codes
 from module.coupon.text import read_text
 from module.logger import logger
@@ -58,6 +58,8 @@ from module.logger import logger
 # 账本。放在 `config/state/` 而不是 `config/` 顶层：那里每个 json 都会被
 # `alas_instance()` 当成一个调度器实例（硬约束 118）。
 COUPON_LEDGER = './config/state/chaoszero_codes.json'
+# 任务名，用来定位共用的一次性开关 `Coupon.ClearRecord`。
+COUPON_TASK = 'ChaoszeroRedeem'
 
 # GameKee 上这个游戏的 alias 和列表页尾号，取自
 # https://www.gamekee.com/czn/redemptionCode/104 。
@@ -153,6 +155,8 @@ class ChaoszeroRedeem(ChaoszeroUI):
             return
 
         book = CodeBook(COUPON_LEDGER)
+        # 勾了「清除兑换码记录」就先清空账本，开关在这里自动复位。
+        clear_record_if_requested(self.config, COUPON_TASK, book)
         book.log_summary()
         todo = book.pending(codes)
         # `pending()` 顺手把过期码记进账本，这里落一次盘。

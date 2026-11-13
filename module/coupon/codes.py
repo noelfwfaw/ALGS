@@ -126,6 +126,24 @@ class CodeBook:
         except OSError as e:
             logger.warning(f'Could not write the coupon ledger: {e}')
 
+    def clear(self):
+        """
+        Forget every code, so the next run tries all of them again.
+
+        Used by the one-shot 「清除兑换码记录」 switch. The game answers an
+        already spent code with 「已使用过的优惠券」, so clearing costs one
+        round trip per code, not a failure.
+
+        Returns:
+            int: How many records were dropped.
+        """
+        dropped = len(self.codes)
+        self.codes.clear()
+        self.save()
+        logger.info(f'Coupon ledger cleared: {dropped} record(s) dropped, '
+                    f'every code will be sent again')
+        return dropped
+
     def pending(self, codes):
         """
         Keep the codes that are worth sending to the game today.
@@ -186,3 +204,37 @@ class CodeBook:
 
 def now_text():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
+def clear_record_if_requested(config, task, book):
+    """
+    Honour the one-shot 「清除兑换码记录」 switch of a redeem task.
+
+    The switch is a checkbox shared by the four games' redeem tasks
+    (`Coupon.ClearRecord`). Ticking it and waiting for the task to run is the
+    whole gesture: the ledger is dropped here, and the checkbox itself is put
+    back to False right away, so the next run goes back to normal bookkeeping.
+    Without that reset the ledger would be wiped on every run, and the task
+    would re-send every code to the game forever.
+
+    Args:
+        config: The config object of the running task.
+        task (str): Task name, e.g. `'LostswordRedeem'`. Builds the config
+            path `{task}.Coupon.ClearRecord`.
+        book (CodeBook): The ledger of this game.
+
+    Returns:
+        bool: True when the ledger was cleared this run.
+    """
+    keys = f'{task}.Coupon.ClearRecord'
+    if not config.cross_get(keys, default=False):
+        return False
+
+    logger.hr('Clear coupon ledger', level=2)
+    book.clear()
+    # Reset before redeeming anything: if the rest of the run dies, the next
+    # run must not clear the fresh records again.
+    config.cross_set(keys, False)
+    logger.info('兑换码记录已清空，本轮重新兑换一遍；开关已自动关闭')
+    return True
+

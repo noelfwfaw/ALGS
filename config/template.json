@@ -491,6 +491,9 @@
       "FailureInterval": 120,
       "ServerUpdate": "00:00"
     },
+    "Coupon": {
+      "ClearRecord": false
+    },
     "Storage": {
       "Storage": {}
     }
@@ -614,6 +617,9 @@
       "FailureInterval": 120,
       "ServerUpdate": "08:00"
     },
+    "Coupon": {
+      "ClearRecord": false
+    },
     "Storage": {
       "Storage": {}
     }
@@ -698,6 +704,9 @@
       "FailureInterval": 120,
       "ServerUpdate": "05:00"
     },
+    "Coupon": {
+      "ClearRecord": false
+    },
     "Storage": {
       "Storage": {}
     }
@@ -736,6 +745,9 @@
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "05:00"
+    },
+    "Coupon": {
+      "ClearRecord": false
     },
     "Storage": {
       "Storage": {}

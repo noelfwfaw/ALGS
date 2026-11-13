@@ -466,6 +466,16 @@
       "help": ""
     }
   },
+  "Coupon": {
+    "_info": {
+      "name": "Coupon codes",
+      "help": "Shared settings of the coupon tasks"
+    },
+    "ClearRecord": {
+      "name": "Clear coupon record",
+      "help": "Ticked, the next run clears the local record first, then sends every coupon code to the game again; the tick turns itself off afterwards.\nOne-shot: tick it once per reset, normal bookkeeping resumes by itself.\nCodes that were already used are simply answered as used, nothing else happens."
+    }
+  },
   "HazeworldTask": {
     "_info": {
       "name": "Mission settings",

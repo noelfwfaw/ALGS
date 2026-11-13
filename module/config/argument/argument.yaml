@@ -98,6 +98,10 @@ Optimization:
     option: [ stay_there, goto_main, close_game ]
 DropRecord:
   SaveFolder: ./screenshots
+# 兑换码任务的共用设置，四个游戏的 Redeem 任务都挂这一组。
+Coupon:
+  ClearRecord:
+    value: false
 
 # ==================== Hazeworld ====================
 

@@ -1790,6 +1790,12 @@
         "display": "hide"
       }
     },
+    "Coupon": {
+      "ClearRecord": {
+        "type": "checkbox",
+        "value": false
+      }
+    },
     "Storage": {
       "Storage": {
         "type": "storage",
@@ -2222,6 +2228,12 @@
         "display": "hide"
       }
     },
+    "Coupon": {
+      "ClearRecord": {
+        "type": "checkbox",
+        "value": false
+      }
+    },
     "Storage": {
       "Storage": {
         "type": "storage",
@@ -2516,6 +2528,12 @@
         "display": "hide"
       }
     },
+    "Coupon": {
+      "ClearRecord": {
+        "type": "checkbox",
+        "value": false
+      }
+    },
     "Storage": {
       "Storage": {
         "type": "storage",
@@ -2649,6 +2667,12 @@
         "type": "input",
         "value": "05:00",
         "display": "hide"
+      }
+    },
+    "Coupon": {
+      "ClearRecord": {
+        "type": "checkbox",
+        "value": false
       }
     },
     "Storage": {
