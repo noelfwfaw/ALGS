@@ -58,6 +58,18 @@ E_210_1 = Button(area={'starsavior': (724, 340, 800, 414)}, color={'starsavior':
 # 主大厅没有这块，所以它能把“无 SKIP 剧情”和主大厅区分开，供登录判据和续跑用。
 E_211_1 = Button(area={'starsavior': (22, 22, 60, 60)}, color={'starsavior': (66, 133, 217)}, button={'starsavior': (14, 14, 68, 68)}, file={'starsavior': './assets/starsavior/starsavior/E_211_1.png'})
 
+# 热更新（客户端热更）三屏。2026-11-13 15:38 实测：热更 81.40MB 期间游戏一直
+# 停在这几屏，`wait_start_screen()` 一个都认不出，白等 180 秒后被判成闪退，
+# 连做两次重启（第二次带 App stop，会把下载掐断，上次就是这样搞坏客户端）。
+#
+# E_212_1：下载确认框左上角「下载」标题（图标 + 文字）。只切标题，正文里的
+#   容量数字每次都不一样。命中后由 hot_update_state() 点蓝「OK」(735,490)。
+# E_213_1 / E_214_1：右下角「正在下载数据…」和「正在编译着色器」。
+#   只切文字本身，右边跟着的百分比/省略号/转圈会变。
+E_212_1 = Button(area={'starsavior': (328, 210, 412, 244)}, color={'starsavior': (240, 240, 240)}, button={'starsavior': (328, 210, 412, 244)}, file={'starsavior': './assets/starsavior/starsavior/E_212_1.png'})
+E_213_1 = Button(area={'starsavior': (1074, 635, 1153, 658)}, color={'starsavior': (34, 34, 34)}, button={'starsavior': (1074, 635, 1153, 658)}, file={'starsavior': './assets/starsavior/starsavior/E_213_1.png'})
+E_214_1 = Button(area={'starsavior': (1014, 635, 1112, 660)}, color={'starsavior': (200, 200, 200)}, button={'starsavior': (1014, 635, 1112, 660)}, file={'starsavior': './assets/starsavior/starsavior/E_214_1.png'})
+
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到
 # page_38，而只点敌人圈 45 次画面一动不动。

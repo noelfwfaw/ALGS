@@ -83,7 +83,8 @@ from module.starsavior.assets import (
     E_89_1, E_8_1, E_90_1, E_91_1, E_92_1,
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
-    E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1, BATTLE_SKILL,
+    E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1,
+    E_212_1, E_213_1, E_214_1, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -473,6 +474,20 @@ CRASH_CONFIRM = 2
 CRASH_GRACE = 10           # 画面就绪后再给 10 秒，别把刚起来的客户端判死
 CRASH_MAX_RESTART = 3      # 一次工具运行最多自动重启几次，防无限重启
 
+# 热更新（客户端热更）。2026-11-13 15:32 真机：游戏在引导中途退回标题，重登后
+# 弹出「是否要下载 81.40MB 容量的文件？」，下载完成后又走「正在编译着色器 92.95%」，
+# 前后约 3 分钟。这段时间画面既不是标题也不是任何已知状态，旧代码等 180 秒判成
+# 闪退，第二次重启带 `App stop` 把下载掐断 —— 2026-11-13 凌晨就是这样把客户端
+# 搞成「下载失败 / 完整性检查」的。所以：
+#   * 认到这三屏就当「还在启动」，不判闪退、不推进任何状态机；
+#   * 等待期限自动往后延，最长 HOT_UPDATE_MAX_WAIT；
+#   * 认到过热更新之后 HOT_UPDATE_TTL 秒内，重启一律不强杀。
+HOT_UPDATE_TAP = (735, 490)      # 下载确认框蓝「OK」中心（真机点过，能起下载）
+HOT_UPDATE_EXTEND = 120          # 每认到一次热更新，等待期限再给这么久
+HOT_UPDATE_MAX_WAIT = 900        # 等画面总时长上限（81.40MB 实测约 3 分钟）
+HOT_UPDATE_TTL = 900             # 认到过热更新后，这段时间内不许 App stop
+HOT_UPDATE_CLICK_GAP = 5         # 两次点「OK」的最小间隔，别连点
+
 
 class GameCrashed(Exception):
     """Internal signal: game is gone or back on the desktop, `run()` restarts it."""
@@ -516,6 +531,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     crash_watch = False
     crash_missing = 0
     crash_grace_until = 0.0
+
+    # 热更新保护：认到过热更新就记一个截止时间，这段时间内不判闪退、不强杀。
+    hot_update_until = 0.0
 
     def arm_crash_watch(self):
         """画面已就绪，开始查游戏进程；重启 / 重置之后要重新调一次。"""
@@ -564,6 +582,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         gone = not alive
         desktop = self.game_on_desktop() if alive else False
         if alive and not desktop:
+            self.crash_missing = 0
+            return
+        # 热更新 / 编译着色器期间会有一两帧退到桌面（客户端在重建 Activity），
+        # 这不是闪退；而且这时重启又要等好几分钟。直接不计数。
+        if self.hot_update_state():
             self.crash_missing = 0
             return
 
@@ -642,8 +665,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 logger.info('重启：device.package %s -> %s'
                             % (self.device.package, package))
                 self.device.package = package
-            if gone or force:
+            if gone:
                 self.device.app_stop()
+            elif force:
+                # ❗热更新 / 编译着色器期间强杀会把下载掐断，之后客户端会报
+                #   「下载失败 / 加载游戏数据过程中发生问题」，得做完整性检查
+                #   （2026-11-13 凌晨就这么搞坏过一次）。这段时间只拉回前台。
+                if self.in_hot_update():
+                    logger.warning('重启：热更新还没做完，这次不强杀，只把游戏拉回前台')
+                else:
+                    self.device.app_stop()
             else:
                 logger.info('重启：进程还在，先只把游戏拉回前台')
             self.device.app_start()
@@ -926,7 +957,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   会误判成"已经在游戏里"，接着整条链在加载画面上空转。
                 if not self.wait_start_screen():
                     # 认不出画面就再拉一次游戏，别硬着头皮往下点。
-                    raise GameCrashed('等不到游戏画面', gone=True)
+                    # ❗但热更新期间不能按“进程没了”处理：`gone=True` 会走
+                    #   `App stop`，把正在下载的热更数据掐断。
+                    raise GameCrashed('等不到游戏画面',
+                                      gone=not self.in_hot_update())
                 self.arm_crash_watch()
                 # ❗`login()` 返回 False 说明登录链没走完，后面所有段的按钮表
                 #   都不适用，继续跑只会逐段 idle 空转，最后还可能去 `reset()`
@@ -2454,6 +2488,59 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             logger.info('登录：看到「通知」弹窗但没有「确认」按钮，先不动')
         return False
 
+    def in_hot_update(self):
+        """最近一次认到热更新，说明客户端还在热更/编译着色器。"""
+        return time.time() < self.hot_update_until
+
+    def hot_update_state(self):
+        """当前是不是热更新画面：`'dialog'` / `'progress'` / `''`。
+
+        - `'dialog'`：下载确认框（`E_212_1` = 左上角「下载」标题）。正文里的
+          容量数字每次都不一样，所以只认标题。
+        - `'progress'`：右下角「正在下载数据…」或「正在编译着色器」。右边跟着的
+          百分比 / 省略号 / 转圈会变，模板只切了文字本身。
+
+        ❗阈值 0.90：225 张历史截图实测，`E_212_1` 真机 1.000 / 其它最高 0.413，
+          `E_213_1` 1.000 / 0.601，`E_214_1` 1.000 / 0.642。
+        ❗认到就把 `hot_update_until` 推后：这段时间内不判闪退、不强杀。
+        """
+        if self.appear(E_212_1, offset=30):
+            self.hot_update_until = time.time() + HOT_UPDATE_TTL
+            return 'dialog'
+        if (self.appear(E_213_1, offset=10, similarity=0.90)
+                or self.appear(E_214_1, offset=10, similarity=0.90)):
+            self.hot_update_until = time.time() + HOT_UPDATE_TTL
+            return 'progress'
+        return ''
+
+    def hot_update_watch(self):
+        """热更新画面出现时点掉下载确认框，返回 True。
+
+        只点蓝「OK」，不点 Cancel：热更是必须下的，Cancel 只会让下一轮再弹一次。
+        点完**不**等它消失 —— 下载要几分钟，画面会停在「正在下载数据…」。
+        """
+        state = self.hot_update_state()
+        if not state:
+            return False
+        now = time.time()
+        if state == 'dialog' and now - getattr(self, '_hot_update_click', 0) > HOT_UPDATE_CLICK_GAP:
+            self._hot_update_click = now
+            x, y = HOT_UPDATE_TAP
+            logger.info('热更新：点「OK」开始下载（%d,%d）' % (x, y))
+            # 判据在上面的 hot_update_state()（E_212_1 命中才走到这里），
+            # 点完不等消失：下载中画面会变成「正在下载数据…」，由下一帧继续判。
+            self.device.click(Button(  # alas-lint: allow - 上一行 hot_update_state() 用 E_212_1 正面判过下载确认框，点完进入下载进度态没有可等的消失信号
+                area=(x - 2, y - 2, x + 2, y + 2),
+                color=(0, 0, 0),
+                button=(x - 40, y - 20, x + 40, y + 20),
+                name='热更新下载确认',
+            ))
+        else:
+            if now - getattr(self, '_hot_update_log', 0) > 15:
+                self._hot_update_log = now
+                logger.info('热更新：正在下载 / 编译着色器，继续等')
+        return True
+
     def wait_start_screen(self, timeout=180, settle=3):
         """等游戏真的画出画面再开工。
 
@@ -2469,6 +2556,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         刚启动那一两帧还是**上一个进程留下的标题页**，只判一帧就会在它被杀掉
         之后立刻"就绪"，紧接着 `login()` 在启动动画上误判成已登录
         （真机 12:52:32 实测：等了 0.0s 就"就绪"，下一行就是"不在标题页"）。
+
+        ❗热更新（客户端热更）要走几分钟，`timeout` 会被自动延长，见
+          `hot_update_watch()`。这段期间**不返回 False**，否则 `run()` 会把它
+          当闪退，`restart_game(gone=True)` 的 `App stop` 会把下载掐断。
         """
         logger.hr('等游戏画面', level=2)
         # ❗`skip_first=False`：工具是 `AlGS.run(command, skip_first_screenshot=True)`
@@ -2477,34 +2568,51 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   `AttributeError: 'NoneType' object has no attribute 'shape'`
         #   （真机 2026-11-07 13:52，工具页第一次点启动就撞上）。
         start = time.time()
+        deadline = start + timeout
         hits = 0
-        for _ in self.loop(skip_first=False, timeout=timeout):
-            # 游戏自己在加载，别让看门狗把正常等待判成卡死。
-            self.device.stuck_record_clear()
-            # 启动阶段偶发的「发生错误」弹窗：点掉再判，别让它把画面判成「没就绪」
-            if self.dismiss_game_error():
-                hits = 0
-                continue
-            # 重置完回标题页必弹一次「通知 / 与服务器联机中断。」，同样会盖住标题页
-            if self.dismiss_notice():
-                hits = 0
-                continue
-            found = False
-            for button in self.START_SCREENS:
-                if self.appear(button, offset=CHAIN_OFFSET):
-                    found = True
+        while True:
+            remain = deadline - time.time()
+            if remain <= 0:
+                # 热更新还没做完：继续等，别让 run() 判成闪退去强杀。
+                if self.in_hot_update() and time.time() - start < HOT_UPDATE_MAX_WAIT:
+                    deadline = time.time() + HOT_UPDATE_EXTEND
+                    logger.info('等游戏画面：热更新还没做完（已等 %.0fs），继续等'
+                                % (time.time() - start))
+                    continue
+                break
+            for _ in self.loop(skip_first=False, timeout=remain):
+                # 游戏自己在加载，别让看门狗把正常等待判成卡死。
+                self.device.stuck_record_clear()
+                # 启动阶段偶发的「发生错误」弹窗：点掉再判，别让它把画面判成「没就绪」
+                if self.dismiss_game_error():
+                    hits = 0
+                    continue
+                # 重置完回标题页必弹一次「通知 / 与服务器联机中断。」，同样会盖住标题页
+                if self.dismiss_notice():
+                    hits = 0
+                    continue
+                # 热更新三屏（下载确认框 / 正在下载 / 编译着色器）：
+                # 既不是就绪，也不算卡死，只是要等；顺手把等待期限往后推。
+                if self.hot_update_watch():
+                    hits = 0
+                    deadline = max(deadline, time.time() + HOT_UPDATE_EXTEND)
                     break
-            # 冷启动也可能不经标题页、直接恢复到教学战 / 旅程 / 剧情页
-            # （2026-11-13 逐页强杀实测），只等 START_SCREENS 会白等 180 秒。
-            if not found and (self.in_battle() or self.at_journey()
-                              or any(self.appear(b, offset=CHAIN_OFFSET)
-                                     for b in STORY_SKIP)):
-                found = True
-            hits = hits + 1 if found else 0
-            if hits >= settle:
-                logger.info('游戏已就绪（等了 %.1fs，连续 %d 帧）'
-                            % (time.time() - start, hits))
-                return True
+                found = False
+                for button in self.START_SCREENS:
+                    if self.appear(button, offset=CHAIN_OFFSET):
+                        found = True
+                        break
+                # 冷启动也可能不经标题页、直接恢复到教学战 / 旅程 / 剧情页
+                # （2026-11-13 逐页强杀实测），只等 START_SCREENS 会白等 180 秒。
+                if not found and (self.in_battle() or self.at_journey()
+                                  or any(self.appear(b, offset=CHAIN_OFFSET)
+                                         for b in STORY_SKIP)):
+                    found = True
+                hits = hits + 1 if found else 0
+                if hits >= settle:
+                    logger.info('游戏已就绪（等了 %.1fs，连续 %d 帧）'
+                                % (time.time() - start, hits))
+                    return True
         logger.warning('等了 %d 秒还没看到启动画面，直接往下走' % timeout)
         return False
 
