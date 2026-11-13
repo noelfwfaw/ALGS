@@ -9,7 +9,11 @@
         → 政策室（2026-11-08 改版后先过一道「災難修復作戰」）：
             政策批完、倒數归零后先弹一张结算图（右下紫色「確認」，和战斗结算是
             同一枚按钮，模板 RESULT_CONFIRM 判得上，启动循环已经点得掉）→ 回
-            方舟都市。**此时再进政策室看到的不是卡叠，而是「目標設定」页**：
+            方舟都市。这张结算图也会**在批准页中间**弹出来（批掉最后一份时倒數
+            正好归零，2026-11-13 09:14 实测），所以 `policy_stamp()`、
+            `policy_open()`、`ark_back_to_city()`、`ark_enter()` 里都就地按
+            「確認」把它关掉，否则返回键按不动、印章也拖不动，整段卡死。
+            **此时再进政策室看到的不是卡叠，而是「目標設定」页**：
             三份作戰目標卡 → 选一份 → 右下「目標設定完成」变蓝 → 作战副官页
             → 左下「自動配置」→ 右下「完成」→ 才回到卡叠首页
         → 政策室首页：左边四项都市指数，右边一叠政策卡，底部
@@ -47,8 +51,9 @@ import numpy as np
 from module.base.timer import Timer
 from module.chaoszero.assets import (ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET, CAFE_DINEIN,
                                      CAFE_ORDER, CAFE_TITLE, LOBBY_ARK, POLICY_EMPTY,
-                                     POLICY_STAMP, POLICY_TITLE, REWARD_HINT, SHOP_CLOSE,
-                                     SHOP_COIN, SHOP_LOCK, SHOP_MAX, SHOP_SOLD, SHOP_TITLE)
+                                     POLICY_STAMP, POLICY_TITLE, RESULT_CONFIRM, REWARD_HINT,
+                                     SHOP_CLOSE, SHOP_COIN, SHOP_LOCK, SHOP_MAX, SHOP_SOLD,
+                                     SHOP_TITLE)
 from module.chaoszero.chaoszero_ui import (CHAOSZERO_BACK, CHAOSZERO_TAP_CENTRE,
                                            ChaoszeroUI)
 from module.chaoszero.page import page_main
@@ -188,6 +193,39 @@ class ChaoszeroArk(ChaoszeroUI):
         """Returns: bool: 在災難修復作戰的「作戰副官」页（三个空槽 + 自動配置）。"""
         return bool(self.appear(ARK_WAR_AUTO, offset=(20, 20)))
 
+    def war_result_appear(self):
+        """Returns: bool: 在災難修復作戰的评估结算页（右下紫色「確認」）。"""
+        return bool(self.appear(RESULT_CONFIRM, offset=(20, 20)))
+
+    def war_result_close(self, timeout=20):
+        """
+        Press 確認 on the 災難修復作戰 result page and wait for it to leave.
+
+        批掉最后一份政策时，作戰的倒數可能正好归零：游戏不抖卡叠，直接把
+        「完成XXX」的评估结算页顶上来（实测 2026-11-13 09:14，三项指数没达标
+        也照样结算）。这一屏上返回键是死的、印章也拖不动，只有右下那颗紫色
+        「確認」能走 —— 和启动循环里用的是同一枚模板（匹配 0.99）。
+
+        Pages:
+            in: 災難修復作戰结算页
+            out: 方舟都市
+
+        Args:
+            timeout (int): Seconds to wait for the page to go.
+
+        Returns:
+            bool: If the result page is gone.
+        """
+        logger.info('災難修復作戰 result, press 確認')
+        if self.appear(RESULT_CONFIRM, offset=(20, 20)):
+            self.device.click(RESULT_CONFIRM)
+            if self.wait_until_disappear(RESULT_CONFIRM, offset=(20, 20), timeout=timeout, settle=2):
+                return True
+            logger.warning('The 災難修復作戰 result page did not close')
+            return False
+        logger.warning('The result page is already gone')
+        return True
+
     def ui_war_ok_ready(self):
         """
         Whether 目標設定完成 / 完成 has turned blue, i.e. it is pressable.
@@ -307,6 +345,12 @@ class ChaoszeroArk(ChaoszeroUI):
             if self.ark_appear():
                 logger.info('At 方舟都市')
                 return True
+
+            # 上一个任务可能把游戏停在災難修復作戰的结算页（那一屏没有入口，
+            # 返回键也不管用）。认出它就按「確認」出去，别去点唤醒点。
+            if self.war_result_appear():
+                self.war_result_close()
+                continue
 
             # 状态机：入口还在就再点一次，页面一换下一帧就退出。不设固定重试
             # 间隔——转场要 2~3 秒，等 N 秒再点要么在转场里多点一次，要么把
@@ -471,6 +515,14 @@ class ChaoszeroArk(ChaoszeroUI):
             if self.approval_appear():
                 return True
 
+            # 作戰结算页：批掉最后一份时倒數归零会直接弹出来。不接这一支，
+            # 45 秒里只会对着结算画面点卡叠，最后报「批准页没打开」。
+            if self.war_result_appear():
+                if not self.war_result_close():
+                    return False
+                timeout.reset()
+                continue
+
             # 政策室首页右边那个空槽写着「新增政策」= 今天没有待批的了，
             # 不用再等 45 秒的「打不开」。
             if self.appear(POLICY_EMPTY, offset=(20, 20)):
@@ -552,6 +604,14 @@ class ChaoszeroArk(ChaoszeroUI):
             if self.appear(POLICY_EMPTY, offset=(20, 20)):
                 logger.info('Proposal approved, the deck is empty now')
                 return True
+            # 最后一份批完正好撞上倒數归零：游戏跳到作戰结算页，印章自然
+            # 不会回座。这一份已经批进去了，关掉结算页当成功返回，下一轮
+            # `policy_open()` 会先给新作戰设目标。
+            if self.war_result_appear():
+                if not self.war_result_close():
+                    return False
+                logger.info('Proposal approved, the operation was evaluated')
+                return True
             if tap.reached():
                 tap.reset()
                 self.device.click_record_clear()
@@ -621,6 +681,10 @@ class ChaoszeroArk(ChaoszeroUI):
         for _ in self.loop(timeout=timeout):
             if self.ark_appear():
                 return True
+            if self.war_result_appear():
+                if not self.war_result_close():
+                    return False
+                continue
             self.device.click_record_clear()
             self.device.click(CHAOSZERO_BACK)  # alas-lint: allow - the loop only gets here after ruling out 方舟都市, so we are inside it; the arrow is fixed chrome
         else:
