@@ -706,10 +706,28 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         `at_main_screen()` 只认右上四格，引导遮罩背后照样成立；必须再排除
         `tutorial_route_overlay()`，否则会跳过引导链、让遮罩吞掉后面所有点击。
 
+        ❗四格在、`tutorial_route_overlay()` 也不在，仍不一定是可交互大厅：
+        2026-11-13 12:16 闪退重进落在「主界面 + 观测新手遮罩」，半透明黑幕
+        把整屏压暗，四格在、菜单点不开、侧栏全上锁。旧判据把它当成大厅，
+        跳过引导后邮箱/任务/抽卡/验号全部点空，最后重置也失败。
+        这里要求菜单**真的能打开**：打不开就说明还在开荒遮罩，交回 `guide()`。
+
         Returns:
             bool: 可以跳过开场引导 / 旅程 / 结算。
         """
-        return self.at_main_screen() and not self.tutorial_route_overlay()
+        if not self.at_main_screen() or self.tutorial_route_overlay():
+            return False
+        self.device.screenshot()
+        if not self.open_menu(timeout=6):
+            logger.info('重进：四格在但菜单打不开，当成还在引导期')
+            return False
+        # 菜单是浮层，验证完先收起来；后面的领奖 / 抽卡会自己重开。
+        self.device.screenshot()
+        if self.appear(E_171_1, offset=(10, 10)):
+            self.click_button(E_171_1, '菜单 → 主界面')
+            self.wait_until_disappear(E_176_2, offset=(10, 10),
+                                      timeout=3, settle=2)
+        return True
 
     def at_main_screen(self):
         """
@@ -811,6 +829,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         title_frames = 0
         for _ in self.loop(timeout=timeout):
             self.device.stuck_record_clear()
+            # 读条 / 登录过程中弹的「发生错误」「通知」会盖住一切，先点掉
+            if self.dismiss_game_error() or self.dismiss_notice():
+                game_hits = 0
+                title_frames = 0
+                continue
             game_hits = game_hits + 1 if self.in_game_screen() else 0
             if game_hits >= 3:
                 return True
@@ -2536,6 +2559,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             login_hits = 0
             in_game_hits = 0
             for _ in self.loop(timeout=20):
+                # ❗点完 Touch 后服务器偶发「错误通知 (6 NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND)」，
+                #   弹窗盖住 Google 登录页。2026-11-13 12:32 就是这里白等 20 秒后
+                #   报「没等到 Sign in with Google」；启动入口的 dismiss 已经点过，
+                #   但这一颗是在点 Touch 之后才弹的，循环里必须再判一次。
+                if self.dismiss_game_error() or self.dismiss_notice():
+                    login_hits = 0
+                    in_game_hits = 0
+                    continue
                 login_hits = login_hits + 1 if self.appear(E_3_1, offset=CHAIN_OFFSET) else 0
                 in_game_hits = in_game_hits + 1 if self.in_game_screen() else 0
                 if login_hits >= 3:
@@ -2558,11 +2589,21 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 logger.info('登录：已经进游戏，账号列表不用再等')
                 return True
             if not self.wait_until_appear(E_2_1, offset=CHAIN_OFFSET, timeout=15, settle=4):
-                if self.in_game_screen():
+                # 等账号列表期间也可能弹「发生错误 / 通知」；先点掉再给一次机会
+                if self.dismiss_game_error() or self.dismiss_notice():
+                    if not self.wait_until_appear(E_2_1, offset=CHAIN_OFFSET,
+                                                  timeout=15, settle=4):
+                        if self.in_game_screen():
+                            logger.info('登录：账号列表没再出现，但已经进游戏')
+                            return True
+                        logger.warning('登录：没等到账号列表')
+                        return False
+                elif self.in_game_screen():
                     logger.info('登录：账号列表没再出现，但已经进游戏')
                     return True
-                logger.warning('登录：没等到账号列表')
-                return False
+                else:
+                    logger.warning('登录：没等到账号列表')
+                    return False
             self.wait_until_still(ACCOUNT_DIALOG, timeout=3, threshold=3.0)
             self.click_button(E_2_3, '选账号')
             # 弹窗关掉才算真的点中了；没关就再点一次
@@ -2584,6 +2625,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 last_touch = 0.0
                 seen_title = False
                 for _ in self.loop(timeout=30):
+                    if self.dismiss_game_error() or self.dismiss_notice():
+                        continue
                     if self.in_game_screen():
                         logger.info('登录：选完账号已进入游戏')
                         return True
