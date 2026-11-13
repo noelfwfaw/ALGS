@@ -846,6 +846,7 @@
       "TargetCount7": 1,
       "StopAt": "none",
       "RerollCount": 0,
+      "StopSSRCount": 0,
       "Round": 0
     },
     "Storage": {

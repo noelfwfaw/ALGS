@@ -502,6 +502,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     target_hit = False
     target_detail = ()         # 验号结果（`verify()` 里覆盖），推送正文要用
     last_scan = ()             # 本轮读到的 SSR（`verify()` 里覆盖），每轮推送正文要用
+    # SSR 数量兜底（`StopSSRCount`）：目标角色没达成时，不重复 SSR 数量够了也停。
+    stop_ssr = 0               # 阈值，0 = 不启用
+    ssr_hit = False            # 本轮是否达到兜底阈值（`verify()` 里覆盖）
+    ssr_count = 0              # 本轮 SSR 只数，含重复（`verify()` 里覆盖）
 
     # press() 在引导段看到标题/登录页时置 True；guide_press() 读到后重新登录。
     # 默认 False：别的段不传 stop_on_login，行为不变。
@@ -1062,6 +1066,15 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 if self.target_hit:
                     self.report_plan('目标达成，号留在游戏里，不重置')
                     return
+                # SSR 数量兜底：目标没达成，但 SSR 只数够了也停 —— 数量够多的号
+                # 也算不错的初始号（重复抽到的也算，用户 2026-11-13 确认）。
+                # 和「目标达成」一样**不重置**。
+                # ❗必须排在次数上限和重置之前，否则最后一轮会被白扔。
+                if self.ssr_hit:
+                    self.report_plan('SSR 数量兜底达成（%d 只 ≥ %d，含重复），'
+                                     '号留在游戏里，不重置'
+                                     % (self.ssr_count, self.stop_ssr))
+                    return
                 # ❗次数上限**必须在重置之前判**。放到 `while` 头上判的话，最后一轮
                 #   会先被重置掉、回到标题页，才发现「已经刷够了」—— 白丢一个号。
                 # ❗也要排在「没有目标角色」前面：只填次数不填目标 = 老老实实刷这么多轮，
@@ -1124,6 +1137,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             logger.warning('「刷初始次数」填的不是数字，按「不限」处理')
             self.reroll_count = 0
 
+        # SSR 数量兜底：不重复 SSR 达到这个数就停（不重置）。0 = 不启用。
+        try:
+            self.stop_ssr = max(0, int(self.config.Starsavior2_StopSSRCount or 0))
+        except (TypeError, ValueError):
+            logger.warning('「SSR 数量兜底」填的不是数字，按「不启用」处理')
+            self.stop_ssr = 0
+
         # ❗互斥：两个都填了按「停节点」跑。GUI 的帮助文字和 `argument.yaml`
         #   都写着「填了节点就按节点跑，目标角色会被忽略」，代码以前反着来：
         #   一选节点就被静默忽略、按旧的目标角色继续刷（真机 2026-11-08 12:10，
@@ -1146,9 +1166,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 else '每一只都要凑够')
         else:
             target_note = '不指定（跑一轮就停）'
-        logger.info('本轮配置：昵称 %s / 目标 %s / 停节点 %s / 次数 %s'
+        logger.info('本轮配置：昵称 %s / 目标 %s / 停节点 %s / 次数 %s / SSR 兜底 %s'
                     % (self.nickname, target_note, self.stop_at,
-                       self.reroll_count if self.reroll_count else '不限'))
+                       self.reroll_count if self.reroll_count else '不限',
+                       ('%d 个' % self.stop_ssr) if self.stop_ssr else '不启用'))
 
     def read_targets(self):
         """GUI 的七个「目标角色」→ `check_targets()` 要的列表；一个都没选返回 None。
@@ -1371,8 +1392,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                            else '挂上的全都要凑够'))
         else:
             logger.info('目标：不指定（只跑一轮）')
-        logger.info('账号：%s' % ('已留在游戏里，没有重置' if not self.targets or self.target_hit
-                                 else '见上一段日志'))
+        if self.stop_ssr:
+            logger.info('SSR 兜底：%d / %d 只（含重复）%s'
+                        % (self.ssr_count, self.stop_ssr,
+                           '→ 达标' if self.ssr_hit else '→ 没够'))
+        logger.info('账号：%s'
+                    % ('已留在游戏里，没有重置'
+                       if (not self.targets or self.target_hit or self.ssr_hit)
+                       else '见上一段日志'))
 
     def notify_round(self, index):
         """每轮验号后推一条结果，**复用「错误推送」那份设置**。
@@ -1399,6 +1426,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         elif self.stop_at == STOP_VERIFY:
             status = '验号完成（停节点）'
             ending = '已按停节点停下，没有重置。'
+        elif self.ssr_hit:
+            status = 'SSR 数量兜底达成（%d 只）' % self.ssr_count
+            ending = '目标角色没凑够，但 SSR 数量够了（含重复），账号留在游戏里，没有重置。'
         elif not self.targets:
             status = '仅记录（未设置目标）'
             ending = '未设置目标，这一轮结束。'
@@ -1435,6 +1465,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             lines.extend('  ' + char for char in chars)
         else:
             lines.append('本轮 SSR：没读到')
+        if self.stop_ssr:
+            lines.append('SSR 兜底：%d / %d 只（含重复）%s'
+                         % (self.ssr_count, self.stop_ssr,
+                            '（已达标）' if self.ssr_hit else '（还没够）'))
         lines.append(ending)
 
         content = '\n'.join(lines)
@@ -3431,6 +3465,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         self.target_hit = False
         self.target_detail = ()
         self.last_scan = ()
+        self.ssr_hit = False
+        self.ssr_count = 0
 
         # 入口：菜单页的「救援者」`E_176_2`(825,321,878,391) —— 用户 21:30 指的。
         # 路径是 主界面 → 四格菜单 `E_171_1` → 菜单页 → 救援者。
@@ -3462,6 +3498,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if not accounts:
             logger.warning('验号：一个 SSR 都没读到')
             return False
+
+        # SSR 数量兜底：`ssr_count` 按**只数**算 —— 列表每个角色一行，行里的
+        # `count` 是 1+重复数（用户 2026-11-13 改口：「重复的也算上，就当出了
+        # 多少个 SSR，重复也是有价值的」）。重复数没读出来（None）按 1 只算。
+        self.ssr_count = sum((a.get('count') or 1) for a in accounts)
+        self.ssr_hit = bool(self.stop_ssr and self.ssr_count >= self.stop_ssr)
+        if self.stop_ssr:
+            logger.info('验号：SSR %d 只（含重复）/ 兜底阈值 %d → %s'
+                        % (self.ssr_count, self.stop_ssr,
+                           '达标，这轮停下不重置' if self.ssr_hit else '还不够，继续刷'))
 
         # ❗目标来自 GUI（`Starsavior2.Target` + `Target2`~`Target7`，最多 7 只），
         #   不再读 `config/state` 里那份 json：全都留「不指定」就**不做达标判定**，

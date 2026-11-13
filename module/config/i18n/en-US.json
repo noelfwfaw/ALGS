@@ -1399,6 +1399,10 @@
       "name": "Reroll count",
       "help": "Stop after this many rounds, **without resetting** — the account stays as it is.\n0 = unlimited (default): with targets set it keeps rerolling until they drop.\nOne round = login -> nickname -> guide -> journey -> result -> rewards -> gacha -> roster check; hitting the targets stops it earlier, no extra round.\nWARNING: with \"Stop at\" set too, whichever comes first wins."
     },
+    "StopSSRCount": {
+      "name": "SSR count fallback",
+      "help": "When the targets are not met, stop anyway once the number of SSRs seen this round (**duplicates included**) reaches this value. The account is kept and **not reset**.\nDuplicates add up: two copies of one character count as 2.\n0 = disabled (default).\nAn account with this many SSRs is a decent starter, so the log and push will say \"SSR count fallback reached\".\n⚠ Targets take priority: if both are met, it is reported as \"targets met\"."
+    },
     "Round": {
       "name": "Current round (read-only)",
       "help": "Which round this run is on since it started. Resets to 0 every time you press Start; written by the script itself, so you do not have to dig through the log for \"round N\"."
