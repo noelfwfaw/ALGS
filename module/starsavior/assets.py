@@ -43,6 +43,21 @@ E_207_1 = Button(area={'starsavior': (330, 230, 416, 262)}, color={'starsavior':
 # 判据改用标题本身；命中后由 press 点下方确认 (639,660)，不再拿确认键当触发。
 E_208_1 = Button(area={'starsavior': (560, 148, 720, 177)}, color={'starsavior': (200, 200, 200)}, button={'starsavior': (546, 643, 733, 678)}, file={'starsavior': './assets/starsavior/starsavior/E_208_1.png'})
 
+# 教学大厅左上角的目标卡标题「参加评鉴战」。2026-11-13 03:00 实测：最终剧情
+# 点完回到大厅时，目标卡会挡住右上角四格 E_171_1，旧的 in_game_screen() 因此
+# 认不出已经进游戏，重登会一直超时。这张卡就是“已进游戏”的正面判据。
+E_209_1 = Button(area={'starsavior': (556, 556, 692, 590)}, color={'starsavior': (34, 100, 176)}, button={'starsavior': (556, 556, 692, 590)}, file={'starsavior': './assets/starsavior/starsavior/E_209_1.png'})
+
+# 右上四格菜单页里的「观测」格子。2026-11-13 08:58 实测：新号侧栏「观测」
+# 被教学遮罩挡住时点不开，但四格菜单里的这一格能直接进观测。
+# 抽卡入口因此改成 E_171_1 → E_210_1 → E_180_1，侧栏 E_171_3 只留作退路。
+E_210_1 = Button(area={'starsavior': (724, 340, 800, 414)}, color={'starsavior': (239, 239, 239)}, button={'starsavior': (716, 332, 808, 422)}, file={'starsavior': './assets/starsavior/starsavior/E_210_1.png'})
+
+# 剧情页左上角的目标书本图标（“距离目标 / 参加评鉴战…”）。
+# 2026-11-13 07:5x 实测：战后剧情没有 SKIP 按钮，但左上角目标卡一直在；
+# 主大厅没有这块，所以它能把“无 SKIP 剧情”和主大厅区分开，供登录判据和续跑用。
+E_211_1 = Button(area={'starsavior': (22, 22, 60, 60)}, color={'starsavior': (66, 133, 217)}, button={'starsavior': (14, 14, 68, 68)}, file={'starsavior': './assets/starsavior/starsavior/E_211_1.png'})
+
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到
 # page_38，而只点敌人圈 45 次画面一动不动。

@@ -83,7 +83,7 @@ from module.starsavior.assets import (
     E_89_1, E_8_1, E_90_1, E_91_1, E_92_1,
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
-    E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, BATTLE_SKILL,
+    E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -764,12 +764,32 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
         ❗仍然不用「标题页不见了」：加载黑屏上标题页也不见（163）。
 
+        ❗教学战也要认：2026-11-13 逐页强杀实测，page_7 / 16 / 25 / 37
+        这些存档点重启后客户端直接回到教学战，既没有四格、SKIP，也没有
+        旅程倍速；不认 BOSS 血条就会白等 20 秒判登录失败。`in_battle()`
+        只认顶部深红血条，普通大厅/加载页不会命中。
+
         Returns:
-            bool: 已经在游戏内（大厅 / 开场动画 / 剧情页 / 旅程）。
+            bool: 已经在游戏内（大厅 / 开场动画 / 剧情页 / 旅程 / 战斗）。
         """
         if self.in_game():
             return True
+        # 教学大厅的「参加评鉴战」目标卡会盖住右上四格，单独认。
+        if self.appear(E_209_1, offset=CHAIN_OFFSET):
+            return True
         if self.at_journey():
+            return True
+        if self.in_battle():
+            return True
+        # ❗无 SKIP 的剧情页：2026-11-13 07:5x 打完基础评鉴战，VICTORY 后闪退，
+        #   客户端恢复到战后剧情（克莱儿“…太惊人了。”）。这一屏没有 SKIP、
+        #   没有四格、没有血条，但左上角目标书本 `E_211_1` 一直在。
+        #   231 张实测截图里它只在这张剧情页命中，主大厅/旅程/战斗都不命中。
+        if self.appear(E_211_1, offset=CHAIN_OFFSET):
+            return True
+        # 重启有时直接落回昵称框（page_60），这里也要算已进游戏，
+        # 否则 wait_start_screen 会白等 180 秒、login 也判失败。
+        if self.appear(E_60_2, offset=CHAIN_OFFSET):
             return True
         for button in STORY_SKIP:
             if self.appear(button, offset=CHAIN_OFFSET):
@@ -931,11 +951,43 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         else:
                             logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
 
-                # 工具手动停在中途再重跑时也会直接落在旅程；这不一定是闪退，
-                # 但同样不该重走开场引导，直接从当前旅程画面续跑。
+                # 工具手动停在中途再重跑 / 未知原因回到标题后重登：可能直接落在
+                # 大厅或旅程，这时都不该重走开场引导。
+                # ❗大厅要排除「主界面 + 新手引导遮罩」：那还是开荒期，必须走引导。
+                if not resumed_late and not resumed_journey and self.resumed_at_hall():
+                    resumed_late = True
+                    logger.info('登录：已在大厅，跳过开场引导 / 旅程 / 结算')
                 if not resumed_late and not resumed_journey and self.at_journey():
                     resumed_journey = True
                     logger.info('登录：已在旅程，跳过开场引导，继续旅程')
+
+                # ❗无 SKIP 的剧情页：登录判据已经认它，但 guide() 的按钮表里
+                #   没有任何可点的东西，不先点完剧情就会整段空转。
+                #   2026-11-13 07:5x 打完基础评鉴战，VICTORY 后闪退，重登落在
+                #   战后剧情；这里点完剧情，若出现「旅程结束」(`E_135_1`) 就
+                #   接 settle() 走完结算，否则交给下面的状态机。
+                resumed_story = False
+                if not resumed_late and not resumed_journey:
+                    self.device.screenshot()
+                    if self.appear(E_211_1, offset=CHAIN_OFFSET):
+                        logger.hr('闪退重进：无 SKIP 剧情，先点完', level=2)
+                        if self.story_advance():
+                            # ❗先认「旅程结束」(`E_135_1`)：战后剧情点完会回到
+                            #   大厅，这一屏右上四格也在，先判大厅会跳过 settle。
+                            #   剧情结束后常有一小段黑屏，给 20 秒等落点。
+                            for _ in self.loop(timeout=20):
+                                self.device.stuck_record_clear()
+                                self.device.screenshot()
+                                if self.appear(E_135_1, offset=CHAIN_OFFSET):
+                                    resumed_story = True
+                                    break
+                                if self.at_journey():
+                                    resumed_journey = True
+                                    break
+                                if (self.in_game()
+                                        or self.appear(E_209_1, offset=CHAIN_OFFSET)):
+                                    resumed_late = True
+                                    break
 
                 if resumed_late:
                     # 节点1 / 节点2 都在引导期，重进时早就过了，别继续抽卡。
@@ -950,6 +1002,15 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     # 旅程没走完，跳过开场引导，从当前旅程画面继续。
                     self.journey()
                     self.settle()
+                elif resumed_story:
+                    # 剧情已经点完：如果是战后剧情，这一屏右侧有「旅程结束」
+                    # (`E_135_1`)，先走完结算再去领奖。
+                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
+                        self.report_plan('闪退重进时剧情已经过了停节点（不重置账号）')
+                        return
+                    self.device.screenshot()
+                    if self.appear(E_135_1, offset=CHAIN_OFFSET):
+                        self.settle()
                 else:
                     if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
                         self.report_plan('节点1：昵称输入框（没有输入昵称）')
@@ -2058,7 +2119,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         else:
                             logger.warning(
                                 'Touch to Start 点完没进游戏（标题又回来了），'
-                                '已点 %d/3 次' % enter_tries)
+                                '已点 %d/3 次，交给 guide_press 重登' % enter_tries)
+                            # ❗不能只记一条日志就继续空转：2026-11-13 10:25
+                            #   点完 Touch to Start 等了 30 秒还在标题，press
+                            #   把这次当成“点过”收工，后面昵称/引导全是空表，
+                            #   最后直接跳进旅程。必须立刻把控制权交给
+                            #   guide_press() 重登，再重扫当前画面。
+                            self.need_relogin = True
+                            return False
                     done_at = time.time()
                     if button is E_134_2:
                         logger.info('%s 点完 %.1fs 后自动战斗%s'
@@ -2280,7 +2348,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
     # 冷启动/换号之后可能先看到的画面：标题页、登录弹窗、账号列表、
     # 主界面四格、开场引导第一屏。看到任意一个就说明游戏画出来了。
-    START_SCREENS = (E_1_1, E_3_1, E_2_1, E_171_1, E_4_2)
+    START_SCREENS = (E_1_1, E_3_1, E_2_1, E_171_1, E_4_2, E_60_2)
 
     def dismiss_game_error(self):
         """点掉启动时偶发的「发生错误 (6 NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND)」弹窗。
@@ -2369,6 +2437,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 if self.appear(button, offset=CHAIN_OFFSET):
                     found = True
                     break
+            # 冷启动也可能不经标题页、直接恢复到教学战 / 旅程 / 剧情页
+            # （2026-11-13 逐页强杀实测），只等 START_SCREENS 会白等 180 秒。
+            if not found and (self.in_battle() or self.at_journey()
+                              or any(self.appear(b, offset=CHAIN_OFFSET)
+                                     for b in STORY_SKIP)):
+                found = True
             hits = hits + 1 if found else 0
             if hits >= settle:
                 logger.info('游戏已就绪（等了 %.1fs，连续 %d 帧）'
@@ -2493,7 +2567,47 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.click_button(E_2_3, '选账号')
             # 弹窗关掉才算真的点中了；没关就再点一次
             if self.wait_until_disappear(E_2_1, offset=CHAIN_OFFSET, timeout=6, settle=2):
-                return True
+                # ❗选完账号≠已经进游戏：重置号/被踢回标题的号选完账号会
+                #   先落回标题页，再点一次 Touch to Start 才进开场。
+                #   2026-11-13 10:25 这里直接 `return True`，guide 在标题页
+                #   点了一次 Touch to Start 没进去，居然继续按空表跑完，
+                #   最后把半截教学当成旅程。必须等到 `in_game_screen()`。
+                #
+                # ❗但也不能选完账号 1 秒就判失败：2026-11-13 10:47 实测
+                #   03.8s 标题页出现，04.8s 就点 Touch，点击被服务器登录流程
+                #   吞掉，`wait_enter_game` 只等 1 秒就判没进游戏。
+                #   2026-11-13 11:22 又踩了另一种：选完账号 5 秒时屏幕是
+                #   黑的（加载中），既不是标题也不是游戏内，5 秒宽限一到就
+                #   判失败。所以这里统一等 30 秒：黑屏/标题都继续等，只有
+                #   标题出现超过 6 秒且距上次点击超过 6 秒才补点一次。
+                start = time.time()
+                last_touch = 0.0
+                seen_title = False
+                for _ in self.loop(timeout=30):
+                    if self.in_game_screen():
+                        logger.info('登录：选完账号已进入游戏')
+                        return True
+                    if (self.appear(E_3_1, offset=CHAIN_OFFSET)
+                            or self.appear(E_2_1, offset=CHAIN_OFFSET)):
+                        logger.warning('登录：选完账号又回到登录弹窗')
+                        return False
+                    if (self.appear(E_4_2, offset=CHAIN_OFFSET)
+                            or self.appear(E_1_1, offset=CHAIN_OFFSET)):
+                        seen_title = True
+                        now = time.time()
+                        if now - start >= 6 and now - last_touch >= 6:
+                            logger.info(
+                                '登录：选完账号回到标题页，再点一次 Touch to Start')
+                            if self.appear(E_4_2, offset=CHAIN_OFFSET):
+                                self.click_button(E_4_2, 'Touch to Start（选完账号后）')
+                            else:
+                                self.click_button(E_1_1, 'Touch to Start（选完账号后）')
+                            last_touch = now
+                if seen_title:
+                    logger.warning('登录：选完账号 30 秒还停在标题页，没进游戏')
+                else:
+                    logger.warning('登录：选完账号 30 秒还在加载/黑屏，没进游戏')
+                return False
             # ❗弹窗判据在转场里会闪（17:10 实测 6 秒没凑齐连续 2 帧不可见），
             #   但游戏可能已经登录成功；先问一次「是不是进游戏了」，别直接重试。
             if self.in_game_screen():
@@ -2539,6 +2653,43 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             # 重登后可能还要点一次 page_4 才真正进游戏；`press()` 只在
             # 不在游戏内时才把这次机会留着（有 SKIP/四格就不给）。
             pending = True
+        return False
+
+    def story_advance(self, timeout=120):
+        """点完没有 SKIP 的剧情页（闪退后最常卡住的一屏）。
+
+        判据只用固定 UI：左上角目标书本 `E_211_1`。背景、人物、血条全在动，
+        绝不能做整屏帧差（硬约束 206）。剧情页只有两种操作：
+          · 普通对话：点屏幕下方 (640,620) 继续；
+          · 右侧选项框：点 (1050,515) 选第一个选项。
+        没有选项时点 (1050,515) 只会落在背景上，不会触发任何奖励/购买，
+        所以这里可以交替点，不必先做选项识别。
+
+        ❗每帧清一次点击记录：真机手动推进时同一坐标连点 12 次就会
+          `GameTooManyClickError`，而长剧情要几十上百次。
+
+        Returns:
+            bool: True = 目标卡消失/已经回到大厅、旅程或战斗；False = 超时。
+        """
+        logger.hr('剧情续跑', level=2)
+        self.device.screenshot()
+        for _ in self.loop(timeout=timeout):
+            self.device.stuck_record_clear()
+            self.device.screenshot()
+            if self.appear(E_119_1, offset=CHAIN_OFFSET):
+                self.click_button(E_119_1, '剧情 → 跳过新手教学')
+                self.wait_until_disappear(E_119_1, offset=CHAIN_OFFSET, timeout=5, settle=2)
+                continue
+            if self.in_game() or self.at_journey() or self.in_battle():
+                logger.info('剧情续跑：已经回到可续跑画面')
+                return True
+            if not self.appear(E_211_1, offset=CHAIN_OFFSET):  # alas-lint: allow - 目标卡是剧情页唯一的固定判据；它消失就是剧情结束，过渡帧里继续等正是想要的，不会误点别的按钮
+                logger.info('剧情续跑：目标卡消失，剧情结束')
+                return True
+            self.tap_at(1050, 515, '剧情选项')
+            self.tap_at(640, 620, '剧情继续')
+            self.device.click_record_clear()
+        logger.warning('剧情续跑：%s 秒还没点完' % timeout)
         return False
 
     def guide(self, stop_at_nickname=False):
@@ -2625,8 +2776,27 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   只在「关卡选择」页出现，拿它当判据永远不会命中。
         #   `stop_on` 本身已经限制成「没有 SKIP、没有血条」的干净画面才判，
         #   所以引导页和教学战不会误伤。
-        self.guide_press(GUIDE_A + NICK + GUIDE_B, '引导（进旅程之前）', timeout=420,
-                         frames=True, dialogue=True, stop_on=(E_116_1,))
+        #
+        # ❗这一段必须**正面确认到了旅程**才许收工：2026-11-13 10:26 重置后
+        #   重登，四段视频 SKIP 点完落在 12 秒 idle 空窗里，`guide()` 直接
+        #   `return True`，`journey()` 在还没过完的教学/剧情上乱点，用户看到
+        #   的就是「教学引导没过，直接到旅程那边了」。`stop_on` 没命中就说明
+        #   还没到旅程，再扫一遍当前画面；三次都不到就按失败交给调度器，
+        #   宁可不跑也不要带着半截教学进旅程。
+        reached = False
+        for attempt in range(3):
+            self.guide_press(GUIDE_A + NICK + GUIDE_B, '引导（进旅程之前）',
+                             timeout=420, frames=True, dialogue=True,
+                             idle=40, stop_on=(E_116_1,))
+            self.device.screenshot()
+            if self.at_journey() and not self.in_battle():
+                reached = True
+                break
+            logger.warning('引导：还没到旅程（第 %d 次扫完），继续点当前画面'
+                           % (attempt + 1))
+        if not reached:
+            raise TaskFailed(self.fail_reason(
+                '引导结束但没到旅程（教学没走完，不继续跑）'))
         return True
 
     def journey(self):
@@ -3080,11 +3250,36 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # ❗点 `E_171_3.area` 的中心 (108,493)。旧注释说要点 (100,520)，
         #   但 00:42 实测 area 中心立刻 `E_180_1` 出现。用 `.area` 不用
         #   `.button`：后者会被 match 的 offset 改写（硬约束 136）。
-        if self.appear(E_171_1, offset=(10, 10)):
-            cx = (E_171_3.area[0] + E_171_3.area[2]) // 2
-            cy = (E_171_3.area[1] + E_171_3.area[3]) // 2
-            self.tap_at(cx, cy, '主界面 → 观测')
-            if not self.wait_until_appear(E_180_1, offset=(20, 20), timeout=20):
+        # ❗新号侧栏「观测」被教学遮罩挡着，点了没反应；右上四格菜单里的
+        #   「观测」格子能直接进（2026-11-13 08:58 真机实测）。所以先走
+        #   `E_171_1` → `E_210_1` → `E_180_1`，菜单格子认不到再退回侧栏。
+        entered = False
+        if self.appear(E_180_1, offset=(20, 20)):
+            # 已经在观测页（手动进来 / 上一轮没退出去）就别再点入口。
+            # 观测页右上角有铃铛，`E_171_1` 在真机上会误匹配，点下去只会
+            # 打开通知（2026-11-13 09:48 实测）。
+            entered = True
+        elif self.appear(E_171_1, offset=(10, 10)):
+            self.click_button(E_171_1, '主界面 → 菜单')
+            entered = False
+            if self.wait_until_appear(E_210_1, offset=(10, 10), timeout=6):
+                self.click_button(E_210_1, '菜单 → 观测')
+                entered = self.wait_until_appear(E_180_1, offset=(20, 20), timeout=20)
+            else:
+                logger.info('抽卡：菜单里没有「观测」格子，退回侧栏入口')
+                # ❗菜单是半透明浮层，侧栏「观测」在它底下照样露着；不先收起
+                #   菜单就点侧栏，只会把菜单关掉，人还站在大厅（2026-11-13
+                #   09:37 新号实测：E_210 超时 → 点 E_171_3 → E_180 超时）。
+                #   菜单页右上四格 E_171_1 还在，再点一次就是收起。
+                if self.appear(E_171_1, offset=(10, 10)):
+                    self.tap_at(1221, 36, '菜单页 收起')
+                    self.wait_until_still(GACHA_FULL_AREA, timeout=2, threshold=3.0)
+                if self.appear(E_171_1, offset=(10, 10)):
+                    cx = (E_171_3.area[0] + E_171_3.area[2]) // 2
+                    cy = (E_171_3.area[1] + E_171_3.area[3]) // 2
+                    self.tap_at(cx, cy, '主界面 → 观测')
+                entered = self.wait_until_appear(E_180_1, offset=(20, 20), timeout=20)
+            if not entered:
                 logger.warning('抽卡：没能进到观测界面')
                 return False
 
