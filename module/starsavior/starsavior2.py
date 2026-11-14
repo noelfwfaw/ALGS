@@ -994,6 +994,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   遮罩还在就回退整轮状态机，绝不跳过。
                 resumed_late = False
                 resumed_journey = False
+                resumed_settle = False
                 if self.resume_after_crash:
                     self.resume_after_crash = False
                     self.device.screenshot()
@@ -1009,15 +1010,30 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         resumed_journey = self.at_journey()
                         if resumed_journey:
                             logger.hr('闪退重进：已在旅程，跳过开场引导，继续旅程', level=2)
+                        elif self.at_main_screen():
+                            # ❗「四格在、菜单打不开」不一定是还在引导期：
+                            #   2026-11-14 14:25 结算走到 page_164 时闪退，重进落在
+                            #   大厅，管理箭头还挂着、战斗 / 总部 / 公会上锁，
+                            #   四格在但点不开菜单（真机连点两次都 timeout）。
+                            #   这时回退 `guide()` 一页都认不出，整轮只会空转；
+                            #   应该接着把「结算 / 签到 / 解锁」剩下的页面点完。
+                            resumed_settle = True
+                            logger.hr('闪退重进：还在教学解锁段（四格在但菜单打不开），接着结算',
+                                      level=2)
                         else:
                             logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
 
                 # 工具手动停在中途再重跑 / 未知原因回到标题后重登：可能直接落在
                 # 大厅或旅程，这时都不该重走开场引导。
                 # ❗大厅要排除「主界面 + 新手引导遮罩」：那还是开荒期，必须走引导。
-                if not resumed_late and not resumed_journey and self.resumed_at_hall():
-                    resumed_late = True
-                    logger.info('登录：已在大厅，跳过开场引导 / 旅程 / 结算')
+                if not resumed_late and not resumed_journey and not resumed_settle:
+                    if self.resumed_at_hall():
+                        resumed_late = True
+                        logger.info('登录：已在大厅，跳过开场引导 / 旅程 / 结算')
+                    elif self.at_main_screen():
+                        # 同上：登录后落在大厅但菜单打不开 = 教学解锁段没走完。
+                        resumed_settle = True
+                        logger.info('登录：四格在但菜单打不开（解锁段没走完），接着结算')
                 if not resumed_late and not resumed_journey and self.at_journey():
                     resumed_journey = True
                     logger.info('登录：已在旅程，跳过开场引导，继续旅程')
@@ -1028,7 +1044,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   战后剧情；这里点完剧情，若出现「旅程结束」(`E_135_1`) 就
                 #   接 settle() 走完结算，否则交给下面的状态机。
                 resumed_story = False
-                if not resumed_late and not resumed_journey:
+                if not resumed_late and not resumed_journey and not resumed_settle:
                     self.device.screenshot()
                     if self.appear(E_211_1, offset=CHAIN_OFFSET):
                         logger.hr('闪退重进：无 SKIP 剧情，先点完', level=2)
@@ -1063,6 +1079,20 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     # 旅程没走完，跳过开场引导，从当前旅程画面继续。
                     self.journey()
                     self.settle()
+                elif resumed_settle:
+                    # 大厅但还没解锁完：剩下的是「结算 / 签到 / 解锁」那几张页。
+                    # ❗点完必须真的能打开菜单，否则后面的领奖 / 抽卡 / 验号全是空转，
+                    #   最后重置也回不了主界面（2026-11-14 04:50 就是这么白跑一轮）。
+                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
+                        self.report_plan('闪退重进时停节点已经过了（不重置账号）')
+                        return
+                    self.settle()
+                    self.device.screenshot()
+                    if not self.resumed_at_hall():
+                        raise TaskFailed(self.fail_reason(
+                            '闪退重进后教学解锁段没走完（大厅菜单仍然打不开），'
+                            '已停止，避免空转。账号没有丢；'
+                            '把游戏退回标题页再手动重跑即可。'))
                 elif resumed_story:
                     # 剧情已经点完：如果是战后剧情，这一屏右侧有「旅程结束」
                     # (`E_135_1`)，先走完结算再去领奖。
