@@ -84,7 +84,7 @@ from module.starsavior.assets import (
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
     E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1,
-    E_212_1, E_213_1, E_214_1, BATTLE_SKILL,
+    E_212_1, E_213_1, E_214_1, E_215_1, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -487,6 +487,9 @@ HOT_UPDATE_EXTEND = 120          # 每认到一次热更新，等待期限再给
 HOT_UPDATE_MAX_WAIT = 900        # 等画面总时长上限（81.40MB 实测约 3 分钟）
 HOT_UPDATE_TTL = 900             # 认到过热更新后，这段时间内不许 App stop
 HOT_UPDATE_CLICK_GAP = 5         # 两次点「OK」的最小间隔，别连点
+
+# 「NOA指南」帮助弹窗是多页的，一次 X 只翻页 / 被动画吃掉，要连点到标题消失。
+NOA_GUIDE_TRIES = 4
 
 
 class GameCrashed(Exception):
@@ -1719,6 +1722,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             # 直接抛 GameNotRunningError，整段被掐断（真机 00:14 journey、00:31
             # gacha 各崩一次）。上限交给本循环自己的 Timer(timeout)。
             self.device.stuck_record_clear()
+            # 「NOA指南」帮助弹窗会整屏盖住按钮（2026-11-14 19:18 验号卡死）。
+            self.dismiss_noa_guide()
             # ===== 中途回到标题 / 登录页：立刻收工，交给 guide_press() =====
             # ❗不能只靠按钮表：标题页的 E_4_2 / E_1_1 会被当成引导页一直点，
             #   直到 GameTooManyClickError（2026-11-12 17:02 实测 14 次）。
@@ -2517,6 +2522,35 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 return True
             logger.info('登录：看到「通知」弹窗但没有「确认」按钮，先不动')
         return False
+
+    def dismiss_noa_guide(self):
+        """点掉「NOA指南」帮助弹窗（救援者详情页 / 突破极限附近会蹦出来）。
+
+        ❗真机 2026-11-14 19:18：`verify()` 点「突破极限」时弹出这个帮助层，
+        整屏被盖住，`list_rows()` 全是空的、`select_row()` 每行都「选不中」，
+        最后 `GameStuckError: Wait too long`，整轮验号作废。
+        判据用标题 `E_215_1`（实测 1.000，其它 425 张截图最高 0.545），
+        命中后点右上角固定的 X (947,116)，X 本身不做判据（别的弹窗也有）。
+
+        ❗**要点不止一次**：这层指南是多页的（首屏「升级」，第二屏「共鸣概要」…），
+        实测点一次 X 只是翻页 / 被动画吃掉，要连点到标题消失为止。
+        2026-11-14 19:18 就是只点掉了一次，后面整段验号全废。
+
+        Returns:
+            bool: True = 点掉过（至少一次有效点击），False = 本来就没有。
+        """
+        closed = False
+        for _ in range(NOA_GUIDE_TRIES):
+            if self.appear(E_215_1, offset=(10, 10)):
+                logger.info('点掉「NOA指南」帮助弹窗')
+                self.device.click(Button(  # alas-lint: allow - 上一行 E_215_1 正面判过这个弹窗，X 没有独立的消退信号
+                    area=(935, 102, 962, 130), button=(935, 102, 962, 130),
+                    name='关闭 NOA 指南'))
+                self.wait_until_disappear(E_215_1, offset=(10, 10), timeout=2, settle=1)
+                closed = True
+            else:
+                break
+        return closed
 
     def in_hot_update(self):
         """最近一次认到热更新，说明客户端还在热更/编译着色器。"""

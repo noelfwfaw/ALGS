@@ -182,6 +182,8 @@ class RescuerScan:
         # 如果写成 `Timer(1.2).start()`，第一次要白等 1.2 秒才点。
         tapping = Timer(1.2)
         for _ in self.loop(timeout=timeout):
+            # 「NOA指南」帮助弹窗会盖住列表，点多久都选不中（2026-11-14 19:18）。
+            self.dismiss_noa_guide()
             rows = self.list_rows()
             if not rows:
                 # 已经掉进详情页了（点到头像会这样），先退回列表再来
@@ -260,6 +262,8 @@ class RescuerScan:
         # Timer 不 start：第一次直接点，之后 reset 才开始算 2 秒间隔。
         retry = Timer(2)
         for _ in self.loop(timeout=timeout):
+            # 「NOA指南」帮助弹窗会盖住整屏（2026-11-14 19:18 面板被判"没打开"）。
+            self.dismiss_noa_guide()
             if self.appear(E_196_2, offset=(10, 10)):
                 opened = True
                 break
