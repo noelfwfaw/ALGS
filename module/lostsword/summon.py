@@ -42,7 +42,18 @@ SUMMON_POOLS = (
 # bottom edge. Watched while it snaps, because a drag sent during the snap
 # stacks the momentum and overshoots the end.
 SUMMON_BANNER_LIST = (0, 90, 230, 700)
-SUMMON_SCROLL_DRAGS = 3
+# Drag until the list stops moving, not a fixed number of times: the column
+# above the two free pools shrinks every time a limited banner expires, so a
+# count measured one day is too short the next. 3 was measured on 2026-10-31
+# and only reached half of the 2026-11-14 list - measured 5 drags (diffs
+# 60.7 / 8.7 / 5.1 / 32.2 / 0.0), and the badges were read off a moving column
+# in between (one frame reported 4 badges where there are 2).
+# A drag at the end changes nothing, so that is the check point; the cap is
+# only there in case the check point itself ever fails.
+SUMMON_SCROLL_DRAGS = 8
+# Mean |delta| of the list area under this = the drag did nothing = at the end.
+# Measured: 5.1~60.7 while moving, 0.0 at the end.
+SUMMON_SCROLL_DIFF = 1.0
 
 # Where the game draws its red "something to take here" badge.
 #
@@ -55,7 +66,14 @@ SUMMON_SCROLL_DRAGS = 3
 # 533~615 and 632~700.
 SUMMON_BADGE_COLUMN = (195, 60, 235, 715)
 # R - max(G, B): 140~160 on the badge, 5~30 on the card it sits on.
-SUMMON_BADGE_RED = 60
+#
+# 60 was enough while the artwork behind the list was dark. 2026-11-14 the top
+# banner (凯拉) is drawn on red crystals and that column reads up to 100 there -
+# a 38-row "badge" the scan took for an entry, which then cost six seconds of
+# pressing a banner that is not one of the free pools. Measured on that frame:
+# artwork max 100 (mean of row maxima 79), real badges 145 (142~143). 120 keeps
+# both sides apart.
+SUMMON_BADGE_RED = 120
 # Rows further apart than this belong to two badges.
 SUMMON_BADGE_GAP = 6
 # A badge is 24 rows tall. Below the minimum it is a stray red pixel; above the
@@ -167,25 +185,48 @@ class LostswordSummon(LostswordUI):
         Drag the banner list to its end, where the two free pools are.
 
         The list remembers the offset it was left at, so the free entries are
-        only in the same place when it is scrolled the same way. Dragging at the
-        end does nothing, which is what makes a fixed number of drags safe
-        instead of a loop with a check point.
+        only in the same place when it is scrolled the same way - and "the same
+        way" has to be "all the way", because the column above the pools shrinks
+        every time a limited banner expires. So the list is dragged until a drag
+        changes nothing; that is the check point it offers for free (a drag at
+        the end does nothing), and it is the only thing that survives the column
+        changing length under it.
 
         Pages:
             in: page_summon
-            out: page_summon
+            out: page_summon, the list at its end
         """
-        for _ in range(SUMMON_SCROLL_DRAGS):
+        x1, y1, x2, y2 = SUMMON_BANNER_LIST
+        # The first frame of the page is still fading in; a drag into that
+        # reads as "no movement" and the loop would stop on the first try.
+        self.wait_until_still(SUMMON_BANNER_LIST, timeout=2)
+        for i in range(SUMMON_SCROLL_DRAGS):
+            before = self.device.image[y1:y2, x1:x2].astype('int16')
             # Slower than the battle page's card list: this one is a short
             # column with a snap of its own, and a fling drag overshoots it.
             self.device.swipe(p1=(115, 620), p2=(115, 280), duration=0.4)
+            # A fresh frame before watching: the cached image is the one from
+            # before the drag, and the list needs a moment to start moving - a
+            # comparison against that frame would read the moment as "the drag
+            # did nothing" and stop the loop at the first drag.
+            self.device.screenshot()
             # The list snaps with an animation that has no check point of its
             # own; dragging into it stacks the momentum and overshoots.
             self.wait_until_still(SUMMON_BANNER_LIST, timeout=2)
-        # A drag long enough to scroll is still a press for this game, and it
-        # may open a pool on the way. Counting those towards "too many clicks
-        # for a button" would stop the task halfway through a normal run.
-        self.device.click_record_clear()
+            after = self.device.image[y1:y2, x1:x2].astype('int16')
+            moved = float(np.abs(after - before).mean())
+            logger.info(f'Banner list drag {i + 1}, moved {moved:.1f}')
+            # A drag long enough to scroll is still a press for this game, and
+            # it may open a pool on the way. Counting those towards "too many
+            # clicks for a button" stops the run halfway (measured: 7 drags in
+            # a row raised `Too many click for a button: SWIPE`), so the record
+            # is cleared per drag, not once at the end.
+            self.device.click_record_clear()
+            if moved < SUMMON_SCROLL_DIFF:
+                break
+        else:
+            logger.warning(f'The banner list did not reach its end in '
+                           f'{SUMMON_SCROLL_DRAGS} drags')
 
     def summon_marked_entries(self):
         """

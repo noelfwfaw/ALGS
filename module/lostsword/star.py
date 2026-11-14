@@ -85,8 +85,19 @@ class LostswordStar(LostswordUI):
 
         fought = 0
         for name, tab, strip in STAR_TABS:
-            if self.star_fight(name, tab, strip):
-                fought += 1
+            for attempt in (0, 1):
+                if self.star_fight(name, tab, strip):
+                    fought += 1
+                    break
+                # An area that could not be opened is usually the panel still
+                # coming back from the previous battle, not a spent week (an
+                # area can be challenged again, its score only adds up). Make
+                # sure the panel is really there and walk this one once more -
+                # measured 2026-11-14: 星辰轨迹 was left at 0 while the two
+                # areas before it had been fought.
+                if attempt == 0:
+                    logger.info(f'{name}: area not taken, wait for the panel and retry it once')
+                    self.star_wait_panel()
 
         logger.info(f'Star areas challenged: {fought}')
         if not fought:
@@ -141,7 +152,32 @@ class LostswordStar(LostswordUI):
             self.device.click(STAR_BTN_ENTER)
         return self.star_battle(name)
 
-    def star_select_tab(self, name, tab, strip, timeout=6):
+    def star_wait_panel(self, timeout=20):
+        """
+        Wait until the area list is on screen.
+
+        The panel title is a flat dark strip that a loading screen matches too,
+        so the list has to be what says "the panel is back". Any of the three
+        names will do: the open one is drawn on a cream card and drops out of
+        the template match, the other two are always on the dark panel.
+
+        Args:
+            timeout (int, float): Seconds.
+
+        Returns:
+            bool: If the panel is on screen.
+        """
+        timeout = Timer(timeout).start()
+
+        for _ in self.loop():
+            if any(self.appear(tab, offset=30) for _, tab, _ in STAR_TABS):
+                return True
+
+            if timeout.reached():
+                logger.warning('The star panel did not come back')
+                return False
+
+    def star_select_tab(self, name, tab, strip, timeout=15):
         """
         Make sure the given area is the open one.
 
@@ -149,7 +185,10 @@ class LostswordStar(LostswordUI):
             name (str): Area name, for the log.
             tab (Button): List entry of the area.
             strip (tuple): Background of that entry.
-            timeout (int, float): Seconds.
+            timeout (int, float): Seconds. Long enough for the panel to finish
+                fading in after the previous battle: measured 2026-11-14, the
+                panel was still drawing six seconds after the result page went
+                away, the old limit gave up on 星辰轨迹 and left it unplayed.
 
         Returns:
             bool: If the area is open.
@@ -168,7 +207,9 @@ class LostswordStar(LostswordUI):
                 continue
 
             if timeout.reached():
-                logger.warning(f'{name} did not open')
+                logger.warning(f'{name} did not open, strip mean={sum(color) / 3:.1f}, '
+                               f'page={self.ui_get_current_page()}')
+                self.device.image_save(f'./log/star_{name}_did_not_open.png')
                 return False
 
     def star_battle(self, name, timeout=STAR_TIMEOUT):
@@ -204,7 +245,13 @@ class LostswordStar(LostswordUI):
             # reads as a frozen game to the stuck detector.
             self.device.stuck_record_clear()
 
-            if self.appear(page_star.check_button, offset=30):
+            # The panel's own title is a flat dark strip that also matches the
+            # loading screen of the next scene, so it says nothing on its own:
+            # measured 2026-11-14, the loop called this "back at the panel" six
+            # seconds before the area list was on screen and the next area was
+            # skipped. The area names in the list only exist on the panel.
+            if self.appear(page_star.check_button, offset=30) \
+                    and any(self.appear(tab, offset=30) for _, tab, _ in STAR_TABS):
                 logger.info(f'{name}: back at the panel, {waves} wave(s)')
                 return True
 

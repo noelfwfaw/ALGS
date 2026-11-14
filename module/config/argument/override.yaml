@@ -73,6 +73,12 @@ LostswordTask:
 LostswordSummon:
   Scheduler:
     ServerUpdate: 00:00
+# 通行证 was added later than the tasks above and was left out of this file, so
+# it kept the framework default 05:00 and every config_update (WebUI save,
+# `python -m module.config.config_updater`) wrote 05:00 back over the value.
+LostswordPass:
+  Scheduler:
+    ServerUpdate: 00:00
 # 兑换码 follows the game day like every other task of this game (user,
 # 2026-11-04: align it with the daily reset). The code list only ever returns
 # codes that have not expired yet, so the hour only decides how soon a new code

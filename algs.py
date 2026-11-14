@@ -168,6 +168,10 @@ class AlGS(GameScheduler):
         from module.lostsword.task import LostswordTask
         LostswordTask(config=self.config, device=self.device).run()
 
+    def lostsword_pass(self):
+        from module.lostsword.battle_pass import LostswordBattlePass
+        LostswordBattlePass(config=self.config, device=self.device).run()
+
     def lostsword_redeem(self):
         from module.lostsword.redeem import LostswordRedeem
         LostswordRedeem(config=self.config, device=self.device).run()

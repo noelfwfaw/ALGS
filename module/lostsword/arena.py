@@ -9,9 +9,9 @@ from module.lostsword.assets import (ARENA_BTN_CHALLENGE_1,
                                      ARENA_BTN_CLOSE, ARENA_BTN_ENTER,
                                      ARENA_BTN_SEASON, ARENA_BTN_SKIP,
                                      ARENA_BTN_TEAM, ARENA_PROMO_TAG,
-                                     ARENA_SEASON_CLAIM_ALL, ARENA_TITLE,
-                                     ARENA_VICTORY, MAIN_BTN_BATTLE,
-                                     REWARD_POPUP_TITLE)
+                                     ARENA_DEFEAT, ARENA_SEASON_CLAIM_ALL,
+                                     ARENA_TITLE, ARENA_VICTORY,
+                                     MAIN_BTN_BATTLE, REWARD_POPUP_TITLE)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP,
                                            LostswordUI,
                                            page_arena,
@@ -26,6 +26,11 @@ Flow observed in game:
     page_arena  --「挑战」-->  page_arena_preview（我方 vs 对手）
     page_arena_preview  --「进入」-->  战斗  --右上「Skip」-->  VICTORY  --点屏幕-->  加载页  ->  page_arena
     page_arena  --右上圆 X-->  page_battle  --右上圆 X-->  page_main
+
+A lost battle ends on a DEFEAT page drawn with the same layout as VICTORY: big
+title top left, 「失败。请点击屏幕。」 bottom right. It is tapped through the
+same way, and it does not change what the loop does next - the list is re-read
+either way, only the ticket is gone and the points went down.
 
 Every battle ends with a fresh list of three opponents (measured twice: the
 names, the ranks and even the promotion tag changed after a single fight), so the
@@ -386,6 +391,15 @@ class LostswordArena(LostswordUI):
                 # 所以按下去走 adb，并且点完继续看，没走就下一轮再点 - 这里
                 # 不负责等列表，离开由下面的 `ARENA_TITLE` / 大厅两个分支判定。
                 logger.info('Battle won, tap through the result page')
+                self.tap_asset(BOSS_RESULT_TAP)
+                continue
+
+            if self.appear(ARENA_DEFEAT, offset=30, interval=2):
+                # 战败页和胜利页是同一套版式（左上大标题、右下「请点击屏幕」），
+                # 只有标题换字，所以走路的方式也一样。之前只认 VICTORY：输一把
+                # 就落不到任何分支，只能等到 `ARENA_BATTLE_TIMEOUT` 抛
+                # GameStuckError，把后面九次票一起废掉。
+                logger.info('Battle lost, tap through the result page')
                 self.tap_asset(BOSS_RESULT_TAP)
                 continue
 

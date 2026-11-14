@@ -154,6 +154,10 @@
       "name": "Lost Sword: Task rewards",
       "help": "Claim all daily, weekly and epic task rewards"
     },
+    "LostswordPass": {
+      "name": "Lost Sword: Battle pass",
+      "help": "Open the battle pass panel and press Claim All, walking through every pass until nothing is left"
+    },
     "LostswordRedeem": {
       "name": "Lost Sword: Coupon codes",
       "help": "Fetch the coupon codes from GameKee once a day and redeem the new ones in the game; used and expired codes are skipped"

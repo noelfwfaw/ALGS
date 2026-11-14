@@ -460,6 +460,55 @@ def retry(func):
     return retry_wrapper
 
 
+def reset_maatouch_stream_after_minitouch(device):
+    """
+    [AlGS PATCH] MaaTouch and minitouch kill each other, the last one wins.
+
+    On MuMu 12 the two input channels do not coexist: creating one of the two
+    sockets silences the other for good. Nothing is raised - `sendall()` still
+    succeeds and the framework keeps logging `Click (x, y) @ BUTTON`, the game
+    just does nothing, for the rest of the process.
+
+    Measured 2026-11-14 (browndust, 127.0.0.1:16640, MuMu instance 8):
+
+        MaaTouch click on a button           -> panel opens    (template 1.00)
+        one `click_minitouch()` on the tab rail
+        the same MaaTouch click              -> nothing        (template 0.00)
+        `click_adb()` on the same point      -> panel opens    (template 1.00)
+
+        minitouch tap on a tab               -> tab switches   (label white)
+        MaaTouch stream dropped and reopened
+        minitouch tap on another tab         -> nothing        (label stays dimmed)
+        `click_adb()` on the same point      -> tab switches   (label white)
+
+    So both directions hold, and it is the *init* that wins, not the taps: a
+    later `click_minitouch()` on an already open socket leaves MaaTouch alive.
+
+    Hence the rule implemented here: whoever inits, throws the other side's
+    cached handle away, so the next click of the other side rebuilds itself and
+    takes the input back. One re-init per channel switch (~0.2s) is the price
+    of not silently losing clicks.
+
+    Args:
+        device: The device, `Minitouch` and `MaaTouch` are mixed into it.
+    """
+    if has_cached_property(device, '_maatouch_builder'):
+        logger.info('Minitouch opened, MaaTouch stream reset for the next click')
+    del_cached_property(device, '_maatouch_builder')
+
+
+def reset_minitouch_stream_after_maatouch(device):
+    """
+    [AlGS PATCH] Mirror of `reset_maatouch_stream_after_minitouch()`, see there.
+
+    Args:
+        device: The device, `Minitouch` and `MaaTouch` are mixed into it.
+    """
+    if has_cached_property(device, '_minitouch_builder'):
+        logger.info('MaaTouch opened, minitouch stream reset for the next tap')
+    del_cached_property(device, '_minitouch_builder')
+
+
 class Minitouch(Connection):
     _minitouch_port: int = 0
     _minitouch_client: socket.socket = None
@@ -581,6 +630,7 @@ class Minitouch(Connection):
                 max_contacts, max_x, max_y, max_pressure
             )
         )
+        reset_maatouch_stream_after_minitouch(self)
 
     @Config.when(DEVICE_OVER_HTTP=False)
     def minitouch_send(self, builder: CommandBuilder):
@@ -649,6 +699,7 @@ class Minitouch(Connection):
             return ws
 
         self._minitouch_ws = self._minitouch_loop_run(connect())
+        reset_maatouch_stream_after_minitouch(self)
 
     @Config.when(DEVICE_OVER_HTTP=True)
     def minitouch_send(self, builder: CommandBuilder):

@@ -102,6 +102,8 @@ Lostsword:
     LostswordTask:
       - Scheduler
       - LostswordTask
+    LostswordPass:
+      - Scheduler
     LostswordRedeem:
       - Scheduler
       - Coupon

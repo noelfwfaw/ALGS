@@ -11,7 +11,7 @@ Flow measured on the real device (2026-10-28, screenshots in
     page_task  领完：每一行变成灰色 ✓、按钮变灰、顶上的区间奖励宝箱也领掉
     page_main  --左上角箭头-->
 
-Three things are not what they look like, all measured rather than guessed:
+Four things are not what they look like, all measured rather than guessed:
 
 1. **「全部获得」把顶上「区间奖励」的里程碑宝箱一起领了**。领之前进度条和三只
    宝箱都是灰的（第一只 `luma>200` 只有 380 个像素）；领完那一帧进度条变绿、三只
@@ -25,6 +25,11 @@ Three things are not what they look like, all measured rather than guessed:
 3. **结算页会命中任务页的检查点**：`TASK_CLAIM_ALL` 透过半透明覆盖层照样打
    0.963。所以"已到任务页"必须再加一条"没有结算页盖着"，见
    `BrowndustUI.ui_reward_clean()` —— 跟 `page_hunt`、`page_mail` 完全同一个理由。
+
+4. **「全部获得」暗不暗，一帧不算数**。切页签时列表是滑入的，按钮最后才画出来；
+   结算页点掉之后也有半秒的淡出。2026-11-14 就是拿一帧去问，把「每周任务」整页
+   判成"没东西可领"直接退出（`[Task claimed] 1`，而那一页还有一整批奖励，
+   下一次跑才补领）。所以"暗"要连续看到超时才敢下结论，见 `task_claim_ready()`。
 
 列表是**会变的**：领完之后新任务会插到最上面（实机见到「前往「我的小屋」0/1」
 从第三行跳到第一行），一屏也放不下全部任务。所以行号、行数、位置都不能当判据，
@@ -69,6 +74,10 @@ TASK_TAP_INTERVAL = 2
 TASK_CLAIM_TRIES = 3
 # 切页签之后等选中态画出来。实测 0.6 秒就完成，给一屏动画的时间。
 TASK_TAB_TIMEOUT = 10
+# 判「全部获得」暗不暗时，要求"暗"连续看到这么久才算数。切页签的滑入动画和
+# 结算页的淡出都在这个窗口里走完，实测 1 秒内一定画稳。默认值定义在
+# `browndust_ui.py` 的 `BROWNDUST_CLAIM_SETTLE`（活动任务那边也用同一套）。
+TASK_CLAIM_SETTLE = 3
 
 
 class BrowndustTask(BrowndustUI):
@@ -92,14 +101,20 @@ class BrowndustTask(BrowndustUI):
         """
         return self.ui_bright_count(button.area, TASK_LABEL_LUMA) >= TASK_LABEL_PIXELS
 
-    def task_claim_available(self):
+    def task_claim_ready(self):
         """
-        Whether 「全部获得」 is drawn in its enabled (bright) state.
+        Wait for the list to finish drawing, then say whether 「全部获得」 is live.
+
+        A single frame is not enough - see `ui_bright_settled()` for the three
+        ways this page redraws under the check. 2026-11-14 the weekly tab was
+        skipped exactly by that (`[Task claimed] 1`, the whole page left for the
+        next run).
 
         Returns:
-            bool: True if there is something to claim on this tab.
+            bool: True if 「全部获得」 turns bright.
         """
-        return self.ui_bright_count(TASK_CLAIM_ALL.area, TASK_CLAIM_LUMA) >= TASK_CLAIM_PIXELS
+        return self.ui_bright_settled(TASK_CLAIM_ALL, TASK_CLAIM_LUMA, TASK_CLAIM_PIXELS,
+                                      timeout=TASK_CLAIM_SETTLE)
 
     def run(self):
         """
@@ -173,10 +188,9 @@ class BrowndustTask(BrowndustUI):
         """
         claimed = 0
         # 切页签之后整个列表都在重画（列表是滑入的），画到一半时读亮度会得到
-        # "没东西可领"。先等它静止再问。
-        self.wait_until_still(TASK_CLAIM_ALL.area, timeout=3)
+        # "没东西可领"。`task_claim_ready()` 会等到画稳再回答。
         for i in range(TASK_CLAIM_TRIES):
-            if not self.task_claim_available():
+            if not self.task_claim_ready():
                 break
             logger.info(f'Claim all the quests ({i + 1})')
             self.device.click(TASK_CLAIM_ALL)  # alas-lint: allow - the button being bright is checked right above, and the reward screen below is the proof it took
@@ -186,9 +200,8 @@ class BrowndustTask(BrowndustUI):
             if not self.task_close_reward():
                 logger.warning('The claim did not come back to the task list')
                 break
-            # 领完之后这一页要重画（每行变成 ✓、新任务插到顶上），画到一半时
-            # 读亮度会得到"没东西可领"，所以等它静止再问下一轮。
-            self.wait_until_still(TASK_CLAIM_ALL.area, timeout=3)
+            # 领完之后这一页要重画（每行变成 ✓、新任务插到顶上），下一轮
+            # `task_claim_ready()` 同样会等它画稳再问。
 
         # `claimed == 0` 就是"一次都没点下去"（每次点下去都会 +1），所以这里
         # 不需要另一个标志位来区分"没奖"和"点了没回来" —— 后者上面已经 warning 了。

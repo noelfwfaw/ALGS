@@ -9,7 +9,7 @@ from module.base.decorator import cached_property, del_cached_property, has_cach
 from module.base.timer import Timer
 from module.base.utils import *
 from module.device.connection import Connection
-from module.device.method.minitouch import Command, CommandBuilder, insert_swipe
+from module.device.method.minitouch import Command, CommandBuilder, insert_swipe, reset_minitouch_stream_after_maatouch
 from module.device.method.utils import RETRY_TRIES, handle_adb_error, retry_sleep
 from module.exception import RequestHumanTakeover
 from module.logger import logger
@@ -272,6 +272,7 @@ class MaaTouch(Connection):
                 max_contacts, max_x, max_y, max_pressure
             )
         )
+        reset_minitouch_stream_after_maatouch(self)
 
     def maatouch_send(self, builder: MaatouchBuilder):
         content = builder.to_minitouch()

@@ -163,10 +163,18 @@ class LostswordBattlePass(LostswordUI):
                 return False
         return self.wait_overlay(page_main.check_button, timeout=8)
 
-    def run(self):  # alas-lint: allow - not a scheduled task, claimed from handle_session_claim()
+    def run(self):
         """
-        Standalone entry, used by the tests. The session claim calls
-        `pass_claim()` directly, see `LostswordUI.handle_session_claim()`.
+        Pages:
+            in: page_main
+            out: page_main
         """
+        logger.hr('Pass rewards', level=1)
         claimed = self.pass_claim()
-        logger.info(f'Battle pass claimed: {claimed}')
+        if claimed:
+            logger.attr('Pass claimed', claimed)
+        else:
+            logger.info('No pass reward to claim')
+        self.ui_goto_main()
+        # Every pass hands out with the daily server update, like the other games.
+        self.config.task_delay(server_update=True)

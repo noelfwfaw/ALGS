@@ -98,6 +98,10 @@ BROWNDUST_POPUP_SIMILARITY = 0.75
 BROWNDUST_LOBBY_LIGHT = (1020, 36, 1044, 60)
 BROWNDUST_LOBBY_LUMA = 200
 BROWNDUST_LOBBY_LIGHT_COUNT = 300
+# 「还有没有东西可领」这类亮/暗判据要连续观察这么久。切页签时列表是滑入的、
+# 结算页点掉之后还有半秒淡出，按钮最后才画出来 —— 单帧读到暗就判空会漏领整页
+# （2026-11-14 每周任务就是这样被跳过的）。
+BROWNDUST_CLAIM_SETTLE = 3
 
 # 地图页那个房子按钮的阈值比默认的 0.85 低。模板里含着右上角那枚红点
 # （"有东西可以领"的提示），红点消失时整块图只剩房子和描边，实测最高相似度会
@@ -288,6 +292,44 @@ class BrowndustUI(UI):
             int: Number of pixels above `luma`.
         """
         return int(np.count_nonzero(rgb2luma(self.image_crop(button)) > luma))
+
+    def ui_bright_settled(self, button, luma, pixels, timeout=BROWNDUST_CLAIM_SETTLE):
+        """
+        Wait for the area to stop drawing, then answer "bright" or "empty".
+
+        The buttons that mean "there is something to claim" (「全部获得」 on the
+        quests, 「全部领取」 on the mailbox and on the event mission) all get
+        asked the same question right after the page was redrawn, and one frame
+        is not an answer:
+
+        - opening a tab slides the whole list in, and the button is drawn last;
+        - a reward screen that was just tapped leaves a veil on top for about
+          half a second;
+        - after a claim the rows get a ✓ and the list moves up.
+
+        In all three the button still reads dark for a moment while the page
+        actually has a full batch waiting. 2026-11-14 the weekly quests were
+        skipped exactly like that - `[Task claimed] 1` with a whole page left.
+
+        So bright at any point within `timeout` means claim; only a whole window
+        of dark counts as empty. That costs `timeout` seconds on a page that
+        really is empty, which is the price of not silently dropping rewards.
+
+        Args:
+            button (Button, tuple): Button instance or area.
+            luma (int): 0-255, `rgb2luma` of the frame.
+            pixels (int): How many bright pixels mean "claimable".
+            timeout (int): Seconds to keep asking. Defaults to `BROWNDUST_CLAIM_SETTLE`.
+
+        Returns:
+            bool: True if the area turned bright within `timeout`.
+        """
+        area = button.area if isinstance(button, Button) else button
+        self.wait_until_still(area, timeout=timeout)
+        for _ in self.loop(timeout=timeout):
+            if self.ui_bright_count(button, luma) >= pixels:
+                return True
+        return False
 
     def ui_lobby_shaded(self):
         """

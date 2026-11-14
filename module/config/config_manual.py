@@ -67,7 +67,7 @@ class ManualConfig:
     SCHEDULER_PRIORITY = """
     Restart
     > HazeworldMail > HazeworldRoom > HazeworldSupport > HazeworldExercise > HazeworldFriend > HazeworldCore > Hazeworldevent > HazeworldPass > HazeworldTask > HazeworldShop > HazeworldLogistics > HazeworldHonor
-    > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordRedeem
+    > LostswordTreasure > LostswordSummon > LostswordShop > LostswordMail > LostswordGuild > LostswordBoss > LostswordDungeon > LostswordCopy > LostswordEvent > LostswordStar > LostswordArena > LostswordMaze > LostswordMain > LostswordRound > LostswordAffection > LostswordTask > LostswordPass > LostswordRedeem
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
     > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroPass > ChaoszeroRedeem > ChaoszeroMain

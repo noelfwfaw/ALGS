@@ -241,7 +241,11 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
 
         # The battle pass is bundled for the same reason: its rewards are ready
         # the moment the day turns over, and waiting for a task slot of its own
-        # means missing them whenever the queue is cut short.
+        # means missing them whenever the queue is cut short. It also has a slot
+        # of its own (`LostswordPass`), added 2026-11-14: this hook only runs for
+        # the game that is on screen when the whole queue drains, and lostsword
+        # is followed by browndust/hazeworld tasks every day, so the pass was
+        # never claimed at all while it relied on the hook alone.
         try:
             LostswordBattlePass(config=self.config, device=self.device).pass_claim()
         except Exception as e:

@@ -159,19 +159,6 @@ class EventMission:
         logger.warning('[Event mission] cannot open the 任务 page')
         return False
 
-    def mission_claim_available(self):
-        """
-        「全部领取」现在是亮的那一态吗 —— 也就是这一页还有没有东西可领。
-
-        模板分在两态之间只差 0.04（1.000 / 0.960），所以这里数的不是相似度而是
-        亮度：可领时这颗按钮里 luma>200 有 796 个像素，领空之后是 0。
-
-        Returns:
-            bool: 有东西可领没有。
-        """
-        return self.ui_bright_count(EVENT_MISSION_CLAIM.area,
-                                    MISSION_CLAIM_LUMA) >= MISSION_CLAIM_PIXELS
-
     def mission_claim_all(self):
         """
         按「全部领取」直到这一页不再提供任何奖励。
@@ -187,11 +174,12 @@ class EventMission:
             int: 按了几次（= 领了几批）。
         """
         claimed = 0
-        # 刚画出来的时候整块面板还在滑入/淡入，画到一半读亮度会得到"没东西可领"。
-        self.wait_until_still(EVENT_MISSION_CLAIM.area, timeout=3)
-
+        # 面板是滑入/淡入的，按钮最后才画出来；领完之后这一页也要重画（领掉的行
+        # 消失、下面的行往上顶）。单帧读到暗就判空会漏领整页，所以统一交给
+        # `ui_bright_settled()` 连续观察一段窗口。
         for i in range(MISSION_CLAIM_TRIES):
-            if not self.mission_claim_available():
+            if not self.ui_bright_settled(EVENT_MISSION_CLAIM, MISSION_CLAIM_LUMA,
+                                          MISSION_CLAIM_PIXELS):
                 break
             logger.info(f'[Event mission] claim all ({i + 1})')
             self.device.click(EVENT_MISSION_CLAIM)  # alas-lint: allow - the button being bright is checked right above, the reward screen below is the proof it took
@@ -201,9 +189,6 @@ class EventMission:
             if not self.mission_close_reward():
                 logger.warning('[Event mission] the claim did not come back to the list')
                 break
-            # 领完之后这一页要重画（领掉的行消失、下面的行往上顶），画到一半时读
-            # 亮度会得到"没东西可领"，所以等它静止再问下一轮。
-            self.wait_until_still(EVENT_MISSION_CLAIM.area, timeout=3)
 
         if not claimed:
             logger.info('[Event mission] nothing to claim today')

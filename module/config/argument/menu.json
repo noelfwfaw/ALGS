@@ -45,6 +45,7 @@
       "LostswordRound",
       "LostswordAffection",
       "LostswordTask",
+      "LostswordPass",
       "LostswordRedeem"
     ]
   },
