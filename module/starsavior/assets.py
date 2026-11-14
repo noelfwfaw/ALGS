@@ -70,6 +70,12 @@ E_212_1 = Button(area={'starsavior': (328, 210, 412, 244)}, color={'starsavior':
 E_213_1 = Button(area={'starsavior': (1074, 635, 1153, 658)}, color={'starsavior': (34, 34, 34)}, button={'starsavior': (1074, 635, 1153, 658)}, file={'starsavior': './assets/starsavior/starsavior/E_213_1.png'})
 E_214_1 = Button(area={'starsavior': (1014, 635, 1112, 660)}, color={'starsavior': (200, 200, 200)}, button={'starsavior': (1014, 635, 1112, 660)}, file={'starsavior': './assets/starsavior/starsavior/E_214_1.png'})
 
+# E_215_1：「NOA指南」帮助弹窗左上角的标题（图标 + 「NOA指南」字样）。
+# 救援者详情页点「突破极限」附近会弹出这个帮助浮层，弹窗盖住整屏后
+# 列表按钮一个都认不出，真机 2026-11-14 19:18 就是这样 GameStuckError 的。
+# 只切标题、不切右上角的 X：X 在别的弹窗上也有，标题才是这一屏的正面判据。
+E_215_1 = Button(area={'starsavior': (362, 98, 444, 130)}, color={'starsavior': (240, 240, 240)}, button={'starsavior': (362, 98, 444, 130)}, file={'starsavior': './assets/starsavior/starsavior/E_215_1.png'})
+
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到
 # page_38，而只点敌人圈 45 次画面一动不动。

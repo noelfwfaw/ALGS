@@ -488,8 +488,9 @@ HOT_UPDATE_MAX_WAIT = 900        # 等画面总时长上限（81.40MB 实测约 
 HOT_UPDATE_TTL = 900             # 认到过热更新后，这段时间内不许 App stop
 HOT_UPDATE_CLICK_GAP = 5         # 两次点「OK」的最小间隔，别连点
 
-# 「NOA指南」帮助弹窗是多页的，一次 X 只翻页 / 被动画吃掉，要连点到标题消失。
-NOA_GUIDE_TRIES = 4
+# 「NOA指南」帮助弹窗是多页的（实测 5 页，点 X 有时只是翻页/被动画吃掉），
+# 要连点到标题消失为止，所以给足次数。
+NOA_GUIDE_TRIES = 6
 
 
 class GameCrashed(Exception):
@@ -2544,8 +2545,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             if self.appear(E_215_1, offset=(10, 10)):
                 logger.info('点掉「NOA指南」帮助弹窗')
                 self.device.click(Button(  # alas-lint: allow - 上一行 E_215_1 正面判过这个弹窗，X 没有独立的消退信号
-                    area=(935, 102, 962, 130), button=(935, 102, 962, 130),
-                    name='关闭 NOA 指南'))
+                    area=(935, 102, 962, 130), color=(0, 0, 0),
+                    button=(935, 102, 962, 130), name='关闭 NOA 指南'))
                 self.wait_until_disappear(E_215_1, offset=(10, 10), timeout=2, settle=1)
                 closed = True
             else:
