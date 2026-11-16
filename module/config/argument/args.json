@@ -2633,6 +2633,134 @@
       }
     }
   },
+  "ChaoszeroRogue": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ChaoszeroRogue",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "ChaoszeroRogue": {
+      "RogueWorld": {
+        "type": "select",
+        "value": "霧之城市",
+        "option": [
+          "霧之城市",
+          "雙星之影",
+          "審判之沼",
+          "藍壺",
+          "降臨的混沌"
+        ]
+      },
+      "RogueDreamMode": {
+        "type": "select",
+        "value": "開啟",
+        "option": [
+          "開啟",
+          "關閉",
+          "保持不變"
+        ]
+      },
+      "RoguePick": {
+        "type": "input",
+        "value": 1
+      },
+      "RogueHerald": {
+        "type": "input",
+        "value": 1
+      },
+      "RogueRoute": {
+        "type": "select",
+        "value": "均衡",
+        "option": [
+          "均衡",
+          "优先进攻",
+          "优先事件"
+        ]
+      },
+      "RogueAvoidElite": {
+        "type": "checkbox",
+        "value": true
+      },
+      "RogueMeditate": {
+        "type": "checkbox",
+        "value": true
+      },
+      "RogueCure": {
+        "type": "checkbox",
+        "value": true
+      },
+      "RogueMember": {
+        "type": "input",
+        "value": 1
+      },
+      "RogueDelete": {
+        "type": "input",
+        "value": 3
+      },
+      "RogueSparkFilter": {
+        "type": "textarea",
+        "value": ""
+      },
+      "RogueEventPick": {
+        "type": "checkbox",
+        "value": true
+      },
+      "RogueSaveKeep": {
+        "type": "input",
+        "value": 0
+      },
+      "RogueLoop": {
+        "type": "checkbox",
+        "value": true
+      },
+      "RogueRuns": {
+        "type": "input",
+        "value": 1
+      },
+      "RogueStopBeacon": {
+        "type": "input",
+        "value": 0
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "CrosscoreMain": {
     "Scheduler": {
       "Enable": {

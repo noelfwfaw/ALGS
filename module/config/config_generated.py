@@ -152,6 +152,24 @@ class GeneratedConfig:
     ChaoszeroSimulation_TrainingEfficiency = 6
     ChaoszeroSimulation_TrainingTimes = 0
 
+    # Group `ChaoszeroRogue`
+    ChaoszeroRogue_RogueWorld = '霧之城市'  # 霧之城市, 雙星之影, 審判之沼, 藍壺, 降臨的混沌
+    ChaoszeroRogue_RogueDreamMode = '開啟'  # 開啟, 關閉, 保持不變
+    ChaoszeroRogue_RoguePick = 1
+    ChaoszeroRogue_RogueHerald = 1
+    ChaoszeroRogue_RogueRoute = '均衡'  # 均衡, 优先进攻, 优先事件
+    ChaoszeroRogue_RogueAvoidElite = True
+    ChaoszeroRogue_RogueMeditate = True
+    ChaoszeroRogue_RogueCure = True
+    ChaoszeroRogue_RogueMember = 1
+    ChaoszeroRogue_RogueDelete = 3
+    ChaoszeroRogue_RogueSparkFilter = None
+    ChaoszeroRogue_RogueEventPick = True
+    ChaoszeroRogue_RogueSaveKeep = 0
+    ChaoszeroRogue_RogueLoop = True
+    ChaoszeroRogue_RogueRuns = 1
+    ChaoszeroRogue_RogueStopBeacon = 0
+
     # Group `ChaoszeroArk`
     ChaoszeroArk_PolicyEnable = True
     ChaoszeroArk_PolicyTimes = 0

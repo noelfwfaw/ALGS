@@ -34,6 +34,8 @@ pypresence==4.2.1
 # Ocr
 cnocr==1.2.2
 mxnet==1.6.0
+# 卡厄思肉鸽用 PP-OCRv3 繁体识别模型（bin/ocr_models/*.onnx），只用 onnxruntime 推理
+onnxruntime==1.14.1
 
 # Webui
 pywebio==1.6.2

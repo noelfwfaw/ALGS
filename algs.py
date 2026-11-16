@@ -246,6 +246,11 @@ class AlGS(GameScheduler):
         from module.chaoszero.redeem import ChaoszeroRedeem
         ChaoszeroRedeem(config=self.config, device=self.device).run()
 
+    def chaoszero_rogue(self):
+        # 肉鸽（卡厄思）：进本、一路推进、结算。战斗是自动的，脚本只做选择与导航。
+        from module.chaoszero.rogue import ChaoszeroRogue
+        ChaoszeroRogue(config=self.config, device=self.device).run()
+
     # ==================== Cross Core (交错战线) ====================
 
     def crosscore_main(self):

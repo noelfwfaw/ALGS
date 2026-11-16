@@ -156,6 +156,9 @@ Chaoszero:
       - Coupon
     ChaoszeroMain:
       - Scheduler
+    ChaoszeroRogue:
+      - Scheduler
+      - ChaoszeroRogue
 
 # ==================== Cross Core (交错战线) ====================
 

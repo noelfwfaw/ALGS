@@ -737,6 +737,37 @@
       "Storage": {}
     }
   },
+  "ChaoszeroRogue": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ChaoszeroRogue",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ChaoszeroRogue": {
+      "RogueWorld": "霧之城市",
+      "RogueDreamMode": "開啟",
+      "RoguePick": 1,
+      "RogueHerald": 1,
+      "RogueRoute": "均衡",
+      "RogueAvoidElite": true,
+      "RogueMeditate": true,
+      "RogueCure": true,
+      "RogueMember": 1,
+      "RogueDelete": 3,
+      "RogueSparkFilter": null,
+      "RogueEventPick": true,
+      "RogueSaveKeep": 0,
+      "RogueLoop": true,
+      "RogueRuns": 1,
+      "RogueStopBeacon": 0
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "CrosscoreMain": {
     "Scheduler": {
       "Enable": false,

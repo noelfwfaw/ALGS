@@ -1,0 +1,366 @@
+"""卡厄思：灵光三选一的「认卡 + 挑形态」。
+
+灵光三选一的三张永远是**同一张卡**的不同形态（用户 2026-11-14 确认），
+所以先把三列描述合起来认出是哪张卡，再在这张卡的 5 条形态描述里按关键词挑。
+
+实测（2026-11-15，cnocr 1.2.2）：
+- `extract_letters` 返回的是「黑字白底」，白色字必须把 threshold 拉到 250 才分得开；
+- 框架的 `Ocr.ocr()` 只喂单行模型，整块多行描述会读成残片，所以要自己按行切；
+- 数字是彩色字（绿/橙），掩膜只取近白 → 数值全丢，关键词只能写中文效果词。
+
+所以这里的三步是：切行 → 逐行 OCR → 候选缩到「某张卡的 5 条形态」。
+"""
+
+import gzip
+import json
+import os
+import re
+from difflib import SequenceMatcher
+
+import cv2
+import numpy as np
+
+from module.base.button import Button
+from module.base.utils import extract_letters
+from module.logger import logger
+from module.ocr.ocr import Ocr
+
+DATA_FILE = os.path.join(os.path.dirname(__file__), 'rogue_cards.json.gz')
+
+# 灵光三选一的三列（x0, x1）与描述块的 y 范围，1280x720
+COLUMNS = ((180, 460), (495, 780), (810, 1105))
+DESC_AREA = (390, 590)
+
+# 白字掩膜：threshold 越大越只挑近白像素，250 能把白字和立绘分开
+TEXT_THRESHOLD = 250
+LETTER_LIMIT = 80
+
+# 行切分：墨量 ≥ ROW_MIN_INK 才算有字，连续空白 ≥ ROW_GAP 断行
+ROW_MIN_INK = 8
+ROW_GAP = 3
+ROW_MIN_HEIGHT = 9
+
+# 认卡余量：第一名与第二名差不到这么多就不认，交给 RoguePick
+CARD_MARGIN = 0.04
+
+# 挑列的最低相似度：低于这个值就都不要，退回 RoguePick
+COLUMN_MIN_SCORE = 0.35
+
+
+def normalize(text):
+    """去掉数字、百分号、标点和空格，只留汉字。
+
+    数字在卡面上是彩色的，掩膜取不到，所以两边都删掉再比。
+    """
+    text = re.sub(r'[0-9%×+]+', '', text or '')
+    return re.sub(r'[^\u4e00-\u9fff]', '', text)
+
+
+def letters_mask(rgb):
+    """白字掩膜，返回 0/255 的 2D 图。"""
+    scaled = extract_letters(rgb, letter=(255, 255, 255), threshold=TEXT_THRESHOLD)
+    return np.where(scaled < LETTER_LIMIT, 255, 0).astype(np.uint8)
+
+
+def name_score(text, name):
+    """卡名相似度：共享字数（宽容少字/多字）+ 序列相似度，各占一半。
+
+    冥想选卡页、删卡网格上的名字是 24px 白字压在立绘上，实测 OCR 会错 1~2 个字
+    （`決心墜飾`→`清心樂飾`、`科沃斯基爵士`→`科季斯基爵士十方`），所以单看
+    序列相似度会漏；这里把"名字里的字有几个出现在 OCR 结果里"也算进来。
+    """
+    text = normalize(text)
+    name = normalize(name)
+    if not text or not name:
+        return 0.0
+    hit = sum(1 for char in name if char in text)
+    return 0.5 * float(hit) / len(name) + 0.5 * SequenceMatcher(None, text, name).ratio()
+
+
+def split_rows(mask):
+    """按水平投影切行，返回 [(y0, y1)]。"""
+    rows = (mask > 0).astype(np.uint8).sum(axis=1)
+    lines = []
+    start = None
+    blank = 0
+    for y, ink in enumerate(rows):
+        if ink >= ROW_MIN_INK:
+            if start is None:
+                start = y
+            blank = 0
+        elif start is not None:
+            blank += 1
+            if blank >= ROW_GAP:
+                end = y - blank
+                if end - start >= ROW_MIN_HEIGHT:
+                    lines.append((start, end + 1))
+                start = None
+                blank = 0
+    if start is not None and len(rows) - start >= ROW_MIN_HEIGHT:
+        lines.append((start, len(rows)))
+    return lines
+
+
+class CardLibrary:
+    """`rogue_cards.json.gz` 的形态索引。"""
+
+    def __init__(self, file=DATA_FILE):
+        self.file = file
+        self.cards = {}
+        self._load()
+
+    def _load(self):
+        if not os.path.exists(self.file):
+            logger.warning('Card library not found, %s' % self.file)
+            return
+        with gzip.open(self.file, 'rt', encoding='utf-8') as f:
+            data = json.load(f)
+        for character, cards in data.items():
+            for card in cards:
+                forms = [normalize(form.get('desc', '')) for form in card.get('forms', [])]
+                forms = [form for form in forms if form]
+                if not forms:
+                    continue
+                key = (character, card['name'])
+                self.cards[key] = {
+                    'forms': forms,
+                    'raw': [form.get('desc', '') for form in card.get('forms', [])],
+                }
+        logger.info('Card library loaded, %s cards' % len(self.cards))
+
+    def identify(self, texts):
+        """三列 OCR 文本 → (卡名, 得分, 余量) 或 (None, 0, 0)。"""
+        texts = [text for text in texts if text]
+        if not texts:
+            return None, 0.0, 0.0
+        scored = []
+        for key, card in self.cards.items():
+            total = 0.0
+            for text in texts:
+                total += max(SequenceMatcher(None, text, form).ratio()
+                             for form in card['forms'])
+            scored.append((total / len(texts), key[1]))
+        scored.sort(reverse=True)
+        if len(scored) < 2:
+            return (scored[0][1], scored[0][0], 1.0) if scored else (None, 0.0, 0.0)
+        margin = scored[0][0] - scored[1][0]
+        if margin < CARD_MARGIN:
+            return None, scored[0][0], margin
+        return scored[0][1], scored[0][0], margin
+
+    def forms(self, name):
+        """按卡名取形态列表（同名卡在不同角色身上时取第一个）。"""
+        for (character, card_name), card in self.cards.items():
+            if card_name == name:
+                return card['forms'], card['raw']
+        return [], []
+
+    def pick(self, name, keywords):
+        """在卡的几种形态里挑最匹配关键词的那个，返回 (序号, 命中数, 描述)。"""
+        forms, raw = self.forms(name)
+        if not forms or not keywords:
+            return None
+        best = None
+        for index, form in enumerate(forms):
+            hits = sum(1 for word in keywords if word and word in form)
+            score = (hits, -len(form))
+            if best is None or score > best[0]:
+                best = (score, index)
+        if best is None or best[0][0] == 0:
+            return None
+        index = best[1]
+        return index, best[0][0], raw[index] if index < len(raw) else forms[index]
+
+    def form_value(self, name, index):
+        """形态强弱代用值：描述里「百分比 × 倍数」的总和，`350%×2` 记 700。
+
+        形态之间比强弱没有客观答案，数值是最接近的代理。用户 2026-11-15 让
+        脚本自己决定关键词，所以没用配置关键词时就用它挑「这三列里数值最大的」。
+        """
+        forms, raw = self.forms(name)
+        if index >= len(raw):
+            return 0.0
+        text = raw[index]
+        score = 0.0
+        for value, times in re.findall(r'(\d+(?:\.\d+)?)\s*%(?:\s*[×xX*]\s*(\d+))?', text):
+            score += float(value) * float(times or 1)
+        for value in re.findall(r'(\d+)\s*[張张]', text):
+            score += float(value)
+        return score
+
+    def default_form(self, name):
+        """整库里数值最大的那个形态（只用于日志，实际从三列里挑）。"""
+        forms, raw = self.forms(name)
+        if not forms:
+            return None
+        best = None
+        for index in range(len(forms)):
+            score = self.form_value(name, index)
+            if best is None or score > best[0]:
+                best = (score, index)
+        return best[1] if best else None
+
+    def read_columns(self, texts, name):
+        """每一列各自最像这张卡的哪个形态，返回 [(列序号, 相似度, 形态序号)]。
+
+        三列只显示 5 个形态里的 3 个，所以不能拿目标形态去「找最像的列」——
+        目标形态可能根本没出现（实测喘氣默认形态就没出现）。必须先认清每一列。
+        """
+        forms, raw = self.forms(name)
+        if not forms:
+            return []
+        found = []
+        for column, text in enumerate(texts):
+            if not text:
+                continue
+            best = None
+            for index, form in enumerate(forms):
+                ratio = SequenceMatcher(None, text, form).ratio()
+                if best is None or ratio > best[0]:
+                    best = (ratio, index)
+            if best[0] >= COLUMN_MIN_SCORE:
+                found.append((column, best[0], best[1]))
+        return found
+
+    def pick_column(self, texts, keywords=None, name=None):
+        """先认清三列各是哪个形态，再按关键词或数值挑一列。
+
+        有关键词：在「已经认清的形态」里取含关键词且相似度最高的一列。
+        没关键词：在这三列里取数值最大的形态（用户：关键词脚本自己写，
+        只要不认错卡；所以默认走数值，配置了关键词就听配置）。
+        返回 (列序号, 得分, 形态序号, 描述) 或 None。
+        """
+        columns = self.read_columns(texts, name)
+        if not columns:
+            return None
+        forms, raw = self.forms(name)
+        chosen = None
+        if keywords:
+            for column, ratio, index in columns:
+                if not any(word and word in forms[index] for word in keywords):
+                    continue
+                if chosen is None or ratio > chosen[1]:
+                    chosen = (column, ratio, index)
+            if chosen is None:
+                return None
+        else:
+            best_key = None
+            for column, ratio, index in columns:
+                key = (self.form_value(name, index), ratio)
+                if best_key is None or key > best_key:
+                    best_key = key
+                    chosen = (column, ratio, index)
+        index = chosen[2]
+        return chosen[0], chosen[1], index, raw[index] if index < len(raw) else forms[index]
+
+
+class CardReader:
+    """按列读卡面描述（切行 + 单行 OCR）。
+
+    优先用繁体 ONNX 模型（`rogue_ocr.ChtOcr`，PP-OCRv3 cht）：传统字识别准、
+    认卡得分从 0.59~0.63 提到 0.62~0.81，余量翻 2~3 倍。模型或 onnxruntime
+    缺失时自动退回 cnocr 1.2.2 的逐行识别。
+    """
+
+    def __init__(self):
+        self.ocr = None
+        self.cht = None
+        self.cht_checked = False
+
+    def _get_ocr(self, area):
+        if self.ocr is None:
+            self.ocr = Ocr(
+                Button(area=area, color=(255, 255, 255), button=area, file=None),
+                lang='cnocr', letter=(255, 255, 255), threshold=128, name='ROGUE_CARD')
+        return self.ocr
+
+    def _get_cht(self):
+        if not self.cht_checked:
+            self.cht_checked = True
+            try:
+                from module.chaoszero.rogue_ocr import ChtOcr
+
+                reader = ChtOcr()
+                if reader.available():
+                    self.cht = reader
+                    logger.info('Card reader uses the traditional ONNX model')
+                else:
+                    logger.info('Traditional OCR model not available, fall back to cnocr')
+            except Exception as error:
+                logger.info('Traditional OCR unavailable (%s), fall back to cnocr' % error)
+        return self.cht
+
+    def read(self, image, column):
+        """image: RGB ndarray；column: (x0, x1)。返回归一化后的文本。"""
+        x0, x1 = column
+        area = (x0 + 12, DESC_AREA[0], x1 - 12, DESC_AREA[1])
+        crop = image[area[1]:area[3], area[0]:area[2]]
+        mask = letters_mask(crop)
+        crops = []
+        for y0, y1 in split_rows(mask):
+            line = mask[max(0, y0 - 4):y1 + 4, :]
+            if line.shape[0] >= 10:
+                crops.append(line.astype(np.uint8))
+        if not crops:
+            return ''
+        cht = self._get_cht()
+        if cht:
+            lines = [cv2.cvtColor(line, cv2.COLOR_GRAY2RGB) for line in crops]
+            return normalize(''.join(cht.lines(lines)))
+        ocr = self._get_ocr(area)
+        result = ocr.cnocr.atomic_ocr_for_single_lines(crops)
+        return normalize(''.join(''.join(chars) for chars in result))
+
+    def read_all(self, image, columns=COLUMNS):
+        return [self.read(image, column) for column in columns]
+
+    def read_block(self, image, area, scale=1):
+        """读一块**多行**文字（不限于卡牌描述区）。
+
+        和 `read()` 同一套逻辑（提字掩膜 → 按行切 → 逐行 OCR → 拼起来），
+        只是区域由调用方给。命运（塔罗）三选一的效果说明用得上
+        （2026-11-16 用户：光收标题不够，效果也要收，否则判断不了哪个好）。
+
+        Args:
+            image (np.ndarray): RGB 帧。
+            area (tuple): (x1, y1, x2, y2)。
+
+        Returns:
+            str: 归一化后的整段文本（读不出为空串）。
+        """
+        crop = image[area[1]:area[3], area[0]:area[2]]
+        if crop is None or not crop.size:
+            return ''
+        # 命运卡的效果字只有 ~14px，原尺寸 OCR 基本是乱码（实测
+        # 「精英區域的裝備獎勵中…」被读成「龍戰獎的日」）。先放大 2 倍再提字。
+        if scale and scale != 1:
+            crop = cv2.resize(crop, None, fx=scale, fy=scale,
+                              interpolation=cv2.INTER_CUBIC)
+        mask = letters_mask(crop)
+        crops = []
+        for y0, y1 in split_rows(mask):
+            line = mask[max(0, y0 - 4):y1 + 4, :]
+            if line.shape[0] >= 10:
+                crops.append(line.astype(np.uint8))
+        if not crops:
+            return ''
+        cht = self._get_cht()
+        if cht:
+            lines = [cv2.cvtColor(line, cv2.COLOR_GRAY2RGB) for line in crops]
+            return normalize(''.join(cht.lines(lines)))
+        ocr = self._get_ocr(area)
+        result = ocr.cnocr.atomic_ocr_for_single_lines(crops)
+        return normalize(''.join(''.join(chars) for chars in result))
+
+    def read_name(self, image, area):
+        """读卡名条这类白字小字（冥想选卡、删卡网格）。返回归一化文本。"""
+        crop = image[area[1]:area[3], area[0]:area[2]]
+        if crop is None or not crop.size:
+            return ''
+        gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
+        cht = self._get_cht()
+        if cht:
+            return normalize(cht.line(gray))
+        ocr = self._get_ocr(area)
+        result = ocr.cnocr.atomic_ocr_for_single_lines([gray.astype(np.uint8)])
+        return normalize(''.join(''.join(chars) for chars in result))

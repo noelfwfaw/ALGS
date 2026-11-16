@@ -218,6 +218,10 @@
       "name": "卡厄思喚起遊戲",
       "help": "把客戶端從冷啟動、標題畫面或閒置立繪帶到主畫面，不領取任何獎勵。後面所有任務都從這一頁開始"
     },
+    "ChaoszeroRogue": {
+      "name": "Task.ChaoszeroRogue.name",
+      "help": "Task.ChaoszeroRogue.help"
+    },
     "CrosscoreMain": {
       "name": "交錯啟動遊戲",
       "help": "把客戶端從冷啟動、標題畫面或二級頁面帶到主畫面，不領取任何獎勵。後面所有任務都從這一頁開始"
@@ -924,6 +928,87 @@
     "TrainingTimes": {
       "name": "每個頁籤打幾輪",
       "help": "0 = 一直打到體力不夠為止"
+    }
+  },
+  "ChaoszeroRogue": {
+    "_info": {
+      "name": "ChaoszeroRogue._info.name",
+      "help": "ChaoszeroRogue._info.help"
+    },
+    "RogueWorld": {
+      "name": "ChaoszeroRogue.RogueWorld.name",
+      "help": "ChaoszeroRogue.RogueWorld.help",
+      "霧之城市": "ChaoszeroRogue.RogueWorld.霧之城市",
+      "雙星之影": "ChaoszeroRogue.RogueWorld.雙星之影",
+      "審判之沼": "ChaoszeroRogue.RogueWorld.審判之沼",
+      "藍壺": "ChaoszeroRogue.RogueWorld.藍壺",
+      "降臨的混沌": "ChaoszeroRogue.RogueWorld.降臨的混沌"
+    },
+    "RogueDreamMode": {
+      "name": "ChaoszeroRogue.RogueDreamMode.name",
+      "help": "ChaoszeroRogue.RogueDreamMode.help",
+      "開啟": "ChaoszeroRogue.RogueDreamMode.開啟",
+      "關閉": "ChaoszeroRogue.RogueDreamMode.關閉",
+      "保持不變": "ChaoszeroRogue.RogueDreamMode.保持不變"
+    },
+    "RoguePick": {
+      "name": "ChaoszeroRogue.RoguePick.name",
+      "help": "ChaoszeroRogue.RoguePick.help"
+    },
+    "RogueHerald": {
+      "name": "ChaoszeroRogue.RogueHerald.name",
+      "help": "ChaoszeroRogue.RogueHerald.help"
+    },
+    "RogueRoute": {
+      "name": "ChaoszeroRogue.RogueRoute.name",
+      "help": "ChaoszeroRogue.RogueRoute.help",
+      "均衡": "ChaoszeroRogue.RogueRoute.均衡",
+      "优先进攻": "ChaoszeroRogue.RogueRoute.优先进攻",
+      "优先事件": "ChaoszeroRogue.RogueRoute.优先事件"
+    },
+    "RogueAvoidElite": {
+      "name": "ChaoszeroRogue.RogueAvoidElite.name",
+      "help": "ChaoszeroRogue.RogueAvoidElite.help"
+    },
+    "RogueMeditate": {
+      "name": "ChaoszeroRogue.RogueMeditate.name",
+      "help": "ChaoszeroRogue.RogueMeditate.help"
+    },
+    "RogueCure": {
+      "name": "ChaoszeroRogue.RogueCure.name",
+      "help": "ChaoszeroRogue.RogueCure.help"
+    },
+    "RogueMember": {
+      "name": "ChaoszeroRogue.RogueMember.name",
+      "help": "ChaoszeroRogue.RogueMember.help"
+    },
+    "RogueDelete": {
+      "name": "ChaoszeroRogue.RogueDelete.name",
+      "help": "ChaoszeroRogue.RogueDelete.help"
+    },
+    "RogueSparkFilter": {
+      "name": "ChaoszeroRogue.RogueSparkFilter.name",
+      "help": "ChaoszeroRogue.RogueSparkFilter.help"
+    },
+    "RogueEventPick": {
+      "name": "ChaoszeroRogue.RogueEventPick.name",
+      "help": "ChaoszeroRogue.RogueEventPick.help"
+    },
+    "RogueSaveKeep": {
+      "name": "ChaoszeroRogue.RogueSaveKeep.name",
+      "help": "ChaoszeroRogue.RogueSaveKeep.help"
+    },
+    "RogueLoop": {
+      "name": "ChaoszeroRogue.RogueLoop.name",
+      "help": "ChaoszeroRogue.RogueLoop.help"
+    },
+    "RogueRuns": {
+      "name": "ChaoszeroRogue.RogueRuns.name",
+      "help": "ChaoszeroRogue.RogueRuns.help"
+    },
+    "RogueStopBeacon": {
+      "name": "ChaoszeroRogue.RogueStopBeacon.name",
+      "help": "ChaoszeroRogue.RogueStopBeacon.help"
     }
   },
   "ChaoszeroArk": {
