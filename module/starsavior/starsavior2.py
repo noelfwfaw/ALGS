@@ -392,7 +392,7 @@ AUTO_BATTLE_ON = 0.05
 BOSS_HP_AREA = (395, 24, 900, 46)
 HP_DROP_EPS = 0.004        # 占比掉 0.4 个百分点（约 5% 血）就算在掉血
 AUTO_HP_WAIT = 15          # 点完 AUTO 最多等这么久看血条有没有动
-AUTO_MAX_TRIES = 2         # 同一段里最多主动点 2 下，避免开→关来回切
+AUTO_MAX_TRIES = 1         # 同一段里最多主动点 2 下，避免开→关来回切
 AUTO_STALL_GUARD = 40      # 战斗里多少秒没有任何按钮、血条也不动就补点一次
 
 # 评鉴战进场后**延迟 1~2 秒**才出现的对话条。真机 2026-11-12 22:36 的五帧
@@ -1983,25 +1983,23 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     gap_reported = int(waiting // 10) * 10
                     logger.info('%s：page_%d 之后 %.0fs 没有点掉新引导页'
                                 % (note, last_done[0], waiting))
-                # 战斗里长时间没有任何按钮、Boss 血条也不动：自动战斗多半被
-                # 点关（开关按钮，点两下等于开→关）。这里是唯一允许「盲补一下」
-                # 的地方，而且先用 6 秒血条采样确认真的没在掉血才点，
-                # 所以不会把已经开着的又关掉。2026-11-14 21:48 卡了 210 秒。
+                # 战斗里长时间没有任何按钮、Boss 血条也不动：以前这里会「盲补一下」
+                # 自动战斗。2026-11-16 15:02 真机证明这是错的：当时自动战斗明明
+                # 开着（15:01:06 点完血条在掉），43 秒后血条采样得 0.000，
+                # 于是补点一下 —— 开关按钮被点关，评鉴战当场卡死。
+                # 血条读数会因为 Boss 护盾、血条被特效盖住、满血/空血而变成恒定值，
+                # 不能当「战斗停了」的证据。所以现在只记录，绝不补点。
                 if (speed and waiting >= AUTO_STALL_GUARD
                         and time.time() - auto_guard_at >= AUTO_STALL_GUARD
                         and self.in_battle()
                         and self.appear(E_134_2, offset=CHAIN_OFFSET)):
                     auto_guard_at = time.time()
                     if self.battle_hp_progress(timeout=6):
-                        logger.info('%s：战斗在掉血，不用补点' % note)
+                        logger.info('%s：战斗在掉血，不用管' % note)
                     else:
-                        logger.warning('%s：战斗里 %.0f 秒没按钮、血条也不动，补点一次自动战斗'
+                        logger.warning('%s：战斗里 %.0f 秒没按钮、血条也没动，'
+                                       '不补点自动战斗（开关按钮点错就是把战斗点停），继续等'
                                        % (note, waiting))
-                        self.click_button(E_134_2, '补点自动战斗')
-                        if self.battle_hp_progress(timeout=10):
-                            logger.info('%s：补点后血条开始动，继续' % note)
-                        else:
-                            logger.warning('%s：补点后血条还是没动，不再重复点' % note)
             # ===== 剧情 / 视频：三件事，按这个顺序判 =====
             #
             # ⓪ 「跳过视频」确认框。点了 SKIP 之后弹出来的，必须先按掉，
