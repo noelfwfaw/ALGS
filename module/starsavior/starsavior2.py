@@ -84,7 +84,7 @@ from module.starsavior.assets import (
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
     E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1,
-    E_212_1, E_213_1, E_214_1, E_215_1, BATTLE_SKILL,
+    E_212_1, E_213_1, E_214_1, E_215_1, E_216_1, BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -353,6 +353,20 @@ BATTLE_RING_AREAS = (
 # ❗AUTO 按钮本身没有蓝环，右上角两态几乎一样，**不能用按钮颜色判成功**。
 AUTO_BATTLE_AREA = (1140, 105, 1280, 180)
 AUTO_BATTLE_ON = 0.05
+
+# 上面的白字判据在**战斗打起来之后**会失效：血条上的白字、伤害数字、
+# BURST 演出都会盖到 AUTO_BATTLE_AREA，把「关着」读成「开着」。
+# 2026-11-14 21:48 真机就是被这坑死的：第一次点 AUTO 其实开了，白字判据
+# 6 秒没命中；隔 11 秒第二下把它**关了**，判据又立刻报「已开启」，
+# 于是后面 210 秒没有任何按钮、Boss 血条一动不动，整段空转。
+# 改成看**打没打**：顶部 Boss 血条（x 395~900、y 24~46）的偏红像素占比，
+# 满血 0.078、非战斗帧 0.000，掉血就往下走。判据只认「占比变小」，
+# 不看颜色绝对值，也不受队伍血条/演出影响。
+BOSS_HP_AREA = (395, 24, 900, 46)
+HP_DROP_EPS = 0.004        # 占比掉 0.4 个百分点（约 5% 血）就算在掉血
+AUTO_HP_WAIT = 15          # 点完 AUTO 最多等这么久看血条有没有动
+AUTO_MAX_TRIES = 2         # 同一段里最多主动点 2 下，避免开→关来回切
+AUTO_STALL_GUARD = 40      # 战斗里多少秒没有任何按钮、血条也不动就补点一次
 
 # 评鉴战进场后**延迟 1~2 秒**才出现的对话条。真机 2026-11-12 22:36 的五帧
 # 量准：空窗 / 引导结束都是 0.000，引导中 0.855~0.857。判据不是「画面变没变」
@@ -775,8 +789,72 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         项目里多处真机量过的**正面**判据（`settle()` 用它决定要不要再扫一遍
         「跳过新手教学」，`gacha()` 用它确认回到主界面）。不用「标题页不见了」
         当"已经进游戏"：加载黑屏上标题页也不见（真机 2026-11-07 12:43 误判过）。
+
+        ❗四格**不是大厅专属**：`E_171_1` 是顶栏常驻图标，旅程起点 / 观测页
+          都有它。2026-11-16 07:26 闪退重进停在「旅程起点」，旧判据把它当大厅，
+          `resumed_settle` 空跑 40 秒后又判「菜单打不开」整轮停掉。
+          这里再要求左侧菜单的「观测」(`E_171_3`)：真机量过它只在大厅命中
+          （含被引导遮罩压暗的大厅），观测页 / 旅程起点 / 旅程 HUD 都不命中。
         """
-        return self.appear(E_171_1, offset=(10, 10))
+        if not self.appear(E_171_1, offset=(10, 10)):  # alas-lint: allow - 先便宜地筛掉非大厅，节省模板匹配
+            return False
+        return self.appear(E_171_3, offset=(10, 10))
+
+    def at_prep_screen(self):
+        """
+        「旅程起点 / 选择旅程」出发准备页。
+
+        这一屏有顶栏四格、右下角一颗蓝色大按钮（`E_121_1` 同位置，和旅程里
+        的「休息」、大厅里的「休息」是同一颗），但没有左侧菜单，也没有旅程
+        顶部的倍速。2026-11-16 07:26 闪退重进就卡在这里：旧代码当成大厅 →
+        `settle()` 空转 → 整轮 `TaskFailed`。
+
+        Returns:
+            bool: 在出发准备页。
+        """
+        if self.appear(E_216_1, offset=(10, 10), similarity=0.90):
+            # ❗这块是近常量的小白块：纯黑画面上 `matchTemplate` 会因除零判成
+            #   1.000（硬约束 163）。真实按钮有文字和圆角，标准差 20 以上；
+            #   模板本身的区域 std 约 24，所以这里再要一次「这块真有东西」。
+            x1, y1, x2, y2 = E_216_1.area
+            patch = np.asarray(self.device.image, dtype=np.int32)[y1:y2, x1:x2]
+            if float(patch.std()) > 10:
+                return True
+        return False
+
+    def start_from_prep(self, timeout=240):
+        """
+        在出发准备页把「旅程起点」一路点进去，直到进旅程或回到可交互大厅。
+
+        ❗`journey()` 的按钮表只认旅程 HUD：在准备页上连 `E_116_1`（倍速）
+          都会假阳性（顶栏排序图标形状相近），真机 2026-11-16 07:41 就这样
+          空点 8 次倍速、再空等 75 秒，接着 claim / gacha / verify 全部空转。
+          所以准备页单独处理，只点那颗蓝色大按钮。
+        真实按钮点一下只算「选中」，要连点两下才生效，这里间隔 4 秒点。
+
+        Args:
+            timeout (int): 最长等多少秒。
+
+        Returns:
+            bool: True = 已经进旅程，或已经回到可交互大厅。
+        """
+        last_click = 0.0
+        for _ in self.loop(timeout=timeout):
+            self.device.stuck_record_clear()
+            if self.at_journey():
+                logger.info('出发准备：已经进入旅程')
+                return True
+            if self.resumed_at_hall():
+                logger.info('出发准备：已经回到大厅')
+                return True
+            if self.at_prep_screen() and time.time() - last_click >= 4:
+                last_click = time.time()
+                logger.info('出发准备：点「旅程起点」继续')
+                self.device.click(Button(  # alas-lint: allow - 上面 at_prep_screen() 是本帧的正面判据
+                    (1100, 648, 1230, 690), (90, 150, 220),
+                    (1019, 655, 1236, 687), name='出发准备 → 旅程起点'))
+        logger.warning('出发准备：%d 秒还没点进旅程' % timeout)
+        return False
 
     def in_game(self):
         """
@@ -835,6 +913,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if self.appear(E_209_1, offset=CHAIN_OFFSET):
             return True
         if self.at_journey():
+            return True
+        # 出发准备页（旅程起点 / 选择旅程）：四条既有判据都不命中，
+        # 但账号确实已经进游戏了（2026-11-16 07:26 卡在这里判成未登录）。
+        if self.at_prep_screen():
             return True
         if self.in_battle():
             return True
@@ -999,6 +1081,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 resumed_late = False
                 resumed_journey = False
                 resumed_settle = False
+                resumed_prep = False
                 if self.resume_after_crash:
                     self.resume_after_crash = False
                     self.device.screenshot()
@@ -1024,6 +1107,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                             resumed_settle = True
                             logger.hr('闪退重进：还在教学解锁段（四格在但菜单打不开），接着结算',
                                       level=2)
+                        elif self.at_prep_screen():
+                            # 2026-11-16 07:26：重进落在「旅程起点」出发准备页，
+                            # 没有左侧菜单、没有倍速，`settle()` 一页都点不到。
+                            # 这一屏接下来的就是旅程，直接开旅程再结算。
+                            resumed_prep = True
+                            logger.hr('闪退重进：在出发准备页（旅程起点），直接开始旅程',
+                                      level=2)
                         else:
                             logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
 
@@ -1038,6 +1128,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         # 同上：登录后落在大厅但菜单打不开 = 教学解锁段没走完。
                         resumed_settle = True
                         logger.info('登录：四格在但菜单打不开（解锁段没走完），接着结算')
+                    elif self.at_prep_screen():
+                        # 出发准备页（旅程起点 / 选择旅程）：直接开旅程再结算。
+                        resumed_prep = True
+                        logger.info('登录：在出发准备页（旅程起点），直接开始旅程')
                 if not resumed_late and not resumed_journey and self.at_journey():
                     resumed_journey = True
                     logger.info('登录：已在旅程，跳过开场引导，继续旅程')
@@ -1048,9 +1142,21 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   战后剧情；这里点完剧情，若出现「旅程结束」(`E_135_1`) 就
                 #   接 settle() 走完结算，否则交给下面的状态机。
                 resumed_story = False
-                if not resumed_late and not resumed_journey and not resumed_settle:
+                if not resumed_late and not resumed_journey and not resumed_settle and not resumed_prep:
                     self.device.screenshot()
-                    if self.appear(E_211_1, offset=CHAIN_OFFSET):
+                    if self.appear(E_139_1, offset=CHAIN_OFFSET):
+                        # 2026-11-16 08:10：重进落在「获得全新祝福 / 更新救援者分数」
+                        #   这类结算页（蓝「确认」= `E_139_1`）。这一屏和旅程 HUD
+                        #   完全不同，回退 guide() 只会空转并 TaskFailed，直接收尾。
+                        resumed_settle = True
+                        logger.hr('重进：在结算页（祝福 / 分数），接着结算', level=2)
+                    elif self.appear(E_135_1, offset=CHAIN_OFFSET):
+                        # 2026-11-16 07:56：评鉴战打完停在「旅程结束」这一屏
+                        #   （RANK 面板 + 右侧按钮，既不是大厅也不是旅程 HUD）。
+                        #   直接交给 settle() 收尾，别回退 guide() 白等。
+                        resumed_story = True
+                        logger.hr('重进：在旅程结束页，接着结算', level=2)
+                    elif self.appear(E_211_1, offset=CHAIN_OFFSET):
                         logger.hr('闪退重进：无 SKIP 剧情，先点完', level=2)
                         if self.story_advance():
                             # ❗先认「旅程结束」(`E_135_1`)：战后剧情点完会回到
@@ -1097,6 +1203,25 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                             '闪退重进后教学解锁段没走完（大厅菜单仍然打不开），'
                             '已停止，避免空转。账号没有丢；'
                             '把游戏退回标题页再手动重跑即可。'))
+                elif resumed_prep:
+                    # 出发准备页：先点进旅程（蓝色「旅程起点」），再走结算。
+                    # 停节点都在引导期，早就过了。
+                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
+                        self.report_plan('闪退重进时停节点已经过了（不重置账号）')
+                        return
+                    if not self.start_from_prep():
+                        raise TaskFailed(self.fail_reason(
+                            '闪退重进落在出发准备页，没能点进旅程，已停止，避免空转。'
+                            '账号没有丢；把游戏停回标题页再手动重跑。'))
+                    if self.at_journey():
+                        self.journey()
+                    self.settle()
+                    # 结算完必须真的能打开菜单，否则后面的领奖 / 抽卡 / 验号全是空转。
+                    self.device.screenshot()
+                    if not self.resumed_at_hall():
+                        raise TaskFailed(self.fail_reason(
+                            '闪退重进后从出发准备页续跑，结算完大厅菜单仍然打不开，'
+                            '已停止，避免空转。账号没有丢；把游戏停回标题页再手动重跑。'))
                 elif resumed_story:
                     # 剧情已经点完：如果是战后剧情，这一屏右侧有「旅程结束」
                     # (`E_135_1`)，先走完结算再去领奖。
@@ -1692,6 +1817,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         seen_at = {}           # button.name -> 本段本次首次识别到的时刻
         last_done = None       # (page, moment) 上一个点掉的引导页
         gap_reported = 0       # 已播报过的「等待下一页」秒数（10 秒一档）
+        auto_guard_at = 0.0    # 上次「战斗血条不动 → 补点自动战斗」的时刻
         speed_low = 0          # 连续几次独立采样读到低倍速
         speed_hold = Timer(SPEED_HOLD)   # 采样节流，别把一帧抖动当掉档
         speed_clicks = 0       # 本段补档点过几下
@@ -1765,6 +1891,25 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     gap_reported = int(waiting // 10) * 10
                     logger.info('%s：page_%d 之后 %.0fs 没有点掉新引导页'
                                 % (note, last_done[0], waiting))
+                # 战斗里长时间没有任何按钮、Boss 血条也不动：自动战斗多半被
+                # 点关（开关按钮，点两下等于开→关）。这里是唯一允许「盲补一下」
+                # 的地方，而且先用 6 秒血条采样确认真的没在掉血才点，
+                # 所以不会把已经开着的又关掉。2026-11-14 21:48 卡了 210 秒。
+                if (speed and waiting >= AUTO_STALL_GUARD
+                        and time.time() - auto_guard_at >= AUTO_STALL_GUARD
+                        and self.in_battle()
+                        and self.appear(E_134_2, offset=CHAIN_OFFSET)):
+                    auto_guard_at = time.time()
+                    if self.battle_hp_progress(timeout=6):
+                        logger.info('%s：战斗在掉血，不用补点' % note)
+                    else:
+                        logger.warning('%s：战斗里 %.0f 秒没按钮、血条也不动，补点一次自动战斗'
+                                       % (note, waiting))
+                        self.click_button(E_134_2, '补点自动战斗')
+                        if self.battle_hp_progress(timeout=10):
+                            logger.info('%s：补点后血条开始动，继续' % note)
+                        else:
+                            logger.warning('%s：补点后血条还是没动，不再重复点' % note)
             # ===== 剧情 / 视频：三件事，按这个顺序判 =====
             #
             # ⓪ 「跳过视频」确认框。点了 SKIP 之后弹出来的，必须先按掉，
@@ -2230,7 +2375,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                         battle_dialog_until = click_at + BATTLE_DIALOG_GRACE
                         battle_dialog_click = 0.0
                     if button is E_134_2:
-                        vanished = self.wait_auto_battle_start(timeout=6)
+                        # 真打起来之后只认血条（白字判据在战斗中会误报，见 BOSS_HP_AREA）；
+                        # 还在评鉴战说明页、血条还没出来时才退回白字判据。
+                        if self.in_battle():
+                            vanished = self.battle_hp_progress()
+                        else:
+                            vanished = self.wait_auto_battle_start(timeout=6)
                     else:
                         vanished = self.wait_until_disappear(
                             button, offset=CHAIN_OFFSET, timeout=3, settle=2)
@@ -2256,9 +2406,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                             return False
                     done_at = time.time()
                     if button is E_134_2:
-                        logger.info('%s 点完 %.1fs 后自动战斗%s'
+                        logger.info('%s 点完 %.1fs 后血条%s'
                                     % (button.name, done_at - click_at,
-                                       '已开启' if vanished else '还没开'))
+                                       '在掉，自动战斗确实开了' if vanished
+                                       else '没动，自动战斗可能没开'))
                         if vanished:
                             # 开关按钮开了一次就封掉，下帧别把它关回去。
                             blocked.add(button.name)
@@ -2267,6 +2418,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                             #   新一场第一下就落到偏移点，2026-11-12 21:53
                             #   因此连吃两次 6 秒超时（第 2/3 次才点动）。
                             tries.pop(button.name, None)
+                        elif tries.get(button.name, 0) >= AUTO_MAX_TRIES:
+                            # ❗再点下去就是开→关来回切：2026-11-14 21:48
+                            #   第二下把刚开的 AUTO 关掉了，血条 210 秒没动。
+                            #   到这里就交工，由 AUTO_STALL_GUARD 的兜底补点。
+                            blocked.add(button.name)
+                            tries.pop(button.name, None)
+                            logger.warning(
+                                '%s：连点 %d 次血条都没动，本段不再主动点，'
+                                '交给 %d 秒兜底'
+                                % (button.name, AUTO_MAX_TRIES, AUTO_STALL_GUARD))
                     else:
                         logger.info('%s 点完 %.1fs 后%s'
                                     % (button.name, done_at - click_at,
@@ -2765,7 +2926,25 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if not self.appear(E_2_1, offset=CHAIN_OFFSET):  # alas-lint: allow - same as above, this branch only decides whether to click Google
             login_hits = 0
             in_game_hits = 0
-            for _ in self.loop(timeout=20):
+            title_hits = 0
+            retouched = False
+            # ❗冷启动 + 热更新之后，这一段的等待远不止 20 秒：2026-11-16 03:19 点了
+            #   Touch 之后游戏还在下载/编译着色器，20 秒里既没有 Google 弹窗也没有
+            #   任何游戏内正面判据，于是 `登录：没等到「Sign in with Google」` 整轮
+            #   停掉（其实再等十几秒就进去了）。所以总等待放到 90 秒，热更新每帧
+            #   再续 90 秒（上限 300 秒），并且标题页重新出现时补点一次 Touch。
+            deadline = time.time() + 90
+            started = time.time()
+            for _ in self.loop(timeout=300):
+                # ❗黑屏加载期间画面一秒都不变，`device.screenshot()` 的卡死检测
+                #   60 秒就会抛 `GameStuckError: Wait too long`（真机 2026-11-16
+                #   06:59 点完 Touch 后一直黑屏，07:00:08 就是这样把整轮打断的）。
+                #   这一段本来就有自己的 deadline，按帧清掉卡死计数，用 deadline 判超时。
+                self.device.stuck_record_clear()
+                if time.time() > deadline:
+                    logger.warning('登录：等 %.0f 秒还没等到登录页或游戏内画面'
+                                   % (time.time() - started))
+                    return False
                 # ❗点完 Touch 后服务器偶发「错误通知 (6 NEC_FAIL_RECONNECT_PRESENCE_NOT_FOUND)」，
                 #   弹窗盖住 Google 登录页。2026-11-13 12:32 就是这里白等 20 秒后
                 #   报「没等到 Sign in with Google」；启动入口的 dismiss 已经点过，
@@ -2774,6 +2953,27 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     login_hits = 0
                     in_game_hits = 0
                     continue
+                # 热更新（下载数据 / 编译着色器）期间画面里没有登录也没有游戏内判据，
+                # 不能当成登录失败，按帧续期继续等（2026-11-16 03:19 就是等在这里）
+                if self.in_hot_update():
+                    deadline = max(deadline, time.time() + 90)
+                    continue
+                # 第一下 Touch 可能被读条吃掉（点了没反应、标题页还在）：隔 8 秒补点一次。
+                # 不每帧重试 —— 登录弹窗背后 Touch 一直可见，连点等于反复取消登入。
+                if (self.appear(E_4_2, offset=CHAIN_OFFSET)
+                        or self.appear(E_1_1, offset=CHAIN_OFFSET)):
+                    title_hits += 1
+                    if title_hits >= 3 and not retouched and time.time() - started > 8:
+                        retouched = True
+                        logger.info('登录：还停在标题页，补点一次 Touch to Start')
+                        if self.appear(E_4_2, offset=CHAIN_OFFSET):
+                            self.click_once(E_4_2, 'Touch to Start（补点）',
+                                            offset=CHAIN_OFFSET, interval=3)
+                        else:
+                            self.click_once(E_1_1, 'Touch to Start（补点）',
+                                            offset=CHAIN_OFFSET, interval=3)
+                else:
+                    title_hits = 0
                 login_hits = login_hits + 1 if self.appear(E_3_1, offset=CHAIN_OFFSET) else 0
                 in_game_hits = in_game_hits + 1 if self.in_game_screen() else 0
                 if login_hits >= 3:
@@ -3806,6 +4006,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         评鉴战说明的白字会落进去。真机 2026-11-07 03:38:41 就是单帧
         被说明文字骗成「已开启」，按钮随即 `blocked`，进真战斗后 AUTO
         其实是关的，角色站着不动等到 600 秒超时。
+
+        ❗现在只留作兜底（评鉴战说明页那种还没进战斗的场合）：
+        真打起来之后一律用 `battle_hp_progress()` 看血条，理由见
+        `BOSS_HP_AREA` 注释（2026-11-14 21:48 的 210 秒空转）。
         """
         stable = 0
         for _ in self.loop(timeout=timeout):
@@ -3815,6 +4019,38 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     return True
             else:
                 stable = 0
+        return False
+
+    @staticmethod
+    def boss_hp_ratio(image):
+        """顶部 Boss 血条的偏红像素占比；判不了返回 0.0（不在战斗/演出）。
+
+        真机 2026-11-14 21:48 卡死那帧量到 0.078（满血），标题页 / BURST
+        演出帧是 0.000。只用「变小」判定，不比绝对值。
+        """
+        if image is None:
+            return 0.0
+        x1, y1, x2, y2 = BOSS_HP_AREA
+        sub = image[y1:y2, x1:x2].astype(np.int16)
+        r, g, b = sub[:, :, 0], sub[:, :, 1], sub[:, :, 2]
+        mask = (r > 90) & ((r - g) > 30) & ((r - b) > 30)
+        return float(mask.mean())
+
+    def battle_hp_progress(self, timeout=AUTO_HP_WAIT):
+        """战斗有没有在推进：Boss 血条占比比刚进来时小。
+
+        ❗不是「画面变没变」——这个游戏背景、人物、准心、血条特效全在动。
+        也不是右上白字——战斗中白字会把「AUTO 关着」误判成开启。
+        """
+        base = self.boss_hp_ratio(self.device.image)
+        if base <= 0.0:
+            return False
+        for _ in self.loop(timeout=timeout):
+            if not self.in_battle():
+                continue
+            current = self.boss_hp_ratio(self.device.image)
+            if current > 0.0 and current < base - HP_DROP_EPS:
+                return True
         return False
 
     def in_battle(self):

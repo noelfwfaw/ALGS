@@ -186,9 +186,14 @@ EXERCISE_SHOP = Button(area={'crosscore': (218, 636, 377, 677)}, color={'crossco
 # VS 页「挑战」。
 EXERCISE_CHALLENGE = Button(area={'crosscore': (762, 627, 910, 668)}, color={'crosscore': (211, 162, 59)}, button={'crosscore': (762, 627, 910, 668)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_CHALLENGE.png'}, name='EXERCISE_CHALLENGE')
 
-# 「战斗胜利」只在赢时匹配，用来写日志；结算页本身用标题下方的装饰线判定，
-# 输赢都有（`EXERCISE_RESULT.png` 由 EXERCISE_WIN.png 的 y 122~140 裁出，跨页最高 0.724）。
+# 结算页的两个标题：「战斗胜利」与「战斗失败」同版式、只有文字不同，各自只在对应
+# 结果时匹配（实测互不误判：胜利素材在战败页 0.454）。
+# 别再用标题下方的装饰线当结算页判据：`EXERCISE_RESULT.png` 是从胜利页裁的
+# （y 122~140），战败页只有 **0.852**，卡在 0.85 阈值下面一点点，于是战败时整页
+# 认不出来 —— 2026-11-16 实测：点完挑战等满看门狗 60 秒 → `Wait too long` →
+# GameStuckError → 重启游戏，当天的军演全废。`EXERCISE_RESULT` 留着做兜底。
 EXERCISE_WIN = Button(area={'crosscore': (30, 27, 390, 127)}, color={'crosscore': (98, 100, 105)}, button={'crosscore': (30, 27, 390, 127)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_WIN.png'}, name='EXERCISE_WIN')
+EXERCISE_LOSE = Button(area={'crosscore': (30, 27, 390, 127)}, color={'crosscore': (105, 107, 111)}, button={'crosscore': (30, 27, 390, 127)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_LOSE.png'}, name='EXERCISE_LOSE')
 EXERCISE_RESULT = Button(area={'crosscore': (35, 122, 385, 140)}, color={'crosscore': (42, 44, 51)}, button={'crosscore': (35, 122, 385, 140)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_RESULT.png'}, name='EXERCISE_RESULT')
 
 # 商店：购买对话框里的「购买」与「最大」，两种对话框的购买按钮位置相同。

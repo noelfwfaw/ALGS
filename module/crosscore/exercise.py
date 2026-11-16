@@ -11,8 +11,10 @@ What the 2026-11-09 measurements settled:
 
 1. 选对手页用第一行「排名」小牌子判定（导出素材 `EXERCISE_OPPONENT.png`）；结算页的
    「排名:」没有那块底板，实测只匹配到 0.669，不会互相误判。
-2. 胜利和失败都停在同一个结算页，标题文字不同，所以用标题下方的装饰线
-   判定结算页（`EXERCISE_RESULT.png`，跨页最高 0.724）；标题本身只用来写日志。
+2. 胜利和失败都停在同一个结算页，标题文字不同（「战斗胜利」/「战斗失败」），
+   两张标题各切一张素材，谁匹配上就是哪个结果。**别用标题下方的装饰线判**：
+   那条线是从胜利页裁的，战败页只有 0.852，刚好卡在 0.85 阈值下面，
+   2026-11-16 战败时就是因此整页认不出来。
 3. 结算页点屏幕下方空白处继续，之后必定弹「获得物品」，等它出现再点掉，
    既清掉弹窗，也确认结算页已经退掉。
 4. 商店一次显示两行、六列，商品买完后变暗并排到队尾，所以一直点左上第一格。
@@ -21,15 +23,16 @@ What the 2026-11-09 measurements settled:
    等弹窗出现再点掉，避免同一次购买按两遍。
 """
 
+from module.base.timer import Timer
 from module.crosscore.assets import (E_5_1, EXERCISE_BUY, EXERCISE_BUY_QTY,
                                      EXERCISE_CHALLENGE, EXERCISE_COIN_ITEM,
                                      EXERCISE_ENTRY, EXERCISE_ITEM_1,
-                                     EXERCISE_MAX, EXERCISE_MIRROR,
-                                     EXERCISE_OPPONENT, EXERCISE_OPPONENT_1,
-                                     EXERCISE_RESULT, EXERCISE_RESULT_CLICK,
-                                     EXERCISE_SHOP, EXERCISE_SHOP_PAGE,
-                                     EXERCISE_TECH_ITEM, EXERCISE_WIN,
-                                     EXPLORE_SORTIE)
+                                     EXERCISE_LOSE, EXERCISE_MAX,
+                                     EXERCISE_MIRROR, EXERCISE_OPPONENT,
+                                     EXERCISE_OPPONENT_1, EXERCISE_RESULT,
+                                     EXERCISE_RESULT_CLICK, EXERCISE_SHOP,
+                                     EXERCISE_SHOP_PAGE, EXERCISE_TECH_ITEM,
+                                     EXERCISE_WIN, EXPLORE_SORTIE)
 from module.crosscore.crosscore_ui import CrosscoreUI
 from module.crosscore.page import page_main
 from module.crosscore.utils import has_template, template_of
@@ -44,6 +47,9 @@ OPPONENT_READY_REGION = (210, 630, 390, 690)
 
 # 模拟次数每天 10 次，打满即止。
 MAX_BATTLE = 10
+# 一场军演战斗不能跳过，从点「挑战」到结算页最长的一次要两分多钟，
+# 三分钟留够余量（原来 60 秒看门狗就把正常战斗判成卡死了）。
+EXERCISE_RESULT_TIMEOUT = 180
 
 
 class CrosscoreExercise(CrosscoreUI):
@@ -206,36 +212,86 @@ class CrosscoreExercise(CrosscoreUI):
 
         return False
 
-    def exercise_result(self):
+    def exercise_result_appear(self):
+        """
+        Whether the battle result page is on screen.
+
+        Both results are the same layout with a different title, so either
+        title counts. The decorative line under them is kept as a fallback for
+        the frames where the title is still fading in.
+
+        Returns:
+            bool: If the result page is on screen.
+        """
+        return self.appear(EXERCISE_WIN, offset=(20, 20), similarity=0.8, threshold=30) \
+            or self.appear(EXERCISE_LOSE, offset=(20, 20), similarity=0.8, threshold=30) \
+            or self.appear(EXERCISE_RESULT, offset=(20, 20))
+
+    def exercise_result(self, timeout=EXERCISE_RESULT_TIMEOUT):
         """
         Wait out the battle, then click the result page away.
 
-        Both victory and defeat end on the same page; the title itself is only
-        used for the log. The 「获得物品」 popup that follows is the positive
-        proof that the result page is gone - waiting for the page to disappear
-        can be fooled by its animations (同一坑：每日探索的扫荡结算).
+        The battle can not be skipped and runs for minutes with almost nothing
+        changing on screen, which is exactly what the stuck detector calls a
+        frozen game - so the record is cleared every frame and the limit is the
+        `Timer` below (三分钟). Measured 2026-11-16: the 60s watch dog killed a
+        normal battle at `wait_until_appear()` and the whole run died with
+        `GameStuckError: Wait too long`.
+
+        The 「获得物品」 popup that follows is the positive proof that the result
+        page is gone - waiting for the page to disappear can be fooled by its
+        animations (同一坑：每日探索的扫荡结算).
+
+        Args:
+            timeout (int, float): Seconds to wait for the result page.
 
         Returns:
             bool: If the opponent page is back.
         """
-        if not self.wait_until_appear(EXERCISE_RESULT, offset=(20, 20), timeout=300):
-            logger.warning('Battle result page did not show up')
-            return False
+        timeout = Timer(timeout).start()
+        report = Timer(30).start()
 
-        if self.appear(EXERCISE_WIN, offset=(20, 20)):
+        for _ in self.loop():
+            self.device.stuck_record_clear()
+
+            if self.exercise_result_appear():
+                break
+
+            if report.reached():
+                report.reset()
+                logger.info(f'Still fighting, {int(timeout.current_time())}s elapsed')
+            if timeout.reached():
+                logger.warning('Battle result page did not show up')
+                return False
+
+        if self.appear(EXERCISE_WIN, offset=(20, 20), similarity=0.8, threshold=30):
             logger.info('Battle won')
-        else:
+        elif self.appear(EXERCISE_LOSE, offset=(20, 20), similarity=0.8, threshold=30):
             logger.info('Battle lost')
+        else:
+            # The title is drawn over the battle's own artwork, so its
+            # surroundings differ from one fight to the next and neither title
+            # has to match. Keep the frame: without it there is no way to tell
+            # later which of the two was on screen.
+            logger.info('Battle ended, the title was not read')
+            self.device.image_save('./log/exercise_result_unread.png')
 
         # Press the blank area until the result page is gone. The page animates
         # while it fades, so one click is not guaranteed to land; the reward
-        # popup is handled on the way out.
+        # popup is handled on the way out. The press is throttled - the page
+        # keeps matching for several frames after a press has been taken, and
+        # one press per frame would trip the same-button protection.
+        retry = Timer(3)
         for _ in self.loop(timeout=60):
             if self.handle_item_popup():
                 continue
-            if self.appear(EXERCISE_RESULT, offset=(20, 20), interval=3):
-                logger.info('Press the blank area to leave the result page')
-                self.device.click(EXERCISE_RESULT_CLICK)
+            if self.exercise_result_appear():
+                if retry.reached():
+                    retry.reset()
+                    logger.info('Press the blank area to leave the result page')
+                    # 纯坐标按钮（没有 file），不能进 appear 家族；判据是同一轮
+                    # 的 exercise_result_appear()，重复按由 retry 节流。
+                    self.device.click(EXERCISE_RESULT_CLICK)  # alas-lint: allow - guarded by exercise_result_appear() above
                 continue
             if self.exercise_opponent_appear():
                 self.wait_until_still(OPPONENT_READY_REGION, timeout=3)
