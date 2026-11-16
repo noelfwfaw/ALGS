@@ -84,6 +84,15 @@ E_215_1 = Button(area={'starsavior': (362, 98, 444, 130)}, color={'starsavior': 
 #   所以 `at_prep_screen()` 里同时要求这一块的标准差 > 10。
 E_216_1 = Button(area={'starsavior': (58, 484, 244, 519)}, color={'starsavior': (240, 240, 240)}, button={'starsavior': (58, 484, 244, 519)}, file={'starsavior': './assets/starsavior/starsavior/E_216_1.png'})
 
+# E_217_1：RANK 面板版结算页右侧的「旅程结束」文字（这一版不是 E_135_1 那种蓝按钮，
+# 所以老判据认不出来，2026-11-16 08:5x 断线重进时被判成未知画面）。
+# 正例 1.000 / 0.999，433 张历史截图里 >0.85 命中 0 张。
+E_217_1 = Button(area={'starsavior': (1038, 374, 1140, 404)}, color={'starsavior': (240, 240, 240)}, button={'starsavior': (1038, 374, 1140, 404)}, file={'starsavior': './assets/starsavior/starsavior/E_217_1.png'})
+
+# E_218_1：签到面板「烛光广场签到 / LOGIN BONUS」的英文小字。这屏在结算链中间，
+# 断线重进很常见，更新后不认就是一轮空转。正例 1.000，负例最高 0.285。
+E_218_1 = Button(area={'starsavior': (740, 175, 895, 205)}, color={'starsavior': (230, 230, 230)}, button={'starsavior': (740, 175, 895, 205)}, file={'starsavior': './assets/starsavior/starsavior/E_218_1.png'})
+
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到
 # page_38，而只点敌人圈 45 次画面一动不动。

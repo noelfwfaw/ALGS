@@ -84,7 +84,8 @@ from module.starsavior.assets import (
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
     E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1,
-    E_212_1, E_213_1, E_214_1, E_215_1, E_216_1, BATTLE_SKILL,
+    E_212_1, E_213_1, E_214_1, E_215_1, E_216_1, E_217_1, E_218_1, E_194_4,
+    BATTLE_SKILL,
 )
 from module.starsavior import highlight
 from module.starsavior.guide_chain import guide_page, previous_guide_page
@@ -166,6 +167,32 @@ STOP_NICKNAME = 'nickname'      # 节点1：到昵称输入框停下，不打字
 STOP_GUIDE = 'guide'            # 节点2：所有引导走完停下（还没领奖、没抽卡）
 STOP_VERIFY = 'verify'          # 节点3：一直跑到验号
 STOP_CHOICES = (STOP_NONE, STOP_NICKNAME, STOP_GUIDE, STOP_VERIFY)
+
+# 重启 / 中断后的落点分类。用户 2026-11-16：「脚本只认开局页面，任何其他页面启动
+# 必然卡住，每次报错都要手推引导到能重置的地方」。所以这里把「落点」做成一张
+# 显式的表：先判落在哪个阶段，再决定跑哪段状态机；表外画面一律停下报人。
+RESUME_HALL = 'hall'                  # 主界面，四格能开菜单
+RESUME_TUTORIAL_HALL = 'tutorial_hall'  # 主界面四格在但菜单打不开（教学解锁段没走完）
+RESUME_JOURNEY = 'journey'            # 旅程 HUD（顶部倍速在）
+RESUME_BATTLE = 'battle'              # 战斗里（评鉴战 / 教学战）
+RESUME_STORY = 'story'                # 无 SKIP 的剧情页（有 SKIP 的过场走引导）
+RESUME_PREP = 'prep'                  # 出发准备页（旅程起点 / 选择旅程）
+RESUME_SETTLE = 'settle'              # 旅程结束 / 祝福 / 更新分数这类结算页
+RESUME_GUIDE = 'guide'                # 开场引导页（按钮表里有东西可点）
+RESUME_INNER = 'inner'                # 大厅的子页面（观测 / 救援者 / 菜单四格等）
+RESUME_UNKNOWN = 'unknown'            # 认不出来：停下报人，不许空转
+RESUME_STAGE_NAMES = {
+    RESUME_HALL: '主界面',
+    RESUME_TUTORIAL_HALL: '主界面（教学解锁段）',
+    RESUME_JOURNEY: '旅程',
+    RESUME_BATTLE: '战斗',
+    RESUME_STORY: '剧情',
+    RESUME_PREP: '出发准备页',
+    RESUME_SETTLE: '结算页',
+    RESUME_GUIDE: '开场引导',
+    RESUME_INNER: '大厅子页面',
+    RESUME_UNKNOWN: '未知画面',
+}
 
 # 目标角色最多挂 7 只（`argument.yaml` 里是 `Target` + `Target2`~`Target7`）。
 # ❗判定是**任意一个角色凑够它自己的数量就停**，不是七只凑齐 —— 见 `target.check_targets()`。
@@ -831,6 +858,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
           空点 8 次倍速、再空等 75 秒，接着 claim / gacha / verify 全部空转。
           所以准备页单独处理，只点那颗蓝色大按钮。
         真实按钮点一下只算「选中」，要连点两下才生效，这里间隔 4 秒点。
+        ❗阿尔克那没编制时「旅程起点」是灰的，点多少次都没用（2026-11-16 11:41
+          连点 12 次直接 GameTooManyClickError）。所以先补点一次「自动编制」，
+          而且最多点 4 轮，还不生效就收工返回 False。
 
         Args:
             timeout (int): 最长等多少秒。
@@ -839,6 +869,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             bool: True = 已经进旅程，或已经回到可交互大厅。
         """
         last_click = 0.0
+        clicks = 0
         for _ in self.loop(timeout=timeout):
             self.device.stuck_record_clear()
             if self.at_journey():
@@ -847,14 +878,207 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             if self.resumed_at_hall():
                 logger.info('出发准备：已经回到大厅')
                 return True
+            if self.in_battle() or self.appear(E_211_1, offset=CHAIN_OFFSET) \
+                    or any(self.appear(skip, offset=CHAIN_OFFSET) for skip in STORY_SKIP):
+                # 点完「旅程起点」先掉进旅程开场剧情 / 教学战，不是旅程 HUD。
+                # 2026-11-16 11:43 就因为只认 at_journey()，点进去后干等 240 秒。
+                logger.info('出发准备：已经进到剧情 / 战斗，交给落点续跑')
+                return True
             if self.at_prep_screen() and time.time() - last_click >= 4:
+                if clicks >= 4:
+                    logger.warning('出发准备：「旅程起点」点了 4 次都没进旅程，收工（多半是阿尔克那没编制）')
+                    return False
                 last_click = time.time()
-                logger.info('出发准备：点「旅程起点」继续')
+                clicks += 1
+                if clicks == 1:
+                    # 空白卡组时先「自动编制」，否则那颗按钮是灰的。
+                    self.tap_at(1166, 624, '出发准备：自动编制')
+                    self.loop(timeout=2)
+                logger.info('出发准备：点「旅程起点」继续（第 %d 次）' % clicks)
                 self.device.click(Button(  # alas-lint: allow - 上面 at_prep_screen() 是本帧的正面判据
                     (1100, 648, 1230, 690), (90, 150, 220),
                     (1019, 655, 1236, 687), name='出发准备 → 旅程起点'))
         logger.warning('出发准备：%d 秒还没点进旅程' % timeout)
         return False
+
+    def resume_stage(self):
+        """
+        判断「这一帧落在哪个阶段」，用于重启 / 中断后的续跑。
+
+        ❗这是用户 2026-11-16 要求的那张表：以前只有大厅 / 旅程 / 准备页 / 结算
+          几个零散判据，任何别的画面都会回退成「重走引导」然后空转。这里把判据
+          收成一处，顺序是「便宜且确定」优先，`GUIDE_A/NICK/GB` 的模板扫描放到
+          最后（一百来个模板，最贵）。
+
+        Returns:
+            str: `RESUME_*` 之一。
+        """
+        self.device.stuck_record_clear()
+        self.device.screenshot()
+        if self.in_battle():
+            return RESUME_BATTLE
+        if self.at_journey():
+            return RESUME_JOURNEY
+        if (self.appear(E_135_1, offset=CHAIN_OFFSET)
+                or self.appear(E_139_1, offset=CHAIN_OFFSET)
+                or self.appear(E_217_1, offset=CHAIN_OFFSET)
+                or self.appear(E_218_1, offset=CHAIN_OFFSET)):
+            return RESUME_SETTLE
+        if self.at_prep_screen():
+            return RESUME_PREP
+        if self.at_main_screen():
+            # 四格在：菜单能开才是真大厅，开不了就是教学解锁段（同 2026-11-14 14:25）。
+            return RESUME_HALL if self.resumed_at_hall() else RESUME_TUTORIAL_HALL
+        if self.appear(E_211_1, offset=CHAIN_OFFSET):
+            return RESUME_STORY
+        if self.appear(E_180_1, offset=CHAIN_OFFSET):
+            # 观测页（抽卡中断最常见的落点）
+            return RESUME_INNER
+        if self.appear(E_176_2, offset=CHAIN_OFFSET):
+            # 大厅四格菜单开着
+            return RESUME_INNER
+        if self.appear(E_193_1, offset=CHAIN_OFFSET):
+            # 救援者 / 任务这类子页面的左上返回
+            return RESUME_INNER
+        for button in STORY_SKIP:
+            if self.appear(button, offset=CHAIN_OFFSET):
+                # 有「跳过」的过场，交给引导按钮表去点（`guide()` 里也是这么点的）。
+                return RESUME_GUIDE
+        for button in GUIDE_A + NICK + GUIDE_B:
+            if self.appear(button, offset=CHAIN_OFFSET):
+                return RESUME_GUIDE
+        return RESUME_UNKNOWN
+
+    def tutorial_unlock(self, timeout=240):
+        """
+        大厅四格在、菜单打不开时，把「教学解锁段」点完（管理 → 救援者 → 星辰档案 →
+        装备 → 回大厅 → 跳过新手教学）。
+
+        ❗为什么单独写：`settle()` 的按钮表里没有这几步，2026-11-16 11:24 重进落在
+          这一屏时整段 40 秒一个按钮都没点到，只能人工手推（08:2x 推过一次）。
+        ❗只认已知的那几个页面再点，认不出来就**马上收工**（返回 False），
+          不做「连点屏幕中间试试」。2026-11-16 11:35 实测：教学箭头指在「剧情路线」
+          那一屏时，点「管理」和点屏幕中间都点不动，连点十几次直接
+          GameTooManyClickError，比空转更糟。
+        ❗只做导航和「装备星辰档案」这种不花钱的动作，绝不碰抽卡 / 商店。
+        """
+        deadline = time.time() + timeout
+        action_at = 0.0
+        for _ in self.loop(timeout=timeout):
+            self.device.stuck_record_clear()
+            if time.time() > deadline:
+                break
+            if self.resumed_at_hall():
+                logger.info('教学解锁：大厅菜单已经能打开')
+                return True
+            if self.appear(E_119_1, offset=CHAIN_OFFSET):
+                # 走完这一段常会弹「跳过新手教学」，跳过之后才真正解锁。
+                self.click_button(E_119_1, '教学解锁：跳过新手教学')
+                continue
+            if self.appear(E_194_4, offset=CHAIN_OFFSET):
+                # 救援者列表：进详情页
+                self.click_button(E_194_4, '教学解锁：查看详情')
+                continue
+            if self.appear(E_193_1, offset=CHAIN_OFFSET):
+                # 详情页：星辰档案 tab → 装备第一个档案 → 回大厅
+                self.tap_at(905, 240, '教学解锁：星辰档案')
+                self.loop(timeout=2)
+                self.tap_at(1050, 664, '教学解锁：装备')
+                self.loop(timeout=2)
+                self.tap_at(120, 44, '教学解锁：回大厅')
+                self.loop(timeout=2)
+                continue
+            if self.appear(E_176_2, offset=CHAIN_OFFSET):
+                # 管理面板四卡：点「救援者」的「前往」
+                self.tap_at(302, 526, '教学解锁：救援者 → 前往')
+                self.loop(timeout=2)
+                continue
+            if time.time() - action_at > 6:
+                # 大厅上只点一次「管理」并等 6 秒：面板真开了下一轮就会命中
+                # E_176_2；没开说明教学箭头不在这，直接认输，不再重复点。
+                if self.at_main_screen():
+                    self.tap_at(104, 271, '教学解锁：管理（只点一次）')
+                action_at = time.time()
+                self.loop(timeout=6)
+                if self.appear(E_176_2, offset=CHAIN_OFFSET):
+                    continue
+                if self.at_main_screen():
+                    # 面板没开：教学箭头不在这一步，认输，别再连点。
+                    logger.warning('教学解锁：点「管理」没反应，教学箭头不在这一步，收工')
+                    return False
+                continue
+        self.device.screenshot()
+        return self.resumed_at_hall()
+
+    def resume_to_hall(self, timeout=900):
+        """
+        按落点阶段把当前画面一路推到「菜单能打开的大厅」。
+
+        每个阶段走一段状态机，最多转 8 轮（引导 → 旅程 → 结算 → 大厅）。
+        认不出的画面直接失败，**不再回退成空转**：用户要的是「要么续上，
+        要么停下来告诉我」，不是让脚本在一个不认识的页面上耗 40 秒。
+
+        Args:
+            timeout (int): 总时长上限（秒）。
+
+        Returns:
+            bool: True = 已经到大厅。
+        """
+        deadline = time.time() + timeout
+        for _ in range(8):
+            if time.time() > deadline:
+                break
+            stage = self.resume_stage()
+            logger.info('落点：%s' % RESUME_STAGE_NAMES.get(stage, stage))
+            if stage == RESUME_HALL:
+                return True
+            if stage == RESUME_UNKNOWN:
+                return False
+            if stage == RESUME_BATTLE:
+                # 战斗里没有别的可点：等胜利 / 旅程结束，交给下一轮再分类。
+                self.press(JOURNEY, '落点：战斗', timeout=180, idle=60,
+                           speed=True, stop_on=(E_208_1,))
+            elif stage == RESUME_JOURNEY:
+                self.journey()
+            elif stage == RESUME_STORY:
+                self.story_advance()
+            elif stage == RESUME_PREP:
+                if not self.start_from_prep():
+                    return False
+            elif stage == RESUME_INNER:
+                # 子页面：开着的菜单 / 观测 / 救援者，逐步退回到主界面。
+                if self.appear(E_176_2, offset=CHAIN_OFFSET):
+                    self.click_button(E_171_1, '落点：关菜单')
+                    self.wait_until_disappear(E_176_2, timeout=3, settle=2)
+                elif self.appear(E_193_1, offset=CHAIN_OFFSET):
+                    self.click_button(E_193_1, '落点：返回上一级')
+                else:
+                    self.tap_at(52, 44, '落点：返回')
+            elif stage in (RESUME_SETTLE, RESUME_TUTORIAL_HALL):
+                if self.appear(E_218_1, offset=CHAIN_OFFSET):
+                    # 签到面板只是结算链中间的一屏，关掉 X 就回到正常的结算流。
+                    self.tap_at(1222, 50, '落点：关签到面板')
+                    self.wait_until_disappear(E_218_1, timeout=3, settle=1)
+                elif self.appear(E_217_1, offset=CHAIN_OFFSET):
+                    # RANK 版「旅程结束」：点它弹确认框，下一轮分类会落到 E_200_2 那屏，
+                    # 交给 settle() 继续。
+                    self.tap_at(1088, 388, '落点：旅程结束')
+                    self.loop(timeout=3)
+                elif stage == RESUME_TUTORIAL_HALL:
+                    # 结算表里没有「管理 → 救援者 → 星辰档案 → 装备」这一段，
+                    # 先跑一遍结算，走不通就补那条教学通路。
+                    self.settle()
+                    if not self.resumed_at_hall():
+                        self.tutorial_unlock()
+                else:
+                    self.settle()
+            elif stage == RESUME_GUIDE:
+                if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
+                    return False
+                self.journey()
+                self.settle()
+        self.device.screenshot()
+        return self.resumed_at_hall()
 
     def in_game(self):
         """
@@ -1078,169 +1302,37 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 #   浮层吞掉之后每一次点击，最后「重置失败」+ `Reason: Error`。
                 #   所以先点掉引导浮层，再用「四格在 + 遮罩不在」判真大厅；
                 #   遮罩还在就回退整轮状态机，绝不跳过。
-                resumed_late = False
-                resumed_journey = False
-                resumed_settle = False
-                resumed_prep = False
+                # ❗落点表：不再猜「大概跑到哪了」，而是先判「这一屏是什么」，再跑对应段。
+                #   用户 2026-11-16：「脚本只认开局页面，任何其他页面启动必然卡住，
+                #   每次报错都要手推引导到能重置的地方」。所以这里不再有一串
+                #   resumed_xxx 分支，统一走 resume_stage() + resume_to_hall()。
                 if self.resume_after_crash:
                     self.resume_after_crash = False
+                    # 引导浮层会盖住画面还让底下的四格照常匹配（2026-11-10），先点掉。
                     self.device.screenshot()
                     self.dismiss_tutorial_route()
-                    self.device.screenshot()
-                    resumed_late = self.resumed_at_hall()
-                    if resumed_late:
-                        logger.hr('闪退重进：已在大厅，跳过开场引导 / 旅程 / 结算', level=2)
-                    else:
-                        # 服务器也记旅程进度：闪退重进会直接落在 `JourneyPlay`，
-                        # 这时再走 `guide()` 整条引导表一页都认不出，只会空转。
-                        # 旅程本身是无状态的按钮表，可以接着当前画面继续跑。
-                        resumed_journey = self.at_journey()
-                        if resumed_journey:
-                            logger.hr('闪退重进：已在旅程，跳过开场引导，继续旅程', level=2)
-                        elif self.at_main_screen():
-                            # ❗「四格在、菜单打不开」不一定是还在引导期：
-                            #   2026-11-14 14:25 结算走到 page_164 时闪退，重进落在
-                            #   大厅，管理箭头还挂着、战斗 / 总部 / 公会上锁，
-                            #   四格在但点不开菜单（真机连点两次都 timeout）。
-                            #   这时回退 `guide()` 一页都认不出，整轮只会空转；
-                            #   应该接着把「结算 / 签到 / 解锁」剩下的页面点完。
-                            resumed_settle = True
-                            logger.hr('闪退重进：还在教学解锁段（四格在但菜单打不开），接着结算',
-                                      level=2)
-                        elif self.at_prep_screen():
-                            # 2026-11-16 07:26：重进落在「旅程起点」出发准备页，
-                            # 没有左侧菜单、没有倍速，`settle()` 一页都点不到。
-                            # 这一屏接下来的就是旅程，直接开旅程再结算。
-                            resumed_prep = True
-                            logger.hr('闪退重进：在出发准备页（旅程起点），直接开始旅程',
-                                      level=2)
-                        else:
-                            logger.info('闪退重进：还在引导期 / 不在大厅，按当前画面重走本轮状态机')
-
-                # 工具手动停在中途再重跑 / 未知原因回到标题后重登：可能直接落在
-                # 大厅或旅程，这时都不该重走开场引导。
-                # ❗大厅要排除「主界面 + 新手引导遮罩」：那还是开荒期，必须走引导。
-                if not resumed_late and not resumed_journey and not resumed_settle:
-                    if self.resumed_at_hall():
-                        resumed_late = True
-                        logger.info('登录：已在大厅，跳过开场引导 / 旅程 / 结算')
-                    elif self.at_main_screen():
-                        # 同上：登录后落在大厅但菜单打不开 = 教学解锁段没走完。
-                        resumed_settle = True
-                        logger.info('登录：四格在但菜单打不开（解锁段没走完），接着结算')
-                    elif self.at_prep_screen():
-                        # 出发准备页（旅程起点 / 选择旅程）：直接开旅程再结算。
-                        resumed_prep = True
-                        logger.info('登录：在出发准备页（旅程起点），直接开始旅程')
-                if not resumed_late and not resumed_journey and self.at_journey():
-                    resumed_journey = True
-                    logger.info('登录：已在旅程，跳过开场引导，继续旅程')
-
-                # ❗无 SKIP 的剧情页：登录判据已经认它，但 guide() 的按钮表里
-                #   没有任何可点的东西，不先点完剧情就会整段空转。
-                #   2026-11-13 07:5x 打完基础评鉴战，VICTORY 后闪退，重登落在
-                #   战后剧情；这里点完剧情，若出现「旅程结束」(`E_135_1`) 就
-                #   接 settle() 走完结算，否则交给下面的状态机。
-                resumed_story = False
-                if not resumed_late and not resumed_journey and not resumed_settle and not resumed_prep:
-                    self.device.screenshot()
-                    if self.appear(E_139_1, offset=CHAIN_OFFSET):
-                        # 2026-11-16 08:10：重进落在「获得全新祝福 / 更新救援者分数」
-                        #   这类结算页（蓝「确认」= `E_139_1`）。这一屏和旅程 HUD
-                        #   完全不同，回退 guide() 只会空转并 TaskFailed，直接收尾。
-                        resumed_settle = True
-                        logger.hr('重进：在结算页（祝福 / 分数），接着结算', level=2)
-                    elif self.appear(E_135_1, offset=CHAIN_OFFSET):
-                        # 2026-11-16 07:56：评鉴战打完停在「旅程结束」这一屏
-                        #   （RANK 面板 + 右侧按钮，既不是大厅也不是旅程 HUD）。
-                        #   直接交给 settle() 收尾，别回退 guide() 白等。
-                        resumed_story = True
-                        logger.hr('重进：在旅程结束页，接着结算', level=2)
-                    elif self.appear(E_211_1, offset=CHAIN_OFFSET):
-                        logger.hr('闪退重进：无 SKIP 剧情，先点完', level=2)
-                        if self.story_advance():
-                            # ❗先认「旅程结束」(`E_135_1`)：战后剧情点完会回到
-                            #   大厅，这一屏右上四格也在，先判大厅会跳过 settle。
-                            #   剧情结束后常有一小段黑屏，给 20 秒等落点。
-                            for _ in self.loop(timeout=20):
-                                self.device.stuck_record_clear()
-                                self.device.screenshot()
-                                if self.appear(E_135_1, offset=CHAIN_OFFSET):
-                                    resumed_story = True
-                                    break
-                                if self.at_journey():
-                                    resumed_journey = True
-                                    break
-                                if (self.in_game()
-                                        or self.appear(E_209_1, offset=CHAIN_OFFSET)):
-                                    resumed_late = True
-                                    break
-
-                if resumed_late:
-                    # 节点1 / 节点2 都在引导期，重进时早就过了，别继续抽卡。
-                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
-                        self.report_plan('闪退重进时已在大厅，停节点已经过了（不重置账号）')
-                        return
-                elif resumed_journey:
-                    # 节点1 / 节点2 都在引导期，重进时已经过了旅程入口，别继续跑。
-                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
-                        self.report_plan('闪退重进时已在旅程，停节点已经过了（不重置账号）')
-                        return
-                    # 旅程没走完，跳过开场引导，从当前旅程画面继续。
-                    self.journey()
-                    self.settle()
-                elif resumed_settle:
-                    # 大厅但还没解锁完：剩下的是「结算 / 签到 / 解锁」那几张页。
-                    # ❗点完必须真的能打开菜单，否则后面的领奖 / 抽卡 / 验号全是空转，
-                    #   最后重置也回不了主界面（2026-11-14 04:50 就是这么白跑一轮）。
-                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
-                        self.report_plan('闪退重进时停节点已经过了（不重置账号）')
-                        return
-                    self.settle()
-                    self.device.screenshot()
-                    if not self.resumed_at_hall():
-                        raise TaskFailed(self.fail_reason(
-                            '闪退重进后教学解锁段没走完（大厅菜单仍然打不开），'
-                            '已停止，避免空转。账号没有丢；'
-                            '把游戏退回标题页再手动重跑即可。'))
-                elif resumed_prep:
-                    # 出发准备页：先点进旅程（蓝色「旅程起点」），再走结算。
-                    # 停节点都在引导期，早就过了。
-                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
-                        self.report_plan('闪退重进时停节点已经过了（不重置账号）')
-                        return
-                    if not self.start_from_prep():
-                        raise TaskFailed(self.fail_reason(
-                            '闪退重进落在出发准备页，没能点进旅程，已停止，避免空转。'
-                            '账号没有丢；把游戏停回标题页再手动重跑。'))
-                    if self.at_journey():
-                        self.journey()
-                    self.settle()
-                    # 结算完必须真的能打开菜单，否则后面的领奖 / 抽卡 / 验号全是空转。
-                    self.device.screenshot()
-                    if not self.resumed_at_hall():
-                        raise TaskFailed(self.fail_reason(
-                            '闪退重进后从出发准备页续跑，结算完大厅菜单仍然打不开，'
-                            '已停止，避免空转。账号没有丢；把游戏停回标题页再手动重跑。'))
-                elif resumed_story:
-                    # 剧情已经点完：如果是战后剧情，这一屏右侧有「旅程结束」
-                    # (`E_135_1`)，先走完结算再去领奖。
-                    if self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
-                        self.report_plan('闪退重进时剧情已经过了停节点（不重置账号）')
-                        return
-                    self.device.screenshot()
-                    if self.appear(E_135_1, offset=CHAIN_OFFSET):
-                        self.settle()
-                else:
+                stage = self.resume_stage()
+                logger.hr('落点：%s' % RESUME_STAGE_NAMES.get(stage, stage), level=2)
+                if stage == RESUME_UNKNOWN:
+                    raise TaskFailed(self.fail_reason(
+                        '启动画面认不出来（不是大厅 / 旅程 / 准备页 / 结算页 / 剧情 / '
+                        '子页面，引导按钮表也没命中），已停止，避免空转。账号没有丢；'
+                        '把游戏退回标题页再重跑，或把这屏截图报给开发者补判据。'))
+                if stage == RESUME_GUIDE:
                     if not self.guide(stop_at_nickname=self.stop_at == STOP_NICKNAME):
                         self.report_plan('节点1：昵称输入框（没有输入昵称）')
                         return
                     if self.stop_at == STOP_GUIDE:
                         self.report_plan('节点2：所有引导走完（还没领奖励、没抽卡）')
                         return
-
-                    self.journey()
-                    self.settle()
+                elif stage == RESUME_HALL and self.stop_at in (STOP_NICKNAME, STOP_GUIDE):
+                    # 停节点都在引导期，已经在真大厅了，没什么可停的。
+                    self.report_plan('启动时已在大厅，停节点已经过了（不重置账号）')
+                    return
+                if not self.resume_to_hall():
+                    raise TaskFailed(self.fail_reason(
+                        '从当前画面续跑到大厅失败（落点认出来了，但这一段没走通），'
+                        '已停止，避免空转。账号没有丢；把游戏退回标题页再重跑。'))
 
                 self.claim()
                 self.gacha()
