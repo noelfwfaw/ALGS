@@ -99,7 +99,7 @@
     padding: 8px 10px; margin: 4px 0;
   }
   .fu-event .fu-title { font-size: 13px; font-weight: 600; }
-  .fu-event .fu-desc { color: var(--dim); font-size: 12px; margin: 3px 0 5px; }
+  .fu-desc { color: var(--dim); font-size: 12px; margin: 3px 0 5px; overflow-wrap: anywhere; }
   .fu-opt { padding: 3px 0; font-size: 12.5px; }
   .fu-opt .n { color: var(--dim); }
   .fu-pick {
@@ -181,6 +181,29 @@ function isLoopEvent(node) {
   return (node.options || []).some(option => option.next === node.id);
 }
 
+function classification(node, option) {
+  const box = document.createElement('div');
+  box.className = 'fu-desc';
+  if (!option) {
+    if (node.option_count === undefined) return box;
+    box.textContent = `页面选项数 ${node.option_count ?? '未注明'}，上限 ${node.option_count_max ?? '未注明'}；`
+      + `库内共 ${node.options.length} 条分支（含攻击）。条件或随机分支不保证同时出现。`;
+    return box;
+  }
+  const types = {DEFAULT: '常规', RANDOM: '随机/条件出现', RANDOM_1: '随机分支 RANDOM_1', ATTACK: '攻击（独立按钮）'};
+  const labels = [types[option.select_type] || option.select_type];
+  if (option.appear_conditions?.length) labels.push('出现条件：' + option.appear_conditions.join('；'));
+  if (option.exclusive_with?.length) {
+    const orders = node.options.filter(o => option.exclusive_with.includes(o.id)).map(o => o.order);
+    labels.push('与选项 ' + orders.join('、') + ' 互斥显示');
+  }
+  if (option.select_conditions?.length) labels.push('选择限制：' + option.select_conditions.join('；'));
+  if (option.conditions?.length) labels.push('选择条件：' + option.conditions.join('；'));
+  if (option.condition_ids?.length) labels.push('选择条件 ID：' + option.condition_ids.join('；'));
+  box.textContent = labels.filter(Boolean).join(' ｜ ');
+  return box;
+}
+
 /* 取该事件已选的序列（数字也统一成数组）。 */
 function pickSequence(nodeId) {
   const stored = PICKS[nodeId];
@@ -235,6 +258,8 @@ function renderFollowUp(node, depth) {
     + `<span class="id" style="color:var(--dim);font-size:11px;margin-left:8px">${node.id}</span>`;
   box.appendChild(title);
 
+  box.appendChild(classification(node));
+
   if (node.desc) {
     const desc = document.createElement('div');
     desc.className = 'fu-desc';
@@ -285,6 +310,7 @@ function renderFollowUp(node, depth) {
     if (option.success) text += `<div class="eff"><span class="s">成</span> ${option.success}</div>`;
     if (option.fail) text += `<div class="eff"><span class="f">败</span> ${option.fail}</div>`;
     body.innerHTML = text;
+    body.appendChild(classification(node, option));
 
     if (option.next && depth < 2) {
       const details = document.createElement('details');
@@ -320,6 +346,8 @@ function renderList() {
     title.innerHTML = `${event.name}<span class="rarity ${event.rarity}">${event.rarity}</span>`
       + `<span class="id">${event.id}</span>`;
     box.appendChild(title);
+
+    box.appendChild(classification(event));
 
     if (event.desc) {
       const desc = document.createElement('div');
@@ -361,6 +389,7 @@ function renderList() {
       if (option.fail) eff += `<div class="eff"><span class="f">败</span> ${option.fail}</div>`;
 
       body.innerHTML = `<div class="txt">${option.order}. ${option.text || '（空）'}${tags}</div>${eff}`;
+      body.appendChild(classification(event, option));
       // 「→ 后续」不只是个提示：展开能看到那个事件完整的选项和奖励
       if (option.nextDetail) {
         const details = document.createElement('details');

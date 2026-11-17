@@ -990,6 +990,10 @@
       "name": "ChaoszeroRogue.RogueSparkFilter.name",
       "help": "ChaoszeroRogue.RogueSparkFilter.help"
     },
+    "RogueEquipFilter": {
+      "name": "裝備指定角色",
+      "help": "每行：裝備名 = 角色名（Wiki 繁體名、英文名或 ID）。指定裝備只給指定角色，可替換同部位裝備；普通裝備只填空槽。唯一裝備不可跨部位並存，同部位可替換。商店只買指定裝備，並使用免費刷新繼續尋找，不付費刷新；無法分配的事件裝備自動提煉。忽略星級。留空時商店不買裝備、不刷新。"
+    },
     "RogueEventPick": {
       "name": "ChaoszeroRogue.RogueEventPick.name",
       "help": "ChaoszeroRogue.RogueEventPick.help"

@@ -758,6 +758,7 @@
       "RogueMember": 1,
       "RogueDelete": 3,
       "RogueSparkFilter": null,
+      "RogueEquipFilter": null,
       "RogueEventPick": true,
       "RogueSaveKeep": 0,
       "RogueLoop": true,

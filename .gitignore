@@ -2,6 +2,7 @@
 log
 config/backup/*
 config/state/*
+config/rogue/*
 config/*.ini
 !config/template.ini
 config/*.yaml

@@ -16,7 +16,8 @@ Output: ``module/chaoszero/rogue_events.json.gz``
         "chaos": "chaos_03",              # 主神/尺寸分组（共通事件为空）
         "size": "CHAOS_M",
         "options": [
-          {"order": 1, "flavor": "...", "conditions": [...],
+          {"order": 1, "flavor": "...", "select_type": "RANDOM",
+           "appear_conditions": [...], "conditions": [...],
            "success": [{"type": ..., "desc": ..., "amount": [min, max]}],
            "fail": [...]}
         ]
@@ -34,6 +35,7 @@ import gzip
 import io
 import json
 import os
+import re
 import time
 
 import requests
@@ -130,11 +132,41 @@ def parse_option(option):
         if tooltip:
             conditions.append(tooltip)
     return {
+        'id': option.get('id') or '',
         'order': option.get('order'),
         'flavor': (option.get('simple_flavor_text') or '').strip(),
+        'select_type': option.get('select_type') or '',
+        'option_type': option.get('option_type') or '',
+        'appear_conditions': option.get('appear_link_encounter_trigger_id') or [],
+        'select_conditions': option.get('select_link_encounter_trigger_id') or [],
+        'condition_ids': option.get('select_link_nb_condition_id') or [],
         'conditions': conditions,
         'success': reward_list(option.get('success_link_encounter_option_eff') or {}),
         'fail': reward_list(option.get('fail_link_encounter_option_eff') or {}),
+    }
+
+
+def parse_encounter(inner):
+    """Keep visibility counts and classification alongside the option graph."""
+    chaos = ((inner.get('chaos_collection_info') or {}).get('chaos') or {})
+    options = [parse_option(option) for option in inner.get('options') or []]
+    for option in options:
+        conditions = option['appear_conditions']
+        option['exclusive_with'] = []
+        if len(conditions) == 1 and re.fullmatch(r'!?[\w@.\-]+', conditions[0]):
+            condition = conditions[0]
+            opposite = condition[1:] if condition.startswith('!') else '!' + condition
+            option['exclusive_with'] = [other['id'] for other in options
+                                        if other['appear_conditions'] == [opposite]]
+    return {
+        'name': inner.get('name') or '',
+        'names': inner.get('names') or {},
+        'pack': inner.get('link_encounter_pack_id') or '',
+        'chaos': chaos.get('id') or '',
+        'size': chaos.get('chaos_size') or '',
+        'option_count': inner.get('option_count'),
+        'option_count_max': inner.get('option_count_max'),
+        'options': options,
     }
 
 
@@ -149,8 +181,7 @@ def main():
         rows = json.loads(rows)
     print('  %s encounters' % len(rows))
 
-    # 旧文件里的选项直接复用：详情接口要逐个请求 406 次，而 `link_encounter_pack_id`
-    # 在列表里就有，所以补 pack / chaos / size 不需要重抓详情（2026-11-15 卡在 100/406）。
+    # Only reuse classified options; old flattened caches must fetch the missing fields.
     old = {}
     if os.path.exists(OUTPUT):
         with gzip.open(OUTPUT, 'rb') as handle:
@@ -163,29 +194,25 @@ def main():
         if not encounter_id:
             continue
         cached = old.get(encounter_id) or {}
-        if cached.get('options') and cached.get('name'):
-            name = cached.get('name')
-            names = cached.get('names') or {}
-            options = cached.get('options') or []
+        if (cached.get('options') and cached.get('name') and 'option_count_max' in cached
+                and all('appear_conditions' in option and 'select_type' in option
+                        for option in cached['options'])):
+            record = dict(cached)
         else:
             detail = get('/encounters/%s' % encounter_id)
             body = detail.get('data') if isinstance(detail, dict) else detail
             if isinstance(body, str):
                 body = json.loads(body)
-            name = body.get('name')
-            names = body.get('names') or {}
-            options = [parse_option(option) for option in body.get('options') or []]
+            record = parse_encounter(body)
         chaos = ((row.get('chaos_collection_info') or {}).get('chaos') or {})
-        database[encounter_id] = {
-            'name': name,
-            'names': names,
+        record.update({
             # 事件包 = 地图（`uk_904_s01` 就是霧之城市那 38 个事件）；
             # 共通包（神秘 / 事件區域 / 四位神的传令兵）= 每张图都会出现的那 12 个。
             'pack': row.get('link_encounter_pack_id') or '',
             'chaos': chaos.get('id') or '',
             'size': chaos.get('chaos_size') or '',
-            'options': options,
-        }
+        })
+        database[encounter_id] = record
         if index % 50 == 0:
             print('  %s/%s' % (index, len(rows)))
 

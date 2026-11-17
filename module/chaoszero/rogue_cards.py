@@ -143,10 +143,18 @@ class CardLibrary:
         scored.sort(reverse=True)
         if len(scored) < 2:
             return (scored[0][1], scored[0][0], 1.0) if scored else (None, 0.0, 0.0)
-        margin = scored[0][0] - scored[1][0]
+        # ❗**余量只算"不同卡名"之间的差**。
+        # 灵光三选一的三列是**同一张卡的不同形态**，描述高度相似，所以同一张卡的
+        # 多个形态经常一起排在前面 —— 旧算法拿 `scored[0] - scored[1]`，前两名
+        # 是同一张卡的两个形态，差只有 0.0x，于是把正确结果判成"认不出"
+        # （2026-11-16 离线复盘：神闪 20 页只有 50% 认出来，失败样本里
+        #  `score` 有 0.51/0.52/0.57，卡得住的恰恰是 margin）。
+        top_name = scored[0][1]
+        runner = next((item for item in scored[1:] if item[1] != top_name), None)
+        margin = scored[0][0] - (runner[0] if runner else 1.0)
         if margin < CARD_MARGIN:
             return None, scored[0][0], margin
-        return scored[0][1], scored[0][0], margin
+        return top_name, scored[0][0], margin
 
     def forms(self, name):
         """按卡名取形态列表（同名卡在不同角色身上时取第一个）。"""
@@ -222,20 +230,36 @@ class CardLibrary:
                 found.append((column, best[0], best[1]))
         return found
 
-    def pick_column(self, texts, keywords=None, name=None):
-        """先认清三列各是哪个形态，再按关键词或数值挑一列。
+    def pick_column(self, texts, keywords=None, name=None, form_index=None):
+        """先认清三列各是哪个形态，再按编号/关键词/数值挑一列。
 
-        有关键词：在「已经认清的形态」里取含关键词且相似度最高的一列。
-        没关键词：在这三列里取数值最大的形态（用户：关键词脚本自己写，
-        只要不认错卡；所以默认走数值，配置了关键词就听配置）。
-        返回 (列序号, 得分, 形态序号, 描述) 或 None。
+        Args:
+            texts (list): 三列 OCR 文本。
+            keywords (list): 想要的效果词（`forms[index]` 里包含就算命中）。
+            name (str): 卡名。
+            form_index (int | None): 想要**第几种灵闪**（0 起，对应 `rspN`）。
+                用户 2026-11-16：游戏里点开卡详情能看到「①②③④⑤」编号，
+                和库里的 `rsp1`~`rsp5` 一一对应，所以可以直接按编号指定。
+                **给了这个就只认这一种形态**；三列里没有它就返回 None
+                （说明这次没闪出来，调用方回退到随机选）。
+
+        Returns:
+            tuple | None: (列序号, 得分, 形态序号, 描述)。
         """
         columns = self.read_columns(texts, name)
         if not columns:
             return None
         forms, raw = self.forms(name)
         chosen = None
-        if keywords:
+        if form_index is not None:
+            for column, ratio, index in columns:
+                if index != form_index:
+                    continue
+                if chosen is None or ratio > chosen[1]:
+                    chosen = (column, ratio, index)
+            if chosen is None:
+                return None
+        elif keywords:
             for column, ratio, index in columns:
                 if not any(word and word in forms[index] for word in keywords):
                     continue
@@ -290,11 +314,18 @@ class CardReader:
                 logger.info('Traditional OCR unavailable (%s), fall back to cnocr' % error)
         return self.cht
 
-    def read(self, image, column):
-        """image: RGB ndarray；column: (x0, x1)。返回归一化后的文本。"""
+    def read(self, image, column, scale=1.0):
+        """image: RGB ndarray；column: (x0, x1)。返回归一化后的文本。
+
+        Args:
+            scale (float): 提字前把描述区放大几倍。1.0 = 原尺寸。
+        """
         x0, x1 = column
         area = (x0 + 12, DESC_AREA[0], x1 - 12, DESC_AREA[1])
         crop = image[area[1]:area[3], area[0]:area[2]]
+        if scale and scale != 1.0 and crop.size:
+            crop = cv2.resize(crop, None, fx=scale, fy=scale,
+                              interpolation=cv2.INTER_CUBIC)
         mask = letters_mask(crop)
         crops = []
         for y0, y1 in split_rows(mask):
@@ -311,8 +342,8 @@ class CardReader:
         result = ocr.cnocr.atomic_ocr_for_single_lines(crops)
         return normalize(''.join(''.join(chars) for chars in result))
 
-    def read_all(self, image, columns=COLUMNS):
-        return [self.read(image, column) for column in columns]
+    def read_all(self, image, columns=COLUMNS, scale=1.0):
+        return [self.read(image, column, scale=scale) for column in columns]
 
     def read_block(self, image, area, scale=1):
         """读一块**多行**文字（不限于卡牌描述区）。
@@ -352,15 +383,27 @@ class CardReader:
         result = ocr.cnocr.atomic_ocr_for_single_lines(crops)
         return normalize(''.join(''.join(chars) for chars in result))
 
-    def read_name(self, image, area):
-        """读卡名条这类白字小字（冥想选卡、删卡网格）。返回归一化文本。"""
+    def read_name(self, image, area, scale=1.0, raw=False):
+        """读卡名条这类白字小字（冥想选卡、删卡网格）。返回归一化文本。
+
+        Args:
+            raw (bool): 装备名含英文和数字时保留 OCR 原文。
+            scale (float): 提字前放大几倍。删卡网格的卡名只有 ~20px，
+                原尺寸 OCR 只能读出前两个字（`劍之雨`→`劍市`、
+                `一縷光芒`→`建立`），放大后再读明显好。
+        """
         crop = image[area[1]:area[3], area[0]:area[2]]
         if crop is None or not crop.size:
             return ''
+        if scale and scale != 1.0:
+            crop = cv2.resize(crop, None, fx=scale, fy=scale,
+                              interpolation=cv2.INTER_CUBIC)
         gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
         cht = self._get_cht()
         if cht:
-            return normalize(cht.line(gray))
-        ocr = self._get_ocr(area)
-        result = ocr.cnocr.atomic_ocr_for_single_lines([gray.astype(np.uint8)])
-        return normalize(''.join(''.join(chars) for chars in result))
+            text = cht.line(gray)
+        else:
+            ocr = self._get_ocr(area)
+            result = ocr.cnocr.atomic_ocr_for_single_lines([gray.astype(np.uint8)])
+            text = ''.join(''.join(chars) for chars in result)
+        return text if raw else normalize(text)

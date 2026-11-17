@@ -990,6 +990,10 @@
       "name": "ChaoszeroRogue.RogueSparkFilter.name",
       "help": "ChaoszeroRogue.RogueSparkFilter.help"
     },
+    "RogueEquipFilter": {
+      "name": "装備の指定キャラクター",
+      "help": "各行：装備名 = キャラクター名。Wiki の名前または ID を使用。指定装備は指定キャラの同部位を交換可能、通常装備は空き枠のみ。ユニーク装備は別部位に同時装備不可。ショップは指定装備のみ購入し、無料更新で探し続けます。有料更新は行いません。割り当て不可のイベント装備は分解。星数は無視。空欄なら装備購入とショップ更新は行いません。"
+    },
     "RogueEventPick": {
       "name": "ChaoszeroRogue.RogueEventPick.name",
       "help": "ChaoszeroRogue.RogueEventPick.help"

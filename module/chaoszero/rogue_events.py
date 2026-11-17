@@ -8,10 +8,9 @@ most of the value of a run. The wiki (https://wiki.e7bot.top) publishes the whol
 graph; ``dev_tools/gen_chaoszero_rogue_db.py`` dumps it offline into
 ``rogue_events.json.gz`` and this module turns it into a decision.
 
-Runtime flow: OCR the title line of every option card -> find the encounter whose option
-set matches all of them -> score each matched option by its reward types -> return the
-card to press. Anything uncertain returns ``None`` so the caller keeps `RoguePick`
-(never guess: a wrong option can cost HP, pressure or add a curse card).
+The database keeps all possible branches, their appearance conditions and source types;
+they are not necessarily visible together. Runtime matches the visible titles to an event
+and an explicitly configured choice. Unavailable or uncertain choices stop for user review.
 """
 import gzip
 import json
@@ -31,7 +30,7 @@ OPTION_MATCH = 0.55
 # 而同页另外两张卡是 1.00 / 0.80，人工核对正确答案确实是 `uk_904_s01_02a`。
 # 降到 0.45 能收下这种"错一半但仍是同一句话"的情况。
 ENCOUNTER_MATCH = 0.45
-# 两名候选分数差小于这个值就当作分不出来，退回 RoguePick
+# 两名候选分数差小于这个值就不做决策，由调用方停机。
 OPTION_MARGIN = 0.0
 # 失败分支按这个权重计入（掷骰事件失败会扣东西，但成功收益通常更值）
 FAIL_WEIGHT = 0.4
@@ -322,8 +321,8 @@ class EventLibrary:
         all 406 invites a wrong answer from a map that is not even on screen
         (2026-11-15, user rule: 打这个图就只遍历这图的事件). When the map's events all
         miss, the option titles are still compared against every map, but only to warn
-        that the pack table is off — the answer stays "no decision", so the caller falls
-        back to `RoguePick` instead of trusting a foreign event.
+        that the pack table is off — the answer stays "no decision". The live configured
+        event handler stops for review instead of selecting a foreign event or position.
 
         Args:
             texts (list[str]): Normalized option titles, one per card, in screen order.

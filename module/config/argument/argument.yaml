@@ -330,9 +330,11 @@ ChaoszeroRogue:
   # OCR 出来，和卡牌形态库里含这些关键词的形态比对，挑最像的那一列。
   # 留空 = 完全按 RoguePick 的固定位置点。
   RogueSparkFilter: ''
-  # 事件选项是否查表挑（事件库 module/chaoszero/rogue_events.json.gz，406 个事件）。
-  # OCR 每张卡标题 → 反查事件 → 按奖励打分（神闪 > 重灵閃/變形 > 複製 > 角色靈閃
-  # > 刪卡 > 资源/装备，掉血/加压/诅咒卡算负分）。分不出或全是代价时退回 RoguePick。
+  RogueEquipFilter:
+    type: textarea
+    value: ''
+  # 事件只按选择器保存的规则挑选；无法识别、缺少规则/目标或关闭识别时保存并停机。
+  # 不按 RoguePick 兜底，不确认来源不明的已选选项。
   RogueEventPick: true
   # 结算后那页「存檔資料收集完成」：三张角色存档卡，每张右侧有 星标 / 锁 / 垃圾桶。
   # 1/2/3 = 只留队伍第几号位那个角色的存档，另外两个的垃圾桶都点掉；

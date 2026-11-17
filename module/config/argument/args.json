@@ -2731,6 +2731,10 @@
         "type": "textarea",
         "value": ""
       },
+      "RogueEquipFilter": {
+        "type": "textarea",
+        "value": ""
+      },
       "RogueEventPick": {
         "type": "checkbox",
         "value": true

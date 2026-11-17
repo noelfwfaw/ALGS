@@ -164,6 +164,7 @@ class GeneratedConfig:
     ChaoszeroRogue_RogueMember = 1
     ChaoszeroRogue_RogueDelete = 3
     ChaoszeroRogue_RogueSparkFilter = None
+    ChaoszeroRogue_RogueEquipFilter = None
     ChaoszeroRogue_RogueEventPick = True
     ChaoszeroRogue_RogueSaveKeep = 0
     ChaoszeroRogue_RogueLoop = True

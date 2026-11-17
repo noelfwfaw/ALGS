@@ -990,6 +990,10 @@
       "name": "ChaoszeroRogue.RogueSparkFilter.name",
       "help": "ChaoszeroRogue.RogueSparkFilter.help"
     },
+    "RogueEquipFilter": {
+      "name": "Equipment recipients",
+      "help": "One rule per line: equipment = character. Use Wiki names or IDs. Reserved equipment goes only to its character and may replace the same slot; other equipment fills empty slots. Unique equipment cannot coexist across slots. Buy only configured equipment and use free refreshes to keep looking, never paid refreshes; salvage unassignable event equipment. Stars are ignored. Empty: no shop equipment purchases or refreshes."
+    },
     "RogueEventPick": {
       "name": "ChaoszeroRogue.RogueEventPick.name",
       "help": "ChaoszeroRogue.RogueEventPick.help"
