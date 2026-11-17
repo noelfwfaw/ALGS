@@ -84,7 +84,8 @@ from module.starsavior.assets import (
     E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_9_1,
     E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1,
-    E_212_1, E_213_1, E_214_1, E_215_1, E_216_1, E_217_1, E_218_1, E_194_4,
+    E_212_1, E_213_1, E_214_1, E_215_1, E_216_1, E_217_1, E_218_1, E_219_1, E_220_1,
+    E_221_1, E_194_4,
     BATTLE_SKILL,
 )
 from module.starsavior import highlight
@@ -178,6 +179,7 @@ RESUME_BATTLE = 'battle'              # 战斗里（评鉴战 / 教学战）
 RESUME_STORY = 'story'                # 无 SKIP 的剧情页（有 SKIP 的过场走引导）
 RESUME_PREP = 'prep'                  # 出发准备页（旅程起点 / 选择旅程）
 RESUME_SETTLE = 'settle'              # 旅程结束 / 祝福 / 更新分数这类结算页
+RESUME_ACHIEVE = 'achieve'            # 「旅程目标达成」横幅（只有一行「点击以继续」）
 RESUME_GUIDE = 'guide'                # 开场引导页（按钮表里有东西可点）
 RESUME_INNER = 'inner'                # 大厅的子页面（观测 / 救援者 / 菜单四格等）
 RESUME_UNKNOWN = 'unknown'            # 认不出来：停下报人，不许空转
@@ -189,6 +191,7 @@ RESUME_STAGE_NAMES = {
     RESUME_STORY: '剧情',
     RESUME_PREP: '出发准备页',
     RESUME_SETTLE: '结算页',
+    RESUME_ACHIEVE: '旅程目标达成页',
     RESUME_GUIDE: '开场引导',
     RESUME_INNER: '大厅子页面',
     RESUME_UNKNOWN: '未知画面',
@@ -922,7 +925,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if (self.appear(E_135_1, offset=CHAIN_OFFSET)
                 or self.appear(E_139_1, offset=CHAIN_OFFSET)
                 or self.appear(E_217_1, offset=CHAIN_OFFSET)
-                or self.appear(E_218_1, offset=CHAIN_OFFSET)):
+                or self.appear(E_218_1, offset=CHAIN_OFFSET)
+                or self.appear(E_219_1, offset=CHAIN_OFFSET)
+                or self.appear(E_220_1, offset=CHAIN_OFFSET)):
             return RESUME_SETTLE
         if self.at_prep_screen():
             return RESUME_PREP
@@ -1055,7 +1060,17 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 else:
                     self.tap_at(52, 44, '落点：返回')
             elif stage in (RESUME_SETTLE, RESUME_TUTORIAL_HALL):
-                if self.appear(E_218_1, offset=CHAIN_OFFSET):
+                if self.appear(E_219_1, offset=CHAIN_OFFSET):
+                    # 「旅程目标达成」横幅：整屏只有「点击以继续」，点掉后才能进结算流。
+                    for _ in range(6):
+                        if self.appear(E_219_1, offset=CHAIN_OFFSET):
+                            self.tap_at(640, 638, '落点：旅程目标达成 → 点击以继续')
+                            self.loop(timeout=2)
+                elif self.appear(E_220_1, offset=CHAIN_OFFSET):
+                    # 「确定要结束旅程吗?」的蓝确认比 E_200_2 那颗宽，只能点固定点。
+                    self.tap_at(733, 465, '落点：确认结束旅程')
+                    self.loop(timeout=3)
+                elif self.appear(E_218_1, offset=CHAIN_OFFSET):
                     # 签到面板只是结算链中间的一屏，关掉 X 就回到正常的结算流。
                     self.tap_at(1222, 50, '落点：关签到面板')
                     self.wait_until_disappear(E_218_1, timeout=3, settle=1)
@@ -1265,7 +1280,10 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             try:
                 # ❗先等画面，再判登录：冷启动/换号后的加载画面上 `login()` 的判据
                 #   会误判成"已经在游戏里"，接着整条链在加载画面上空转。
-                if not self.wait_start_screen():
+                # ❗但中途落点（结算页 / 出发准备页 / 子页面…）本来就不在启动画面
+                #   里，先认一下再决定等不等，否则白等 180 秒还会被当成闪退去 App stop
+                #   （2026-11-16 15:49 RANK 版「旅程结束」页就是这么被杀掉的）。
+                if not self.mid_run_screen() and not self.wait_start_screen():
                     # 认不出画面就再拉一次游戏，别硬着头皮往下点。
                     # ❗但热更新期间不能按“进程没了”处理：`gone=True` 会走
                     #   `App stop`，把正在下载的热更数据掐断。
@@ -1943,6 +1961,18 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.device.stuck_record_clear()
             # 「NOA指南」帮助弹窗会整屏盖住按钮（2026-11-14 19:18 验号卡死）。
             self.dismiss_noa_guide()
+            # 「住宿」面板：只选免费的「露宿」，再点「休息」。
+            # ❗这屏右栏和旅程页几乎重合：`E_122_1`（训练）在这里正好压在第二行
+            #   「住处 30」上，等于花 30 潜质点住收费房间（用户 2026-11-16 16:21
+            #   截图就是这个屏，并指出「按截图位置不可能点到训练」）。所以面板
+            #   一开就先接管，别让旅程那张表去点右栏。
+            if self.appear(E_221_1, offset=CHAIN_OFFSET):
+                logger.info('住宿面板：只选免费的「露宿」，再点「休息」')
+                self.tap_at(1100, 282, '住宿：露宿（免费）')
+                self.loop(timeout=2)
+                self.tap_at(1135, 665, '住宿：休息')
+                self.loop(timeout=3)
+                continue
             # ===== 中途回到标题 / 登录页：立刻收工，交给 guide_press() =====
             # ❗不能只靠按钮表：标题页的 E_4_2 / E_1_1 会被当成引导页一直点，
             #   直到 GameTooManyClickError（2026-11-12 17:02 实测 14 次）。
@@ -2857,6 +2887,26 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 logger.info('热更新：正在下载 / 编译着色器，继续等')
         return True
 
+    def mid_run_screen(self):
+        """已经在游戏里（中途落点）的轻量判据，给 `run()` 决定要不要等启动画面。
+
+        ❗真机 2026-11-16 15:49：断线重进后停在 RANK 版「旅程结束」页，
+        `wait_start_screen()` 只认标题页 / 登录弹窗 / 大厅 / 旅程 / 战斗 / 剧情，
+        这一屏什么都不认，白等 180 秒后被当成「等不到游戏画面」→ `GameCrashed`，
+        接着 `App stop` 把游戏杀掉重启，白白多花一分钟还打断热更新。
+        落点表（`resume_stage()`）本来就会处理这些画面，所以这里只要认出
+        「不是标题/加载画面」就跳过等待，交给落点表。
+        """
+        self.device.screenshot()
+        if self.in_game_screen():
+            return True
+        for button in (E_135_1, E_139_1, E_217_1, E_218_1, E_219_1,
+                       E_216_1, E_211_1, E_176_2, E_180_1, E_193_1,
+                       E_220_1):
+            if self.appear(button, offset=CHAIN_OFFSET):
+                return True
+        return False
+
     def wait_start_screen(self, timeout=180, settle=3):
         """等游戏真的画出画面再开工。
 
@@ -3086,6 +3136,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 logger.info('登录：已经进游戏，账号列表不用再等')
                 return True
             if not self.wait_until_appear(E_2_1, offset=CHAIN_OFFSET, timeout=15, settle=4):
+                # 账号已经点过、列表也关掉了：可能正在登录（服务器握手慢的那几秒）。
+                # 先正面等一次进游戏，别因为列表没「重新出现」就判登录失败
+                # （2026-11-16 17:20 就是这么误报的）。
+                if self.wait_enter_game(timeout=45):
+                    logger.info('登录：账号列表已经关掉，确认已进入游戏')
+                    return True
                 # 等账号列表期间也可能弹「发生错误 / 通知」；先点掉再给一次机会
                 if self.dismiss_game_error() or self.dismiss_notice():
                     if not self.wait_until_appear(E_2_1, offset=CHAIN_OFFSET,
@@ -3103,8 +3159,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     return False
             self.wait_until_still(ACCOUNT_DIALOG, timeout=3, threshold=3.0)
             self.click_button(E_2_3, '选账号')
-            # 弹窗关掉才算真的点中了；没关就再点一次
-            if self.wait_until_disappear(E_2_1, offset=CHAIN_OFFSET, timeout=6, settle=2):
+            # 弹窗关掉才算真的点中了；没关就再点一次。
+            # ❗窗口不能太小：2026-11-16 17:20 实测点完账号 6 秒列表还挂着
+            #   （服务器登录握手慢），6 秒判超时 → 下一轮又等列表重现 →
+            #   列表刚好在这两个窗口之间关掉，于是误报「没等到账号列表」整轮停掉。
+            if self.wait_until_disappear(E_2_1, offset=CHAIN_OFFSET, timeout=20, settle=2):
                 # ❗选完账号≠已经进游戏：重置号/被踢回标题的号选完账号会
                 #   先落回标题页，再点一次 Touch to Start 才进开场。
                 #   2026-11-13 10:25 这里直接 `return True`，guide 在标题页
