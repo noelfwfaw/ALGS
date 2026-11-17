@@ -1,3 +1,6 @@
+import datetime
+import re
+
 from module.base.timer import Timer
 from module.base.utils import get_color
 from module.exception import GameStuckError
@@ -5,6 +8,7 @@ from module.logger import logger
 from module.lostsword.assets import (ARENA_BTN_CLOSE,
                                      BOSS_VICTORY,
                                      DUNGEON_CLEAR,
+                                     EVENT_BTN_OK,
                                      STAR_BTN_CHALLENGE,
                                      STAR_BTN_ENTER,
                                      STAR_TAB_1,
@@ -12,6 +16,8 @@ from module.lostsword.assets import (ARENA_BTN_CLOSE,
                                      STAR_TAB_3)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
                                           page_battle, page_star)
+from module.lostsword.schedule import next_week_reset
+from module.ocr.ocr import Ocr
 
 """
 星辰轮回 (star cycle).
@@ -41,10 +47,19 @@ starts a second one (measured: 26.8M then 2.4M, the area score ended at 30.06M).
 So the wait loop taps every result screen it sees and only stops when the panel
 is back.
 
-**Scheduled weekly, unlike the other tasks of this game.** The mode runs on the
-weekly clock (Monday 00:00 here, Sunday 11:00 in Korea, the same reset the maze
-uses), so `run()` ends with `delay_next_week()` instead of the daily
-`task_delay(server_update=True)` that every other lostsword task calls.
+**Scheduled by the countdown the panel prints.** The middle of the panel shows
+`下次时间` with a `HHH:MM:SS` countdown, and that is the weekly clock this game
+really uses: measured 2026-11-17 05:43, `137:27:04`, which lands on Sunday 23:10
+local - while the clock `next_week_reset()` computes (Monday 00:00 local) is about
+an hour off. `run()` therefore reads the countdown before leaving the panel and
+hands `now + countdown` to `config.task_delay()`, keeping the weekly fallback only
+for the runs where the line stays unreadable.
+
+**The cycle also has closed hours.** Outside its window the game answers the
+press on 「挑战」 with a dialog - 「当前非星辰轮回进入时间。」 - and a 确认 plate
+(measured 2026-11-17 06:00, all three areas). The task presses 挑战 once per area,
+recognizes that dialog, closes it and goes straight to the countdown; retrying is
+what used to end in `GameTooManyClickError` on a panel that cannot open.
 """
 
 # Cards of the adventure area list: name, tap point, background strip used to
@@ -58,6 +73,59 @@ STAR_TABS = (
 STAR_TAB_MEAN = 80
 # One challenge is one or two waves plus the loading screens.
 STAR_TIMEOUT = 600
+# The `下次时间` countdown under the middle of the panel, `137:27:04`.
+STAR_NEXT_TIME_AREA = (530, 470, 770, 528)
+# The digits are a warm white (245, 235, 215); the background behind them is dark.
+STAR_NEXT_TIME_LETTER = (245, 235, 215)
+# All three thresholds read the whole three-digit hour on every frame measured
+# (2026-11-17, three frames); 65 dropped the 7 (`13:18:38`) on one of them and 85
+# upwards drops the leading 1, and both still parse, so the reading is only
+# accepted when every threshold agrees.
+STAR_NEXT_TIME_THRESHOLDS = (70, 75, 80)
+STAR_NEXT_TIMES = [
+    Ocr(STAR_NEXT_TIME_AREA, letter=STAR_NEXT_TIME_LETTER, threshold=threshold,
+        alphabet='0123456789:', name=f'STAR_NEXT_TIME_{threshold}')
+    for threshold in STAR_NEXT_TIME_THRESHOLDS
+]
+STAR_NEXT_TIME_PATTERN = re.compile(r'^(\d{1,3}):(\d{2}):(\d{2})$')
+# A weekly reset is at most seven days away; a reading under a minute is taken
+# as noise (the countdown is already running when the task leaves the panel).
+STAR_NEXT_TIME_MIN = 60
+STAR_NEXT_TIME_MAX = 8 * 24 * 3600
+# The countdown is cross-checked against the weekly clock: a read that drops the
+# leading hour digit (`137:27:04` -> `37:27:04`) is still a valid countdown, so
+# the shape alone cannot catch it. The two clocks measured one hour apart, and a
+# dropped digit is about four days apart.
+STAR_NEXT_TIME_CROSSCHECK = 24 * 3600
+# The new week is applied a moment after the countdown reaches zero.
+STAR_RESET_MARGIN = 60
+
+
+def parse_next_time(text):
+    """
+    Turn the `下次时间` line into seconds.
+
+    `Duration.parse_time()` only accepts one or two hour digits (`137:27:04`
+    would be read as 37 hours), so the shape is checked here instead. A partial
+    read from the OCR (see `STAR_NEXT_TIME_THRESHOLDS`) is rejected by the
+    pattern, the minute/second range and the one-minute floor.
+
+    Args:
+        text (str): What the OCR returned, such as `137:27:04`.
+
+    Returns:
+        int: Seconds until the next reset, 0 when the text is not a countdown.
+    """
+    match = STAR_NEXT_TIME_PATTERN.match((text or '').strip())
+    if not match:
+        return 0
+    hours, minutes, seconds = (int(group) for group in match.groups())
+    if minutes > 59 or seconds > 59:
+        return 0
+    total = hours * 3600 + minutes * 60 + seconds
+    if not STAR_NEXT_TIME_MIN <= total <= STAR_NEXT_TIME_MAX:
+        return 0
+    return total
 
 
 class LostswordStar(LostswordUI):
@@ -69,7 +137,7 @@ class LostswordStar(LostswordUI):
         out: page_main
     """
 
-    def run(self):  # alas-lint: allow - tasks weekly through delay_next_week(), which hands the target to config.task_delay()
+    def run(self):  # alas-lint: allow - tasks weekly through star_schedule(), which hands the target to config.task_delay()
         """
         Pages:
             in: page_main
@@ -84,10 +152,18 @@ class LostswordStar(LostswordUI):
         self.ui_ensure(page_star)
 
         fought = 0
+        # Set by `star_fight()` when the game answers the press with
+        # 「当前非星辰轮回进入时间。」: the cycle is between windows and no area
+        # can be entered, so the remaining areas are skipped instead of pressing
+        # a dead 挑战 three times per area (measured 2026-11-17: the retries
+        # ended in GameTooManyClickError).
+        self.star_closed = False
         for name, tab, strip in STAR_TABS:
             for attempt in (0, 1):
                 if self.star_fight(name, tab, strip):
                     fought += 1
+                    break
+                if self.star_closed:
                     break
                 # An area that could not be opened is usually the panel still
                 # coming back from the previous battle, not a spent week (an
@@ -98,18 +174,88 @@ class LostswordStar(LostswordUI):
                 if attempt == 0:
                     logger.info(f'{name}: area not taken, wait for the panel and retry it once')
                     self.star_wait_panel()
+            if self.star_closed:
+                break
 
         logger.info(f'Star areas challenged: {fought}')
-        if not fought:
+        if self.star_closed:
+            logger.warning('The star cycle is not open yet, no area was entered')
+        elif not fought:
             # Nothing opened at all: the week is already spent, or a popup the
             # task has no asset for is sitting on top of the panel. Either way
             # the run is over - say it out loud instead of rescheduling
             # silently and letting the next week look the same.
             logger.warning('No area could be challenged this week')
+        # The countdown is printed on the panel, so it has to be read before the
+        # panel is left. It is also the only weekly clock the game itself shows.
+        self.star_schedule()
         self.ui_goto_main()
-        # A weekly mode, not a daily one: it goes back on the Monday 00:00 reset
-        # instead of tomorrow's, so the three areas are walked once a week.
-        self.delay_next_week(label='Star next reset')
+
+    def star_schedule(self):
+        """
+        Put the task on the reset the panel itself announces.
+
+        The panel printed `137:27:04` on 2026-11-17 05:43, which lands on Sunday
+        23:10 local. The weekly clock in `next_week_reset()` (Monday 00:00 local)
+        is about an hour later, so the countdown is what the task goes by; the
+        weekly clock is only the fallback for a panel whose line cannot be read.
+
+        Returns:
+            datetime.datetime: The target time.
+        """
+        seconds = self.star_next_time()
+        if seconds:
+            target = datetime.datetime.now() + datetime.timedelta(
+                seconds=seconds + STAR_RESET_MARGIN)
+            expected = next_week_reset()
+            drift = abs((target - expected).total_seconds())
+            if drift <= STAR_NEXT_TIME_CROSSCHECK:
+                logger.attr('Star next reset', str(target))
+                self.config.task_delay(target=target)
+                return target
+            # A dropped leading hour digit still looks like a countdown, so a
+            # reading that far from the weekly clock is treated as unreadable
+            # instead of putting the task days early.
+            logger.warning(f'The countdown points at {target}, '
+                           f'{drift / 3600:.1f}h away from the weekly clock {expected}')
+
+        # A popup on top, an old client or a new layout: still reschedule on the
+        # weekly clock rather than the daily one, or the task runs every day.
+        return self.delay_next_week(label='Star next reset (countdown unreadable)')
+
+    def star_next_time(self, timeout=10):
+        """
+        Read the `下次时间` countdown in the middle of the panel.
+
+        The line fades in later than the area list - `log/probe/lostsword_star/
+        star_panel.png` caught the panel with the line still missing and the OCR
+        returns an empty string there - so the read is retried until the digits
+        appear instead of trusting one frame.
+
+        Args:
+            timeout (int, float): Seconds to keep trying.
+
+        Returns:
+            int: Seconds until the next reset, 0 when it stays unreadable.
+        """
+        timeout = Timer(timeout).start()
+        for _ in self.loop():
+            # Only the panel carries the line. Reading the area on another screen
+            # could turn stray artwork into a number the task cannot trust.
+            if self.appear(page_star.check_button, offset=30):
+                readings = [parse_next_time(ocr.ocr(self.device.image))
+                            for ocr in STAR_NEXT_TIMES]
+                readings = [seconds for seconds in readings if seconds]
+                # The thresholds either see the same countdown or the frame is
+                # not read; a lone reading cannot tell a dropped digit from the
+                # real thing, so it waits for the next frame instead.
+                if len(readings) >= 2 and len(set(readings)) == 1:
+                    logger.attr('Star next reset in', str(datetime.timedelta(seconds=readings[0])))
+                    return readings[0]
+
+            if timeout.reached():
+                logger.warning('The 下次时间 countdown of the star panel could not be read')
+                return 0
 
     def star_fight(self, name, tab, strip):
         """
@@ -143,6 +289,15 @@ class LostswordStar(LostswordUI):
                 self.device.click(STAR_BTN_CHALLENGE)
             if self.wait_overlay(STAR_BTN_ENTER, timeout=8):
                 break
+            if self.appear(EVENT_BTN_OK):
+                # 「当前非星辰轮回进入时间。」 with a 确认 plate: the cycle is
+                # between its open windows and this press went nowhere. Pressing
+                # again cannot help and only stacks clicks on the same button.
+                self.device.click(EVENT_BTN_OK)
+                self.star_closed = True
+                logger.warning(f'{name}: the panel says 当前非星辰轮回进入时间, '
+                               f'the cycle is closed')
+                return False
             logger.info(f'{name}: versus page did not open, press 挑战 again')
         else:
             logger.warning(f'{name}: versus page did not open')

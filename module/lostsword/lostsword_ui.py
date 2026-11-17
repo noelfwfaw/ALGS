@@ -30,9 +30,15 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
     # Own pages, in the order they are declared above. The registry is shared
     # with every other game, and their check points only exist in their own
     # asset namespace.
+    # `page_star` has to come before `page_copy_stage`: both check points are a
+    # cream plate with a label on it, and the star panel's 挑战 plate is similar
+    # enough that `COPY_BTN_SELECT` matched the whole panel (measured 2026-11-17:
+    # `ui_get_current_page()` said page_copy_stage on the star panel, and
+    # `ui_goto(page_star)` then walked 副本 -> 战斗 -> 星辰 button by button until
+    # `GameTooManyClickError`). The 冒险区域 title is the specific one.
     pages = (page_treasure_quick, page_boss_dialog, page_boss_ticket,
              page_mail, page_treasure, page_task, page_shop_dialog, page_shop,
-             page_dungeon_dialog, page_dungeon, page_copy_stage, page_star,
+             page_dungeon_dialog, page_dungeon, page_star, page_copy_stage,
              page_boss,
              page_arena_season,
              page_arena_preview, page_arena,

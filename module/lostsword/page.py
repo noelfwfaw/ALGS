@@ -144,10 +144,13 @@ page_event_start = Page(EVENT_BTN_START)
 page_battle = Page(BATTLE_TITLE)
 # A stage page under the 副本 tab. Its 「选择」 button is on every one of them
 # (the sweepable stages add 「扫荡」 next to it, the limited ones only have 选择),
-# while the card list behind it does not have it at all.
+# while the card list behind it does not have it at all. Its plate is the same
+# cream bar as the 挑战 of the star panel, and that panel matches this page's
+# check point too, so `page_star` is checked before this one.
 page_copy_stage = Page([COPY_BTN_SELECT, COPY_BTN_SWEEP])
 # 星辰轮回, opened from the last card of the battle page. Full screen with the
-# three adventure areas on the left and the score table on the right.
+# three adventure areas on the left and the score table on the right. The
+# 「冒险区域」 heading is unique; the plate-style check points are not.
 page_star = Page(STAR_TITLE)
 # The squad dungeon detail page (小队副本). Built like the boss raid page - same
 # 「队伍编排」 button, same left column - so it is matched by its boss name instead,

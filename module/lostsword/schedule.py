@@ -1,9 +1,13 @@
 """When the weekly modes of this game come back.
 
-星辰轮回 and 迷宫 both run on the weekly clock: Sunday 11:00 in Korea, which is
-Monday 00:00 here. The framework only knows daily resets - `task_delay(
-server_update=True)` - so the target of a weekly task is computed here and
-handed over as an absolute time.
+The weekly modes (星辰轮回, 迷宫) reset on the game's own weekly clock, which the
+framework does not know: `task_delay(server_update=True)` is a daily reset. So
+the target is computed here and handed over as an absolute time.
+
+This is the *fallback* clock. The 星辰轮回 panel prints its own `下次时间`
+countdown, and on 2026-11-17 that landed on Sunday 23:10 local while this module
+aims at Monday 00:00 - about an hour apart - so `star.py` schedules by the
+countdown and only comes back here when the line cannot be read.
 """
 
 import datetime
