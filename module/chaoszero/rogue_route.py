@@ -20,9 +20,7 @@ import numpy as np
 # 2D 预览里节点所在的整块区域，避开顶部血条和底部按钮
 ROUTE_AREA = (0, 80, 1280, 700)
 
-# 上一次 `read_nodes` 读到的 pin x（队伍当前位置）。给 `rogue.py` 打诊断日志用：
-# `None` 说明 pin 没认出来，那 `drop_left_column` 只能丢最左列 —— 这时第 1 层很可能
-# 就是"脚下的列"，规划和 3D 可达卡会对不上（2026-11-16 实测）。
+# 上一次读到的当前位置，用于诊断。
 LAST_PIN_X = None
 
 # 节点颜色（HSV 色相）到类型的映射，2026-11-14 用 map14_pin.png 实测 18/18 正确
@@ -62,6 +60,7 @@ NODE_SATURATION = 90
 # 确实能从 4 列读到 6 列，但会引入假节点（实测多出一个 x=758 的孤点，
 # 把一整列拆成 tier 3/4）—— 假节点会让规划走错，比少读两列更糟。保持 90。
 NODE_VALUE = 90
+ROUTE_GLOW_OPENING = np.ones((9, 4), np.uint8)
 
 # 同一层的 x 允许差这么多像素；不同层之间的 x 间距实测 164。
 # ❗从 40 放到 70：偶发会读出一个**不在网格上**的假节点（实测 mu_route4.png 的
@@ -75,41 +74,12 @@ TIER_GAP = 70
 ROW_GAP = 108
 LINK_DY = 125
 
-# 连线检测（read_edges）：纯白实线 min>195；抹掉节点本体的半径 26（菱形半宽 39，
-# 抹太多会把靠近节点的线也削掉）；白块中心到"两节点中点"的容差 38（实测命中
-# 全部落在 5~10px，38 留足余量但不足以误收相邻线）。
-# 纯白阈值。⚠ 不能定太死：实测有的连线整段是 192（`event(505,258) → rest(669,258)`
-# 那条同排水平线，逐点峰值 241/210/215/192/192/.../218/226），195 会把它判死，
-# 于是"火"从左边进不来、路径被迫挤到中排经过精英（2026-11-15 用户指出的问题）。
-# 185 能收下 192；背景网格实测峰值只有 48~57，不会跟着亮起来。
+# The line lies between the diamond tips, below the colored tile centers.
 EDGE_LIGHT = 185
-# ❗抹节点本体的半径必须盖住整个菱形：菱形实测半宽 39、半高 22，而节点**边框本身
-# 也是纯白的**。半径 26 只盖住上下、盖不住左右顶点，残留的边框尖会被当成"连线中点"，
-# 造出一堆跨行的假边（2026-11-15 用 1280x720 原图实测：9 条边里大部分是假的，
-# 路径出现 `下排(341,584) → 上排(505,150)` 这种 Δy=434 的不可能连接）。
-# 45 = 半宽 39 + 6，刚好把边框吃掉、又不至于把靠近节点的线一起抹掉。
-# 抹掉节点本体的半径。菱形实测半宽 39、半高 22，边框本身也是纯白的。
-# 26 盖不住左右顶点（残留边框尖会被当线）；45 又太大 —— 斜线全长约 195px，
-# 45/195 = 23%，采样起点直接被吞掉（2026-11-15 实测：斜线全漏、只剩水平线）。
-EDGE_CLEAR = 40
-EDGE_TOL = 38
-EDGE_BLOB_AREA = 60
-# 沿连线采样的两个参数（见 `_along_line`）。
-# ❗法线半径必须给足 40：连线从菱形**顶点**出发（半宽 39、半高 22），斜线的端点
-# 和"中心到中心"的直线差可以到 30px 以上。原来给 12 的结果是**只有同排水平线被
-# 认出来**（dy 全部 ≤4），所有 dy=105~110 的斜线全漏，路径于是被迫挤在中排、
-# 只能经过精英（2026-11-15 用户指出"实际该走 战斗→事件→休息→战斗→事件"）。
-# 假边靠下面的"连续命中"挡，不靠法线窄：假边只在中点擦到别的线 1~2 下。
-EDGE_NORMAL = 40
-# ❗判据是**命中率**不是"连续命中"：连线是两种画法混着的 ——
-#   同排水平线是**实线**（实测连续命中 23/23）；
-#   跨行斜线是**虚线**（实测 `X...X..XX...X.X...X.XX..XX.`，最长连续只有 3）。
-# 要求连续 8 个会把所有斜线判死，路径就只剩同排、被迫经过精英
-# （2026-11-15 用户指出"实际该走 战斗→事件→休息→战斗→事件"）。
-# 命中率：斜线约 43%、水平线 100%、假边（跨行中点撞到中间那排的线）<15%，
-# 30% 正好卡在中间。
-EDGE_SHARE = 0.30
-# 相邻两层之间才可能是连线（目前只用于日志，执行不需要边）
+EDGE_TIP_X = 53
+EDGE_TIP_Y = 8
+EDGE_SAMPLES = np.linspace(.12, .88, 17)
+EDGE_Y_OFFSETS = np.arange(-7, 8)
 TIER_DISTANCE = (120, 190)
 # 预览图的列间距实测固定 164 px，扫描时两屏位移只可能是它的整数倍
 TIER_SPACING = 164
@@ -265,32 +235,22 @@ def _icon_template(path):
 # ❗这一格**不能算进路线**：用户 2026-11-15 指出「最左边是已经走到了的位置，
 # 不应该算在内，不然就会认为下一步走的是休息点，因为现在已经在休息点了」。
 # 实测判据命中时 310~312 个像素，其余节点全 0，分离度很干净。
-PIN_TOP = 70
-PIN_BOTTOM = 18
-PIN_HALF = 22
-PIN_PIXELS = 120
+PIN_FILE = './assets/chaoszero/chaoszero/ROGUE_ROUTE_PIN.png'
 
 
-def has_pin(image, x, y):
-    """这个节点是不是"队伍当前所在的那一格"（上方插着蓝色水滴 pin）。
-
-    Args:
-        image (np.ndarray): RGB 图像。
-        x (int): 节点中心 x。
-        y (int): 节点中心 y。
-
-    Returns:
-        bool: 是否是当前所在位置。
-    """
-    x = int(x)
-    y = int(y)
-    patch = image[max(0, y - PIN_TOP):max(0, y - PIN_BOTTOM),
-                  max(0, x - PIN_HALF):x + PIN_HALF, :3].astype(np.int32)
-    if not patch.size:
-        return False
-    r, g, b = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
-    count = int(np.count_nonzero((r > 150) & (g > 180) & (b > 180) & (b >= r)))
-    return count >= PIN_PIXELS
+def read_pin(image):
+    """直接找图钉。开局脚下的灰格没有彩色节点可用于定位。"""
+    template = _icon_template(PIN_FILE)
+    if template is None:
+        return None
+    # 打开预览时，当前位置在左侧；避开右侧未来节点和顶部 HUD。
+    r, g, b = image[92:638, :440, :3].astype(np.int16).transpose(2, 0, 1)
+    mask = (r >= 120) & (g >= 185) & (b >= 185) & (g - r >= 17) & (b - r >= 17) & (abs(g - b) <= 45)
+    result = cv2.matchTemplate(mask.astype(np.uint8), template, cv2.TM_CCORR_NORMED)
+    _, score, _, (x, y) = cv2.minMaxLoc(result)
+    if score >= .88:
+        return RouteNode(x + template.shape[1] // 2, y + 92 + template.shape[0] + 13, None)
+    return None
 
 
 def icon_kind(image, x, y):
@@ -364,6 +324,11 @@ def read_nodes(image):
     Returns:
         list[RouteNode]: 已填好 tier（列序号）和 row（行序号）的节点。
     """
+    global LAST_PIN_X
+    pin = read_pin(image)
+    LAST_PIN_X = pin.x if pin is not None else None
+    if pin is None:
+        return []
     x1, y1, x2, y2 = ROUTE_AREA
     patch = image[y1:y2, x1:x2, :3]
     hsv = cv2.cvtColor(patch, cv2.COLOR_RGB2HSV).astype(np.int32)
@@ -371,8 +336,11 @@ def read_nodes(image):
 
     raw = []
     for kind, ranges in HUE_RANGES.items():
-        mask = _node_mask(hue, sat, val, ranges)
-        count, _, stats, cents = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
+        mask = _node_mask(hue, sat, val, ranges).astype(np.uint8)
+        if kind == KIND_EVENT:
+            # The cyan current-column highlight can join an event diamond to the background.
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ROUTE_GLOW_OPENING)
+        count, _, stats, cents = cv2.connectedComponentsWithStats(mask, 8)
         for index in range(1, count):
             area = int(stats[index][4])
             width = int(stats[index][2])
@@ -392,7 +360,6 @@ def read_nodes(image):
     # 否则一列会被读成 5~6 个节点（2026-11-14 20:2x 读到 62 个，实际只有一半）。
     raw.sort(key=lambda item: -item[0])
     nodes = []
-    pin_x = None          # 队伍当前位置所在列的 x（见下面 `has_pin` 处）
     for area, x, y, kind in raw:
         duplicate = False
         for other in nodes:
@@ -407,29 +374,20 @@ def read_nodes(image):
             node.kind = icon_kind(image, x, y)
             if node.kind == KIND_REST:
                 node.shop = has_shop(image, x, y)
-        # 队伍当前所在的那一格（插着蓝色水滴 pin）不算进路线：否则规划会把
-        # "已经站着的休息点"当成下一步，接下来那步就错了。
-        if has_pin(image, x, y):
-            # ❗记住 pin 的 x：`drop_left_column` 要丢到**这一列（含）**为止。
-            # 否则同列还有别的行（同一层上下两个节点），pin 只标了其中一个，
-            # 丢 1 列之后那些"兄弟节点"会变成第 1 层 —— 它们不可达，规划从第一步就错。
-            # 2026-11-16 实测：规划第 1 层「戰鬥」、3D 上唯一可达的是「休息」。
-            pin_x = x if pin_x is None else max(pin_x, x)
-            continue
         nodes.append(node)
 
+    nodes = [node for node in nodes if node.x > LAST_PIN_X + TIER_GAP]
     nodes.sort(key=lambda node: (node.x, node.y))
     _fill_grid(nodes)
     # 丢掉不在列网格上的假节点，再重排一次（列号可能变）。
     nodes = drop_outliers(nodes)
     _fill_grid(nodes)
-    # 再丢最左列（当前位置/已走过的那列）。放在 `drop_outliers` 之后，
-    # 这样列号已经稳定，不会因为假节点多切一列。
-    nodes = drop_left_column(nodes, pin_x)
-    _fill_grid(nodes)
-    # 留给调用方打诊断日志：pin 没认出来时规划很可能从"脚下的列"起步。
-    globals()['LAST_PIN_X'] = pin_x
-    return nodes
+    # Start the graph only from diamonds connected to the current pin.
+    white = image[:, :, :3].min(axis=2) > EDGE_LIGHT
+    reachable = [node for node in nodes if node.tier == 0 and _along_line(white, pin, node)]
+    if not reachable:
+        return []
+    return reachable + [node for node in nodes if node.tier != 0]
 
 
 def _fill_grid(nodes):
@@ -453,39 +411,6 @@ def _fill_grid(nodes):
 def fill_grid(nodes):
     """把拼好的整张图按 x 重新分列（tier），列内按 y 排行（row）。"""
     _fill_grid(nodes)
-
-
-def drop_left_column(nodes, pin_x=None):
-    """丢掉"当前位置及左边"的所有列 —— 它们要么走过，要么就是脚下。
-
-    2D 预览是从当前位置往右画的：**当前位置总在最左列或次左列**。
-
-    ❗**只丢最左一列不够**（2026-11-16 实测）：同一列常有上下两个节点，pin 只标了
-    队伍站着的那一个（`read_nodes` 里 `has_pin` 已把它排除），丢 1 列之后
-    **同列的另一行**就顶上来变成第 1 层 —— 它不可达，规划从第一步就错
-    （实况：规划第 1 层「戰鬥」，3D 上唯一可达的是「休息」）。
-
-    所以给了 `pin_x` 就丢到 `pin_x + TIER_GAP` 为止（同列的 x 抖动只有 ±10）。
-
-    Args:
-        nodes (list[RouteNode]): 已 fill_grid 的节点。
-        pin_x (int | None): 队伍当前位置的 x；None 表示这一帧没认出 pin。
-
-    Returns:
-        list[RouteNode]: 去掉左侧已走过/当前列之后的节点。
-    """
-    if not nodes:
-        return nodes
-    tiers = sorted({node.tier for node in nodes})
-    if len(tiers) <= 1:
-        return nodes
-    if pin_x is not None:
-        keep = [node for node in nodes if node.x > pin_x + TIER_GAP]
-        if keep:
-            return keep
-        # pin 在最右列：没有"下一步"可读，只能退回丢最左列
-    left = tiers[0]
-    return [node for node in nodes if node.tier != left]
 
 
 def drop_outliers(nodes, tol=45):
@@ -701,8 +626,11 @@ def read_cards(image):
 
     raw = []
     for kind, ranges in HUE_RANGES.items():
-        mask = _node_mask(hue, sat, val, ranges)
-        count, _, stats, cents = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
+        mask = _node_mask(hue, sat, val, ranges).astype(np.uint8)
+        if kind == KIND_ELITE:
+            # Separate the purple flag from the nearby enemy and platform glow.
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ROUTE_GLOW_OPENING)
+        count, _, stats, cents = cv2.connectedComponentsWithStats(mask, 8)
         for index in range(1, count):
             area = int(stats[index][4])
             width = int(stats[index][2])
@@ -830,6 +758,14 @@ def best_card(cards, style, state=None, weights=None):
     return best
 
 
+def planned_card(cards, entry):
+    """Map the planned branch to 3D only when the visible choices agree."""
+    ordered = sorted(cards, key=lambda card: card.y)
+    if [card.kind for card in ordered] == entry['choices']:
+        return ordered[entry['choice_index']]
+    return None
+
+
 def has_edge(image, start, end, samples=40):
     """相邻两层两个节点之间是不是画了连线（虚线，取中间段连亮判定）。
 
@@ -915,119 +851,25 @@ def score(kind, style, state, shop=False):
     return value
 
 
-def read_edges(image, nodes, light=EDGE_LIGHT, clear=EDGE_CLEAR, tol=EDGE_TOL):
-    """从一屏 2D 预览里读出"有白线相连"的节点对。
-
-    做法（2026-11-15 实测，五种算法里唯一分得干净的）：
-    1. 取纯白掩膜（连线是纯白实线，实测 min>195；节点是彩色，背景是暗青）；
-    2. 把每个节点本体周围 `clear` 半径抹掉 —— 牌面上的白字/图标也是纯白，
-       不抹掉会把采样带偏，也会让连通块乱连；
-    3. 做连通域，每条连线（含两端的小方块标记）会成为一个白块；
-    4. 两个节点连线的中点，必定落在**某条线对应的白块**里 —— 检查"白块中心到
-       中点"的距离 <= `tol` 即可。
-
-    ❗为什么不用别的方法（都试过）：沿中心连线采样要求线经过两个**中心**，
-    但线是从菱形**顶点**出发的，偏差 10~34px；法线放宽到 ±28 能盖住偏差，
-    可又会扫到相邻的线（真线 0.55~0.82、假线同样区间，没有断层）；
-    `read_nodes` 的坐标本身还有 ±10px 误差（连通域中心被牌面图标带偏）。
-    白块中点法把误差消掉了 —— 实测命中的 mid-dist 全部 5~10px。
-
-    Args:
-        image (np.ndarray): RGB 图像。
-        nodes (list[RouteNode]): 同一屏 read_nodes 的结果。
-        light (int): 纯白阈值。
-        clear (int): 抹掉节点本体的半径。
-        tol (int): 白块中心到节点对中点的容差。
-
-    Returns:
-        list[tuple]: [(x1, y1, x2, y2), ...]，两个节点的中心坐标。
-    """
-    if not nodes:
-        return []
-    white = (image[:, :, :3].min(axis=2) > light).astype('uint8')
-    for node in nodes:
-        cv2.circle(white, (node.x, node.y), clear, 0, -1)
-
-    count, _, stats, _ = cv2.connectedComponentsWithStats(white, 8)
-    centres = []
-    for index in range(1, count):
-        x, y, width, height, area = [int(v) for v in stats[index]]
-        if area < EDGE_BLOB_AREA:
-            continue
-        centres.append((x + width // 2, y + height // 2))
-
+def read_edges(image, nodes):
+    """Return connected node index pairs for one 2D preview."""
+    white = image[:, :, :3].min(axis=2) > EDGE_LIGHT
     by_tier = {}
-    for node in nodes:
-        by_tier.setdefault(node.tier, []).append(node)
-
-    index_of = {}
-    for position, node in enumerate(nodes):
-        index_of[(node.x, node.y)] = position
-
-    edges = []
-    for tier in sorted(by_tier)[:-1]:
-        for left in by_tier[tier]:
-            for right in by_tier.get(tier + 1, []):
-                if not _along_line(white, left, right):
-                    continue
-                # 用**在 nodes 列表里的下标**记边，不用坐标：拼图时拖动位移有
-                # 误差，同一节点合并后取第一次出现的坐标，而边引用的是第二次的
-                # 坐标，误差累积到几十像素就匹配不上了（实测 73 条边只拼出 3 层）。
-                edges.append((index_of[(left.x, left.y)],
-                              index_of[(right.x, right.y)]))
-    return edges
+    for index, node in enumerate(nodes):
+        by_tier.setdefault(node.tier, []).append((index, node))
+    return [(i, j) for i, left in enumerate(nodes)
+            for j, right in by_tier.get(left.tier + 1, ())
+            if _along_line(white, left, right)]
 
 
-def _along_line(mask, left, right, samples=60, normal=EDGE_NORMAL):
-    """两个节点之间是不是**整段**都有白线。
-
-    ❗不能用"连线的中点落在某个白块附近"来判断：跨行的两个节点（Δy=434）它的
-    中点会**恰好落在中间那一排的连线上**，于是被判成连通 —— 实测造出
-    `下排(341,584) → 上排(505,150)` 这种不可能的边（2026-11-15 用户截图）。
-
-    改成沿连线采样，但判据是**连续命中**而不是命中率：真线整段都在掩膜上，
-    连续命中很长；假边只有中点那一两下擦到别的线，连续命中 ≤2。
-    法线给到 ±12 是因为真线从菱形**顶点**出发，和"中心到中心"的直线差约 8px。
-
-    Args:
-        mask (np.ndarray): 抹掉节点本体后的纯白掩膜。
-        left (RouteNode): 左层节点。
-        right (RouteNode): 右层节点。
-        samples (int): 采样点数。
-        normal (int): 法线方向的搜索半径。
-
-    Returns:
-        bool: 是否连通。
-    """
-    # 连线只出现在"相邻行"或"跨一行"上（实测行距 108，真实连线 |Δy| ≤ 110，
-    # 跨两行的 216 一条都没有）。命中率判据会放过一些跨两行的假边
-    # （25 条里混进 `(669,368) → (833,152)`），所以这里再压一道硬约束。
-    if abs(right.y - left.y) > LINK_DY:
+def _along_line(mask, left, right):
+    dx = right.x - left.x
+    if not TIER_DISTANCE[0] <= dx <= TIER_DISTANCE[1]:
         return False
-
-    x1, y1, x2, y2 = left.x, left.y, right.x, right.y
-    dx, dy = float(x2 - x1), float(y2 - y1)
-    length = max(1.0, (dx * dx + dy * dy) ** 0.5)
-    nx, ny = -dy / length, dx / length
-
-    hits = 0
-    total = 0
-    for step in range(1, samples):
-        ratio = step / float(samples)
-        if not 0.32 <= ratio <= 0.68:
-            continue        # 两端被 `EDGE_CLEAR` 抹掉了，这段必然没有线
-        cx = x1 + dx * ratio
-        cy = y1 + dy * ratio
-        total += 1
-        for offset in range(-normal, normal + 1):
-            px = int(round(cx + nx * offset))
-            py = int(round(cy + ny * offset))
-            if 0 <= py < mask.shape[0] and 0 <= px < mask.shape[1] and mask[py, px]:
-                hits += 1
-                break
-    if not total:
-        return False
-    return hits >= total * EDGE_SHARE
+    xs = np.rint(left.x + EDGE_TIP_X + (dx - 2 * EDGE_TIP_X) * EDGE_SAMPLES).astype(int)
+    ys = np.rint(left.y + EDGE_TIP_Y + (right.y - left.y) * EDGE_SAMPLES).astype(int)
+    rows = np.clip(ys[:, None] + EDGE_Y_OFFSETS, 0, mask.shape[0] - 1)
+    return np.count_nonzero(mask[rows, xs[:, None]].any(axis=1)) >= 9
 
 
 def _nearest(nodes, x, y, tol=40):
@@ -1147,7 +989,7 @@ def plan(nodes, style=ROUTE_BALANCE, state=None, edges=None):
 
     和旧版的区别：旧版把每层的类型全列出来按分数排（完全不看连线，可能推荐
     走不到的格子）；现在先跑 `best_path()` 求一条**沿白线连通**的最优路径，
-    每层只保留路径上的那个节点，执行端照它走就不会撞墙。
+    每层保留目标及可走分支顺序，让执行端在点击前和实时立卡核对。
 
     Args:
         nodes (list[RouteNode]): read_nodes 的结果。
@@ -1156,7 +998,7 @@ def plan(nodes, style=ROUTE_BALANCE, state=None, edges=None):
 
     Returns:
         list[list[dict]]: 每一层一个列表（现在只有 1 项），元素是
-            {'kind', 'count', 'shop', 'score'}。
+            {'kind', 'count', 'shop', 'score', 'choices', 'choice_index'}。
     """
     state = state or {}
     # ❗连线读不到（或少得离谱）时**不规划**，返回空表让执行端退回"按单卡分数挑"。
@@ -1167,9 +1009,20 @@ def plan(nodes, style=ROUTE_BALANCE, state=None, edges=None):
     if not edges or len(edges) < max(2, len(nodes) // 4):
         return []
     result = []
+    targets = {}
+    for i, j in edges:
+        if 0 <= i < len(nodes) and 0 <= j < len(nodes):
+            targets.setdefault(nodes[i], set()).add(nodes[j])
+    previous = None
     for node in best_path(nodes, style, state, edges):
+        reachable = nodes if previous is None else targets[previous]
+        choices = sorted((other for other in reachable if other.tier == node.tier),
+                         key=lambda other: other.y)
         result.append([{'kind': node.kind, 'count': 1, 'shop': node.shop,
-                        'score': score(node.kind, style, state, node.shop)}])
+                        'score': score(node.kind, style, state, node.shop),
+                        'choices': [other.kind for other in choices],
+                        'choice_index': choices.index(node)}])
+        previous = node
     return result
 
 

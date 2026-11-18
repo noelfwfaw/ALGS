@@ -203,6 +203,33 @@ class MeditationTest(unittest.TestCase):
         self.assertIsNone(task.rogue_meditate_card())
         task.device.swipe.assert_not_called()
 
+    def test_meditation_restricts_to_rogue_member_slot_character(self):
+        task = make_task()
+        task.rogue_spark_filter.return_value = {'劍之雨': ['2'], '水之根源': ['2']}
+        node = {
+            'RogueMember': 1,
+            'RogueSlot1Member': '30093',
+            'RogueSlot2Member': '1039',
+            'RogueSlot3Member': '',
+        }
+        task.config = SimpleNamespace(
+            ChaoszeroRogue_RogueMeditate=True,
+            data={'ChaoszeroRogue': {'ChaoszeroRogue': node}},
+        )
+        task.card_library.identify.return_value = ('水之根源', 0.95, 0.3)
+        task.rogue_flash_column()
+        self.assertEqual(task.meditate_pending, [])
+        self.assertFalse(task.rogue_meditate_needed())
+
+        task.card_library.identify.return_value = ('劍之雨', 0.95, 0.3)
+        task.rogue_flash_column()
+        self.assertEqual(task.meditate_pending, ['劍之雨'])
+        self.assertTrue(task.rogue_meditate_needed())
+
+        node['RogueMember'] = 2
+        self.assertFalse(task.rogue_meditate_needed())
+        self.assertIsNone(task.rogue_meditate_card())
+
 
 if __name__ == '__main__':
     unittest.main()

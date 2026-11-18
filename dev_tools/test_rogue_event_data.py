@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from dev_tools import gen_chaoszero_rogue_db as generator
 from dev_tools import gen_chaoszero_rogue_db_inline as inline
-from dev_tools.gen_chaoszero_rogue_db import parse_option, parse_encounter
+from dev_tools.gen_chaoszero_rogue_db import OUTCOME_KEYS, parse_option, parse_encounter
 from dev_tools.gen_chaoszero_rogue_db_inline import classify_selector
 
 
@@ -80,6 +80,37 @@ class EventDataTest(unittest.TestCase):
         node = {'id': self.raw['id'], 'options': []}
         classify_selector(node, {self.raw['id']: self.raw})
         self.assertEqual(node, {'id': self.raw['id'], 'options': []})
+
+    def test_unknown_fields_and_both_outcomes_are_kept_beside_display_fields(self):
+        source = self.raw['options'][0]
+        source['keep_option'] = 'original_option_id'
+        source['select_link_nb_conditions'] = [{'future_tag': '<color_chaos>例</>'}]
+        success, fail = OUTCOME_KEYS
+        reward = {'reward_type': 'CREDIT_VALUE', 'amount_min': 8, 'amount_max': 8,
+                  'desc_option': '<cc>8</>', 'future_tag': 'preserve'}
+        source[success] = {'next_encounter': {'id': 'on-success', 'options': []},
+                           'activate_link_encounter_trigger_id': ['success_trigger'],
+                           'reward10_reward': dict(reward, amount_min=10, amount_max=10),
+                           'reward8_reward': reward}
+        source[fail] = {'next_encounter': {'id': 'on-fail', 'options': []},
+                        'activate_link_encounter_trigger_id': ['fail_trigger'],
+                        'future_tag': None}
+        self.raw['unknown_event_tag'] = ['RANDOM_1']
+        record = parse_encounter(self.raw)
+        option = record['options'][0]
+        self.assertEqual([reward['amount'] for reward in option['success']], [[8, 8], [10, 10]])
+        expected = dict(source,
+                        **{success: dict(source[success], next_encounter='on-success'),
+                           fail: dict(source[fail], next_encounter='on-fail')})
+        self.assertEqual(option['raw'], expected)
+        self.assertEqual(source[success]['next_encounter']['id'], 'on-success')
+        self.assertEqual(record['raw']['unknown_event_tag'], ['RANDOM_1'])
+        node = {'id': self.raw['id'],
+                'options': [{'order': o['order'], 'success': '原文案'} for o in self.raw['options']]}
+        classify_selector(node, {self.raw['id']: self.raw})
+        self.assertEqual(node['raw'], record['raw'])
+        self.assertEqual(node['options'][0]['raw'], expected)
+        self.assertEqual(node['options'][0]['success'], '原文案')
 
     def test_old_flattened_cache_fetches_missing_source_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -219,8 +219,8 @@
       "help": "Bring the client from a cold start, the title screen or the idle artwork to the main page, claiming nothing. Every other task of this game starts from there"
     },
     "ChaoszeroRogue": {
-      "name": "Task.ChaoszeroRogue.name",
-      "help": "Task.ChaoszeroRogue.help"
+      "name": "Chaos Zero Roguelike",
+      "help": "Explore, build a deck and settle the run. Check the world, event rules and saves to keep before starting."
     },
     "CrosscoreMain": {
       "name": "Cross Core: Launch game",
@@ -932,87 +932,127 @@
   },
   "ChaoszeroRogue": {
     "_info": {
-      "name": "ChaoszeroRogue._info.name",
-      "help": "ChaoszeroRogue._info.help"
+      "name": "Chaos Zero Roguelike",
+      "help": ""
     },
     "RogueWorld": {
-      "name": "ChaoszeroRogue.RogueWorld.name",
-      "help": "ChaoszeroRogue.RogueWorld.help",
-      "霧之城市": "ChaoszeroRogue.RogueWorld.霧之城市",
-      "雙星之影": "ChaoszeroRogue.RogueWorld.雙星之影",
-      "審判之沼": "ChaoszeroRogue.RogueWorld.審判之沼",
-      "藍壺": "ChaoszeroRogue.RogueWorld.藍壺",
-      "降臨的混沌": "ChaoszeroRogue.RogueWorld.降臨的混沌"
+      "name": "World",
+      "help": "The script finds the entrance by its in-game name.",
+      "霧之城市": "霧之城市",
+      "雙星之影": "雙星之影",
+      "審判之沼": "審判之沼",
+      "藍壺": "藍壺",
+      "降臨的混沌": "降臨的混沌"
     },
     "RogueDreamMode": {
-      "name": "ChaoszeroRogue.RogueDreamMode.name",
-      "help": "ChaoszeroRogue.RogueDreamMode.help",
-      "開啟": "ChaoszeroRogue.RogueDreamMode.開啟",
-      "關閉": "ChaoszeroRogue.RogueDreamMode.關閉",
-      "保持不變": "ChaoszeroRogue.RogueDreamMode.保持不變"
+      "name": "Dream mode",
+      "help": "Set on the team screen before entering. The save limit is 110 points with Dream mode on and 100 with it off.",
+      "開啟": "On",
+      "關閉": "Off",
+      "保持不變": "Keep current state"
     },
     "RoguePick": {
-      "name": "ChaoszeroRogue.RoguePick.name",
-      "help": "ChaoszeroRogue.RoguePick.help"
+      "name": "Default card position",
+      "help": "Used for position-based card choices and when a flash form cannot be matched. Fates and events have separate rules."
+    },
+    "RogueFateMainFilter": {
+      "name": "First map fates",
+      "help": "Separate fate names with >, leftmost is highest priority (e.g. 回想 > 靈感 > 虐待 > 友情 > 感應). Picks randomly if none match, or enter - for always random."
+    },
+    "RogueFateCoreFilter": {
+      "name": "Core map fates",
+      "help": "Separate fate names with >, leftmost is highest priority (e.g. 開朗 > 共情 > 擁有 > 嫉妒). Picks randomly if none match, or enter - for always random."
+    },
+    "RogueFateCapture": {
+      "name": "Capture fate screenshots (debug)",
+      "help": "Save the full fate screen, recognized titles and three effect crops for cataloging. Leave off for regular runs."
     },
     "RogueHerald": {
-      "name": "ChaoszeroRogue.RogueHerald.name",
-      "help": "ChaoszeroRogue.RogueHerald.help"
+      "name": "Herald blessing position",
+      "help": "Blessings are random each run. Select a card by position."
     },
     "RogueRoute": {
-      "name": "ChaoszeroRogue.RogueRoute.name",
-      "help": "ChaoszeroRogue.RogueRoute.help",
-      "均衡": "ChaoszeroRogue.RogueRoute.均衡",
-      "优先进攻": "ChaoszeroRogue.RogueRoute.优先进攻",
-      "优先事件": "ChaoszeroRogue.RogueRoute.优先事件"
+      "name": "Route preference",
+      "help": "Prioritize this type among reachable nodes.",
+      "均衡": "Balanced",
+      "优先进攻": "Prefer battles",
+      "优先事件": "Prefer events"
     },
     "RogueAvoidElite": {
-      "name": "ChaoszeroRogue.RogueAvoidElite.name",
-      "help": "ChaoszeroRogue.RogueAvoidElite.help"
+      "name": "Avoid elites",
+      "help": "Lower the route priority of elite encounters."
     },
     "RogueMeditate": {
-      "name": "ChaoszeroRogue.RogueMeditate.name",
-      "help": "ChaoszeroRogue.RogueMeditate.help"
+      "name": "Meditation rerolls",
+      "help": "Applies only to cards of the character selected by the preferred flash slot (RogueMember). Missed forms join a queue and reroll once per available rest point."
     },
     "RogueCure": {
-      "name": "ChaoszeroRogue.RogueCure.name",
-      "help": "ChaoszeroRogue.RogueCure.help"
+      "name": "Treat mental breakdowns",
+      "help": "Follow treatment when the game reports a mental breakdown."
     },
     "RogueMember": {
-      "name": "ChaoszeroRogue.RogueMember.name",
-      "help": "ChaoszeroRogue.RogueMember.help"
+      "name": "Preferred slot for character flash",
+      "help": "Try this party slot first. If it is unavailable, try another eligible character."
+    },
+    "RogueSlot1Member": {
+      "name": "Slot 1 character",
+      "help": "UI helper only: lists this character's sparkable cards below. Does not affect runtime detection."
+    },
+    "RogueSlot2Member": {
+      "name": "Slot 2 character",
+      "help": "UI helper only: lists this character's sparkable cards below. Does not affect runtime detection."
+    },
+    "RogueSlot3Member": {
+      "name": "Slot 3 character",
+      "help": "UI helper only: lists this character's sparkable cards below. Does not affect runtime detection."
+    },
+    "RogueRemoveMember": {
+      "name": "Preferred slot for card removal",
+      "help": "Remove selected cards of this party slot first; once none remain, fall through to the other slots."
     },
     "RogueDelete": {
-      "name": "ChaoszeroRogue.RogueDelete.name",
-      "help": "ChaoszeroRogue.RogueDelete.help"
+      "name": "Card removal limit per run",
+      "help": "0 skips removal. Removes only recognized 劍幕 and 劍光, with 劍幕 first."
+    },
+    "RogueDeleteFilter": {
+      "name": "Cards to remove",
+      "help": "Configured removal targets and copy counts per run."
     },
     "RogueSparkFilter": {
-      "name": "ChaoszeroRogue.RogueSparkFilter.name",
-      "help": "ChaoszeroRogue.RogueSparkFilter.help"
+      "name": "Preferred flash forms",
+      "help": "One card per line. Use 劍之雨 = 2 to select form 2 in the card details, or supply Traditional Chinese effect keywords."
+    },
+    "RogueCopyMember": {
+      "name": "Copy source slot",
+      "help": "Choose which party slot to try first when copying. If that slot is unavailable, other combatants are tried."
+    },
+    "RogueCopyCard": {
+      "name": "Card to copy",
+      "help": "Enter the card name shown in the game. If the target cannot be confirmed after retries, the first card in the list is copied."
     },
     "RogueEquipFilter": {
-      "name": "Equipment recipients",
-      "help": "One rule per line: equipment = character. Use Wiki names or IDs. Reserved equipment goes only to its character and may replace the same slot; other equipment fills empty slots. Unique equipment cannot coexist across slots. Buy only configured equipment and use free refreshes to keep looking, never paid refreshes; salvage unassignable event equipment. Stars are ignored. Empty: no shop equipment purchases or refreshes."
+      "name": "Equipment assignment and priority",
+      "help": "Format each line as \"recipient slot: item1 > item2\" separated by > (leftmost is highest priority), distinguishing slot type (武器/weapon, 护甲/armor, 饰品/accessory), e.g.:\n1号位 weapon: 混沌指控 > 混沌觸手 > 迷霧水晶球\n1号位 armor: 加強型戰鬥強化服\n1号位 accessory: 亡魂之花 > 非典型方塊\nVeronica accessory: Time Regulator\nLegacy \"item = recipient\" lines still work. Higher-priority gear replaces lower-priority gear in the same slot; unassigned gear fills empty slots first then upgrades by rarity."
     },
     "RogueEventPick": {
-      "name": "ChaoszeroRogue.RogueEventPick.name",
-      "help": "ChaoszeroRogue.RogueEventPick.help"
+      "name": "Choose events from rules",
+      "help": "Use configured event choices when enabled. The task saves a screenshot and stops if this is off or an event, rule or target option cannot be matched."
     },
     "RogueSaveKeep": {
-      "name": "ChaoszeroRogue.RogueSaveKeep.name",
-      "help": "ChaoszeroRogue.RogueSaveKeep.help"
+      "name": "Save to keep at settlement",
+      "help": "Choosing a party slot keeps that character's save and dismantles the other two. The dismantle-all option removes all three saves from this run."
     },
     "RogueLoop": {
-      "name": "ChaoszeroRogue.RogueLoop.name",
-      "help": "ChaoszeroRogue.RogueLoop.help"
+      "name": "Schedule the next batch sooner",
+      "help": "After the current batch, schedule the next one in about 1 minute when on, or 30 minutes when off."
     },
     "RogueRuns": {
-      "name": "ChaoszeroRogue.RogueRuns.name",
-      "help": "ChaoszeroRogue.RogueRuns.help"
+      "name": "Runs per scheduled batch",
+      "help": "1 returns to the scheduler after one run. 0 continues until the task stops."
     },
     "RogueStopBeacon": {
-      "name": "ChaoszeroRogue.RogueStopBeacon.name",
-      "help": "ChaoszeroRogue.RogueStopBeacon.help"
+      "name": "Retreat at waypoint",
+      "help": "0 plays to normal settlement. N retreats at waypoint N for a shorter run."
     }
   },
   "ChaoszeroArk": {
@@ -1639,6 +1679,37 @@
       "Clear": "Clear",
       "EnterPassword": "Enter password",
       "ChooseFile": "Choose file"
+    },
+    "Rogue": {
+      "Route": "Start and route",
+      "Build": "Cards and equipment",
+      "Fate": "Fate priority",
+      "Events": "Event choices",
+      "Settlement": "Settlement and schedule",
+      "OpenSelector": "Open event selector ↗",
+      "SelectorHelp": "Event rules are shared across Chaos Zero Roguelike profiles. Export from the selector and place the file at config/rogue/rogue_event_picks.json in the script folder.",
+      "Left": "Left",
+      "Middle": "Middle",
+      "Right": "Right",
+      "Slot1": "Slot 1",
+      "Slot2": "Slot 2",
+      "Slot3": "Slot 3",
+      "FollowSparkMember": "Follow preferred flash slot",
+      "DecomposeAll": "Dismantle all three saves",
+      "Unselected": "Not selected",
+      "SparkPickerTitle": "Spark forms by party character",
+      "SparkPickerEmpty": "Select characters in slots 1-3 above to list their sparkable cards here. Selections sync automatically to Spark filter rules below.",
+      "SparkFormAuto": "Auto (highest value)",
+      "SparkFormCustom": "Custom keywords",
+      "RemovePickerTitle": "Cards to remove each run",
+      "RemovePickerEmpty": "Select characters in slots 1-3 above to choose which cards and copies to remove each run.",
+      "RemoveKeep": "Keep",
+      "RemoveOne": "Remove (1 copy)",
+      "RemoveCount": "Remove {count} copies",
+      "PriorityTag": "Priority",
+      "CardKindBasic": "Basic · {count} copy(s)",
+      "CardKindSpark": "Sparkable · {count} copy(s)",
+      "CardKindUnique": "Character · {count} copy(s)"
     }
   }
 }

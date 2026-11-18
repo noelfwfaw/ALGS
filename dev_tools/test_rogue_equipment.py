@@ -14,7 +14,8 @@ set_server('chaoszero')
 
 from dev_tools.gen_chaoszero_rogue_relics import records
 from module.chaoszero.rogue import ChaoszeroRogue, REST_WAIT
-from module.chaoszero.rogue_equipment import Equipment, RelicLibrary
+from module.chaoszero.rogue_equipment import DETAIL_TITLE, Equipment, RelicLibrary
+from module.chaoszero.assets import ROGUE_EQUIP_ASSAULT_BOOTS
 from module.exception import TaskFailed
 
 
@@ -67,15 +68,45 @@ class RelicLibraryTest(unittest.TestCase):
         self.assertFalse(self.library.lookup('寶石的心臟')['unique'])
 
     def test_generator_excludes_other_relics_and_preserves_unique_not_stars(self):
-        source = [{'id': 'a', 'name': 'a', 'relic_type': 'EQUIP_WEAPON', 'rarity': 'RARITY_UNIQUE'},
+        source = [{'id': 'a', 'name': 'a', 'relic_type': 'EQUIP_WEAPON', 'rarity': 'RARITY_UNIQUE',
+                   'reward_tag': ['delang']},
                   {'id': 'b', 'name': 'b', 'relic_type': 'RELIC', 'rarity': 'RARITY_RARE'}]
         result = records(source, [{'id': 'c', 'name': '角色', 'char_type': 'CHAR_COMBATANT'}])
-        self.assertEqual(result['items'], [{'id': 'a', 'name': 'a', 'names': {}, 'slot': 0, 'unique': True}])
+        self.assertEqual(result['items'], [
+            {'id': 'a', 'name': 'a', 'names': {}, 'slot': 0, 'unique': True, 'rarity': 3, 'icon': '', 'shop': True}])
 
     def test_rules_accept_wiki_names_english_and_ids(self):
         self.assertEqual(self.library.rules('調節時間器 = 維若妮卡'), {'eq_pub_035': '1033'})
         self.assertEqual(self.library.rules('# comment\nTime Regulator = Veronica'), {'eq_pub_035': '1033'})
         self.assertEqual(self.library.rules('eq_pub_035 = 1033'), {'eq_pub_035': '1033'})
+        self.assertEqual(list(self.library.rules('混沌指控 = 1号位\n混沌觸手 = 1號位').items()),
+                         [('eq_pub_038', 0), ('eq_pub_039', 0)])
+
+    def test_arrow_priority_syntax_and_slot_type_enforcement(self):
+        text = (
+            '1号位 武器: 混沌指控 > 混沌觸手 > 迷霧水晶球\n'
+            '1号位 护甲: 加強型戰鬥強化服\n'
+            '維若妮卡 饰品: 調節時間器 > 亡魂之花\n'
+        )
+        rules = self.library.rules(text)
+        self.assertEqual(list(rules.items()), [
+            (self.library.lookup('混沌指控')['id'], 0),
+            (self.library.lookup('混沌觸手')['id'], 0),
+            (self.library.lookup('迷霧水晶球')['id'], 0),
+            (self.library.lookup('加強型戰鬥強化服')['id'], 0),
+            (self.library.lookup('調節時間器')['id'], '1033'),
+            (self.library.lookup('亡魂之花')['id'], '1033'),
+        ])
+        self.assertEqual(
+            list(self.library.rules('混沌指控 > 混沌觸手 = 1号位').items()),
+            [('eq_pub_038', 0), ('eq_pub_039', 0)],
+        )
+        self.assertEqual(
+            list(self.library.rules('[2号位]\n武器: 混沌指控 > 混沌觸手').items()),
+            [('eq_pub_038', 1), ('eq_pub_039', 1)],
+        )
+        with self.assertRaises(ValueError):
+            self.library.rules('1号位 武器: 調節時間器')
 
     def test_invalid_or_conflicting_rules_do_not_silently_change_recipients(self):
         for rule in ['調節時間器', '錯誤裝備 = 米卡', '調節時間器 = 錯誤角色',
@@ -116,6 +147,89 @@ class RelicLibraryTest(unittest.TestCase):
 
 
 class EquipmentTest(unittest.TestCase):
+    def test_boots_ocr_correction_requires_matching_detail_art(self):
+        task, equipment = make_task('event')
+        equipment.reader.read_name = Mock(return_value='突擊軌')
+        image = task.device.image
+        self.assertIsNone(equipment.read_item(image, DETAIL_TITLE)[1])
+        x1, y1, x2, y2 = ROGUE_EQUIP_ASSAULT_BOOTS.area
+        reference = np.asarray(Image.open(ROGUE_EQUIP_ASSAULT_BOOTS.file).convert('RGB'))
+        image[y1:y2, x1:x2] = reference[y1:y2, x1:x2]
+        self.assertEqual(equipment.read_item(image, DETAIL_TITLE)[1]['id'], 'eq_pub_018')
+        self.assertIsNone(equipment.read_item(image, (525, 151, 890, 188))[1])
+
+    def test_empty_slots_precede_confirmed_upgrades_and_designated_gear_is_protected(self):
+        task, equipment = make_task('shop', '調節時間器 = 維若妮卡')
+        image = task.device.image
+        incoming = equipment.library.lookup('亡魂之花')
+        # The top accessory slot is empty, and the middle slot holds the specified clock.
+        worn = equipment.library.equipped_items(image, 1, 2)
+        self.assertIn('eq_pub_035', {item['id'] for item in worn})
+        self.assertNotIn(1, equipment.recipients(incoming, image))
+        # Without a reservation the same screenshot admits the higher-rarity replacement.
+        equipment.rules.clear()
+        self.assertEqual(equipment.recipients(incoming, image)[:2], [0, 1])
+        self.assertNotIn(1, equipment.recipients(equipment.library.lookup('調節時間器'), image))
+
+    def test_position_specific_priority_and_unique_slot_conflict(self):
+        rules = ('混沌指控 = 2号位\n混沌觸手 = 2号位\n迷霧水晶球 = 2号位\n'
+                 '亡魂之花 = 1号位\n非典型方塊 = 1号位')
+        task, equipment = make_task('bloodsea', rules)
+        image = task.device.image
+        self.assertIn('eq_pub_039', {item['id'] for item in equipment.library.equipped_items(image, 1, 0)})
+        self.assertEqual(equipment.recipients(equipment.library.lookup('混沌指控'), image), [1])
+        self.assertEqual(equipment.recipients(equipment.library.lookup('迷霧水晶球'), image), [])
+        self.assertNotIn(1, equipment.recipients(equipment.library.lookup('禍之聖袍'), image))
+
+        image = frame('event_full')
+        self.assertIn('eq_pub_031', {item['id'] for item in equipment.library.equipped_items(image, 0, 2)})
+        self.assertEqual(equipment.recipients(equipment.library.lookup('亡魂之花'), image), [0])
+        self.assertEqual(equipment.recipients(equipment.library.lookup('非典型方塊'), image), [])
+
+    def test_unknown_occupied_slot_is_not_overwritten(self):
+        task, equipment = make_task('event_full', '亡魂之花 = 1号位')
+        image = task.device.image
+        image[210:252, 1129:1177] = 0
+        self.assertEqual(equipment.recipients(equipment.library.lookup('亡魂之花'), image), [])
+
+    def test_shop_visits_only_for_available_unsatisfied_targets(self):
+        rules = ('混沌指控 = 1号位\n混沌觸手 = 1号位\n迷霧水晶球 = 1号位\n黑曜石劍 = 1号位\n'
+                 '亡魂之花 = 1号位\n非典型方塊 = 1号位')
+        task, equipment = make_task('store', rules)
+        self.assertEqual(equipment.shop_target_slots(), {0, 2})
+        self.assertEqual({item['name'] for item in equipment.targets.values() if item['shop']},
+                         {'黑曜石劍', '非典型方塊'})
+        for name in ('混沌指控', '亡魂之花'):
+            equipment.page = {'equipped_target': equipment.library.lookup(name)}
+            equipment.record_equipped_target()
+        self.assertFalse(equipment.shop_target_slots())
+        self.assertFalse(equipment.handle_shop(Mock()))
+        task.tap_point.assert_not_called()
+
+    def test_shop_rejects_recognized_target_without_shop_tag(self):
+        task, equipment = make_task('shop', '亡魂之花 = 1号位')
+        change_name(equipment, '亡魂之花', shop=True)
+        equipment.handle(Mock())
+        task.tap_point.assert_called_once_with(465, 670, name='ROGUE_EQUIP_CANCEL')
+
+    def test_reward_list_skips_superseded_target(self):
+        task, equipment = make_task('list', '亡魂之花 = 1号位\n破壞之月 = 1号位')
+        equipment.page = {'equipped_target': equipment.library.lookup('亡魂之花')}
+        equipment.handle(Mock())
+        task.tap_point.assert_called_once_with(420, 233, name='ROGUE_EQUIP_ITEM')
+
+    def test_reward_list_salvages_only_when_every_choice_is_confirmed_obsolete(self):
+        task, equipment = make_task('list', '亡魂之花 = 1号位\n破壞之月 = 1号位')
+        equipment.record_equipped_target(equipment.library.lookup('亡魂之花'))
+        lower = equipment.library.lookup('破壞之月')
+        equipment.list_items = Mock(return_value=[(168, None), (408, lower)])
+        equipment.handle(Mock())
+        task.tap_point.assert_not_called()
+        equipment.list_items.return_value = [(408, lower)]
+        equipment.handle(Mock())
+        equipment.handle(Mock())
+        task.tap_point.assert_called_once_with(799, 670, name='ROGUE_EQUIP_SALVAGE')
+
     def test_english_numeric_equipment_name_survives_ocr(self):
         task, equipment = make_task('rfs17')
         area = (278, 278, 645, 316)
@@ -328,10 +442,12 @@ class EquipmentTest(unittest.TestCase):
         self.assertNotIn('ROGUE_EQUIP_BUY', [c[1]['name'] for c in task.tap_point.call_args_list])
 
     def test_unique_same_slot_replacement_is_allowed_for_designated_character(self):
-        task, equipment = make_task()
-        unique = next(i for i in equipment.library.items if i['unique'] and i['slot'] == 0)
-        equipment.rules = {unique['id']: '1033'}
-        equipment.empty_slots = Mock(return_value=[[False] * 3 for _ in range(3)])
+        task, equipment = make_task(rules='混沌指控 = 維若妮卡')
+        unique = equipment.library.lookup('混沌指控')
+        occupied = equipment.empty_slots(task.device.image)
+        occupied[1][0] = False
+        equipment.empty_slots = Mock(return_value=occupied)
+        equipment.library.equipped_items = Mock(return_value=[equipment.library.lookup('混沌觸手')])
         change_name(equipment, unique['name'])
         equipment.handle(Mock())
         task.tap_point.assert_called_once_with(971, 391, name='ROGUE_EQUIP_SLOT')
@@ -348,9 +464,8 @@ class EquipmentTest(unittest.TestCase):
         task.tap_point.assert_called_once_with(1062, 391, name='ROGUE_EQUIP_SLOT')
 
     def test_unique_cross_slot_conflict_does_not_submit_or_give_reserved_item_away(self):
-        task, equipment = make_task()
-        unique = next(i for i in equipment.library.items if i['unique'] and i['slot'] == 0)
-        equipment.rules = {unique['id']: '1033'}
+        task, equipment = make_task(rules='混沌指控 = 維若妮卡')
+        unique = equipment.library.lookup('混沌指控')
         change_name(equipment, unique['name'])
         task.device.image[630:, 1015:] = 90  # Disabled confirmation; keep the salvage control visible.
         for _ in range(3):
@@ -462,7 +577,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_EQUIP_SLOT')
         self.assertIsNone(equipment.list_wait)
 
-    def test_returning_to_list_allows_a_second_copy_of_same_equipment(self):
+    def test_returning_to_list_does_not_reacquire_equipped_target(self):
         task, equipment = make_task('event', '調節時間器 = 維若妮卡')
         equipment.handle(Mock())
         equipment.handle(Mock())
@@ -471,9 +586,7 @@ class EquipmentTest(unittest.TestCase):
         equipment.handle(Mock())
         task.device.image = frame('event')
         equipment.handle(Mock())
-        self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_EQUIP_SLOT')
-        equipment.handle(Mock())
-        self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_EQUIP_OK')
+        self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_EQUIP_SALVAGE')
 
     def test_no_rules_means_no_shop_inspection_or_purchase(self):
         task, equipment = make_task('store')
@@ -481,7 +594,7 @@ class EquipmentTest(unittest.TestCase):
         task.tap_point.assert_not_called()
 
     def test_store_previews_are_free_bounded_and_reset_at_the_next_node(self):
-        task, equipment = make_task('store', '調節時間器 = 米卡')
+        task, equipment = make_task('store', '突擊靴 = 米卡')
         self.assertTrue(equipment.handle_shop(Mock()))
         task.tap_point.assert_called_with(140, 390, name='ROGUE_SHOP_EQUIPMENT')
         self.assertTrue(equipment.handle_shop(Mock()))
@@ -510,7 +623,9 @@ class EquipmentTest(unittest.TestCase):
         equipment.handle(Mock())
         self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_SHOP_REFRESH_CONFIRM')
         self.assertTrue(equipment.shop_refresh_confirmed)
-        equipment.handle(Mock())
+        with patch('module.base.timer.time', return_value=equipment.shop_refresh[1]._start + 12):
+            equipment.handle(Mock())
+            equipment.handle(Mock())
         self.assertEqual(task.tap_point.call_count, 1)
         equipment.shop_refresh = (2, Mock())
         with self.assertRaises(TaskFailed):
@@ -518,7 +633,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_count, 1)
 
     def test_last_free_refresh_is_confirmed_by_paid_state_without_clicking_paid_refresh(self):
-        task, equipment = make_task('store_free_one', '黑曜石劍 = 海德瑪麗')
+        task, equipment = make_task('store_free_one', '突擊靴 = 海德瑪麗')
         equipment.shop_context = (task.core_started, task.route_step)
         equipment.shop_seen = {0, 1, 3}
         self.assertTrue(equipment.handle_shop(Mock()))
@@ -532,7 +647,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_count, 3)
 
     def test_restart_refresh_dialog_is_cancelled_before_rechecking_free_status(self):
-        task, equipment = make_task('refresh_confirm', '黑曜石劍 = 海德瑪麗')
+        task, equipment = make_task('refresh_confirm', '突擊靴 = 海德瑪麗')
         equipment.handle(Mock())
         task.tap_point.assert_called_once_with(435, 454, name='ROGUE_SHOP_REFRESH_RECHECK')
         equipment.handle(Mock())
@@ -567,17 +682,20 @@ class EquipmentTest(unittest.TestCase):
         wait._start -= REST_WAIT + 1
         self.assertTrue(task.rogue_rest_settled())
 
-    def test_store_opens_all_equipment_types_in_later_slots_and_skips_cards(self):
-        task, equipment = make_task('store_mixed', '調節時間器 = 米卡')
-        for _ in range(4):
+    def test_store_only_previews_remaining_target_types(self):
+        rules = '亡魂之花 = 1号位\n非典型方塊 = 1号位\n黑曜石劍 = 1号位'
+        task, equipment = make_task('store_mixed', rules)
+        for _ in range(3):
             self.assertTrue(equipment.handle_shop(Mock()))
         self.assertEqual([call[0] for call in task.tap_point.call_args_list],
-                         [(140, 390), (390, 390), (890, 390), (1140, 390)])
+                         [(390, 390), (890, 390), (1140, 390)])
+        equipment.record_equipped_target(equipment.library.lookup('亡魂之花'))
+        self.assertEqual(equipment.shop_equipment_slots(equipment.shop_target_slots()), [1, 4])
         task.device.image = frame('store')
-        self.assertEqual(equipment.shop_equipment_slots(), [0, 1])
+        self.assertEqual(equipment.shop_equipment_slots(equipment.shop_target_slots()), [])
 
     def test_free_refresh_rechecks_new_stock_and_stops_when_free_label_disappears(self):
-        task, equipment = make_task('store', '調節時間器 = 米卡')
+        task, equipment = make_task('store', '突擊靴 = 米卡')
         equipment.shop_free_refresh_count = Mock(return_value=2)
         equipment.shop_context = (task.core_started, task.route_step)
         equipment.shop_seen = {0, 1}
@@ -671,7 +789,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_count, 1)
 
     def test_refresh_cooldown_and_next_node_reset(self):
-        task, equipment = make_task('store', '調節時間器 = 米卡')
+        task, equipment = make_task('store', '突擊靴 = 米卡')
         equipment.shop_context = (task.core_started, task.route_step)
         equipment.shop_seen = {0, 1}
         press = Mock()
@@ -697,8 +815,9 @@ class EquipmentTest(unittest.TestCase):
             equipment.handle(Mock())
 
     def test_unknown_shop_preview_is_held_then_stops_without_generic_clicks(self):
-        task, equipment = make_task('store', '調節時間器 = 米卡')
+        task, equipment = make_task('store', '突擊靴 = 米卡')
         equipment.handle_shop(Mock())
+        task.tap_point.assert_called_once_with(140, 390, name='ROGUE_SHOP_EQUIPMENT')
         task.device.image[:] = 0
         self.assertTrue(equipment.handle(Mock()))
         equipment.shop_opening = Mock()

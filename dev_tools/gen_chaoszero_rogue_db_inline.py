@@ -28,7 +28,7 @@ import json
 import os
 import sys
 
-from dev_tools.gen_chaoszero_rogue_db import parse_encounter
+from dev_tools.gen_chaoszero_rogue_db import OUTCOME_KEYS, parse_encounter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT = os.path.join(ROOT, 'module', 'chaoszero', 'rogue_events.json.gz')
@@ -48,9 +48,11 @@ def classify_selector(node, records):
             raise ValueError('Selector options differ from source: %s' % node.get('id'))
         node['option_count'] = source.get('option_count')
         node['option_count_max'] = source.get('option_count_max')
-        for option, parsed in zip(options, parse_encounter(source)['options']):
+        record = parse_encounter(source)
+        node['raw'] = record['raw']
+        for option, parsed in zip(options, record['options']):
             for key in ('id', 'select_type', 'option_type', 'appear_conditions',
-                        'select_conditions', 'condition_ids', 'conditions', 'exclusive_with'):
+                        'select_conditions', 'condition_ids', 'conditions', 'exclusive_with', 'raw'):
                 option[key] = parsed[key]
             if parsed['option_type'] == 'ATTACK':
                 option['text'] = '攻击'
@@ -87,13 +89,8 @@ def main():
     seen = set()
     records = {}
 
-    def absorb(inner, depth):
-        """递归吸收内嵌事件：子事件里还可能再嵌一层（如 `09a-1-1`）。
-
-        Args:
-            inner (dict): 内嵌的 encounter 对象。
-            depth (int): 还能往下走几层（防自环，数据里有指回自己的）。
-        """
+    def absorb(inner):
+        """Refresh a populated encounter once, preferring standalone detail payloads."""
         nonlocal added, refreshed, skipped
         if inner.get('options') is None:
             return  # References without a populated option list must not erase full records.
@@ -109,25 +106,21 @@ def main():
                 added += 1
             else:
                 skipped += 1
-        elif 'options' in inner:
-            # Existing pack/name fixes survive; only option metadata is refreshed.
+        else:
+            # Existing pack/name fixes survive.
             parsed = parse_encounter(inner)
             database[inner_id].update({key: parsed[key] for key in
-                                       ('options', 'option_count', 'option_count_max')})
+                                       ('options', 'option_count', 'option_count_max', 'raw')})
             refreshed += 1
-        else:
-            skipped += 1
-        if depth <= 0:
-            return
-        for option in (inner.get('options') or []):
-            for tag in ('success_link_encounter_option_eff',
-                        'fail_link_encounter_option_eff'):
-                deeper = (option.get(tag) or {}).get('next_encounter') or {}
-                if deeper.get('id'):
-                    absorb(deeper, depth - 1)
 
-    for encounter in source.values():
-        absorb(encounter, 4)
+    pending = list(source.values())
+    for encounter in pending:
+        absorb(encounter)
+        for option in encounter.get('options') or []:
+            for key in OUTCOME_KEYS:
+                child = (option.get(key) or {}).get('next_encounter')
+                if isinstance(child, dict) and child.get('options') is not None:
+                    pending.append(child)
 
     selector_dir = os.path.join(ROOT, 'dev_tools', 'rogue_events')
     selector_file = os.path.join(selector_dir, 'events.json')

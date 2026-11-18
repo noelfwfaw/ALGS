@@ -20,12 +20,23 @@ from difflib import SequenceMatcher
 import cv2
 import numpy as np
 
-from module.base.button import Button
 from module.base.utils import extract_letters
+from module.chaoszero.rogue_spark_catalog import (
+    DATA_FILE,
+    RELICS_FILE,
+    character_name,
+    character_spark_cards,
+    deck_catalog,
+    normalize,
+    parse_delete_filter,
+    parse_spark_filter,
+    prioritize_delete_rules,
+    spark_catalog,
+    update_delete_filter,
+    update_spark_filter,
+)
 from module.logger import logger
 from module.ocr.ocr import Ocr
-
-DATA_FILE = os.path.join(os.path.dirname(__file__), 'rogue_cards.json.gz')
 
 # 灵光三选一的三列（x0, x1）与描述块的 y 范围，1280x720
 COLUMNS = ((180, 460), (495, 780), (810, 1105))
@@ -45,15 +56,6 @@ CARD_MARGIN = 0.04
 
 # 挑列的最低相似度：低于这个值就都不要，退回 RoguePick
 COLUMN_MIN_SCORE = 0.35
-
-
-def normalize(text):
-    """去掉数字、百分号、标点和空格，只留汉字。
-
-    数字在卡面上是彩色的，掩膜取不到，所以两边都删掉再比。
-    """
-    text = re.sub(r'[0-9%×+]+', '', text or '')
-    return re.sub(r'[^\u4e00-\u9fff]', '', text)
 
 
 def letters_mask(rgb):
@@ -293,9 +295,8 @@ class CardReader:
 
     def _get_ocr(self, area):
         if self.ocr is None:
-            self.ocr = Ocr(
-                Button(area=area, color=(255, 255, 255), button=area, file=None),
-                lang='cnocr', letter=(255, 255, 255), threshold=128, name='ROGUE_CARD')
+            self.ocr = Ocr(area, lang='cnocr', letter=(255, 255, 255), threshold=128, name='ROGUE_CARD')
+            self.ocr.SHOW_LOG = False
         return self.ocr
 
     def _get_cht(self):

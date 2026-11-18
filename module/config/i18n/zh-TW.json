@@ -219,8 +219,8 @@
       "help": "把客戶端從冷啟動、標題畫面或閒置立繪帶到主畫面，不領取任何獎勵。後面所有任務都從這一頁開始"
     },
     "ChaoszeroRogue": {
-      "name": "Task.ChaoszeroRogue.name",
-      "help": "Task.ChaoszeroRogue.help"
+      "name": "卡厄思肉鴿",
+      "help": "依設定探索、培養牌組並結算存檔。執行前請確認目標世界、事件規則與要保留的存檔。"
     },
     "CrosscoreMain": {
       "name": "交錯啟動遊戲",
@@ -932,87 +932,127 @@
   },
   "ChaoszeroRogue": {
     "_info": {
-      "name": "ChaoszeroRogue._info.name",
-      "help": "ChaoszeroRogue._info.help"
+      "name": "卡厄思肉鴿",
+      "help": ""
     },
     "RogueWorld": {
-      "name": "ChaoszeroRogue.RogueWorld.name",
-      "help": "ChaoszeroRogue.RogueWorld.help",
-      "霧之城市": "ChaoszeroRogue.RogueWorld.霧之城市",
-      "雙星之影": "ChaoszeroRogue.RogueWorld.雙星之影",
-      "審判之沼": "ChaoszeroRogue.RogueWorld.審判之沼",
-      "藍壺": "ChaoszeroRogue.RogueWorld.藍壺",
-      "降臨的混沌": "ChaoszeroRogue.RogueWorld.降臨的混沌"
+      "name": "目標世界",
+      "help": "腳本依世界名稱尋找入口。",
+      "霧之城市": "霧之城市",
+      "雙星之影": "雙星之影",
+      "審判之沼": "審判之沼",
+      "藍壺": "藍壺",
+      "降臨的混沌": "降臨的混沌"
     },
     "RogueDreamMode": {
-      "name": "ChaoszeroRogue.RogueDreamMode.name",
-      "help": "ChaoszeroRogue.RogueDreamMode.help",
-      "開啟": "ChaoszeroRogue.RogueDreamMode.開啟",
-      "關閉": "ChaoszeroRogue.RogueDreamMode.關閉",
-      "保持不變": "ChaoszeroRogue.RogueDreamMode.保持不變"
+      "name": "夢境模式",
+      "help": "進入前在隊伍頁設定。開啟時存檔上限為 110 點，關閉時為 100 點。",
+      "開啟": "開啟",
+      "關閉": "關閉",
+      "保持不變": "維持目前狀態"
     },
     "RoguePick": {
-      "name": "ChaoszeroRogue.RoguePick.name",
-      "help": "ChaoszeroRogue.RoguePick.help"
+      "name": "預設選卡位置",
+      "help": "用於依位置選卡的頁面，以及靈光無法比對形態時的預設位置。命運和事件各有獨立規則。"
+    },
+    "RogueFateMainFilter": {
+      "name": "第一面命運",
+      "help": "以 > 分隔命運名稱，越靠左越優先（例如：回想 > 靈感 > 虐待 > 友情 > 感應）。沒有符合項目時隨機選一張；填 - 可設為全隨機。一般卡厄思各世界共用。"
+    },
+    "RogueFateCoreFilter": {
+      "name": "第二面（核心）命運",
+      "help": "以 > 分隔命運名稱，越靠左越優先（例如：開朗 > 共情 > 擁有 > 嫉妒）。沒有符合項目時隨機選一張；填 - 可設為全隨機。一般卡厄思各世界共用。"
+    },
+    "RogueFateCapture": {
+      "name": "收集命運截圖（除錯）",
+      "help": "開啟後儲存命運整頁、標題辨識結果與三張效果圖，用於補充卡池資料。日常刷檔建議關閉。"
     },
     "RogueHerald": {
-      "name": "ChaoszeroRogue.RogueHerald.name",
-      "help": "ChaoszeroRogue.RogueHerald.help"
+      "name": "傳令兵祝福位置",
+      "help": "祝福內容每局隨機，依所選位置領取。"
     },
     "RogueRoute": {
-      "name": "ChaoszeroRogue.RogueRoute.name",
-      "help": "ChaoszeroRogue.RogueRoute.help",
-      "均衡": "ChaoszeroRogue.RogueRoute.均衡",
-      "优先进攻": "ChaoszeroRogue.RogueRoute.优先进攻",
-      "优先事件": "ChaoszeroRogue.RogueRoute.优先事件"
+      "name": "路線偏好",
+      "help": "從可到達的節點中優先選擇對應類型。",
+      "均衡": "均衡",
+      "优先进攻": "戰鬥優先",
+      "优先事件": "事件優先"
     },
     "RogueAvoidElite": {
-      "name": "ChaoszeroRogue.RogueAvoidElite.name",
-      "help": "ChaoszeroRogue.RogueAvoidElite.help"
+      "name": "避開菁英",
+      "help": "降低菁英節點的路線優先順序。"
     },
     "RogueMeditate": {
-      "name": "ChaoszeroRogue.RogueMeditate.name",
-      "help": "ChaoszeroRogue.RogueMeditate.help"
+      "name": "冥想重擲",
+      "help": "僅針對「人物靈光優先位」所選角色的卡牌：確認未閃到指定形態時會排隊，在可用休息點依序重擲，每個休息點冥想一次。"
     },
     "RogueCure": {
-      "name": "ChaoszeroRogue.RogueCure.name",
-      "help": "ChaoszeroRogue.RogueCure.help"
+      "name": "崩潰後治療",
+      "help": "遊戲提示精神異常時，依治療流程消除記憶。"
     },
     "RogueMember": {
-      "name": "ChaoszeroRogue.RogueMember.name",
-      "help": "ChaoszeroRogue.RogueMember.help"
+      "name": "人物靈光優先位",
+      "help": "優先選該隊伍位置。目標無法選取時，嘗試其他可用角色。"
+    },
+    "RogueSlot1Member": {
+      "name": "一號位角色",
+      "help": "僅用於在介面下方展開該角色的可閃卡牌，不影響腳本執行。"
+    },
+    "RogueSlot2Member": {
+      "name": "二號位角色",
+      "help": "僅用於在介面下方展開該角色的可閃卡牌，不影響腳本執行。"
+    },
+    "RogueSlot3Member": {
+      "name": "三號位角色",
+      "help": "僅用於在介面下方展開該角色的可閃卡牌，不影響腳本執行。"
+    },
+    "RogueRemoveMember": {
+      "name": "優先移除卡牌位",
+      "help": "在刪卡頁優先移除該隊伍位次角色的已選卡牌；該角色已無待刪目標時順次處理其他號位。"
     },
     "RogueDelete": {
-      "name": "ChaoszeroRogue.RogueDelete.name",
-      "help": "ChaoszeroRogue.RogueDelete.help"
+      "name": "每局移除卡牌上限",
+      "help": "0 為略過。只移除辨識到的「劍幕」與「劍光」，優先移除「劍幕」。"
+    },
+    "RogueDeleteFilter": {
+      "name": "指定移除卡牌",
+      "help": "依角色卡牌設定每局要移除的卡牌與張數。"
     },
     "RogueSparkFilter": {
-      "name": "ChaoszeroRogue.RogueSparkFilter.name",
-      "help": "ChaoszeroRogue.RogueSparkFilter.help"
+      "name": "指定靈光形態",
+      "help": "每行一張卡。可寫「劍之雨 = 2」選擇遊戲卡牌詳情的第 2 種形態，或用繁體效果詞比對。"
+    },
+    "RogueCopyMember": {
+      "name": "複製來源位次",
+      "help": "選擇複製時優先嘗試的隊伍位次。該位次無法選取時會嘗試其他戰鬥員。"
+    },
+    "RogueCopyCard": {
+      "name": "複製目標卡牌",
+      "help": "填寫遊戲中顯示的卡名，例如「劍之雨」。重試後仍無法確認目標時，會複製清單中的第一張。"
     },
     "RogueEquipFilter": {
-      "name": "裝備指定角色",
-      "help": "每行：裝備名 = 角色名（Wiki 繁體名、英文名或 ID）。指定裝備只給指定角色，可替換同部位裝備；普通裝備只填空槽。唯一裝備不可跨部位並存，同部位可替換。商店只買指定裝備，並使用免費刷新繼續尋找，不付費刷新；無法分配的事件裝備自動提煉。忽略星級。留空時商店不買裝備、不刷新。"
+      "name": "裝備分配與優先順序",
+      "help": "依「角色(或1~3號位) 部位: 裝備1 > 裝備2」填寫，以 > 分隔，越靠左優先級越高；部位需填寫「武器 / 護甲 / 飾品」，例如：\n1號位 武器: 混沌指控 > 混沌觸手 > 迷霧水晶球\n1號位 護甲: 加強型戰鬥強化服\n1號位 飾品: 亡魂之花 > 非典型方塊\n維若妮卡 飾品: 調節時間器\n亦相容舊寫法「裝備 = 角色」。同角色同部位依由左至右優先替換；其他裝備先補空槽再依稀有度升級；商店僅購買仍需要且帶商店標籤的指定裝備並只用免費刷新；無法分配的事件裝備會提煉。"
     },
     "RogueEventPick": {
-      "name": "ChaoszeroRogue.RogueEventPick.name",
-      "help": "ChaoszeroRogue.RogueEventPick.help"
+      "name": "依設定自動選擇事件",
+      "help": "開啟後依事件規則選擇。辨識失敗、規則缺少、目標未出現，或關閉此開關時，任務會儲存截圖並停止。"
     },
     "RogueSaveKeep": {
-      "name": "ChaoszeroRogue.RogueSaveKeep.name",
-      "help": "ChaoszeroRogue.RogueSaveKeep.help"
+      "name": "結算保留的存檔",
+      "help": "選擇隊伍位置會保留該角色的存檔，其餘分解。選擇分解三份會分解本局三份角色存檔。"
     },
     "RogueLoop": {
-      "name": "ChaoszeroRogue.RogueLoop.name",
-      "help": "ChaoszeroRogue.RogueLoop.help"
+      "name": "每輪排程結束後盡快再刷",
+      "help": "開關控制本輪結束後的排程間隔：開啟約 1 分鐘，關閉約 30 分鐘。"
     },
     "RogueRuns": {
-      "name": "ChaoszeroRogue.RogueRuns.name",
-      "help": "ChaoszeroRogue.RogueRuns.help"
+      "name": "每輪排程局數",
+      "help": "1 為打一局後交還排程器。0 為不限局數，直到任務中斷或觸發停止。"
     },
     "RogueStopBeacon": {
-      "name": "ChaoszeroRogue.RogueStopBeacon.name",
-      "help": "ChaoszeroRogue.RogueStopBeacon.help"
+      "name": "提前撤退航點",
+      "help": "0 為正常打到結算。填 N 會在第 N 個航點主動撤退，適合短測。"
     }
   },
   "ChaoszeroArk": {
@@ -1639,6 +1679,37 @@
       "Clear": "清除",
       "EnterPassword": "輸入密碼",
       "ChooseFile": "選擇檔案"
+    },
+    "Rogue": {
+      "Route": "開局與路線",
+      "Build": "卡牌與裝備",
+      "Fate": "命運優先順序",
+      "Events": "事件選擇",
+      "Settlement": "結算與排程",
+      "OpenSelector": "開啟事件選擇器 ↗",
+      "SelectorHelp": "所有卡厄思肉鴿設定共用事件規則。從選擇器匯出後，將檔案放到腳本目錄的 config/rogue/rogue_event_picks.json。",
+      "Left": "左側",
+      "Middle": "中間",
+      "Right": "右側",
+      "Slot1": "1 號位",
+      "Slot2": "2 號位",
+      "Slot3": "3 號位",
+      "FollowSparkMember": "跟隨靈光優先位",
+      "DecomposeAll": "分解三份存檔",
+      "Unselected": "未選擇",
+      "SparkPickerTitle": "角色可閃卡牌靈光設定",
+      "SparkPickerEmpty": "在上方選擇 1~3 號位角色後，這裡會列出對應角色的可閃卡牌，選擇後自動寫入下方「指定靈光形態」。",
+      "SparkFormAuto": "不指定（預設按數值最大）",
+      "SparkFormCustom": "自訂關鍵詞",
+      "RemovePickerTitle": "指定要移除的卡牌",
+      "RemovePickerEmpty": "在上方選擇 1~3 號位角色後，這裡會列出對應角色的卡牌以設定每局要刪除的張數。",
+      "RemoveKeep": "不刪除",
+      "RemoveOne": "刪除（1 張）",
+      "RemoveCount": "刪除 {count} 張",
+      "PriorityTag": "優先",
+      "CardKindBasic": "基礎卡 · 初始 {count} 張",
+      "CardKindSpark": "可靈閃卡 · 初始 {count} 張",
+      "CardKindUnique": "角色卡 · 初始 {count} 張"
     }
   }
 }

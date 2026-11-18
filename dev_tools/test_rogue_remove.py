@@ -159,7 +159,9 @@ class RemovalFlowTest(unittest.TestCase):
         self.step()
         self.step()
         self.assertEqual(self.task.remove_done, 1)
-        self.task.rogue_state_save.assert_called_once_with(remove_done=1)
+        self.assertEqual(self.task.remove_counts, {'劍幕': 1})
+        self.task.rogue_state_save.assert_called_once_with(
+            remove_done=1, remove_counts={'劍幕': 1})
         self.assertEqual(self.task.tap_point.call_count, 2)
         self.task.tap_point.assert_called_with(640, 300, name='ROGUE_REMOVE_DONE')
 
@@ -318,6 +320,60 @@ class RemovalCaptureTest(unittest.TestCase):
         task.tap_point.assert_called_once_with(849, 454, name='ROGUE_REMOVE_SKIP_CONFIRM')
         self.assertEqual(task.remove_done, 3)
         task.rogue_state_save.assert_not_called()
+
+
+class ConfiguredRemovalTest(unittest.TestCase):
+    def _configured_task(self, delete_filter, remove_counts=None):
+        task = make_task()
+        del task.rogue_delete_times
+        task.remove_counts = dict(remove_counts or {})
+        task.config = SimpleNamespace(
+            data={'ChaoszeroRogue': {'ChaoszeroRogue': {'RogueDeleteFilter': delete_filter}}},
+            ChaoszeroRogue_RogueDeleteFilter=delete_filter,
+        )
+        return task
+
+    def test_custom_character_cards_ascii_and_per_card_quota(self):
+        task = self._configured_task('水護盾 = 2\nS.S.S = 1')
+        self.assertEqual(task.rogue_delete_times(), 3)
+        points = [(450 + i * 210, 220, 82, 360 + i * 210, 188, 280) for i in range(3)]
+        task.rogue_flash_card_points = Mock(return_value=points)
+        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['劍光', 'S.S.S', '水護盾']))
+        picked = task.rogue_remove_pick()
+        self.assertEqual(picked[:2], ((870, 220), '水護盾'))
+
+        task.remove_counts['水護盾'] = 2
+        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['劍光', 'S.S.S', '水護盾']))
+        picked2 = task.rogue_remove_pick()
+        self.assertEqual(picked2[:2], ((660, 220), 'S.S.S'))
+
+    def test_empty_delete_filter_disables_removal(self):
+        task = self._configured_task('')
+        self.assertEqual(task.rogue_delete_times(), 0)
+        self.assertEqual(task.rogue_remove_targets(), [])
+        self.assertIsNone(task.rogue_remove_pick())
+
+    def test_preferred_remove_slot_prioritizes_that_character_cards(self):
+        task = make_task()
+        del task.rogue_delete_times
+        task.remove_counts = {}
+        node = {
+            'RogueDeleteFilter': '劍幕 = 1\n水護盾 = 1',
+            'RogueSlot1Member': '30093',
+            'RogueSlot2Member': '1039',
+            'RogueSlot3Member': '',
+            'RogueRemoveMember': 2,
+        }
+        task.config = SimpleNamespace(
+            data={'ChaoszeroRogue': {'ChaoszeroRogue': node}},
+            **{f'ChaoszeroRogue_{k}': v for k, v in node.items()},
+        )
+        self.assertEqual(task.rogue_remove_targets(), ['水護盾', '劍幕'])
+        points = [(450 + i * 210, 220, 82, 360 + i * 210, 188, 280) for i in range(2)]
+        task.rogue_flash_card_points = Mock(return_value=points)
+        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['劍幕', '水護盾']))
+        picked = task.rogue_remove_pick()
+        self.assertEqual(picked[:2], ((660, 220), '水護盾'))
 
 
 class RemovalTemplateTest(unittest.TestCase):

@@ -1,8 +1,11 @@
 """Event selection and sequence regressions; no device connection is used."""
 
+import json
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 
@@ -37,6 +40,7 @@ def make_task():
     task.event_picks = {'void': [1, 2, 3, 7], 'cave': [1]}
     task.card_reader = SimpleNamespace(read_name=Mock())
     task.event_visit = {}
+    task.event_followups = set()
     task.event_last_enc = None
     task.event_choice = None
     task.event_pending_choice = None
@@ -63,6 +67,15 @@ def expire(timer):
 class EventSelectionTest(unittest.TestCase):
     def setUp(self):
         self.task = make_task()
+
+    def test_border_band_rejects_combat_effect_and_keeps_single_card(self):
+        image = self.task.device.image
+        image[650, 480:800] = 255
+        image[650:662, 639] = 255
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+        image[677, 480:800] = 255
+        image[677:689, 639] = 255
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [(640, 677)])
 
     def feed(self, texts):
         self.task.card_reader.read_name = Mock(side_effect=texts)
@@ -97,6 +110,25 @@ class EventSelectionTest(unittest.TestCase):
                 self.assertIsNone(self.task.event_page)
                 self.assertIsNone(self.task.event_index)
 
+    def test_gourmet_valid_routes_with_real_event_data(self):
+        event_id = 'uk_904_s01_05a'
+        library = EventLibrary()
+        self.task.event_library.records = {event_id: library.records[event_id]}
+        first = ['剖開腹部。', '餵食糧食', '阻止進食']
+        second = ['剖開腹部。', '再次餵食', '阻止進食']
+        third = ['剖開腹部。', '阻止進食']
+        for orders, pages in [([8], [(first, 3)]), ([2, 6], [(first, 2), (second, 3)]),
+                              ([2, 3, 7], [(first, 2), (second, 2), (third, 2)])]:
+            with self.subTest(orders=orders):
+                self.task.event_visit.clear()
+                self.task.event_picks = {event_id: orders}
+                for order, (texts, position) in zip(orders, pages):
+                    self.feed(texts)
+                    self.assertTrue(self.step())
+                    self.assertEqual(self.task.event_pending_choice['position'], position)
+                    self.assertEqual(self.task.event_pending_choice['order'], order)
+                    self.confirm()
+
     def test_unavailable_configured_target_has_no_pending_identity(self):
         result = self.task.rogue_event_manual_index(['救出偉存者', '離開洞窟'],
                                                    packs_for_world('霧之城市'))
@@ -117,8 +149,6 @@ class EventSelectionTest(unittest.TestCase):
         self.assertEqual(self.task.event_visit, {})
 
     def test_missing_random_option_still_stops_with_classified_source(self):
-        import json
-        from pathlib import Path
         from dev_tools.gen_chaoszero_rogue_db import parse_encounter
 
         raw = json.loads((Path(__file__).parent / 'fixtures' / 'chaoszero' /
@@ -131,6 +161,100 @@ class EventSelectionTest(unittest.TestCase):
         self.task.tap_point.assert_not_called()
         self.task.rogue_pick_index.assert_not_called()
         self.task.rogue_dump_unknown.assert_called_once()
+
+    def test_residue_priority_uses_first_verified_choice_on_each_page(self):
+        event_id = 'uk_904_s01_06b'
+        library = EventLibrary()
+        defaults = ['檢查痛症', '承諾會擊殺怪物']
+        flower = defaults + ['取出亡魂之花']
+        comfort = defaults + ['安慰']
+        cases = [
+            ([1, 4, 2], flower, 1, 3),
+            ([1, 4, 2], comfort, 4, 3),
+            ([1, 2], comfort, 2, 1),
+            ([1], comfort, None, None),
+        ]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'rogue_event_picks.json'
+            for priority, texts, order, position in cases:
+                with self.subTest(priority=priority, order=order):
+                    self.task = make_task()
+                    self.task.event_library = library
+                    self.task.event_visit[event_id] = 3
+                    self.task.event_picks = None
+                    path.write_text(json.dumps({'version': 1, 'picks': {
+                        event_id: {'priority': priority},
+                    }}), encoding='utf-8')
+                    self.feed(texts)
+                    with patch('module.chaoszero.rogue.EVENT_PICKS_FILE', str(path)):
+                        if order is None:
+                            with self.assertRaises(TaskFailed):
+                                self.step()
+                            self.task.tap_point.assert_not_called()
+                            self.task.rogue_dump_unknown.assert_called_once()
+                            self.assertIsNone(self.task.event_pending_choice)
+                        else:
+                            self.assertTrue(self.step())
+                            choice = self.task.event_pending_choice
+                            self.assertEqual((choice['id'], choice['order'], choice['position']),
+                                             (event_id, order, position))
+                    self.assertEqual(self.task.event_visit[event_id], 3)
+
+    def test_same_title_priority_accepts_visible_variant_without_guessing_its_order(self):
+        event_id = 'uk_402_s01_19a'
+        library = EventLibrary()
+        first, second = '詢問有關他的事', '表示要寫下結局'
+        cases = [
+            ([first, second], [second, first], first, 2),
+            ([first, second], [second], second, 1),
+            ([first], [second], None, None),
+            ([first], [first, first], None, None),
+        ]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / 'rogue_event_picks.json'
+            for priority, texts, title, position in cases:
+                with self.subTest(priority=priority, texts=texts):
+                    self.task = make_task()
+                    self.task.config.ChaoszeroRogue_RogueWorld = '虛像劇場'
+                    self.task.event_library = library
+                    self.task.event_picks = None
+                    path.write_text(json.dumps({'version': 1, 'picks': {
+                        event_id: {'priority': priority},
+                    }}), encoding='utf-8')
+                    self.feed(texts)
+                    with patch('module.chaoszero.rogue.EVENT_PICKS_FILE', str(path)):
+                        if title is None:
+                            with self.assertRaises(TaskFailed):
+                                self.step()
+                            self.task.tap_point.assert_not_called()
+                            self.task.rogue_dump_unknown.assert_called_once()
+                        else:
+                            self.assertTrue(self.step())
+                            choice = self.task.event_pending_choice
+                            self.assertEqual((choice['id'], choice['order'], choice['target'], choice['position']),
+                                             (event_id, None, title, position))
+
+    def test_cave_continuation_breaks_ties_from_the_confirmed_branch(self):
+        root = 'uk_904_s01_09a'
+        middle = root + '-1'
+        end = middle + '-1'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {
+            root: {'priority': [2, 1, 3]}, middle: {'priority': [1, 4]},
+            end: {'priority': [1, 4]}, 'uk_904_s01_09b': [1, 4],
+        }
+        pages = [
+            (root, 2, ['取出左側箱子', '搜索屍體', '取出右側箱子']),
+            (middle, 1, ['取出左側箱子', '取出右側箱子', '離開洞窟']),
+            (end, 4, ['取出右側箱子', '離開洞窟']),
+        ]
+        for event_id, order, titles in pages:
+            self.feed(titles)
+            self.assertTrue(self.step())
+            choice = self.task.event_pending_choice
+            self.assertEqual((choice['id'], choice['order']), (event_id, order))
+            self.confirm()
+            expire(self.task.event_submit_wait)
 
     def test_similar_stage_title_does_not_impersonate_requested_stage(self):
         self.task.event_visit['void'] = 1

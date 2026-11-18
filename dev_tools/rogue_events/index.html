@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>卡厄思 · 事件偏好选择器</title>
 <style>
   :root {
@@ -12,6 +13,7 @@
   body {
     margin: 0; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif;
     background: var(--bg); color: var(--text);
+    height: 100vh; display: flex; flex-direction: column;
   }
   header {
     position: sticky; top: 0; z-index: 10; background: var(--panel);
@@ -20,13 +22,18 @@
   }
   header h1 { font-size: 16px; margin: 0; font-weight: 600; }
   header .grow { flex: 1; }
+  #search {
+    min-width: 12em; max-width: 100%; padding: 6px 9px;
+    border: 1px solid #49576d; border-radius: 6px; background: var(--bg); color: var(--text);
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   button {
     background: #222c3b; color: var(--text); border: 1px solid var(--line);
     border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px;
   }
   button:hover { border-color: var(--accent); }
   button.primary { background: var(--accent); color: #08111d; border-color: var(--accent); font-weight: 600; }
-  main { display: flex; height: calc(100vh - 53px); }
+  main { display: flex; flex: 1; min-height: 0; }
   nav {
     width: 210px; border-right: 1px solid var(--line); overflow-y: auto;
     background: #131922;
@@ -38,7 +45,7 @@
   nav a:hover { background: #1b232f; color: var(--text); }
   nav a.active { color: var(--accent); border-left-color: var(--accent); background: #1b232f; }
   nav .count { float: right; font-size: 12px; opacity: .65; }
-  section { flex: 1; overflow-y: auto; padding: 16px 22px 80px; }
+  section { flex: 1; min-width: 0; overflow-y: auto; padding: 16px 22px 24px; }
   h2 {
     font-size: 15px; margin: 22px 0 10px; padding-bottom: 6px;
     border-bottom: 1px solid var(--line);
@@ -56,36 +63,36 @@
   .rarity.普通 { background: #2b3340; color: #9aa7ba; }
   .rarity.稀有 { background: #1d3a5c; color: #6fb4ff; }
   .rarity.唯一 { background: #4a2d5e; color: #d59bff; }
-  .opt {
+  .pick {
+    width: 100%; text-align: left; background: transparent; font: inherit; color: inherit;
     display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px;
-    border-radius: 6px; cursor: pointer; border: 1px solid transparent;
+    border-radius: 6px; border: 1px solid transparent;
   }
-  .opt:hover { background: #1d2531; }
-  .opt.on { background: #14301f; border-color: #2c6b45; }
-  .opt input { margin-top: 4px; }
-  .opt .body { flex: 1; }
-  .opt .txt { font-weight: 500; }
+  .pick:hover { background: #1d2531; }
+  .pick.on { background: #14301f; border-color: #2c6b45; }
+  .pick:disabled { cursor: default; color: #aab5c6; background: transparent; border-color: transparent; }
+  .pick .body { flex: 1; min-width: 0; }
+  .pick .txt { font-weight: 500; }
   .tag {
     display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px;
     margin-left: 6px; vertical-align: 1px;
   }
   .tag.dice { background: #4a3a10; color: #ffce56; }
+  .tag.preferred { background: #244232; color: #a9efbf; }
   .tag.cond { background: #3d1f1f; color: #ff9c9c; }
   .tag.attack { background: #4a1f1f; color: #ff8f8f; }
-  .tag.next { background: #24313f; color: #7fc4ff; }
-  .eff { color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .eff, .pick .fu-desc { display: block; }
+  .eff { color: #aab5c6; font-size: 12px; margin-top: 2px; }
   .eff .s { color: #7ede9d; }
   .eff .f { color: #ff9c9c; }
   footer {
-    position: fixed; left: 210px; right: 0; bottom: 0; background: var(--panel);
-    border-top: 1px solid var(--line); padding: 9px 22px; display: flex;
-    gap: 12px; align-items: center;
+    background: var(--panel); border-top: 1px solid var(--line); padding: 9px 22px;
   }
-  footer .hint { color: var(--dim); font-size: 12.5px; flex: 1; }
+  footer .hint { color: #aab5c6; font-size: 12.5px; }
   .empty { color: var(--dim); padding: 30px 0; }
   /* 后续事件折叠块 */
   details.followup {
-    margin-top: 6px; border-left: 2px solid #2f4a63; padding-left: 10px;
+    margin: 4px 0 8px 18px; border-left: 2px solid #2f4a63; padding-left: 10px;
   }
   details.followup > summary {
     cursor: pointer; color: #7fc4ff; font-size: 12.5px; padding: 2px 0;
@@ -100,18 +107,9 @@
   }
   .fu-event .fu-title { font-size: 13px; font-weight: 600; }
   .fu-desc { color: var(--dim); font-size: 12px; margin: 3px 0 5px; overflow-wrap: anywhere; }
-  .fu-opt { padding: 3px 0; font-size: 12.5px; }
-  .fu-opt .n { color: var(--dim); }
-  .fu-pick {
-    display: flex; gap: 8px; align-items: flex-start; cursor: pointer;
-    padding: 4px 6px; border-radius: 5px; border: 1px solid transparent;
-  }
-  .fu-pick:hover { background: #1a2230; }
-  .fu-opt.on > .fu-pick { background: #14301f; border-color: #2c6b45; }
-  .fu-pick input { margin-top: 4px; }
-  .fu-opt.on { color: #d7f5e2; }
+  .fu-event .pick { font-size: 12.5px; }
   .seq-bar {
-    display: flex; gap: 8px; align-items: center; margin: 4px 0 6px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0 6px;
     padding: 5px 8px; border-radius: 5px; background: #1b2431;
     color: #8fa4bd; font-size: 12px;
   }
@@ -120,6 +118,15 @@
     background: #2a1d1d; border-color: #4a2c2c; color: #e09a9a;
   }
   .seq-clear:hover { border-color: var(--bad); }
+  .phase { margin: 6px 0 2px; font-size: 13px; font-weight: 600; color: #9dc8f5; }
+  .phase.invalid { color: #ff9c9c; }
+  @media (max-width: 680px) {
+    main { flex-direction: column; }
+    nav { width: 100%; flex: none; display: flex; overflow-x: auto; }
+    nav a { white-space: nowrap; }
+    nav .count { float: none; margin-left: 8px; }
+    section { padding: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -127,62 +134,224 @@
   <h1>卡厄思 · 事件偏好选择器</h1>
   <span id="stat" style="color:var(--dim);font-size:12.5px"></span>
   <span class="grow"></span>
+  <input id="search" type="search" aria-label="搜索全部地图的事件" placeholder="搜索事件名、ID 或选项">
+  <label><input type="checkbox" id="only-picked"> 只看已配置</label>
+  <label><input type="checkbox" id="show-details"> 显示数据详情</label>
   <button id="btn-export" class="primary">导出选择</button>
   <button id="btn-import">导入</button>
   <button id="btn-clear">清空</button>
   <input id="file" type="file" accept=".json" style="display:none">
 </header>
 <main>
-  <nav id="nav"></nav>
-  <section id="list"></section>
+  <nav id="nav" aria-label="地图"></nav>
+  <section id="list" aria-label="事件列表"></section>
 </main>
 <footer>
   <span class="hint" id="hint">
-    选中的事件会高亮；每个事件内只能选一个选项。导出后把文件放到
+    当前画面没有可核对的已配置选项时，脚本会停下。导出后将文件放到
     <code>config/rogue/rogue_event_picks.json</code>
   </span>
+  <div class="hint" id="status" role="status"></div>
 </footer>
 <script src="events.js"></script>
 <script>
 const STORE_KEY = 'czn_rogue_events_v1';
 let DATA = null;
-let PICKS = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+let PICKS = {};
 let ACTIVE = null;
+const eventsById = new Map();
+const expanded = new Map();
+const search = document.getElementById('search');
+const onlyPicked = document.getElementById('only-picked');
+const showDetails = document.getElementById('show-details');
+const status = document.getElementById('status');
+
+// 按原始事件的出现条件和回访效果逐步显示。固定路线的每一步须在所有回访结果下可用。
+const shepherdStages = [[1, 4, 8], [2, 5, 8], [3, 6, 8], [7, 8]];
+const assistStages = [[1, 4], [2, 4], [3, 4]];
+const biddingStages = [[1, 5], [2, 5], [3, 5], [4, 5]];
+const eventStages = {
+  'uk_000_s01_01': [[1, 2, 3, 6], [4, 5, 6]],
+  'uk_000_s01_02': [[1, 6, 7], [2, 8]],
+  'uk_300_s02_04a-2': [[1, 4, 5], [2, 3]],
+  'uk_300_s02_05a': [[1, 3, 5], [2, 3, 4]],
+  'uk_300_s02_13a': [[1, 5], [2, 4], [3]],
+  'uk_302_s02_03c': [[1, 2], [3, 4]],
+  'uk_302_s02_04c': [[1, 3, 6], [2, 4, 6], [5, 6]],
+  'uk_302_s02_06d': [[1, 2, 3], [1, 2, 4]],
+  'uk_302_s02_16a': assistStages,
+  'uk_302_s02_16b': assistStages,
+  'uk_401_s01_04a': [[1, 4, 5], [2, 4, 5], [3, 4, 5]],
+  'uk_401_s01_05b-1': [[1, 2, 3], [2, 3]],
+  'uk_401_s01_17a': [[1, 3], [2, 4]],
+  'uk_402_s01_11a-1': biddingStages,
+  'uk_402_s01_11a-2': biddingStages,
+  'uk_402_s01_11b-1': biddingStages,
+  'uk_402_s01_11b-2': biddingStages,
+  'uk_402_s01_11c-1': biddingStages,
+  'uk_402_s01_11c-2': biddingStages,
+  'uk_402_s01_12a': [[4, 5]],
+  'uk_402_s01_15a': [[3, 4]],
+  'uk_402_s01_16a': [[1, 4, 5], [2, 4, 5], [3, 4, 5]],
+  'uk_403_s01_01b': [[1, 2], [3, 7], [7]],
+  'uk_403_s01_04a': [[1, 3, 6], [2, 4, 7], [2, 5]],
+  'uk_403_s01_05a-2': [[1, 3, 6], [2, 4, 7], [5, 8]],
+  'uk_403_s01_05b': [[1, 2, 6], [1, 3, 6], [1, 4, 6], [5, 6]],
+  'uk_403_s01_11a': [[1, 2, 5], [3, 5, 6], [4, 5, 6]],
+  'uk_403_s01_11c': [[3, 4], [8]],
+  'uk_403_s01_12a': [[1, 4, 5], [2, 4, 6], [3, 4, 6]],
+  'uk_900_s02_05b': [[1, 4, 5], [2, 4, 5], [3, 4, 5]],
+  'uk_900_s02_10c': [[1, 4], [2, 4], [3, 4]],
+  'uk_900_s02_11a': [[1, 5, 6], [2, 5, 6], [3, 5, 6], [4, 6]],
+  'uk_900_s02_16a': [[1, 3, 5], [2, 3, 5], [4, 5]],
+  'uk_904_s01_04a': [[1, 2, 4], [1, 2, 4], [1, 3, 4]],
+  'uk_904_s01_05a': [[1, 2, 8], [1, 3, 6], [1, 7]],
+  'uk_904_s01_13a-1': shepherdStages,
+  'uk_904_s01_13b-1': shepherdStages,
+  'uk_905_s02_02a': [[1, 4, 8], [2, 5, 8], [3, 6, 8], [7, 8]],
+  'uk_905_s02_04c': [[1, 2]],
+  'uk_905_s02_06b-1': [[1, 3], [2]],
+  'uk_905_s02_07a-1': [[1], [2, 3, 4]],
+  'uk_905_s02_13a': [[1, 7], [2, 3, 7], [2, 4, 7], [2, 5, 7], [6, 7]],
+  'uk_905_s02_13c': [[1, 4], [2, 3, 4]],
+  'uk_905_s02_16a': [[1, 4, 5], [2, 4, 5], [3, 4, 5]],
+  'uk_905_s02_16c': [[1, 2, 5], [1, 3, 5], [4, 5]],
+};
+const failureReturns = {
+  'uk_302_s02_16a': [1, 2],
+  'uk_302_s02_16b': [1, 2],
+  'uk_401_s01_04a': [1, 2],
+  'uk_401_s01_05b-1': [1],
+  'uk_402_s01_11a-1': [1, 2, 3],
+  'uk_402_s01_11a-2': [1, 2, 3],
+  'uk_402_s01_11b-1': [1, 2, 3],
+  'uk_402_s01_11b-2': [1, 2, 3],
+  'uk_402_s01_11c-1': [1, 2, 3],
+  'uk_402_s01_11c-2': [1, 2, 3],
+  'uk_403_s01_01b': [2, 3],
+  'uk_403_s01_11c': [1, 2],
+  'uk_403_s01_12a': [1, 2],
+  'uk_900_s02_10c': [1, 2],
+  'uk_900_s02_11a': [5],
+  'uk_904_s01_04a': [2],
+  'uk_904_s01_09b': [1, 2, 3],
+  'uk_905_s02_16a': [1, 2],
+};
+const eitherReturns = new Set(['uk_403_s01_01b', 'uk_403_s01_11c', 'uk_904_s01_09b']);
+const repeatsLastStage = new Set(['uk_000_s01_02', 'uk_402_s01_12a', 'uk_905_s02_04c']);
+const caveId = 'uk_904_s01_09b';
 
 function save() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(PICKS));
+  status.textContent = '';
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(PICKS));
+  } catch (error) {
+    status.textContent = '浏览器无法保存草稿，请先导出。';
+  }
   updateStat();
 }
 
+function nextNode(option) {
+  if (!option) return null;
+  const embedded = option.nextDetail || (typeof option.next === 'object' ? option.next : null);
+  if (embedded?.options?.length) return embedded;
+  return eventsById.get(embedded?.id || option.next) || embedded;
+}
+
+function branchHas(node, predicate, seen) {
+  if (predicate(node)) return true;
+  // 自环 / 互跳的事件图里必须记住走过的节点，否则递归到栈溢出，
+  // 整个列表渲染失败只剩一句"没有符合条件的事件"。
+  const visited = seen || new Set();
+  visited.add(node.id);
+  return (node.options || []).some(option => {
+    const next = nextNode(option);
+    return next && !visited.has(next.id) && branchHas(next, predicate, visited);
+  });
+}
+
+function matches(node, query) {
+  return [node.name, node.id, ...(node.options || []).map(option => option.text)]
+    .some(text => (text || '').toLowerCase().includes(query));
+}
+
+function hasPick(node) {
+  return branchHas(node, branch => Object.hasOwn(PICKS, branch.id));
+}
+
 function updateStat() {
-  const total = Object.keys(PICKS).length;
-  document.getElementById('stat').textContent = `已选 ${total} 个事件`;
+  document.getElementById('stat').textContent = '已选 ' + Object.keys(PICKS).length + ' 个事件';
 }
 
 function renderNav() {
   const nav = document.getElementById('nav');
-  nav.innerHTML = '';
+  const scroll = nav.scrollTop;
+  const horizontal = nav.scrollLeft;
+  const focus = nav.contains(document.activeElement) ? document.activeElement.dataset.pack : '';
+  nav.replaceChildren();
   DATA.packs.forEach(pack => {
-    const picked = pack.events.filter(e => PICKS[e.id] !== undefined).length;
+    const picked = pack.events.filter(hasPick).length;
     const a = document.createElement('a');
     a.href = '#';
     a.dataset.pack = pack.id;
     a.className = (ACTIVE === pack.id ? 'active' : '');
-    a.innerHTML = `${pack.common ? '★ ' : ''}${pack.name}`
-      + `<span class="count">${picked}/${pack.events.length}</span>`;
-    a.onclick = ev => { ev.preventDefault(); ACTIVE = pack.id; renderNav(); renderList(); };
+    a.textContent = (pack.common ? '★ ' : '') + pack.name;
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = picked + '/' + pack.events.length;
+    a.appendChild(count);
+    a.onclick = ev => {
+      ev.preventDefault();
+      ACTIVE = pack.id;
+      search.value = '';
+      renderNav();
+      renderList(true);
+    };
     nav.appendChild(a);
+    if (focus === pack.id) a.focus({preventScroll: true});
   });
+  nav.scrollTop = scroll;
+  nav.scrollLeft = horizontal;
 }
 
-/* 一个事件是不是"会反复出现"（有选项指回自己）。
-   全库实测 45 个自环（主事件 38 + 子事件 7），另有 4 组同组互跳。 */
+function returnOutcome(node, option) {
+  if (!option || !canPick(option)) return '';
+  if (failureReturns[node.id]?.includes(option.order)) {
+    return eitherReturns.has(node.id) ? 'either' : 'fail';
+  }
+  return option.next === node.id || nextNode(option)?.id === node.id ? 'success' : '';
+}
+
 function isLoopEvent(node) {
-  return (node.options || []).some(option => option.next === node.id);
+  return (node.options || []).some(option => returnOutcome(node, option));
+}
+
+function guidedEvent(node) {
+  return Boolean(eventStages[node.id]) || node.id === caveId;
+}
+
+function visibleOrders(node, sequence, visit) {
+  if (node.id === caveId) {
+    const choices = [1, 2, 3].filter(order => !sequence.slice(0, visit).includes(order));
+    if (visit) choices.push(4);
+    return choices;
+  }
+  const stages = eventStages[node.id];
+  return stages[visit] || (repeatsLastStage.has(node.id) ? stages[stages.length - 1] : []);
+}
+
+function stageOptions(node, sequence) {
+  for (const [visit, order] of sequence.entries()) {
+    if (!visibleOrders(node, sequence, visit).includes(order)) return null;
+    const option = node.options.find(item => item.order === order);
+    if (!returnOutcome(node, option)) return visit + 1 === sequence.length ? [] : null;
+  }
+  const orders = visibleOrders(node, sequence, sequence.length);
+  return orders.length ? node.options.filter(option => canPick(option) && orders.includes(option.order)) : null;
 }
 
 function classification(node, option) {
-  const box = document.createElement('div');
+  const box = document.createElement(option ? 'span' : 'div');
   box.className = 'fu-desc';
   if (!option) {
     if (node.option_count === undefined) return box;
@@ -204,6 +373,90 @@ function classification(node, option) {
   return box;
 }
 
+function canPick(option) {
+  return option.order !== 9999 && option.select_type !== 'ATTACK' && option.option_type !== 'ATTACK'
+    && Boolean(optionTitle(option));
+}
+
+function optionTitle(option) {
+  // Keep this in step with the runtime OCR normalization.
+  return (option.text || '').replace(/[^\u4e00-\u9fff]/g, '');
+}
+
+function variableOption(option) {
+  return option.select_type?.startsWith('RANDOM') || Boolean(option.appear_conditions?.length);
+}
+
+function priorityEvent(node) {
+  return !guidedEvent(node) && !isLoopEvent(node) && node.options?.some(option => canPick(option) && variableOption(option));
+}
+
+function priorityGroups(node) {
+  const titles = new Map();
+  for (const option of node.options) {
+    const title = optionTitle(option);
+    if (!titles.has(title)) titles.set(title, []);
+    titles.get(title).push(option);
+  }
+  const groups = new Map();
+  for (const [title, options] of titles) {
+    if (!options.every(canPick)) continue;
+    if (options.length > 1) {
+      groups.set(title, options);
+    } else {
+      const {order} = options[0];
+      if (Number.isInteger(order) && order > 0 && order < 9999
+          && node.options.filter(option => option.order === order).length === 1) {
+        groups.set(order, options);
+      }
+    }
+  }
+  return groups;
+}
+
+function validatePicks(parsed, complete = false) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('需要一个事件配置对象。');
+  }
+  const wrapped = Object.hasOwn(parsed, 'picks');
+  if (wrapped && parsed.version !== undefined && parsed.version !== 1) {
+    throw new Error('无法读取此版本的事件配置。');
+  }
+  const picks = wrapped ? parsed.picks : parsed;
+  if (!picks || typeof picks !== 'object' || Array.isArray(picks)) {
+    throw new Error('picks 必须是事件 ID 到选项编号的对象。');
+  }
+  for (const [id, value] of Object.entries(picks)) {
+    const node = eventsById.get(id);
+    if (!node) throw new Error('未找到事件 ' + id + '。');
+    if (value && Object.hasOwn(value, 'priority')) {
+      const {priority} = value;
+      const groups = priorityEvent(node) ? priorityGroups(node) : new Map();
+      if (Object.keys(value).length !== 1 || !Array.isArray(priority)
+          || !priority.length || new Set(priority).size !== priority.length
+          || !priority.every(key => groups.has(key))) {
+        throw new Error('「' + node.name + '」包含重复或无法识别的优先选项。同名分支请按标题配置。');
+      }
+      continue;
+    }
+    const orders = new Set(node.options.filter(canPick).map(option => option.order));
+    const sequence = Array.isArray(value) ? value : [value];
+    if (!sequence.length || sequence.some(order => !Number.isInteger(order) || !orders.has(order))) {
+      throw new Error(node.name + '（' + id + '）包含不可配置的选项编号。');
+    }
+    if (guidedEvent(node)) {
+      const options = stageOptions(node, sequence);
+      if (!options) throw new Error(node.name + '的路线顺序无效，请重新选择。');
+      if (complete && options.length) throw new Error('请完成「' + node.name + '」的后续选择。');
+    } else if (complete && isLoopEvent(node)) {
+      throw new Error('「' + node.name + '」的选项随游戏状态变化，无法导出固定路线。请清除此事件的选择。');
+    } else if (sequence.length > 1 && !isLoopEvent(node)) {
+      throw new Error(node.name + '的选项只需配置一次。');
+    }
+  }
+  return picks;
+}
+
 /* 取该事件已选的序列（数字也统一成数组）。 */
 function pickSequence(nodeId) {
   const stored = PICKS[nodeId];
@@ -211,236 +464,362 @@ function pickSequence(nodeId) {
   return stored === undefined ? [] : [stored];
 }
 
-/* 反复事件的进度条：显示 1 → 2 → 3 的已选顺序，带清空。 */
-function loopBar(node, sequence, refresh) {
+function loopBar(node, sequence, path) {
   const bar = document.createElement('div');
   bar.className = 'seq-bar';
   const label = document.createElement('span');
-  label.textContent = sequence.length
-    ? `本次顺序：${sequence.join(' → ')}（继续点会往后追加，脚本按轮次执行）`
-    : '这个事件会反复出现：按顺序点选项，点一次 = 加一步';
+  const route = sequence.map((order, index) => {
+    const option = node.options.find(item => item.order === order);
+    return (index + 1) + '. ' + (option?.text || '#' + order);
+  }).join(' → ');
+  label.textContent = route;
   bar.appendChild(label);
   if (sequence.length) {
+    const undo = document.createElement('button');
+    undo.id = path + '/undo';
+    undo.textContent = '撤销最后一步';
+    undo.className = 'seq-clear';
+    undo.onclick = () => setPick(node, sequence.slice(0, -1));
+    bar.appendChild(undo);
     const clear = document.createElement('button');
-    clear.textContent = '清空';
-    clear.className = 'seq-clear';
-    clear.onclick = event => {
-      event.preventDefault();
-      delete PICKS[node.id];
-      save(); refresh();
-    };
+    clear.id = path + '/clear';
+    clear.textContent = '清空顺序';
+    clear.onclick = () => setPick(node, []);
     bar.appendChild(clear);
   }
   return bar;
 }
 
-/* 点一个选项：反复事件追加一步，普通事件单选/反选。 */
-function applyPick(node, option, sequence) {
-  if (isLoopEvent(node)) {
-    PICKS[node.id] = sequence.concat([option.order]);
-  } else if (PICKS[node.id] === option.order) {
-    delete PICKS[node.id];
-  } else {
-    PICKS[node.id] = option.order;
-  }
-  save(); renderList(); renderNav();
+function setPick(node, value) {
+  if (value === undefined || (Array.isArray(value) && !value.length)) delete PICKS[node.id];
+  else PICKS[node.id] = value;
+  save();
+  renderNav();
+  renderList();
 }
 
-/* 渲染「选了这一步之后会跳到的那个事件」，可多层嵌套（数据最多 2 层）。 */
-function renderFollowUp(node, depth) {
+function togglePriority(node, sequence, groups, key) {
+  const keys = sequence.filter(item => groups.has(item));
+  const priority = keys.includes(key) ? keys.filter(item => item !== key) : [...keys, key];
+  setPick(node, priority.length ? {priority} : undefined);
+}
+
+function renderOption(node, option, sequence, loop, path, depth, query, reference = false, groups = null) {
+  const group = document.createElement('div');
+  const button = document.createElement('button');
+  button.id = path;
+  const rank = sequence.indexOf(option.order);
+  const picked = !reference && (groups ? rank !== -1 : sequence[sequence.length - 1] === option.order);
+  button.className = 'pick' + (picked ? ' on' : '');
+  button.disabled = reference || !canPick(option) || Boolean(groups && !groups.has(option.order));
+  if (!loop) button.setAttribute('aria-pressed', String(picked));
+  if (!button.disabled) {
+    button.onclick = groups ? () => togglePriority(node, sequence, groups, option.order)
+      : () => setPick(node, loop ? sequence.concat(option.order) : picked ? undefined : option.order);
+  }
+
+  const body = document.createElement('span');
+  body.className = 'body';
+  const title = document.createElement('span');
+  title.className = 'txt';
+  const guided = guidedEvent(node) && !reference;
+  title.textContent = (guided && !showDetails.checked ? '' : option.order + '. ') + (option.text || '（空）');
+  body.appendChild(title);
+  for (const [kind, text] of [
+    ['preferred', groups && picked && (rank === 0 ? '首选' : '备选 ' + rank)],
+    ['dice', option.dice && '骰 ' + option.dice],
+    ['cond', option.condition],
+    ['attack', option.attack && '战斗'],
+    ['cond', button.disabled && '仅展示'],
+  ]) {
+    if (!text) continue;
+    const tag = document.createElement('span');
+    tag.className = 'tag ' + kind;
+    tag.textContent = text;
+    body.appendChild(tag);
+  }
+  const next = nextNode(option);
+  const outcome = returnOutcome(node, option);
+  const effects = (text, kind) => {
+    const values = text?.split(' / ').map(effect => effect.trim())
+      .filter(effect => effect && (showDetails.checked || !effect.startsWith('{id}'))) || [];
+    if (outcome === kind || outcome === 'either') values.push('继续本事件');
+    return values.join(' · ');
+  };
+  const success = effects(option.success, 'success');
+  const fail = effects(option.fail, 'fail');
+  for (const [kind, label, text] of [['s', option.dice ? '成功' : '', success], ['f', '失败', fail]]) {
+    if (!text) continue;
+    const effect = document.createElement('span');
+    effect.className = 'eff';
+    const badge = document.createElement('span');
+    badge.className = kind;
+    badge.textContent = label && label + ' ';
+    effect.append(badge, text.replace(/<\/?(?:cc|color_chaos)\b[^>]*>|<#[0-9a-f]{6}>/gi, ''));
+    body.appendChild(effect);
+  }
+  if (showDetails.checked) {
+    body.appendChild(classification(node, option));
+  } else {
+    const notes = (option.conditions || []).filter(condition => condition !== option.condition);
+    if (!guided && option.appear_conditions?.length) notes.push('满足条件时出现');
+    else if (!guided && option.select_type?.startsWith('RANDOM')) notes.push('可能随机出现');
+    if (notes.length) {
+      const note = document.createElement('span');
+      note.className = 'fu-desc';
+      note.textContent = notes.join(' · ');
+      body.appendChild(note);
+    }
+  }
+  button.appendChild(body);
+  group.appendChild(button);
+
+  const followup = renderFollowup(node, next, path, depth, query);
+  if (followup) group.appendChild(followup);
+  return group;
+}
+
+function renderTitleGroup(node, variants, sequence, groups, path, depth, query) {
+  const title = optionTitle(variants[0]);
+  const rank = sequence.indexOf(title);
+  const button = document.createElement('button');
+  button.id = path + '/title/' + title;
+  button.className = 'pick' + (rank < 0 ? '' : ' on');
+  button.setAttribute('aria-pressed', String(rank >= 0));
+  button.textContent = (rank === 0 ? '首选 · ' : rank > 0 ? '备选 ' + rank + ' · ' : '')
+    + variants[0].text + '（接受任一同名分支）';
+  button.onclick = () => togglePriority(node, sequence, groups, title);
+  const details = document.createElement('details');
+  details.className = 'followup';
+  details.dataset.branch = button.id;
+  details.open = expanded.get(button.id) ?? Boolean(query && variants.some(option => {
+    const next = nextNode(option);
+    return next && branchHas(next, item => matches(item, query));
+  }));
+  const summary = document.createElement('summary');
+  summary.textContent = '查看各分支条件和结果';
+  details.appendChild(summary);
+  for (const option of variants) {
+    details.appendChild(renderOption(node, option, [], false, path + '/' + (option.id || option.order),
+      depth, query, true));
+  }
+  const group = document.createElement('div');
+  group.append(button, details);
+  return group;
+}
+
+function renderFollowup(node, next, path, depth, query) {
+  if (!next || next.id === node.id || depth >= 3) return null;
+  const details = document.createElement('details');
+  details.className = 'followup';
+  details.dataset.branch = path;
+  const hasChoices = Boolean(next.options?.length);
+  details.open = expanded.get(path) ?? Boolean(query && branchHas(next, item => matches(item, query))
+    || (depth === 0 && hasChoices));
+  const summary = document.createElement('summary');
+  summary.textContent = '后续：' + (next.name || next.id) + '（' + next.id + '）';
+  const visit = expanded.get('@' + path) || 0;
+  expanded.set('@' + path, visit + 1);
+  details.append(summary, renderEvent(next, path + (visit ? '~' + visit : ''), depth + 1, query));
+  return details;
+}
+
+function renderEvent(node, path, depth, query) {
   const box = document.createElement('div');
-  box.className = 'fu-event';
-
-  const title = document.createElement('div');
-  title.className = 'fu-title';
-  title.innerHTML = `${node.name || node.id}`
-    + `<span class="rarity ${node.rarity || ''}">${node.rarity || ''}</span>`
-    + `<span class="id" style="color:var(--dim);font-size:11px;margin-left:8px">${node.id}</span>`;
+  box.className = depth ? 'fu-event' : 'event' + (hasPick(node) ? ' picked' : '');
+  const title = document.createElement(depth ? 'div' : 'h3');
+  title.className = depth ? 'fu-title' : '';
+  title.textContent = node.name || node.id;
+  if (node.rarity) {
+    const badge = document.createElement('span');
+    badge.className = 'rarity ' + node.rarity;
+    badge.textContent = node.rarity;
+    title.appendChild(badge);
+  }
+  if (!depth) {
+    const id = document.createElement('span');
+    id.className = 'id';
+    id.textContent = node.id;
+    title.appendChild(id);
+  }
   box.appendChild(title);
-
-  box.appendChild(classification(node));
-
-  if (node.desc) {
+  if (showDetails.checked) box.appendChild(classification(node));
+  if (node.desc || !node.options?.length) {
     const desc = document.createElement('div');
-    desc.className = 'fu-desc';
-    desc.textContent = node.desc;
+    desc.className = depth ? 'fu-desc' : 'desc';
+    desc.textContent = node.desc || '本层无可配置的选项。';
     box.appendChild(desc);
   }
 
-  if (!node.options || !node.options.length) {
-    const empty = document.createElement('div');
-    empty.className = 'fu-desc';
-    empty.textContent = '（这个事件没有可选分支，通常是剧情或到此结束）';
-    box.appendChild(empty);
-    return box;
-  }
-
-  // 自环事件（有选项会跳回自己）会出现**多次**，要按轮次选不同选项，
-  // 比如虛無牧者：伸入深處 → 更深處 → 最深處 → 取出。用"点一次加一步"的序列。
-  const isLoop = isLoopEvent(node);
-  const sequence = pickSequence(node.id);
-  if (isLoop) {
-    box.appendChild(loopBar(node, sequence, () => { renderList(); renderNav(); }));
-  }
-
-  (node.options || []).forEach(option => {
-    const row = document.createElement('div');
-    const picked = isLoop
-      ? sequence[sequence.length - 1] === option.order
-      : PICKS[node.id] === option.order;
-    row.className = 'fu-opt' + (picked ? ' on' : '');
-
-    // 后续事件里的选项**也能直接勾选**：整条链在一个卡片里选完，
-    // 不用"先去看子事件、再回来单独选"（用户 2026-11-15 要求）。
-    const label = document.createElement('label');
-    label.className = 'fu-pick';
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = 'fu_' + node.id;
-    input.checked = picked;
-    // ❗用 onclick 不是 onchange：radio 被选中后再点同一个不会触发 change，
-    // 而"反复事件"正需要**连续点同一项多次**（比如连续两次"伸入深處"）。
-    input.onclick = () => applyPick(node, option, sequence);
-
-    const body = document.createElement('div');
-    body.style.flex = '1';
-    let tags = '';
-    if (option.dice) tags += `<span class="tag dice">骰 ${option.dice}</span>`;
-    let text = `<span class="n">${option.order}.</span> ${option.text || '（空）'}${tags}`;
-    if (option.success) text += `<div class="eff"><span class="s">成</span> ${option.success}</div>`;
-    if (option.fail) text += `<div class="eff"><span class="f">败</span> ${option.fail}</div>`;
-    body.innerHTML = text;
-    body.appendChild(classification(node, option));
-
-    if (option.next && depth < 2) {
-      const details = document.createElement('details');
-      details.className = 'followup';
-      details.innerHTML = '<summary>→ 后续：' + (option.next.name || option.next.id) + '</summary>';
-      details.appendChild(renderFollowUp(option.next, depth + 1));
-      body.appendChild(details);
+  const loop = isLoopEvent(node);
+  const guided = guidedEvent(node);
+  const priority = priorityEvent(node);
+  const groups = priority ? priorityGroups(node) : null;
+  const stored = PICKS[node.id]?.priority;
+  const sequence = priority && Array.isArray(stored) ? stored : pickSequence(node.id);
+  const options = guided ? stageOptions(node, sequence) : loop ? [] : node.options || [];
+  if (priority) {
+    const note = document.createElement('p');
+    note.className = 'phase';
+    note.textContent = '先点首选，再按偏好点备选。再点已选项可取消。脚本会按此顺序核对当前画面。';
+    box.appendChild(note);
+    const missingPriority = sequence.some(key => !groups.has(key));
+    if (missingPriority || (sequence.length && !sequence.some(key => groups.get(key)?.some(option =>
+      option.select_type === 'DEFAULT' && !variableOption(option)
+        && !option.select_conditions?.length && !option.condition_ids?.length && !option.conditions?.length)))) {
+      const hint = document.createElement('p');
+      hint.className = 'fu-desc';
+      hint.textContent = missingPriority ? '旧规则指定了同名选项的编号。请重新选择该标题，确认接受任一同名分支。'
+        : '已选项可能都不出现或不可选。可添加常规选项作为备选。';
+      box.appendChild(hint);
     }
+    if (Object.hasOwn(PICKS, node.id)) {
+      const clear = document.createElement('button');
+      clear.id = path + '/clear';
+      clear.className = 'seq-clear';
+      clear.textContent = '清空优先顺序';
+      clear.onclick = () => setPick(node, undefined);
+      box.appendChild(clear);
+    }
+  }
+  if ((loop || guided) && sequence.length) box.appendChild(loopBar(node, sequence, path));
+  if (guided || loop) {
+    const phase = document.createElement('p');
+    phase.id = path + '/phase';
+    phase.className = options ? 'phase' : 'phase invalid';
+    phase.tabIndex = -1;
+    const previous = node.options.find(option => option.order === sequence[sequence.length - 1]);
+    if (!guided) {
+      phase.textContent = '选项随游戏状态变化，暂无法配置固定路线。';
+    } else if (options === null) {
+      phase.textContent = '当前路线无法到达。请撤销最后一步或清空后重选。';
+    } else if (!options.length) {
+      phase.textContent = '路线已配置'
+        + (!previous?.dice && previous?.success ? ' · ' + previous.success.replace(/<[^>]+>/g, '') : '');
+    } else if (!previous) {
+      phase.textContent = '第 1 步 · 首次遇到';
+    } else {
+      const result = returnOutcome(node, previous);
+      const label = previous.dice && result !== 'either' ? (result === 'fail' ? '失败' : '成功') : '';
+      phase.textContent = '第 ' + (sequence.length + 1) + ' 步 · 「' + previous.text + '」' + label + '后';
+    }
+    box.appendChild(phase);
+    if (guided && options?.length === 0 && previous) {
+      const optionPath = path + '/' + (previous.id || previous.order);
+      const followup = renderFollowup(node, nextNode(previous), optionPath, depth, query);
+      if (followup) box.appendChild(followup);
+    }
+  }
+  for (const option of options || []) {
+    const variants = groups?.get(optionTitle(option));
+    if (variants) {
+      if (variants[0] === option) box.appendChild(renderTitleGroup(node, variants, sequence, groups, path, depth, query));
+      continue;
+    }
+    const optionPath = path + '/' + (option.id || option.order);
+    box.appendChild(renderOption(node, option, sequence, loop || guided, optionPath, depth, query, false, groups));
+  }
 
-    label.appendChild(input);
-    label.appendChild(body);
-    row.appendChild(label);
-    box.appendChild(row);
-  });
+  if (loop || guided) {
+    const known = node.id === caveId ? [1, 2, 3, 4] : eventStages[node.id]?.flat() || [];
+    const unverified = node.options.filter(option => canPick(option) && !known.includes(option.order));
+    if (unverified.length) {
+      const reference = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = '查看随游戏状态变化的选项';
+      const note = document.createElement('p');
+      note.className = 'fu-desc';
+      note.textContent = '这些选项是否出现取决于游戏状态，供查看。';
+      reference.append(summary, note);
+      for (const option of unverified) {
+        const optionPath = path + '/' + (option.id || option.order);
+        reference.appendChild(renderOption(node, option, sequence, loop, optionPath, depth, query, true));
+      }
+      box.appendChild(reference);
+    }
+  }
   return box;
 }
 
-function renderList() {
+function renderList(resetScroll = false) {
+  expanded.clear();
   const list = document.getElementById('list');
-  const pack = DATA.packs.find(p => p.id === ACTIVE);
-  if (!pack) { list.innerHTML = '<div class="empty">左侧选一张地图</div>'; return; }
-  list.innerHTML = '';
-  const h2 = document.createElement('h2');
-  h2.textContent = `${pack.name}　共 ${pack.events.length} 个事件`
-    + (pack.common ? '　（通用：所有地图都会出现）' : '');
-  list.appendChild(h2);
-
-  pack.events.forEach(event => {
-    const box = document.createElement('div');
-    box.className = 'event' + (PICKS[event.id] !== undefined ? ' picked' : '');
-
-    const title = document.createElement('h3');
-    title.innerHTML = `${event.name}<span class="rarity ${event.rarity}">${event.rarity}</span>`
-      + `<span class="id">${event.id}</span>`;
-    box.appendChild(title);
-
-    box.appendChild(classification(event));
-
-    if (event.desc) {
-      const desc = document.createElement('div');
-      desc.className = 'desc';
-      desc.textContent = event.desc;
-      box.appendChild(desc);
-    }
-
-    // 主事件同样要支持"反复"（全库 27 个主事件自环，例如「食客」餵食后回到自己）。
-    // 之前只在后续详情里做了序列模式，主事件还是单选，等于漏了一大半。
-    const isLoop = isLoopEvent(event);
-    const sequence = pickSequence(event.id);
-    if (isLoop) {
-      box.appendChild(loopBar(event, sequence, () => { renderList(); renderNav(); }));
-    }
-
-    event.options.forEach(option => {
-      const picked = isLoop
-        ? sequence[sequence.length - 1] === option.order
-        : PICKS[event.id] === option.order;
-      const row = document.createElement('label');
-      row.className = 'opt' + (picked ? ' on' : '');
-      const input = document.createElement('input');
-      input.type = 'radio';
-      input.name = 'ev_' + event.id;
-      input.checked = picked;
-      input.onclick = () => applyPick(event, option, sequence);
-
-      const body = document.createElement('div');
-      body.className = 'body';
-      let tags = '';
-      if (option.dice) tags += `<span class="tag dice">骰 ${option.dice}</span>`;
-      if (option.condition) tags += `<span class="tag cond">${option.condition}</span>`;
-      if (option.attack) tags += `<span class="tag attack">战斗</span>`;
-      if (option.next) tags += `<span class="tag next">→ 后续</span>`;
-
-      let eff = '';
-      if (option.success) eff += `<div class="eff"><span class="s">成</span> ${option.success}</div>`;
-      if (option.fail) eff += `<div class="eff"><span class="f">败</span> ${option.fail}</div>`;
-
-      body.innerHTML = `<div class="txt">${option.order}. ${option.text || '（空）'}${tags}</div>${eff}`;
-      body.appendChild(classification(event, option));
-      // 「→ 后续」不只是个提示：展开能看到那个事件完整的选项和奖励
-      if (option.nextDetail) {
-        const details = document.createElement('details');
-        details.className = 'followup';
-        // 有可选项时**默认展开**：整条链要能在一个卡片里选完，
-        // 缩起来等于又变成"看一个、再另选一个"（用户 2026-11-15 要求）。
-        const hasChoices = (option.nextDetail.options || []).length > 0;
-        if (hasChoices) details.open = true;
-        details.innerHTML = '<summary>→ 后续：'
-          + (option.nextDetail.name || option.nextDetail.id)
-          + (hasChoices ? '（可直接在这里选）' : '') + '</summary>';
-        details.appendChild(renderFollowUp(option.nextDetail, 0));
-        body.appendChild(details);
+  const query = search.value.trim().toLowerCase();
+  const focus = list.contains(document.activeElement) ? document.activeElement.id : '';
+  const scroll = list.scrollTop;
+  for (const details of list.querySelectorAll('details[data-branch]')) {
+    expanded.set(details.dataset.branch, details.open);
+  }
+  list.replaceChildren();
+  for (const pack of DATA.packs) {
+    if (!query && pack.id !== ACTIVE) continue;
+    const events = pack.events.filter(event =>
+      (!onlyPicked.checked || hasPick(event)) && (!query || branchHas(event, node => matches(node, query))));
+    if (!events.length) continue;
+    const heading = document.createElement('h2');
+    heading.textContent = pack.name + '　' + events.length + ' / ' + pack.events.length
+      + (pack.common ? '（通用）' : '');
+    list.appendChild(heading);
+    for (const event of events) {
+      try {
+        list.appendChild(renderEvent(event, pack.id + '/' + event.id, 0, query));
+      } catch (error) {
+        const failed = document.createElement('p');
+        failed.className = 'empty';
+        failed.textContent = '「' + (event.name || event.id) + '」渲染失败：' + error.message;
+        list.appendChild(failed);
       }
-      row.appendChild(input);
-      row.appendChild(body);
-      box.appendChild(row);
-    });
-
-    list.appendChild(box);
-  });
+    }
+  }
+  if (!list.firstChild) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = '没有符合条件的事件。';
+    list.appendChild(empty);
+  }
+  if (focus) {
+    const nextFocus = document.getElementById(focus)
+      || document.getElementById(focus.slice(0, focus.lastIndexOf('/')) + '/phase');
+    nextFocus?.focus({preventScroll: true});
+  }
+  list.scrollTop = resetScroll ? 0 : scroll;
 }
 
 function exportPicks() {
+  try {
+    validatePicks(PICKS, true);
+  } catch (error) {
+    status.textContent = '无法导出：' + error.message;
+    return;
+  }
   const payload = {
     generated: new Date().toISOString(),
     version: 1,
-    picks: {}
+    picks: PICKS
   };
-  Object.keys(PICKS).forEach(id => { payload.picks[id] = PICKS[id]; });
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'rogue_event_picks.json';
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  status.textContent = '已导出 ' + Object.keys(PICKS).length + ' 条选择。';
 }
 
 function importPicks(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const parsed = JSON.parse(reader.result);
-      PICKS = parsed.picks || parsed || {};
+      const next = validatePicks(JSON.parse(reader.result));
+      if (Object.keys(PICKS).length && !confirm('用导入文件替换当前草稿？')) return;
+      PICKS = next;
       save(); renderNav(); renderList();
-      document.getElementById('hint').textContent =
-        `已导入 ${Object.keys(PICKS).length} 条选择`;
+      if (!status.textContent) status.textContent = '已导入 ' + Object.keys(PICKS).length + ' 条选择。';
     } catch (error) {
-      document.getElementById('hint').textContent = '导入失败：' + error.message;
+      status.textContent = '导入失败，当前草稿保留。' + error.message;
     }
   };
+  reader.onerror = () => { status.textContent = '读不到文件，当前草稿保留。'; };
   reader.readAsText(file);
 }
 
@@ -448,19 +827,48 @@ const doc = window.EVENTS_DATA;
 if (!doc) {
   document.getElementById('list').innerHTML =
     '<div class="empty">没读到 events.js。请确认它和 index.html 在同一个目录。</div>';
+  document.querySelectorAll('header button, header input').forEach(control => { control.disabled = true; });
 } else {
   DATA = doc;
+  function indexEvent(node, path = '') {
+    // 先登记再展开：同一子事件会经多条分支被看到，只有第一次（pack/事件 id 路径）算它的家。
+    // ❗不能用 `if (!eventsById.has())` 跳过整棵子树 —— 自环（`next` 指回自己）会在这里无限递归。
+    if (node.options?.length && !eventsById.has(node.id)) {
+      eventsById.set(node.id, node);
+      node.path = path;
+    }
+    for (const option of node.options || []) {
+      const next = option.nextDetail || (typeof option.next === 'object' ? option.next : null);
+      if (next) indexEvent(next, path + '/' + (option.id || option.order));
+    }
+  }
+  for (const pack of DATA.packs) {
+    pack.events.forEach(event => indexEvent(event, pack.id + '/' + event.id));
+  }
   ACTIVE = DATA.packs[0] && DATA.packs[0].id;
+  try {
+    const draft = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+    if (!draft || typeof draft !== 'object' || Array.isArray(draft)) throw new Error('草稿格式错误');
+    PICKS = draft;
+    validatePicks(PICKS);
+  } catch (error) {
+    status.textContent = '浏览器草稿需要检查。' + error.message;
+  }
   renderNav(); renderList(); updateStat();
 }
 
+search.oninput = () => renderList(true);
+onlyPicked.onchange = () => renderList(true);
+showDetails.onchange = () => renderList();
 document.getElementById('btn-export').onclick = exportPicks;
 document.getElementById('btn-clear').onclick = () => {
   if (confirm('清空所有已选事件？')) { PICKS = {}; save(); renderNav(); renderList(); }
 };
 document.getElementById('btn-import').onclick = () => document.getElementById('file').click();
 document.getElementById('file').onchange = ev => {
-  if (ev.target.files[0]) { importPicks(ev.target.files[0]); }
+  const file = ev.target.files[0];
+  ev.target.value = '';
+  if (file) importPicks(file);
 };
 </script>
 </body>

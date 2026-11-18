@@ -118,3 +118,34 @@ Text:
   Clear:
   EnterPassword:
   ChooseFile:
+
+Rogue:
+  Route:
+  Build:
+  Fate:
+  Events:
+  Settlement:
+  OpenSelector:
+  SelectorHelp:
+  Left:
+  Middle:
+  Right:
+  Slot1:
+  Slot2:
+  Slot3:
+  FollowSparkMember:
+  DecomposeAll:
+  Unselected:
+  SparkPickerTitle:
+  SparkPickerEmpty:
+  SparkFormAuto:
+  SparkFormCustom:
+  RemovePickerTitle:
+  RemovePickerEmpty:
+  RemoveKeep:
+  RemoveOne:
+  RemoveCount:
+  PriorityTag:
+  CardKindBasic:
+  CardKindSpark:
+  CardKindUnique:

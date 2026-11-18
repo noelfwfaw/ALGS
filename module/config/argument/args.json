@@ -2694,6 +2694,20 @@
         "type": "input",
         "value": 1
       },
+      "RogueFateMainFilter": {
+        "type": "textarea",
+        "value": "回想 > 靈感 > 虐待 > 友情 > 感應",
+        "valuetype": "str"
+      },
+      "RogueFateCoreFilter": {
+        "type": "textarea",
+        "value": "開朗 > 共情 > 擁有 > 嫉妒",
+        "valuetype": "str"
+      },
+      "RogueFateCapture": {
+        "type": "checkbox",
+        "value": false
+      },
       "RogueHerald": {
         "type": "input",
         "value": 1
@@ -2723,13 +2737,46 @@
         "type": "input",
         "value": 1
       },
+      "RogueSlot1Member": {
+        "type": "input",
+        "value": "",
+        "valuetype": "str"
+      },
+      "RogueSlot2Member": {
+        "type": "input",
+        "value": "",
+        "valuetype": "str"
+      },
+      "RogueSlot3Member": {
+        "type": "input",
+        "value": "",
+        "valuetype": "str"
+      },
+      "RogueRemoveMember": {
+        "type": "input",
+        "value": 1
+      },
       "RogueDelete": {
         "type": "input",
         "value": 3
       },
+      "RogueDeleteFilter": {
+        "type": "textarea",
+        "value": "",
+        "valuetype": "str"
+      },
       "RogueSparkFilter": {
         "type": "textarea",
         "value": ""
+      },
+      "RogueCopyMember": {
+        "type": "input",
+        "value": 0
+      },
+      "RogueCopyCard": {
+        "type": "input",
+        "value": "劍之雨",
+        "valuetype": "str"
       },
       "RogueEquipFilter": {
         "type": "textarea",

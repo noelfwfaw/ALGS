@@ -219,8 +219,8 @@
       "help": "コールドスタート・タイトル画面・放置中の立ち絵からメイン画面まで進める。報酬は受け取らない"
     },
     "ChaoszeroRogue": {
-      "name": "Task.ChaoszeroRogue.name",
-      "help": "Task.ChaoszeroRogue.help"
+      "name": "カオスゼロ ローグライク",
+      "help": "設定に従って探索し、デッキを育成して精算します。開始前にワールド、イベントの選択ルール、保持するセーブデータを確認してください。"
     },
     "CrosscoreMain": {
       "name": "クロス：ゲーム起動",
@@ -932,87 +932,127 @@
   },
   "ChaoszeroRogue": {
     "_info": {
-      "name": "ChaoszeroRogue._info.name",
-      "help": "ChaoszeroRogue._info.help"
+      "name": "カオスゼロ ローグライク",
+      "help": ""
     },
     "RogueWorld": {
-      "name": "ChaoszeroRogue.RogueWorld.name",
-      "help": "ChaoszeroRogue.RogueWorld.help",
-      "霧之城市": "ChaoszeroRogue.RogueWorld.霧之城市",
-      "雙星之影": "ChaoszeroRogue.RogueWorld.雙星之影",
-      "審判之沼": "ChaoszeroRogue.RogueWorld.審判之沼",
-      "藍壺": "ChaoszeroRogue.RogueWorld.藍壺",
-      "降臨的混沌": "ChaoszeroRogue.RogueWorld.降臨的混沌"
+      "name": "ワールド",
+      "help": "ゲーム内の名前から入口を探します。",
+      "霧之城市": "霧之城市",
+      "雙星之影": "雙星之影",
+      "審判之沼": "審判之沼",
+      "藍壺": "藍壺",
+      "降臨的混沌": "降臨的混沌"
     },
     "RogueDreamMode": {
-      "name": "ChaoszeroRogue.RogueDreamMode.name",
-      "help": "ChaoszeroRogue.RogueDreamMode.help",
-      "開啟": "ChaoszeroRogue.RogueDreamMode.開啟",
-      "關閉": "ChaoszeroRogue.RogueDreamMode.關閉",
-      "保持不變": "ChaoszeroRogue.RogueDreamMode.保持不變"
+      "name": "夢境モード",
+      "help": "開始前に編成画面で設定します。セーブ上限は有効時 110 点、無効時 100 点です。",
+      "開啟": "有効",
+      "關閉": "無効",
+      "保持不變": "現在の状態を維持"
     },
     "RoguePick": {
-      "name": "ChaoszeroRogue.RoguePick.name",
-      "help": "ChaoszeroRogue.RoguePick.help"
+      "name": "既定のカード位置",
+      "help": "位置でカードを選ぶ画面と、ひらめきの形態を照合できない場合に使います。運命とイベントには個別のルールがあります。"
+    },
+    "RogueFateMainFilter": {
+      "name": "第 1 マップの運命",
+      "help": "運命名を > で区切って入力し、左側ほど優先します（例：回想 > 靈感 > 虐待 > 友情 > 感應）。一致しない場合はランダム、- で常にランダムになります。"
+    },
+    "RogueFateCoreFilter": {
+      "name": "第 2 マップ（核心）の運命",
+      "help": "運命名を > で区切って入力し、左側ほど優先します（例：開朗 > 共情 > 擁有 > 嫉妒）。一致しない場合はランダム、- で常にランダムになります。"
+    },
+    "RogueFateCapture": {
+      "name": "運命の画面を保存（デバッグ）",
+      "help": "運命画面、認識した名前、3 枚の効果の切り抜きを記録します。通常の周回ではオフにしてください。"
     },
     "RogueHerald": {
-      "name": "ChaoszeroRogue.RogueHerald.name",
-      "help": "ChaoszeroRogue.RogueHerald.help"
+      "name": "伝令の祝福位置",
+      "help": "祝福は毎回ランダムに出現し、指定位置のカードを選択します。"
     },
     "RogueRoute": {
-      "name": "ChaoszeroRogue.RogueRoute.name",
-      "help": "ChaoszeroRogue.RogueRoute.help",
-      "均衡": "ChaoszeroRogue.RogueRoute.均衡",
-      "优先进攻": "ChaoszeroRogue.RogueRoute.优先进攻",
-      "优先事件": "ChaoszeroRogue.RogueRoute.优先事件"
+      "name": "ルートの優先順位",
+      "help": "進めるマスの中から指定の種類を優先します。",
+      "均衡": "バランス",
+      "优先进攻": "戦闘優先",
+      "优先事件": "イベント優先"
     },
     "RogueAvoidElite": {
-      "name": "ChaoszeroRogue.RogueAvoidElite.name",
-      "help": "ChaoszeroRogue.RogueAvoidElite.help"
+      "name": "エリートを避ける",
+      "help": "エリートマスの優先度を下げます。"
     },
     "RogueMeditate": {
-      "name": "ChaoszeroRogue.RogueMeditate.name",
-      "help": "ChaoszeroRogue.RogueMeditate.help"
+      "name": "瞑想で再抽選",
+      "help": "「キャラクターひらめきの優先枠」で選んだキャラクターのカードのみ対象です。指定形態が出なかったカードを順番に休憩地点で 1 枚ずつ再抽選します。"
     },
     "RogueCure": {
-      "name": "ChaoszeroRogue.RogueCure.name",
-      "help": "ChaoszeroRogue.RogueCure.help"
+      "name": "精神崩壊後に治療",
+      "help": "精神異常が表示されたとき、治療手順に従います。"
     },
     "RogueMember": {
-      "name": "ChaoszeroRogue.RogueMember.name",
-      "help": "ChaoszeroRogue.RogueMember.help"
+      "name": "キャラクターひらめきの優先枠",
+      "help": "指定した編成枠を優先します。選べない場合は他の選択可能なキャラクターを試します。"
+    },
+    "RogueSlot1Member": {
+      "name": "1枠目キャラ",
+      "help": "UI 表示用です。ここで選んだキャラの閃き対象カードが下に表示されます（実行時の認識には影響しません）。"
+    },
+    "RogueSlot2Member": {
+      "name": "2枠目キャラ",
+      "help": "UI 表示用です。ここで選んだキャラの閃き対象カードが下に表示されます（実行時の認識には影響しません）。"
+    },
+    "RogueSlot3Member": {
+      "name": "3枠目キャラ",
+      "help": "UI 表示用です。ここで選んだキャラの閃き対象カードが下に表示されます（実行時の認識には影響しません）。"
+    },
+    "RogueRemoveMember": {
+      "name": "カード削除の優先枠",
+      "help": "カード削除画面でこの編成枠の選択済みカードを優先して削除し、残りがなければ他の枠へ進みます。"
     },
     "RogueDelete": {
-      "name": "ChaoszeroRogue.RogueDelete.name",
-      "help": "ChaoszeroRogue.RogueDelete.help"
+      "name": "1 周あたりのカード削除上限",
+      "help": "0 でスキップします。認識できた「劍幕」と「劍光」のみを削除し、「劍幕」を優先します。"
+    },
+    "RogueDeleteFilter": {
+      "name": "削除対象カード",
+      "help": "1 周ごとに削除するカードと枚数。"
     },
     "RogueSparkFilter": {
-      "name": "ChaoszeroRogue.RogueSparkFilter.name",
-      "help": "ChaoszeroRogue.RogueSparkFilter.help"
+      "name": "指定するひらめき形態",
+      "help": "1 行につき 1 枚。劍之雨 = 2 のようにカード詳細の形態番号を指定するか、繁体字の効果キーワードを指定します。"
+    },
+    "RogueCopyMember": {
+      "name": "コピー元の編成枠",
+      "help": "コピー時に優先する編成枠を指定します。その枠を選べない場合は、ほかの戦闘員を試します。"
+    },
+    "RogueCopyCard": {
+      "name": "コピーするカード",
+      "help": "ゲーム内のカード名を入力してください。再試行後も対象を確認できない場合は、一覧の先頭カードをコピーします。"
     },
     "RogueEquipFilter": {
-      "name": "装備の指定キャラクター",
-      "help": "各行：装備名 = キャラクター名。Wiki の名前または ID を使用。指定装備は指定キャラの同部位を交換可能、通常装備は空き枠のみ。ユニーク装備は別部位に同時装備不可。ショップは指定装備のみ購入し、無料更新で探し続けます。有料更新は行いません。割り当て不可のイベント装備は分解。星数は無視。空欄なら装備購入とショップ更新は行いません。"
+      "name": "装備の割り当てと優先順位",
+      "help": "「キャラ(または1~3号位) 部位: 装備1 > 装備2」の形式で > 区切りに入力します（左ほど優先、部位は 武器 / 护甲 / 饰品 を明記）。例：\n1号位 武器: 混沌指控 > 混沌觸手 > 迷霧水晶球\n1号位 护甲: 加強型戰鬥強化服\n1号位 饰品: 亡魂之花 > 非典型方塊\n従来の「装備 = キャラ」形式も利用可能です。未指定装備は空き枠を埋めた後、レア度順に更新します。"
     },
     "RogueEventPick": {
-      "name": "ChaoszeroRogue.RogueEventPick.name",
-      "help": "ChaoszeroRogue.RogueEventPick.help"
+      "name": "ルールに従ってイベントを選択",
+      "help": "有効時は設定済みルールで選択します。無効時やイベント・ルール・対象選択肢を確認できない場合は、画面を保存して停止します。"
     },
     "RogueSaveKeep": {
-      "name": "ChaoszeroRogue.RogueSaveKeep.name",
-      "help": "ChaoszeroRogue.RogueSaveKeep.help"
+      "name": "精算時に保持するセーブ",
+      "help": "編成枠を選ぶとそのキャラクターのセーブを保持し、他の 2 件を分解します。全件分解を選ぶと今回の 3 件を分解します。"
     },
     "RogueLoop": {
-      "name": "ChaoszeroRogue.RogueLoop.name",
-      "help": "ChaoszeroRogue.RogueLoop.help"
+      "name": "次のバッチを早く予約",
+      "help": "今回のバッチ終了後、次回は有効時に約 1 分後、無効時に約 30 分後となります。"
     },
     "RogueRuns": {
-      "name": "ChaoszeroRogue.RogueRuns.name",
-      "help": "ChaoszeroRogue.RogueRuns.help"
+      "name": "バッチあたりの周回数",
+      "help": "1 は 1 周でスケジューラーに戻ります。0 はタスクが停止するまで続けます。"
     },
     "RogueStopBeacon": {
-      "name": "ChaoszeroRogue.RogueStopBeacon.name",
-      "help": "ChaoszeroRogue.RogueStopBeacon.help"
+      "name": "指定の航点で撤退",
+      "help": "0 は通常の精算まで進みます。N を入力すると N 番目の航点で撤退します。"
     }
   },
   "ChaoszeroArk": {
@@ -1639,6 +1679,37 @@
       "Clear": "消除",
       "EnterPassword": "パスワードを入力してください",
       "ChooseFile": "ファイルを選択してください"
+    },
+    "Rogue": {
+      "Route": "開始とルート",
+      "Build": "カードと装備",
+      "Fate": "運命の優先順位",
+      "Events": "イベント選択",
+      "Settlement": "精算とスケジュール",
+      "OpenSelector": "イベント選択ツールを開く ↗",
+      "SelectorHelp": "イベントルールは全プロファイルで共有されます。選択ツールから書き出したファイルをスクリプトフォルダの config/rogue/rogue_event_picks.json に配置してください。",
+      "Left": "左",
+      "Middle": "中央",
+      "Right": "右",
+      "Slot1": "枠 1",
+      "Slot2": "枠 2",
+      "Slot3": "枠 3",
+      "FollowSparkMember": "ひらめきの優先枠に従う",
+      "DecomposeAll": "3 件すべて分解",
+      "Unselected": "未選択",
+      "SparkPickerTitle": "キャラ別閃き形態設定",
+      "SparkPickerEmpty": "上の 1~3 枠でキャラを選ぶと、ここに閃き対象カードが表示されます。選択内容は下のテキスト欄へ自動反映されます。",
+      "SparkFormAuto": "指定なし（数値最大）",
+      "SparkFormCustom": "カスタムキーワード",
+      "RemovePickerTitle": "削除対象のカード指定",
+      "RemovePickerEmpty": "上の 1~3 枠でキャラを選ぶと、1 周ごとに削除するカードと枚数を設定できます。",
+      "RemoveKeep": "削除しない",
+      "RemoveOne": "削除する（1 枚）",
+      "RemoveCount": "{count} 枚削除",
+      "PriorityTag": "優先",
+      "CardKindBasic": "基本カード · 初期 {count} 枚",
+      "CardKindSpark": "閃き対象 · 初期 {count} 枚",
+      "CardKindUnique": "固有カード · 初期 {count} 枚"
     }
   }
 }

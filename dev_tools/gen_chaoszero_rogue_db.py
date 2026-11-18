@@ -24,8 +24,8 @@ Output: ``module/chaoszero/rogue_events.json.gz``
       }
     }
 
-The task never ships the raw API: only the fields the decision engine needs, and
-gzipped, so it stays a small asset.
+Records retain the source metadata under `raw` alongside the decision fields.
+Embedded outcome destinations are stored by id and expanded by the inline generator.
 
 Usage:
     toolkit/python.exe -m dev_tools.gen_chaoszero_rogue_db
@@ -47,6 +47,7 @@ API = 'https://wiki.e7bot.top/api/czn'
 KEY = b'2egkWEkLvR9idARLvjqfJdWKfR24HJgY'
 HEADERS = {'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'}
 OUTPUT = 'module/chaoszero/rogue_events.json.gz'
+OUTCOME_KEYS = ('success_link_encounter_option_eff', 'fail_link_encounter_option_eff')
 
 
 def decrypt(payload):
@@ -94,7 +95,7 @@ def get(path, retries=3):
 
 def reward_list(rewards):
     """
-    Flatten `reward0..4_reward` into a list.
+    Flatten the numbered reward slots in source order.
 
     Args:
         rewards (dict): Raw option reward container.
@@ -103,8 +104,9 @@ def reward_list(rewards):
         list[dict]: Type / text / amount of every non-empty reward.
     """
     result = []
-    for index in range(5):
-        reward = rewards.get('reward%s_reward' % index) or {}
+    slots = (key for key in rewards if re.fullmatch(r'reward[0-9]+_reward', key))
+    for slot in sorted(slots, key=lambda key: int(key[6:-7])):
+        reward = rewards[slot] or {}
         reward_type = reward.get('reward_type')
         if not reward_type or reward_type == 'REWARD_TYPE_NONE':
             continue
@@ -116,9 +118,20 @@ def reward_list(rewards):
     return result
 
 
+def raw_option(option):
+    """Keep the source fields and refer to embedded encounters by id."""
+    raw = dict(option)
+    for key in OUTCOME_KEYS:
+        effect = option.get(key)
+        child = (effect or {}).get('next_encounter')
+        if isinstance(child, dict) and child.get('id'):
+            raw[key] = dict(effect, next_encounter=child['id'])
+    return raw
+
+
 def parse_option(option):
     """
-    Keep only what the decision engine needs from one option.
+    Keep the decision fields and original metadata for one option.
 
     Args:
         option (dict): Raw option.
@@ -141,8 +154,9 @@ def parse_option(option):
         'select_conditions': option.get('select_link_encounter_trigger_id') or [],
         'condition_ids': option.get('select_link_nb_condition_id') or [],
         'conditions': conditions,
-        'success': reward_list(option.get('success_link_encounter_option_eff') or {}),
-        'fail': reward_list(option.get('fail_link_encounter_option_eff') or {}),
+        'success': reward_list(option.get(OUTCOME_KEYS[0]) or {}),
+        'fail': reward_list(option.get(OUTCOME_KEYS[1]) or {}),
+        'raw': raw_option(option),
     }
 
 
@@ -167,6 +181,7 @@ def parse_encounter(inner):
         'option_count': inner.get('option_count'),
         'option_count_max': inner.get('option_count_max'),
         'options': options,
+        'raw': {key: value for key, value in inner.items() if key != 'options'},
     }
 
 
@@ -181,7 +196,7 @@ def main():
         rows = json.loads(rows)
     print('  %s encounters' % len(rows))
 
-    # Only reuse classified options; old flattened caches must fetch the missing fields.
+    # Fetch metadata missing from older flattened caches.
     old = {}
     if os.path.exists(OUTPUT):
         with gzip.open(OUTPUT, 'rb') as handle:
@@ -195,7 +210,8 @@ def main():
             continue
         cached = old.get(encounter_id) or {}
         if (cached.get('options') and cached.get('name') and 'option_count_max' in cached
-                and all('appear_conditions' in option and 'select_type' in option
+                and 'raw' in cached
+                and all('appear_conditions' in option and 'select_type' in option and 'raw' in option
                         for option in cached['options'])):
             record = dict(cached)
         else:

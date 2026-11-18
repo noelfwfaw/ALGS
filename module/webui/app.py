@@ -5,6 +5,7 @@ import threading
 import time
 from datetime import datetime
 from functools import partial
+from pathlib import Path
 from typing import Dict, List, Optional
 
 # Import fake module before import pywebio to avoid importing unnecessary module PIL
@@ -38,6 +39,7 @@ from pywebio.output import (
 )
 from pywebio.pin import pin, pin_on_change
 from pywebio.session import download, go_app, info, local, register_thread, run_js, set_env
+from starlette.responses import FileResponse
 
 import module.webui.lang as lang
 from module.config.config import AlasConfig, Function
@@ -81,10 +83,12 @@ from module.webui.utils import (
     re_fullmatch,
     to_pin_value,
 )
+from module.chaoszero import rogue_spark_catalog as rogue_cards
 from module.webui.widgets import (
     BinarySwitchButton,
     RichLog,
     T_Output_Kwargs,
+    put_arg_select,
     put_icon_buttons,
     put_loading_text,
     put_none,
@@ -95,6 +99,48 @@ patch_executor()
 patch_mimetype()
 fix_py37_subprocess_communicate()
 task_handler = TaskHandler()
+
+ROGUE_SECTIONS = {
+    "Route": ("RogueWorld", "RogueDreamMode", "RogueRoute", "RogueAvoidElite", "RogueHerald"),
+    "Build": (
+        "RogueMember",
+        "RogueSlot1Member",
+        "RogueSlot2Member",
+        "RogueSlot3Member",
+        "RogueSparkFilter",
+        "RogueRemoveMember",
+        "RogueDelete",
+        "RogueDeleteFilter",
+        "RogueMeditate",
+        "RogueCopyMember",
+        "RogueCopyCard",
+        "RogueEquipFilter",
+        "RoguePick",
+    ),
+    "Fate": ("RogueFateMainFilter", "RogueFateCoreFilter", "RogueFateCapture"),
+    "Events": ("RogueEventPick",),
+    "Settlement": ("RogueSaveKeep", "RogueRuns", "RogueLoop", "RogueStopBeacon", "RogueCure"),
+}
+ROGUE_SLOT_MEMBER_ARGS = ("RogueSlot1Member", "RogueSlot2Member", "RogueSlot3Member")
+ROGUE_HIDDEN_BUILD_ARGS = ("RogueSparkFilter", "RogueDelete", "RogueDeleteFilter")
+ROGUE_PICKER_WATCH_ARGS = ROGUE_SLOT_MEMBER_ARGS + ("RogueRemoveMember",)
+ROGUE_SPARK_WATCH_PATHS = {
+    f"ChaoszeroRogue.ChaoszeroRogue.{arg}" for arg in ROGUE_PICKER_WATCH_ARGS
+}
+ROGUE_CIRCLED_INDEX = ("①", "②", "③", "④", "⑤")
+ROGUE_SPARK_CUSTOM_OPTION = "__custom__"
+ROGUE_CARD_POSITIONS = {1: "Left", 2: "Middle", 3: "Right"}
+ROGUE_PARTY_SLOTS = {1: "Slot1", 2: "Slot2", 3: "Slot3"}
+ROGUE_POSITION_LABELS = {
+    "RoguePick": ROGUE_CARD_POSITIONS,
+    "RogueHerald": ROGUE_CARD_POSITIONS,
+    "RogueMember": ROGUE_PARTY_SLOTS,
+    "RogueRemoveMember": ROGUE_PARTY_SLOTS,
+    "RogueCopyMember": {0: "FollowSparkMember", **ROGUE_PARTY_SLOTS},
+    "RogueSaveKeep": {0: "DecomposeAll", **ROGUE_PARTY_SLOTS},
+}
+ROGUE_SELECTOR_ROUTE = "/rogue-events"
+ROGUE_SELECTOR_DIR = Path(__file__).resolve().parents[2] / "dev_tools" / "rogue_events"
 
 
 class AlasGUI(Frame):
@@ -121,6 +167,9 @@ class AlasGUI(Frame):
         self.inst_cache = []
         self.load_home = False
         self.af_flag = False
+        self._rogue_spark_active = False
+        self._rogue_hidden_values = {}
+        self._rogue_picker_lock = threading.RLock()
 
     @use_scope("aside", clear=True)
     def set_aside(self) -> None:
@@ -292,6 +341,7 @@ class AlasGUI(Frame):
         """
         Set arg groups from dict
         """
+        self._rogue_spark_active = False
         self.init_menu(name=task)
         self.set_title(t(f"Task.{task}.name"))
 
@@ -307,12 +357,21 @@ class AlasGUI(Frame):
 
         config = self.alas_config.read_file(self.alas_name)
         for group, arg_dict in deep_iter(self.ALAS_ARGS[task], depth=1):
+            if task == group[0] == "ChaoszeroRogue":
+                remaining = arg_dict.copy()
+                for section, names in ROGUE_SECTIONS.items():
+                    settings = {name: remaining.pop(name) for name in names if name in remaining}
+                    if self.set_group(group, settings, config, task, section=section):
+                        self.set_navigator(group, section=section)
+                arg_dict = remaining
             if self.set_group(group, arg_dict, config, task):
                 self.set_navigator(group)
 
     @use_scope("groups")
-    def set_group(self, group, arg_dict, config, task):
+    def set_group(self, group, arg_dict, config, task, section=None):
         group_name = group[0]
+        section_name = f"{group_name}_{section}" if section else group_name
+        title = f"Gui.Rogue.{section}" if section else f"{group_name}._info.name"
         server = to_server(deep_get(config, "Alas.Emulator.PackageName", "cn"))
 
         output_list: List[Output] = []
@@ -330,6 +389,16 @@ class AlasGUI(Frame):
             output_kwargs["widget_type"] = output_kwargs.pop("type")
 
             arg_name = arg[0]  # [arg_name,]
+            if group_name == "ChaoszeroRogue" and arg_name in ROGUE_HIDDEN_BUILD_ARGS:
+                if arg_name in ("RogueSparkFilter", "RogueDeleteFilter"):
+                    self._rogue_hidden_values[arg_name] = str(
+                        deep_get(config, [task, group_name, arg_name], output_kwargs["value"]) or ""
+                    )
+                    scope_name = "rogue_spark_picker" if arg_name == "RogueSparkFilter" else "rogue_remove_picker"
+                    scope_out = put_scope(scope_name)
+                    scope_out.spec["scope"] = f"#pywebio-scope-group_{section_name}"
+                    output_list.append(scope_out)
+                continue
             # Internal pin widget name
             output_kwargs["name"] = f"{task}_{group_name}_{arg_name}"
             # Display title
@@ -341,6 +410,13 @@ class AlasGUI(Frame):
             )
             # idk
             value = str(value) if isinstance(value, datetime) else value
+            if (
+                group_name == "ChaoszeroRogue"
+                and arg_name in ("RogueFateMainFilter", "RogueFateCoreFilter")
+                and isinstance(value, str)
+                and "\n" in value
+            ):
+                value = " > ".join(line.strip() for line in value.splitlines() if line.strip())
             # Default value
             output_kwargs["value"] = value
             # Options
@@ -348,7 +424,26 @@ class AlasGUI(Frame):
             server_options = output_kwargs.get(f"option_{server}")
             if output_kwargs["widget_type"] == "select" and isinstance(server_options, list) and server_options:
                 options = server_options
-            output_kwargs["options"] = options
+            position_labels = ROGUE_POSITION_LABELS.get(arg_name) if section else None
+            if group_name == "ChaoszeroRogue" and arg_name in ROGUE_SLOT_MEMBER_ARGS:
+                options, options_label = self._rogue_character_options()
+                output_kwargs["widget_type"] = "select"
+                value = str(value or "")
+                if value not in options:
+                    value = ""
+                output_kwargs["value"] = value
+                output_kwargs["options"] = options
+                output_kwargs["options_label"] = options_label
+            elif position_labels and type(value) is int and value in position_labels:
+                output_kwargs["widget_type"] = "select"
+                options = list(position_labels)
+                output_kwargs["options"] = options
+                output_kwargs["options_label"] = [t(f"Gui.Rogue.{position_labels[opt]}") for opt in options]
+            else:
+                position_labels = None
+                output_kwargs["options"] = options
+            if group_name == "ChaoszeroRogue" and arg_name in ROGUE_PICKER_WATCH_ARGS:
+                self._rogue_hidden_values[arg_name] = str(value if value is not None else "")
             if (
                 task == "GemsFarming"
                 and group_name == "Campaign"
@@ -362,10 +457,8 @@ class AlasGUI(Frame):
                 if only_option in output_kwargs.get("option_bold", []):
                     output_kwargs["widget_type"] = "state"
             # Options label
-            options_label = []
-            for opt in options:
-                options_label.append(t(f"{group_name}.{arg_name}.{opt}"))
-            output_kwargs["options_label"] = options_label
+            if not (group_name == "ChaoszeroRogue" and arg_name in ROGUE_SLOT_MEMBER_ARGS) and not position_labels:
+                output_kwargs["options_label"] = [t(f"{group_name}.{arg_name}.{opt}") for opt in options]
             # Help
             arg_help = t(f"{group_name}.{arg_name}.help")
             if arg_help == "" or not arg_help:
@@ -377,39 +470,229 @@ class AlasGUI(Frame):
             o = put_output(output_kwargs)
             if o is not None:
                 # output will inherit current scope when created, override here
-                o.spec["scope"] = f"#pywebio-scope-group_{group_name}"
+                o.spec["scope"] = f"#pywebio-scope-group_{section_name}"
                 output_list.append(o)
 
         if not output_list:
             return 0
 
-        with use_scope(f"group_{group_name}"):
-            put_text(t(f"{group_name}._info.name"))
-            group_help = t(f"{group_name}._info.help")
+        with use_scope(f"group_{section_name}"):
+            put_text(t(title))
+            group_help = "" if section else t(f"{group_name}._info.help")
             if group_help != "":
                 put_text(group_help)
             put_html('<hr class="hr-group">')
+            if section == "Events":
+                put_scope("rogue_event_selector", [
+                    put_link(t("Gui.Rogue.OpenSelector"), url=f".{ROGUE_SELECTOR_ROUTE}/index.html", new_window=True),
+                    put_text(t("Gui.Rogue.SelectorHelp")).style("--arg-help--"),
+                ])
             for output in output_list:
                 output.show()
 
+        if section == "Build":
+            self._rogue_spark_active = True
+            self._render_rogue_pickers(config)
+
         return len(output_list)
 
+    @staticmethod
+    def _rogue_character_options():
+        chars, _ = rogue_cards.spark_catalog()
+        ordered = sorted(chars, key=lambda entry: (rogue_cards.character_name(entry, lang.LANG), entry["id"]))
+        options = [""] + [entry["id"] for entry in ordered]
+        labels = [t("Gui.Rogue.Unselected")] + [rogue_cards.character_name(entry, lang.LANG) for entry in ordered]
+        return options, labels
+
+    def _get_rogue_picker_lock(self):
+        lock = getattr(self, "_rogue_picker_lock", None)
+        if lock is None:
+            lock = threading.RLock()
+            self._rogue_picker_lock = lock
+        return lock
+
+    def _rogue_pin_or_config(self, config, arg_name: str, default: str = "") -> str:
+        if arg_name in self._rogue_hidden_values:
+            return self._rogue_hidden_values[arg_name]
+        pin_name = f"ChaoszeroRogue_ChaoszeroRogue_{arg_name}"
+        try:
+            value = pin[pin_name]
+            if value is not None:
+                return str(value)
+        except Exception:
+            pass
+        if config is None:
+            config = self.alas_config.read_file(self.alas_name)
+        return str(deep_get(config, ["ChaoszeroRogue", "ChaoszeroRogue", arg_name], default) or "")
+
+    def _rogue_selected_slots(self, config=None):
+        chars, _ = rogue_cards.spark_catalog()
+        char_map = {entry["id"]: entry for entry in chars}
+        selected, seen_chars = [], set()
+        for slot_idx, (slot_arg, label_key) in enumerate(zip(ROGUE_SLOT_MEMBER_ARGS, ("Slot1", "Slot2", "Slot3")), 1):
+            cid = self._rogue_pin_or_config(config, slot_arg, "").strip()
+            if cid and cid in char_map and cid not in seen_chars:
+                seen_chars.add(cid)
+                selected.append((slot_idx, t(f"Gui.Rogue.{label_key}"), cid, rogue_cards.character_name(char_map[cid], lang.LANG)))
+        return selected
+
+    def _rogue_remove_slot(self, config=None) -> int:
+        raw = self._rogue_pin_or_config(config, "RogueRemoveMember", "1").strip()
+        try:
+            slot = int(raw)
+        except (TypeError, ValueError):
+            slot = 1
+        return slot if slot in (1, 2, 3) else 1
+
+    def _render_rogue_pickers(self, config=None) -> None:
+        with self._get_rogue_picker_lock():
+            self._render_rogue_spark_picker(config)
+            self._render_rogue_remove_picker(config)
+
+    def _render_rogue_spark_picker(self, config=None) -> None:
+        if not self._rogue_spark_active:
+            return
+        with self._get_rogue_picker_lock():
+            _, by_char = rogue_cards.spark_catalog()
+            spark_text = self._rogue_pin_or_config(config, "RogueSparkFilter", "")
+            rules = rogue_cards.parse_spark_filter(spark_text)
+            norm_rules = {rogue_cards.normalize(k): v for k, v in rules.items()}
+            selected = [item for item in self._rogue_selected_slots(config) if item[2] in by_char]
+
+            with use_scope("rogue_spark_picker", clear=True):
+                put_text(t("Gui.Rogue.SparkPickerTitle")).style("--arg-title--")
+                if not selected:
+                    put_text(t("Gui.Rogue.SparkPickerEmpty")).style("--arg-help--")
+                    return
+                for _, slot_label, cid, char_name in selected:
+                    put_text(f"{slot_label} · {char_name}").style("--arg-title--")
+                    for card in by_char[cid]:
+                        card_name = card["name"]
+                        raw_val = rules.get(card_name) or norm_rules.get(rogue_cards.normalize(card_name), "")
+                        options = [""] + [str(f["index"]) for f in card["forms"]]
+                        options_label = [t("Gui.Rogue.SparkFormAuto")] + [
+                            f"{ROGUE_CIRCLED_INDEX[f['index'] - 1]} {f['desc']}" for f in card["forms"]
+                        ]
+                        help_text = None
+                        if raw_val in options and raw_val != "":
+                            current = raw_val
+                            form = card["forms"][int(raw_val) - 1]
+                            help_text = f"{ROGUE_CIRCLED_INDEX[form['index'] - 1]} {form['desc']}"
+                        elif raw_val:
+                            current = ROGUE_SPARK_CUSTOM_OPTION
+                            options.append(ROGUE_SPARK_CUSTOM_OPTION)
+                            options_label.append(f"{t('Gui.Rogue.SparkFormCustom')}: {raw_val}")
+                            help_text = raw_val
+                        else:
+                            current = ""
+
+                        pin_name = f"rogue_spark_card_{card['id']}"
+                        put_arg_select({
+                            "name": pin_name,
+                            "title": card_name,
+                            "value": current,
+                            "options": options,
+                            "options_label": options_label,
+                            "help": help_text,
+                        }).show()
+                        pin_on_change(
+                            name=pin_name,
+                            onchange=partial(self._on_rogue_spark_card_change, card_name),
+                            clear=True,
+                        )
+
+    def _render_rogue_remove_picker(self, config=None) -> None:
+        if not self._rogue_spark_active:
+            return
+        with self._get_rogue_picker_lock():
+            by_char = rogue_cards.deck_catalog()
+            delete_text = self._rogue_pin_or_config(config, "RogueDeleteFilter", "")
+            rules = dict(rogue_cards.parse_delete_filter(delete_text))
+            norm_rules = {rogue_cards.normalize(k): v for k, v in rules.items() if rogue_cards.normalize(k)}
+            selected = [item for item in self._rogue_selected_slots(config) if item[2] in by_char]
+            preferred_slot = self._rogue_remove_slot(config)
+            ordered = [item for item in selected if item[0] == preferred_slot] + [
+                item for item in selected if item[0] != preferred_slot
+            ]
+            kind_key = {"basic": "CardKindBasic", "spark": "CardKindSpark", "unique": "CardKindUnique"}
+
+            with use_scope("rogue_remove_picker", clear=True):
+                put_text(t("Gui.Rogue.RemovePickerTitle")).style("--arg-title--")
+                if not ordered:
+                    put_text(t("Gui.Rogue.RemovePickerEmpty")).style("--arg-help--")
+                    return
+                for slot_idx, slot_label, cid, char_name in ordered:
+                    header = (
+                        f"{slot_label} · {char_name}（{t('Gui.Rogue.PriorityTag')}）"
+                        if slot_idx == preferred_slot
+                        else f"{slot_label} · {char_name}"
+                    )
+                    put_text(header).style("--arg-title--")
+                    for card in by_char[cid]:
+                        card_name = card["name"]
+                        max_count = card["count"]
+                        raw_count = rules.get(card_name)
+                        if raw_count is None:
+                            raw_count = norm_rules.get(rogue_cards.normalize(card_name), 0)
+                        current = str(min(max_count, max(0, int(raw_count))))
+                        options = ["0"] + [str(n) for n in range(1, max_count + 1)]
+                        options_label = [t("Gui.Rogue.RemoveKeep")] + [
+                            t("Gui.Rogue.RemoveOne") if n == 1 else t("Gui.Rogue.RemoveCount", count=n)
+                            for n in range(1, max_count + 1)
+                        ]
+                        pin_name = f"rogue_remove_card_{card['id']}"
+                        put_arg_select({
+                            "name": pin_name,
+                            "title": card_name,
+                            "value": current,
+                            "options": options,
+                            "options_label": options_label,
+                            "help": t(f"Gui.Rogue.{kind_key[card['kind']]}", count=max_count),
+                        }).show()
+                        pin_on_change(
+                            name=pin_name,
+                            onchange=partial(self._on_rogue_remove_card_change, card_name),
+                            clear=True,
+                        )
+
+    def _update_rogue_hidden_filter(self, arg_name: str, updater, *args) -> None:
+        current = self._rogue_pin_or_config(None, arg_name, "")
+        updated = updater(current, *args)
+        self._rogue_hidden_values[arg_name] = updated
+        self.modified_config_queue.put({
+            "name": f"ChaoszeroRogue.ChaoszeroRogue.{arg_name}",
+            "value": updated,
+        })
+
+    def _on_rogue_spark_card_change(self, card_name: str, new_value: str) -> None:
+        if new_value == ROGUE_SPARK_CUSTOM_OPTION:
+            return
+        with self._get_rogue_picker_lock():
+            self._update_rogue_hidden_filter("RogueSparkFilter", rogue_cards.update_spark_filter, card_name, new_value)
+            self._render_rogue_spark_picker()
+
+    def _on_rogue_remove_card_change(self, card_name: str, new_value: str) -> None:
+        with self._get_rogue_picker_lock():
+            self._update_rogue_hidden_filter("RogueDeleteFilter", rogue_cards.update_delete_filter, card_name, new_value)
+
     @use_scope("navigator")
-    def set_navigator(self, group):
+    def set_navigator(self, group, section=None):
+        name = f"{group[0]}_{section}" if section else group[0]
         js = f"""
             $("#pywebio-scope-groups").scrollTop(
-                $("#pywebio-scope-group_{group[0]}").position().top
+                $("#pywebio-scope-group_{name}").position().top
                 + $("#pywebio-scope-groups").scrollTop() - 59
             )
         """
         put_button(
-            label=t(f"{group[0]}._info.name"),
+            label=t(f"Gui.Rogue.{section}" if section else f"{group[0]}._info.name"),
             onclick=lambda: run_js(js),
             color="navigator",
         )
 
     @use_scope("content", clear=True)
     def alas_overview(self) -> None:
+        self._rogue_spark_active = False
         self.init_menu(name="Overview")
         self.set_title(t(f"Gui.MenuAlas.Overview"))
 
@@ -522,10 +805,20 @@ class AlasGUI(Frame):
     def _init_alas_config_watcher(self) -> None:
         def put_queue(path, value):
             self.modified_config_queue.put({"name": path, "value": value})
+            if path in ROGUE_SPARK_WATCH_PATHS:
+                arg_name = path.rsplit(".", 1)[-1]
+                self._rogue_hidden_values[arg_name] = "" if value is None else str(value)
+                if self._rogue_spark_active:
+                    if arg_name == "RogueRemoveMember":
+                        self._render_rogue_remove_picker()
+                    else:
+                        self._render_rogue_pickers()
 
         for path in get_alas_config_listen_path(self.ALAS_ARGS):
             pin_on_change(
-                name="_".join(path), onchange=partial(put_queue, ".".join(path))
+                name="_".join(path),
+                onchange=partial(put_queue, ".".join(path)),
+                clear=True,
             )
         logger.info("Init config watcher done.")
 
@@ -762,6 +1055,7 @@ class AlasGUI(Frame):
 
     @use_scope("content", clear=True)
     def alas_daemon_overview(self, task: str) -> None:
+        self._rogue_spark_active = False
         self.init_menu(name=task)
         self.set_title(t(f"Task.{task}.name"))
 
@@ -1692,5 +1986,12 @@ def app():
         ],
         on_shutdown=[clearup],
     )
+    # Expose only bundled selector assets, never the workspace or user configuration.
+    for filename in ("index.html", "events.js"):
+        app.add_route(
+            f"{ROGUE_SELECTOR_ROUTE}/{filename}",
+            lambda request, filename=filename: FileResponse(str(ROGUE_SELECTOR_DIR / filename)),
+            include_in_schema=False,
+        )
 
     return app
