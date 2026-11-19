@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import cv2
 
@@ -65,6 +65,8 @@ class TestRogueEntry(unittest.TestCase):
         self.assertFalse(task.appear(ui.ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9))
         task.run()
         self.assertEqual(task.rogue_enter.call_count, 2)
+        self.assertEqual(task.rogue_enter.call_args_list,
+                         [call(reselect_world=True), call(reselect_world=False)])
         self.assertEqual(task.rogue_run.call_count, 2)
         task.config.task_delay.assert_called_once_with(minute=1)
 
@@ -138,6 +140,65 @@ class TestRogueEntry(unittest.TestCase):
                 self.assertEqual(names, ['ROGUE_MODE', 'ROGUE_TEAM_ENTER']
                                  if len(entry) > 1 else ['ROGUE_TEAM_ENTER'])
 
+    def test_rogue_reselects_configured_world_before_accepting_team_page(self):
+        team = capture(Path(rogue.ROGUE_TEAM_ENTER.file).resolve())
+        detail = capture(Path(rogue.ROGUE_WORLD_ENTER.file).resolve())
+        world_list = capture(Path(rogue.ROGUE_WORLD_LANHU.file).resolve())
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.config = SimpleNamespace(ChaoszeroRogue_RogueWorld='藍壺', ChaoszeroRogue_RogueDreamMode='開啟')
+        task.device = Mock()
+        task.rogue_resume_appear = Mock(return_value=False)
+        actions = Mock()
+        task.tap_point = actions.tap
+        task.device.click = actions.click
+        task.rogue_dream_set = actions.dream
+
+        def replay(frames):
+            for frame in frames:
+                task.device.image = frame
+                yield
+
+        task.loop = Mock(side_effect=[replay((team, detail, world_list, detail, team)),
+                                     replay((world_list, detail))])
+        with patch.object(rogue, 'Timer'):
+            self.assertTrue(task.rogue_enter_team())
+        self.assertEqual(actions.mock_calls, [
+            call.tap(*rogue.WORLD_BACK_POINT, name='ROGUE_WORLD_BACK'),
+            call.tap(*rogue.WORLD_BACK_POINT, name='ROGUE_WORLD_BACK'),
+            call.tap(147, 485, name='ROGUE_WORLD_PICK'),
+            call.click(rogue.ROGUE_WORLD_ENTER),
+            call.dream(True),
+        ])
+
+    def test_next_run_keeps_the_world_the_game_remembers(self):
+        team = capture(Path(rogue.ROGUE_TEAM_ENTER.file).resolve())
+        detail = capture(Path(rogue.ROGUE_WORLD_ENTER.file).resolve())
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.config = SimpleNamespace(ChaoszeroRogue_RogueWorld='藍壺', ChaoszeroRogue_RogueDreamMode='開啟')
+        task.device = Mock()
+        task.rogue_resume_appear = Mock(return_value=False)
+        actions = Mock()
+        task.tap_point = actions.tap
+        task.device.click = actions.click
+        task.rogue_dream_set = actions.dream
+
+        def replay(frames):
+            for frame in frames:
+                task.device.image = frame
+                yield
+
+        # 刚打完一局的下一轮：队伍页 / 世界详情页都直接沿用，不退回列表重选。
+        for frames, expected in (
+            ((team,), [call.dream(True)]),
+            ((detail, team), [call.click(rogue.ROGUE_WORLD_ENTER), call.dream(True)]),
+        ):
+            with self.subTest(frames=len(frames)):
+                actions.reset_mock()
+                task.loop = Mock(side_effect=[replay(frames)])
+                with patch.object(rogue, 'Timer'):
+                    self.assertTrue(task.rogue_enter_team(reselect_world=False))
+                self.assertEqual(actions.mock_calls, expected)
+
 
 class TestRogueState(unittest.TestCase):
     def test_run_state_is_profile_specific_and_leaves_legacy_state_alone(self):
@@ -164,6 +225,22 @@ class TestRogueState(unittest.TestCase):
 
 
 class TestRoute(unittest.TestCase):
+    def test_beacon_uses_title_and_requires_confirmation_arrow(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.device = Mock()
+        collapsed = capture(Path(rogue.ROGUE_BEACON_PROMPT.file).resolve())
+        expanded = capture(Path(rogue.ROGUE_BEACON_PROMPT2.file).resolve())
+        # Equipment art and text can change independently of the waypoint title.
+        collapsed[591:617, 499:790] = 40
+        expanded[547:573, 499:790] = 40
+        for expected, image in ((1, collapsed), (2, expanded), (0, capture('rogue_route_opening.png'))):
+            with self.subTest(stage=expected):
+                task.device.image = image
+                self.assertEqual(task.rogue_beacon_stage(), expected)
+        expanded[660:706, 615:665] = 40
+        task.device.image = expanded
+        self.assertEqual(task.rogue_beacon_stage(), 0)
+
     def test_grey_start_keeps_first_column_and_selects_top_branch(self):
         image = capture('rogue_route_opening.png')
         nodes = route.read_nodes(image)

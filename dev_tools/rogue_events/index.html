@@ -178,6 +178,8 @@ const MAP_WORLDS = [
 ];
 const OTHER_MAPS = '其他';
 const eventsById = new Map();
+const rootIds = new Set();
+const entryByChild = new Map();
 // 已核对选项与效果一致的终止画面。第一项用于保存，原始入口仍全部展示。
 const sharedPickGroups = [
   ['uk_300_s02_03b', 'uk_300_s02_03a-1', 'uk_300_s02_03c-1'],
@@ -566,23 +568,111 @@ function loopBar(node, sequence, path) {
   return bar;
 }
 
-function setPick(node, value) {
+function entryKey(node, option) {
+  if (!canPick(option)) return null;
+  if (!priorityEvent(node)) return option.order;
+  const groups = priorityGroups(node);
+  for (const key of [option.order, optionTitle(option)]) {
+    if (groups.get(key)?.includes(option)) return key;
+  }
+  return null;
+}
+
+function entryValue(node, key, current) {
+  if (guidedEvent(node)) {
+    const sequence = pickSequence(current);
+    const options = stageOptions(node, sequence);
+    if (options?.length === 0 && sequence.at(-1) === key) return current;
+    if (options?.some(option => option.order === key)) return [...sequence, key];
+    return undefined;
+  }
+  if (priorityEvent(node)) {
+    const groups = priorityGroups(node);
+    const sequence = Array.isArray(current?.priority) ? current.priority : pickSequence(current);
+    return {priority: [key, ...sequence.filter(item => item !== key && groups.has(item))]};
+  }
+  return key;
+}
+
+function indexEntries() {
+  for (const node of eventsById.values()) {
+    for (const option of node.options) {
+      const key = entryKey(node, option);
+      const targets = new Set([nextNode(option)?.id,
+        option.raw?.success_link_encounter_option_eff?.next_encounter_id,
+        option.raw?.fail_link_encounter_option_eff?.next_encounter_id]);
+      for (const child of targets) {
+        if (child === node.id || !eventsById.has(child)) continue;
+        if (!entryByChild.has(child)) entryByChild.set(child, new Map());
+        entryByChild.get(child).set(JSON.stringify([node.id, key]), {node, key});
+      }
+    }
+  }
+}
+
+function fillMissingEntries(picks) {
+  const paths = [];
+  const requested = new Map();
+  for (const id of Object.keys(picks)) {
+    const path = new Map();
+    const seen = new Set([id]);
+    let child = id;
+    while (!rootIds.has(child) && !sharedPickById.has(child)) {
+      const entries = entryByChild.get(child);
+      if (entries?.size !== 1) break;
+      const {node, key} = entries.values().next().value;
+      if (key === null || seen.has(node.id) || Object.hasOwn(picks, node.id)) break;
+      const value = entryValue(node, key);
+      if (value === undefined) break;
+      path.set(node.id, value);
+      if (!requested.has(node.id)) requested.set(node.id, new Set());
+      requested.get(node.id).add(JSON.stringify(value));
+      seen.add(node.id);
+      child = node.id;
+    }
+    if (path.size) paths.push(path);
+  }
+  const inferred = new Map();
+  for (const path of paths) {
+    if ([...path.keys()].every(id => requested.get(id).size === 1)) {
+      for (const [id, value] of path) inferred.set(id, value);
+    }
+  }
+  return inferred.size ? {...picks, ...Object.fromEntries(inferred)} : picks;
+}
+
+function setPick(node, value, parentPath = []) {
+  let blocked = false;
+  if (value !== undefined && (!Array.isArray(value) || value.length)) {
+    const additions = {};
+    for (const {node: parent, option} of parentPath) {
+      const key = entryKey(parent, option);
+      const next = key === null ? undefined : entryValue(parent, key, additions[parent.id] ?? PICKS[parent.id]);
+      if (next === undefined) {
+        blocked = true;
+        break;
+      }
+      additions[parent.id] = next;
+    }
+    if (!blocked) Object.assign(PICKS, additions);
+  }
   const [id, ...aliases] = sharedPickById.get(node.id) || [node.id];
   for (const alias of aliases) delete PICKS[alias];
   if (value === undefined || (Array.isArray(value) && !value.length)) delete PICKS[id];
   else PICKS[id] = value;
   save();
+  if (blocked) status.textContent = '已保存后续选择。此入口需要手动触发或先完成前置步骤。';
   renderNav();
   renderList();
 }
 
-function togglePriority(node, sequence, groups, key) {
+function togglePriority(node, sequence, groups, key, parentPath) {
   const keys = sequence.filter(item => groups.has(item));
   const priority = keys.includes(key) ? keys.filter(item => item !== key) : [...keys, key];
-  setPick(node, priority.length ? {priority} : undefined);
+  setPick(node, priority.length ? {priority} : undefined, priority.includes(key) ? parentPath : []);
 }
 
-function renderOption(node, option, sequence, loop, path, depth, query, reference = false, groups = null) {
+function renderOption(node, option, sequence, loop, path, depth, query, reference = false, groups = null, parentPath = []) {
   const group = document.createElement('div');
   const button = document.createElement('button');
   button.id = path;
@@ -592,8 +682,8 @@ function renderOption(node, option, sequence, loop, path, depth, query, referenc
   button.disabled = reference || !canPick(option) || Boolean(groups && !groups.has(option.order));
   if (!loop || groups) button.setAttribute('aria-pressed', String(picked));
   if (!button.disabled) {
-    button.onclick = groups ? () => togglePriority(node, sequence, groups, option.order)
-      : () => setPick(node, loop ? sequence.concat(option.order) : picked ? undefined : option.order);
+    button.onclick = groups ? () => togglePriority(node, sequence, groups, option.order, parentPath)
+      : () => setPick(node, loop ? sequence.concat(option.order) : picked ? undefined : option.order, parentPath);
   }
 
   const body = document.createElement('span');
@@ -651,12 +741,12 @@ function renderOption(node, option, sequence, loop, path, depth, query, referenc
   button.appendChild(body);
   group.appendChild(button);
 
-  const followup = renderFollowup(node, option, path, depth, query);
+  const followup = renderFollowup(node, option, path, depth, query, parentPath);
   if (followup) group.appendChild(followup);
   return group;
 }
 
-function renderTitleGroup(node, variants, sequence, groups, path, depth, query) {
+function renderTitleGroup(node, variants, sequence, groups, path, depth, query, parentPath) {
   const title = optionTitle(variants[0]);
   const rank = sequence.indexOf(title);
   const button = document.createElement('button');
@@ -665,7 +755,7 @@ function renderTitleGroup(node, variants, sequence, groups, path, depth, query) 
   button.setAttribute('aria-pressed', String(rank >= 0));
   button.textContent = (rank === 0 ? '首选 · ' : rank > 0 ? '备选 ' + rank + ' · ' : '')
     + variants[0].text + '（接受任一同名分支）';
-  button.onclick = () => togglePriority(node, sequence, groups, title);
+  button.onclick = () => togglePriority(node, sequence, groups, title, parentPath);
   const details = document.createElement('details');
   details.className = 'followup';
   details.dataset.branch = button.id;
@@ -678,14 +768,14 @@ function renderTitleGroup(node, variants, sequence, groups, path, depth, query) 
   details.appendChild(summary);
   for (const option of variants) {
     details.appendChild(renderOption(node, option, [], false, path + '/' + (option.id || option.order),
-      depth, query, true));
+      depth, query, true, null, parentPath));
   }
   const group = document.createElement('div');
   group.append(button, details);
   return group;
 }
 
-function renderFollowup(node, option, path, depth, query) {
+function renderFollowup(node, option, path, depth, query, parentPath) {
   const next = nextNode(option);
   if (!next || next.id === node.id || depth >= 3) return null;
   const details = document.createElement('details');
@@ -708,11 +798,11 @@ function renderFollowup(node, option, path, depth, query) {
   summary.textContent = caption + '：' + (next.name || next.id) + '（' + next.id + '）';
   const visit = expanded.get('@' + path) || 0;
   expanded.set('@' + path, visit + 1);
-  details.append(summary, renderEvent(next, path + (visit ? '~' + visit : ''), depth + 1, query));
+  details.append(summary, renderEvent(next, path + (visit ? '~' + visit : ''), depth + 1, query, [...parentPath, {node, option}]));
   return details;
 }
 
-function renderEvent(node, path, depth, query) {
+function renderEvent(node, path, depth, query, parentPath = []) {
   const box = document.createElement('div');
   box.className = depth ? 'fu-event' : 'event' + (hasPick(node) ? ' picked' : '');
   const title = document.createElement(depth ? 'div' : 'h3');
@@ -820,18 +910,18 @@ function renderEvent(node, path, depth, query) {
     box.appendChild(phase);
     if (guided && options?.length === 0 && previous) {
       const optionPath = path + '/' + (previous.id || previous.order);
-      const followup = renderFollowup(node, previous, optionPath, depth, query);
+      const followup = renderFollowup(node, previous, optionPath, depth, query, parentPath);
       if (followup) box.appendChild(followup);
     }
   }
   for (const option of options || []) {
     const variants = groups?.get(optionTitle(option));
     if (variants) {
-      if (variants[0] === option) box.appendChild(renderTitleGroup(node, variants, sequence, groups, path, depth, query));
+      if (variants[0] === option) box.appendChild(renderTitleGroup(node, variants, sequence, groups, path, depth, query, parentPath));
       continue;
     }
     const optionPath = path + '/' + (option.id || option.order);
-    box.appendChild(renderOption(node, option, sequence, loop || guided, optionPath, depth, query, false, groups));
+    box.appendChild(renderOption(node, option, sequence, loop || guided, optionPath, depth, query, false, groups, parentPath));
   }
 
   if (stagedLoop || guided) {
@@ -847,7 +937,7 @@ function renderEvent(node, path, depth, query) {
       reference.append(summary, note);
       for (const option of unverified) {
         const optionPath = path + '/' + (option.id || option.order);
-        reference.appendChild(renderOption(node, option, sequence, loop, optionPath, depth, query, true));
+        reference.appendChild(renderOption(node, option, sequence, loop, optionPath, depth, query, true, null, parentPath));
       }
       box.appendChild(reference);
     }
@@ -935,7 +1025,7 @@ function importPicks(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const next = validatePicks(JSON.parse(reader.result));
+      const next = fillMissingEntries(validatePicks(JSON.parse(reader.result)));
       if (Object.keys(PICKS).length && !confirm('用导入文件替换当前草稿？')) return;
       PICKS = next;
       save(); renderNav(); renderList();
@@ -972,15 +1062,19 @@ if (!doc) {
     }
   }
   for (const pack of DATA.packs) {
-    pack.events.forEach(event => indexEvent(event, pack.id + '/' + event.id));
+    pack.events.forEach(event => {
+      rootIds.add(event.id);
+      indexEvent(event, pack.id + '/' + event.id);
+    });
   }
+  indexEntries();
   MAP_GROUPS = mapGroups();
   ACTIVE = MAP_GROUPS[0]?.name;
   try {
     const draft = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
     if (!draft || typeof draft !== 'object' || Array.isArray(draft)) throw new Error('草稿格式错误');
     PICKS = draft;
-    PICKS = validatePicks(draft);
+    PICKS = fillMissingEntries(validatePicks(draft));
     if (PICKS !== draft) save();
   } catch (error) {
     status.textContent = '浏览器草稿需要检查。' + error.message;

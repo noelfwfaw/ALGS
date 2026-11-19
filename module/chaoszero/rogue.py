@@ -53,6 +53,7 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                      ROGUE_COPY_TITLE2,
                                      ROGUE_BEACON_PROMPT,
                                      ROGUE_BEACON_PROMPT2,
+                                     ROGUE_BEACON_TITLE,
                                      ROGUE_CLICK_CLOSE,
                                      ROGUE_CONSULT, ROGUE_CURE_APPROVE,
                                      ROGUE_CURE_NONE,
@@ -300,7 +301,7 @@ TREASURE_ENTER = (639, 678)
 #   ② 已展开 → 点那颗 ∨，才真正"啟用航點"
 # 石柱 (860,300) 点 4 次没反应；卡片底下那颗白点实测在 (661,713) 贴着画面底边，都是空的。
 BEACON_CARD_POINT = (640, 620)
-BEACON_CONFIRM_POINT = (640, 675)
+BEACON_CONFIRM_POINT = (640, 681)
 # 航点提示卡的标题行（「啟用航點 / 獲得裝備[...]」）。模板分数分不开航点和事件页
 # （事件页 T1=0.595 > 航点过渡帧 0.501），只能靠 OCR：航点页一定含「航點」或「裝備」，
 # 事件页读到的是选项名（'閉上眼睛' / '打破混亂'）。
@@ -453,7 +454,7 @@ WORLD_SCROLL = ((1080, 400), (330, 400))
 WORLD_SCROLL_BACK = ((330, 400), (1080, 400))
 WORLD_REWINDS = 2
 WORLD_SCANS = 3
-# 世界详情页左上角的返回箭头（回世界列表）。
+# 队伍页和世界详情页的左上角返回箭头。
 WORLD_BACK_POINT = (45, 37)
 
 # 卡厄思（两卡）页左边的「卡厄思顯現」那张大卡片的中心。文字标签在
@@ -738,6 +739,15 @@ REMOVE_MAX_TRIES = 4
 # 比 OCR（会认错字、每次 ~100ms）更快更准。
 REMOVE_OK_AREA = (1000, 640, 1270, 700)  # 选中卡片后变橙的「移除」；左边「提煉」是深红
 
+# 删卡页一屏只有 2 行 x 4 列 = 8 张；3 号位的卡在第 3 行（y≳690），被底部按钮条
+# (y≈640~700) 挡死。右缘 x≈1254 是滚动条、卡片右缘≈1197，所以贴着卡区右侧 1220
+# 慢拖（177：down 不落在卡上；用 drag 不用 swipe）。行距 ~300，拖 400 保证相邻两屏
+# 有重叠、不漏行。找卡和归位都**固定拖满 3 次**（181：游戏记住滚动位置，且不能用
+# 「画面没变」判到顶）；3 次 x 400 足够覆盖一局 3 个角色 x 8 张的多行内容。
+REMOVE_SCROLL = ((1220, 600), (1220, 200))  # 往下翻，露出下面的行
+REMOVE_HOME = ((1220, 200), (1220, 600))  # 拖回顶部
+REMOVE_SCROLL_TIMES = 3
+
 # 地图节点提示卡 `進入傳送門內部 / 觸發【…】事件`：点**卡身**才有反应，卡外的点击
 # 会被卡吃掉。卡大约占 (478,528)-(802,700)，所以点 (640,600)。
 # 第一次点卡身 → 卡片向右撑开、下方冒出一个大的白色 ∨（实测在 (640,690)）；
@@ -921,32 +931,12 @@ class ChaoszeroRogue(ChaoszeroUI):
         return self.appear(ROGUE_DICE_TAP, offset=(12, 10), similarity=0.9)
 
     def rogue_beacon_stage(self):
-        """
-        Which step of the 航点 prompt this frame is: 0 = 不在, 1 = 未展开, 2 = 已展开。
-
-        ❗和事件选项卡是**同一套交互**（用户 2026-11-16：「这个跟事件一样，要点下面那个」）：
-        先点卡片本体把说明展开，底部露出橙黄色的 ∨，再点那颗 ∨ 才真正「啟用航點」。
-        只点卡片 = 一直展开/收起；只点 ∨ = 没展开时那里是空的。
-
-        两个模板互斥（未展开 1.000/0.229，已展开 0.357/1.000），所以看谁分高。
-
-        Returns:
-            int: 0 / 1 / 2。
-        """
-        # ❗阈值是**彩色**匹配实测的（`appear()` 走彩色，和灰度分数差很多）：
-        #               T1     T2
-        #   未展开     0.957  0.205
-        #   弹装备图标  0.501  0.146   ← 过渡帧
-        #   已展开     0.340  0.664
-        #   事件页    -0.064 -0.003
-        #   BOSS战利品 0.040  0.092
-        #   地图页     0.181  0.112
-        # 所以：先判展开（T2 ≥ 0.55），再判未展开（T1 ≥ 0.80）。
-        # 中间那一档（T1≈0.50）就是"点了卡片、装备图标弹出来"的过渡帧，
-        # 交给 `rogue_beacon_transition()` 等待，别去点。
-        if self.appear(ROGUE_BEACON_PROMPT2, offset=(24, 16), similarity=0.55):
-            return 2
-        if self.appear(ROGUE_BEACON_PROMPT, offset=(24, 16), similarity=0.80):
+        """Return 1 to expand the waypoint card or 2 to press its confirmation arrow."""
+        # Match only 「啟用航點」. The equipment name and rarity color change.
+        if self.appear(ROGUE_BEACON_TITLE, offset=(10, 8)):
+            return 2 if self.rogue_option_check_point(BEACON_CONFIRM_POINT[0]) else 0
+        # The same title is 44 pixels lower before the card is expanded.
+        if self.appear(ROGUE_BEACON_TITLE, offset=(-10, 36, 10, 52)):
             return 1
         return 0
 
@@ -1001,25 +991,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         return False
 
     def rogue_beacon_appear(self):
-        """
-        Whether this is the 航点（信标）scene: `啟用航點 / 獲得裝備[...]` 提示卡.
-
-        地图上走到航点会切进这个 3D 场景（中间一座青色石柱），底部弹一张提示卡。
-        ❗这页以前没有任何判据，`rogue_option_points()` 还会把提示卡**误认成事件选项卡**
-        （返回 `[(640, 677)]`），于是脚本去点 (640,590) 的空白处、卡住不动
-        （用户 2026-11-15 指出）。
-
-        判据取「啟用航點」那一行 `(498,556)-(806,596)`：命中帧 1.000，
-        事件页 -0.061、BOSS 战利品 0.196、地图页 0.152、传送门页 0.429，阈值 0.85 很稳。
-
-        ❗要**两个模板**：这张卡点一下会展开（底部多一个橙色 ∨），展开后
-        模板 1 掉到 0.357、认不出来；两个模板对两种状态互斥
-        （未展开 1.000/0.229，展开 0.357/1.000）。要分两步点的原因见
-        `rogue_beacon_stage()`。
-
-        Returns:
-            bool: If the beacon prompt is on screen (collapsed or expanded).
-        """
+        """Whether the waypoint prompt is ready to expand or confirm."""
         return self.rogue_beacon_stage() > 0
 
     def rogue_dice_result_appear(self):
@@ -1529,6 +1501,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.event_choice = None
         self.event_last_enc = None
         self.event_unknown = False
+        self.event_missing_pick = None
         if not self.config.ChaoszeroRogue_RogueEventPick:
             self.event_unknown = True
             return None
@@ -1559,6 +1532,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         if manual is not None:
             self.event_unknown = False
             return manual
+        if self.event_missing_pick:
+            return None
 
         # ③ 先确认这一页**到底是不是事件页**：一页里有 ≥1 张卡就对不上任何事件，
         # 说明多半不是事件选项卡 —— 复制卡牌页 / 选一张卡灵光 这类**卡牌网格**
@@ -1664,6 +1639,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         """Return a configured card only for a uniquely identified event."""
         self.event_choice = None
         self.event_last_enc = None
+        self.event_missing_pick = None
 
         identity = self.rogue_event_identity(texts, packs)
         if identity is None:
@@ -1677,7 +1653,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             logger.warning('Conflicting shared choices for %s; reselect this event in the selector', name)
             return None
         if not rule:
-            logger.warning('No configured choice for identified event %s (%s)' % (enc_id, name))
+            self.event_missing_pick = (enc_id, name)
             return None
         round_index = self.event_visit.get(enc_id, 0)
         priority = isinstance(rule, dict)
@@ -1805,6 +1781,14 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.event_index = self.rogue_event_index(points)
         if self.event_unknown or self.event_index is None or self.event_choice is None:
             self.rogue_dump_unknown()
+            if self.event_missing_pick:
+                event_id, name = self.event_missing_pick
+                world = self.config.ChaoszeroRogue_RogueWorld
+                message = (
+                    f'{world}「{name}」({event_id}) 缺少选择。'
+                    f'请在事件选择器配置这个分支并导出到 {EVENT_PICKS_FILE}。')
+                logger.warning(message)
+                raise RequestHumanTakeover(message)
             raise TaskFailed('Event has no verified configured choice, stop for user review')
         check = self.rogue_option_check_any()
         if check:
@@ -2587,8 +2571,10 @@ class ChaoszeroRogue(ChaoszeroUI):
             points = self.rogue_flash_card_points(opening=11)
             scored = []
             for x, y, top, left, width, height in points:
-                area = (left + 20, top + 6, left + width - 10, top + 40)
-                text = self.card_reader.read_name(self.device.image, area)
+                # 旧带下沿到 +40 会吃进卡框和描述首行，OCR 变乱码（0.29）；
+                # 卡名只有 ~20px，放大 2 倍再读（同删卡网格）。
+                area = (left + 10, top + 6, left + width - 10, top + 34)
+                text = self.card_reader.read_name(self.device.image, area, scale=2)
                 if text:
                     for name in names:
                         scored.append((rogue_cards.name_score(text, name), name, x, y, text))
@@ -3166,45 +3152,87 @@ class ChaoszeroRogue(ChaoszeroUI):
         score = rogue_cards.name_score(norm_ocr, target)
         return score if score >= max(REMOVE_NAME_MATCH, 0.65) else 0.0
 
+    def rogue_remove_to_top(self):
+        """Drag the removal grid back to its first row before scanning.
+
+        181: the game keeps the scroll position between visits and "the picture
+        stopped changing" is not proof of the top, so every visit drags a fixed
+        number of times. 140: drags are counted as clicks.
+        """
+        for _ in range(REMOVE_SCROLL_TIMES):
+            self.device.click_record_clear()
+            self.device.drag(REMOVE_HOME[0], REMOVE_HOME[1], name='ROGUE_REMOVE_HOME')
+            self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                  skip_first_screenshot=False)
+
     def rogue_remove_pick(self):
         """Return ((x, y), name, score, OCR) for the highest-priority removal target.
 
         Only detected card boxes with a readable target name are eligible.
         Read each box once so all configured targets use the same OCR result.
+        The page holds 2 rows per screen, so scan, drag down and scan again at
+        most REMOVE_SCROLL_TIMES times; stop early only when the grid is gone or
+        a drag brings no new card name (bottom reached). Never pick by position.
         """
         targets = self.rogue_remove_targets()
         if not targets:
             return None
-        # Removal captures 044408/204838: glow joins two rows into a 518px
-        # component or shifts a card's left edge by 5px (劍幕 OCR becomes 劍墓).
-        # An 11px opening separates the rows and restores the name crop.
-        points = self.rogue_flash_card_points(opening=11)
-        if not points:
-            logger.info('Removal pick: no card boxes detected, do not pick by position')
-            return None
         if self.card_reader is None:
             self.card_reader = rogue_cards.CardReader()
         has_ascii = any(ord(ch) < 128 and ch.isalnum() for name in targets for ch in name)
-        candidates = {}
-        for x, y, top, left, width, height in points:
-            area = (left + 20, top + 6, left + width - 10, top + 40)
-            raw = (self.card_reader.read_name(self.device.image, area, raw=True)
-                   if has_ascii else self.card_reader.read_name(self.device.image, area))
-            text = rogue_cards.normalize(raw)
-            logger.info('Removal card at (%s,%s) OCR=%r' % (x, y, raw if has_ascii else text))
+        seen = set()
+        points = []
+        for page in range(REMOVE_SCROLL_TIMES + 1):
+            # Removal captures 044408/204838: glow joins two rows into a 518px
+            # component or shifts a card's left edge by 5px (劍幕 OCR becomes 劍墓).
+            # An 11px opening separates the rows and restores the name crop.
+            points = self.rogue_flash_card_points(opening=11)
+            if not points:
+                logger.info('Removal pick: no card boxes detected, do not pick by position')
+                return None
+            image = self.device.image
+            candidates = {}
+            names = set()
+            for x, y, top, left, width, height in points:
+                # 卡名只有 ~20px：旧带下沿 +40 吃进卡框/描述首行，3 字名读成半截；
+                # 收窄到 +34 并放大 2 倍（与冥想页 2026-11-19 实测一致）。
+                area = (left + 10, top + 6, left + width - 10, top + 34)
+                raw = (self.card_reader.read_name(image, area, scale=2, raw=True)
+                       if has_ascii else self.card_reader.read_name(image, area, scale=2))
+                text = rogue_cards.normalize(raw)
+                if text:
+                    names.add(text)
+                logger.info('Removal card at (%s,%s) OCR=%r'
+                            % (x, y, raw if has_ascii else text))
+                for name in targets:
+                    score = self._match_remove_name(raw, text, name)
+                    if score <= 0.0:
+                        continue
+                    best = candidates.get(name)
+                    if best is None or score > best[2]:
+                        candidates[name] = ((x, y), name, score, raw if has_ascii else text)
             for name in targets:
-                score = self._match_remove_name(raw, text, name)
-                if score <= 0.0:
-                    continue
-                best = candidates.get(name)
-                if best is None or score > best[2]:
-                    candidates[name] = ((x, y), name, score, raw if has_ascii else text)
-        for name in targets:
-            if name in candidates:
-                best = candidates[name]
-                logger.info('Removal pick: at (%s,%s) -> %s (%.2f) OCR=%r'
-                            % (best[0][0], best[0][1], best[1], best[2], best[3]))
-                return best
+                if name in candidates:
+                    best = candidates[name]
+                    logger.info('Removal pick: at (%s,%s) -> %s (%.2f) OCR=%r'
+                                % (best[0][0], best[0][1], best[1], best[2], best[3]))
+                    return best
+            if page == REMOVE_SCROLL_TIMES:
+                break
+            if names and names <= seen:
+                logger.info('Removal pick: no new card name after scrolling, reached the end')
+                break
+            seen |= names
+            logger.info('Removal target (%s) is not visible, scroll down (%s/%s)'
+                        % (', '.join(targets), page + 1, REMOVE_SCROLL_TIMES))
+            self.device.click_record_clear()
+            self.device.drag(REMOVE_SCROLL[0], REMOVE_SCROLL[1], name='ROGUE_REMOVE_SCROLL')
+            if not self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                         skip_first_screenshot=False):
+                break
+            if not self.rogue_remove_appear():
+                logger.info('Removal pick: the removal page is gone after scrolling')
+                break
         logger.info('Removal pick: no configured target (%s) found on %s card(s)'
                     % (', '.join(targets), len(points)))
         return None
@@ -3347,6 +3375,10 @@ class ChaoszeroRogue(ChaoszeroUI):
                         % self.remove_tries)
             self.rogue_remove_cancel()
             return True
+        if self.remove_tries == 0:
+            # First scan of this page visit: the grid may still be scrolled from
+            # a previous visit, so home it before looking (hard rule 181).
+            self.rogue_remove_to_top()
         self.remove_tries += 1
         picked = self.rogue_remove_pick()
         if picked is None:
@@ -3816,7 +3848,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                        % ('off' if want else 'on'))
         return False
 
-    def rogue_enter_team(self, timeout=180):
+    def rogue_enter_team(self, timeout=180, reselect_world=True):
         """
         Walk from the lobby to the 「配置隊伍」 page of 卡厄思顯現 and stop there.
 
@@ -3826,6 +3858,9 @@ class ChaoszeroRogue(ChaoszeroUI):
 
         Args:
             timeout (int): Seconds to spend walking the chain.
+            reselect_world (bool): Back out to the world list and pick
+                `RogueWorld` again. False on the next run of a continuous
+                session: the game already remembers the world just finished.
 
         Returns:
             bool: If the team page is on screen.
@@ -3837,7 +3872,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         press = Timer(2, count=2)
         idle = Timer(5, count=2)
         # 配置指定了世界就必须自己选一遍：游戏会记住上次那个世界，进模式页可能直接
-        # 落在它的详情页上，所以详情页先退到列表，选完再进来（`world_checked`）。
+        # 落在上次的详情页或队伍页，先退到列表，选完再进来（`world_checked`）。
+        # 例外（用户 2026-11-19）：刚打完一局的下一轮记住的就是刚刷的世界，队伍页/
+        # 详情页直接沿用、不再退两次；只有真到了世界列表才仍然重选，防止刷错地图。
         world = self.config.ChaoszeroRogue_RogueWorld
         world_checked = world not in WORLD_LABELS
         wakes = 0
@@ -3863,14 +3900,16 @@ class ChaoszeroRogue(ChaoszeroUI):
 
             page = None
             if self.rogue_team_appear():
-                logger.info('Team page is up')
-                # 队伍页右上角就是梦境模式开关：开 = 整页变紫、上限 110pt，刷档要开。
-                mode = self.config.ChaoszeroRogue_RogueDreamMode
-                if mode == '開啟':
-                    self.rogue_dream_set(True)
-                elif mode == '關閉':
-                    self.rogue_dream_set(False)
-                return True
+                if world_checked or not reselect_world:
+                    logger.info('Team page is up')
+                    # 队伍页右上角就是梦境模式开关：开 = 整页变紫、上限 110pt，刷档要开。
+                    mode = self.config.ChaoszeroRogue_RogueDreamMode
+                    if mode == '開啟':
+                        self.rogue_dream_set(True)
+                    elif mode == '關閉':
+                        self.rogue_dream_set(False)
+                    return True
+                page = 'team'
             elif self.ui_page_appear(page_main):
                 page = 'lobby'
             elif self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
@@ -3915,17 +3954,16 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.tap_point(*WORLD_CARD, name='ROGUE_WORLD')
                 elif self.rogue_world_select(world):
                     world_checked = True
-            elif page == 'world':
-                if world_checked:
-                    self.device.click(ROGUE_WORLD_ENTER)  # alas-lint: allow - guarded by the appear() that chose this branch
-                else:
-                    logger.info('Back to the world list to pick %s' % world)
-                    self.tap_point(*WORLD_BACK_POINT, name='ROGUE_WORLD_BACK')
+            elif page == 'world' and (world_checked or not reselect_world):
+                self.device.click(ROGUE_WORLD_ENTER)  # alas-lint: allow - guarded by the appear() that chose this branch
+            elif page in ('team', 'world'):
+                logger.info('Back from the %s page to pick %s' % (page, world))
+                self.tap_point(*WORLD_BACK_POINT, name='ROGUE_WORLD_BACK')
 
         logger.warning('Never got to the team page, the entry chain moved')
         return False
 
-    def rogue_enter(self):
+    def rogue_enter(self, reselect_world=True):
         """
         Walk from the lobby into a run.
 
@@ -3933,10 +3971,13 @@ class ChaoszeroRogue(ChaoszeroUI):
             in:  配置隊伍（`rogue_enter_team()` 走到这里）
             out: 局内（命运剧情 / 事件 / 地图）
 
+        Args:
+            reselect_world (bool): Passed to `rogue_enter_team()`.
+
         Returns:
             bool: If the run started.
         """
-        if not self.rogue_enter_team():
+        if not self.rogue_enter_team(reselect_world=reselect_world):
             return False
 
         logger.info('Enter the run')
@@ -5948,6 +5989,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         runs = 0
         limit = self.config.ChaoszeroRogue_RogueRuns
         limit = int(limit) if limit else 0
+        # 只有本次 run() 亲自走过入口链、选过世界，后续轮才沿用游戏记住的地图
+        # （用户 2026-11-19）；接管局内进度不算，下一轮仍要按配置重选。
+        reselect = True
 
         # ❗不要每局回大厅去治疗中心查一遍：需要治疗时游戏自己会弹崩溃页
         # （`觸發精神異常` / `夢境模式` 变体），局内循环里接住就行（用户 2026-11-15：
@@ -5960,10 +6004,13 @@ class ChaoszeroRogue(ChaoszeroUI):
             fresh_run = self.rogue_outside_appear()
             if fresh_run:
                 logger.info('At the lobby / team / 卡厄思 page, walk the entry chain')
-                if not self.rogue_enter():
+                # 用户 2026-11-19：刚打完一局的下一轮游戏记住的就是刚刷的世界，
+                # 别再退回世界列表重选（白退两次）；只有还没亲自选过才选一次。
+                if not self.rogue_enter(reselect_world=reselect):
                     logger.warning('Could not start a run, give up this round')
                     self.config.task_delay(minute=30)
                     raise TaskFailed('ChaoszeroRogue: never got into a run from the lobby')
+                reselect = False
                 # ❗新开一局 = 又回到**第一面**，把"已进第二面"的持久标记清掉。
                 # 只有"接管局内"（上面的 else 分支）才保留它 —— 那种情况可能已经
                 # 在第二面了，重启脚本不该把状态丢掉。

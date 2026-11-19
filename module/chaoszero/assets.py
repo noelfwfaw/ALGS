@@ -130,6 +130,7 @@ ROGUE_DICE_FAIL = Button(area={'chaoszero': (592, 470, 690, 514)}, color={'chaos
 ROGUE_BEACON_PROMPT = Button(area={'chaoszero': (498, 556, 806, 596)}, color={'chaoszero': (40, 40, 44)}, button={'chaoszero': (498, 556, 806, 596)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_BEACON_PROMPT.png'})
 
 ROGUE_BEACON_PROMPT2 = Button(area={'chaoszero': (498, 556, 806, 596)}, color={'chaoszero': (40, 40, 44)}, button={'chaoszero': (498, 556, 806, 596)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_BEACON_PROMPT2.png'})
+ROGUE_BEACON_TITLE = Button(area={'chaoszero': (499, 519, 578, 542)}, color={'chaoszero': (97, 98, 101)}, button={'chaoszero': (499, 519, 578, 542)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_BEACON_TITLE.png'})
 ROGUE_PANEL = Button(area={'chaoszero': (452, 100, 560, 136)}, color={'chaoszero': (27, 36, 44)}, button={'chaoszero': (452, 100, 560, 136)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_PANEL.png'})
 ROGUE_EQUIP = Button(area={'chaoszero': (606, 58, 678, 112)}, color={'chaoszero': (71, 72, 75)}, button={'chaoszero': (606, 58, 678, 112)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_EQUIP.png'})
 ROGUE_EQUIP_EMPTY_SLOTS = Button(area={'chaoszero': (936, 198, 1188, 264)}, color={'chaoszero': (32, 32, 30)}, button={'chaoszero': (936, 198, 1188, 264)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_EQUIP_EMPTY_SLOTS.png'})

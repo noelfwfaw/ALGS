@@ -18,7 +18,7 @@ set_server('chaoszero')
 from module.base.timer import Timer
 from module.chaoszero.rogue import ChaoszeroRogue
 from module.chaoszero.rogue_events import EventLibrary, SHARED_CHOICE_GROUPS, packs_for_world
-from module.exception import TaskFailed
+from module.exception import RequestHumanTakeover, TaskFailed
 
 
 def record(name, options):
@@ -430,10 +430,13 @@ class EventSelectionTest(unittest.TestCase):
         self.task.rogue_dump_unknown.assert_called_once()
         self.task.rogue_pick_index.assert_not_called()
 
-    def test_known_event_without_user_rule_stops(self):
-        self.task.event_picks = {}
-        self.feed(['取出左側箱子', '離開洞窟'])
-        with self.assertRaises(TaskFailed):
+    def test_known_event_without_user_rule_requests_human_once(self):
+        self.task.config.ChaoszeroRogue_RogueWorld = '藍壺'
+        self.task.event_library = EventLibrary()
+        child = 'uk_300_s02_15b-1'
+        self.task.event_picks = {child: {'priority': ['打開左邊的箱子']}}
+        self.feed(['查看食尿鬼飼養場', '忽路'])
+        with self.assertRaisesRegex(RequestHumanTakeover, '藍壺「食屍鬼飼養場」\\(uk_300_s02_15b\\)'):
             self.step()
         self.task.tap_point.assert_not_called()
         self.task.rogue_dump_unknown.assert_called_once()

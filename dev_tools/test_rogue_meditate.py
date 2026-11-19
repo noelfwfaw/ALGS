@@ -203,6 +203,15 @@ class MeditationTest(unittest.TestCase):
         self.assertIsNone(task.rogue_meditate_card())
         task.device.swipe.assert_not_called()
 
+    def test_grid_reads_name_band_above_card_frame_at_2x(self):
+        task = make_task()
+        task.meditate_pending = ['劍之雨']
+        task.rogue_flash_card_points = Mock(return_value=[(450, 220, 80, 360, 190, 280)])
+        task.card_reader.read_name.return_value = '劍之雨'
+        self.assertEqual(task.rogue_meditate_card()[1], '劍之雨')
+        task.card_reader.read_name.assert_called_once_with(
+            task.device.image, (370, 86, 540, 114), scale=2)
+
     def test_meditation_restricts_to_rogue_member_slot_character(self):
         task = make_task()
         task.rogue_spark_filter.return_value = {'劍之雨': ['2'], '水之根源': ['2']}

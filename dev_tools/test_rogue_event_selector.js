@@ -77,7 +77,8 @@ assert.equal(classify({}).textContent, '');
 // 虚無牧者 has two independent variants; each only offers [#1, #4] on first sight.
 const shepherd = id => ({ [id]: [1, 2, 3, 7] });
 const loop = { ...shepherd('uk_904_s01_13a-1'), ...shepherd('uk_904_s01_13b-1') };
-const valid = { version: 1, picks: { ...loop, [residue.id]: 1 } };
+const valid = { version: 1, picks: { ...loop, [residue.id]: 1,
+  'uk_904_s01_13a': { priority: [2] }, 'uk_904_s01_13b': { priority: [2] } } };
 assert.equal(context.validatePicks(valid), valid.picks);
 for (const invalid of [
   { picks: null }, { picks: [] }, { version: 2, picks: {} }, { unknown: 1 },
@@ -408,7 +409,7 @@ exportBlob.text().then(async text => {
   assert.ok(convictButtons(1).every(button => button.className === 'pick on'));
   assert.equal(byId('uk_300_s02/uk_300_s02_03a/uk_300_s02_03a_s1').className, 'pick');
   convictButtons(2).at(-1).onclick();
-  assert.deepEqual(draftPicks(), { [convictBase]: 2 });
+  assert.deepEqual(draftPicks(), { [convictBase]: 2, 'uk_300_s02_03c': { priority: [4] } });
   assert.ok(convictButtons(1).every(button => button.className === 'pick'));
   assert.ok(convictButtons(2).every(button => button.className === 'pick on'));
 
@@ -450,6 +451,47 @@ exportBlob.text().then(async text => {
   searchFor('尼希隆研究');
   assert.equal(byId('uk_904_s01/uk_904_s01_07c/uk_904_s01_07c_sa/uk_904_s01_07c-1_s2').className, 'pick on');
   assert.equal(byId('uk_904_s01/uk_904_s01_07e/uk_904_s01_07e_sa/uk_904_s01_07e-2_s2').className, 'pick');
+
+  const enclosure = 'uk_300_s02_15b';
+  const chest = enclosure + '-1';
+  const entry = '查看食屍鬼飼養場';
+  const firstChest = { priority: ['打開左邊的箱子'] };
+  context.importPicks(JSON.stringify({ [enclosure]: { priority: [4] } }));
+  searchFor(chest);
+  const chestAction = [...walk(list)].find(el => el.id.includes(enclosure + '_s1/')
+    && el.id.endsWith('/title/打開左邊的箱子'));
+  assert.ok(chestAction);
+  chestAction.onclick();
+  assert.deepEqual(draftPicks(), { [enclosure]: { priority: [entry, 4] }, [chest]: firstChest });
+  context.exportPicks();
+  assert.deepEqual(JSON.parse(await exportBlob.text()).picks, draftPicks());
+
+  context.importPicks(JSON.stringify({ [chest]: firstChest }));
+  assert.deepEqual(draftPicks(), { [chest]: firstChest, [enclosure]: { priority: [entry] } });
+  const oldSkip = { [enclosure]: { priority: [4] }, [chest]: firstChest };
+  context.importPicks(JSON.stringify(oldSkip));
+  assert.deepEqual(draftPicks(), oldSkip);
+
+  const parallel = 'uk_300_s02_15a';
+  const parallelChoices = { [parallel + '-1']: 1, [parallel + '-2']: { priority: [2] } };
+  context.importPicks(JSON.stringify(parallelChoices));
+  assert.deepEqual(draftPicks(), parallelChoices, 'opposing entrances do not depend on import ordering');
+
+  context.importPicks(JSON.stringify({}));
+  searchFor(gallery);
+  byId(galleryFollowup).onclick();
+  assert.deepEqual(draftPicks(), { [gallery]: [3], [gallery + '-1']: 1 });
+
+  const greed = 'uk_403_s01_16a';
+  context.importPicks(JSON.stringify({ [greed]: 1, [greed + '-1']: { priority: [4] } }));
+  searchFor(greed + '-2');
+  const deepAction = [...walk(list)].find(el => el.id.includes(greed + '_s2/')
+    && el.id.includes(greed + '-1_s3/') && el.id.endsWith('/' + greed + '-2_s4'));
+  assert.ok(deepAction);
+  deepAction.onclick();
+  assert.deepEqual(draftPicks(), {
+    [greed]: 2, [greed + '-1']: { priority: [3, 4] }, [greed + '-2']: { priority: [4] },
+  });
 
   // Startup applies the same migration and does not resolve conflicting drafts by position.
   storage.set('czn_rogue_events_v1', JSON.stringify({ [convictAmbush]: [2] }));

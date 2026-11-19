@@ -14,7 +14,7 @@ set_server('chaoszero')
 
 from module.base.timer import Timer
 from module.chaoszero.assets import ROGUE_FLASH_DETAIL, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP
-from module.chaoszero.rogue import ChaoszeroRogue, REMOVE_MAX_TRIES
+from module.chaoszero.rogue import ChaoszeroRogue, REMOVE_MAX_TRIES, REMOVE_SCROLL_TIMES
 from module.chaoszero.rogue_cards import CardReader
 from module.exception import TaskFailed
 
@@ -22,8 +22,11 @@ from module.exception import TaskFailed
 def make_task():
     task = ChaoszeroRogue.__new__(ChaoszeroRogue)
     task.device = SimpleNamespace(image=np.zeros((720, 1280, 3), dtype=np.uint8),
-                                  stuck_record_add=Mock())
+                                  stuck_record_add=Mock(), drag=Mock(),
+                                  click_record_clear=Mock())
     task.card_reader = None
+    task.rogue_remove_appear = Mock(return_value=True)
+    task.wait_until_still = Mock(return_value=True)
     task.remove_stage = 0
     task.remove_target = None
     task.remove_tries = 0
@@ -53,9 +56,14 @@ class RemovalPriorityTest(unittest.TestCase):
         points = [(450 + i * 210, 220, 82, 360 + i * 210, 188, 280)
                   for i in range(len(texts))]
         task.rogue_flash_card_points = Mock(return_value=points)
-        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=texts))
+        # The grid keeps the same cards after a scroll, so repeat the last read.
+        reads = iter(texts)
+        task.card_reader = SimpleNamespace(
+            read_name=Mock(side_effect=lambda *args, **kwargs: next(reads, texts[-1] if texts else '')))
         result = task.rogue_remove_pick()
-        self.assertEqual(task.card_reader.read_name.call_count, len(texts))
+        if result is not None:
+            # A hit on the first screen reads each box exactly once.
+            self.assertEqual(task.card_reader.read_name.call_count, len(texts))
         return result
 
     def test_lower_score_sword_curtain_beats_first_two_sword_lights(self):
@@ -75,6 +83,40 @@ class RemovalPriorityTest(unittest.TestCase):
 
     def test_no_detected_boxes_has_no_fixed_slot_fallback(self):
         self.assertIsNone(self.pick([]))
+
+
+class RemovalScrollTest(unittest.TestCase):
+    POINT = (450, 220, 82, 360, 188, 280)
+
+    def pick(self, pages):
+        task = make_task()
+        task.rogue_flash_card_points = Mock(return_value=[self.POINT])
+        task.card_reader = SimpleNamespace(
+            read_name=Mock(side_effect=[text for page in pages for text in page]))
+        return task, task.rogue_remove_pick()
+
+    def test_target_below_first_screen_is_found_after_one_scroll(self):
+        task, picked = self.pick([['一縷光芒'], ['劍幕']])
+        self.assertEqual(picked[:2], ((450, 220), '劍幕'))
+        self.assertEqual(task.device.drag.call_count, 1)
+        self.assertEqual(task.device.drag.call_args[1]['name'], 'ROGUE_REMOVE_SCROLL')
+        task.device.click_record_clear.assert_called_once()
+
+    def test_missing_target_has_bounded_scrolls(self):
+        task, picked = self.pick([['一縷光芒'], ['展開極光'], ['萬人的英雄'], ['水之根源']])
+        self.assertIsNone(picked)
+        self.assertEqual(task.device.drag.call_count, REMOVE_SCROLL_TIMES)
+
+    def test_page_gone_or_still_moving_after_scroll_is_not_clicked(self):
+        for attribute in ('rogue_remove_appear', 'wait_until_still'):
+            with self.subTest(attribute=attribute):
+                task = make_task()
+                task.rogue_flash_card_points = Mock(return_value=[self.POINT])
+                task.card_reader = SimpleNamespace(read_name=Mock(return_value='一縷光芒'))
+                setattr(task, attribute, Mock(return_value=False))
+                self.assertIsNone(task.rogue_remove_pick())
+                self.assertEqual(task.device.drag.call_count, 1)
+                task.tap_point.assert_not_called()
 
 
 class RemovalFlowTest(unittest.TestCase):
