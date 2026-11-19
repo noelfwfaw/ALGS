@@ -19,7 +19,8 @@ from module.webui.app import ROGUE_SECTIONS
 
 class SparkCheckTest(unittest.TestCase):
     def replay(self, frames, enabled=True, fresh=True, rules='劍之雨 = 2', retreat=True,
-               runs=0, core=False, target='劍之雨', member='30093', reward_image=None):
+               runs=0, core=False, target='劍之雨', member='30093', reward_image=None,
+               human_takeover=False):
         task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
         task.config = SimpleNamespace(
             data={'ChaoszeroRogue': {'ChaoszeroRogue': {'RogueSparkFilter': rules}}},
@@ -71,7 +72,7 @@ class SparkCheckTest(unittest.TestCase):
             'rogue_copy_card_appear', 'rogue_transform_appear', 'handle_rogue_fate',
             'rogue_story_appear', 'rogue_herald_appear', 'rogue_member_appear',
             'rogue_shop_appear', 'rogue_shop_sold_appear', 'rogue_rest_appear',
-            'rogue_prompt_appear', 'rogue_purple_point', 'rogue_god_pick',
+            'rogue_prompt_appear', 'rogue_god_pick', 'rogue_crash_appear',
             '_rogue_meditate_allows',
         ):
             setattr(task, name, Mock(return_value=False))
@@ -84,26 +85,36 @@ class SparkCheckTest(unittest.TestCase):
             task.rogue_card_reward_appear = rogue.ChaoszeroRogue.rogue_card_reward_appear.__get__(task)
             task.rogue_primary_point = rogue.ChaoszeroRogue.rogue_primary_point.__get__(task)
         task.rogue_dialog_point = lambda: (1, 1) if frame == 'confirm' else None
-        task.rogue_battle_appear = lambda: frame == 'battle'
+        task.rogue_purple_point = lambda: (1120, 662) if frame in ('save_unreadable', 'save', 'result') else None
+        task.rogue_battle_appear = lambda: frame in ('battle', 'god_other_with_hud')
         task.handle_rogue_battle_settings = Mock(return_value=True)
         task.rogue_flash_appear = lambda: frame in ('flash', 'wrong')
-        task.rogue_god_appear = lambda: frame == 'god'
+        task.rogue_god_appear = lambda: frame in ('god', 'god_other', 'god_other_with_hud', 'god_unreadable')
         task.rogue_loot_appear = lambda: frame == 'loot'
         task.rogue_map_appear = lambda: frame in ('map', 'preview')
         task.rogue_map_preview_appear = lambda: frame == 'preview'
         task.rogue_card_page_record = Mock()
         forms, _ = rogue.rogue_cards.CardLibrary().forms('劍之雨')
+        other_forms, _ = rogue.rogue_cards.CardLibrary().forms('展開極光')
         reader = Mock()
         reader.read_all.side_effect = lambda *_, **__: (
-            [forms[i] for i in ([0, 2, 3] if frame == 'wrong' else [0, 1, 2])]
+            ['', '', ''] if frame == 'god_unreadable'
+            else other_forms[:3] if frame in ('god_other', 'god_other_with_hud')
+            else [forms[i] for i in ([0, 2, 3] if frame == 'wrong' else [0, 1, 2])]
         )
+        reader.read_name.side_effect = lambda *_: {'save': '存檔資料收集完成', 'result': '探索結果'}.get(frame, '')
+        task.rogue_save_trash_visible = Mock(return_value=True)
+        task.rogue_dump_unknown = Mock()
         timer = Mock()
         timer.start.return_value = timer
         with patch.object(rogue, 'Timer', return_value=timer), \
                 patch.object(rogue.rogue_equipment, 'Equipment') as equipment, \
                 patch.object(rogue.rogue_cards, 'CardReader', return_value=reader):
             equipment.return_value.handle.return_value = False
-            if runs:
+            if human_takeover:
+                with self.assertRaises(rogue.RequestHumanTakeover):
+                    task.run() if runs else task.rogue_run(fresh_run=fresh)
+            elif runs:
                 task.run()
             else:
                 task.rogue_run(fresh_run=fresh)
@@ -150,6 +161,37 @@ class SparkCheckTest(unittest.TestCase):
         self.assertEqual(task.spark_obtained, set())
         task.rogue_quit.assert_not_called()
 
+    def test_next_god_chooser_confirms_previous_target_when_card_changes(self):
+        for chooser in ('god_other', 'god_other_with_hud'):
+            with self.subTest(chooser=chooser):
+                task, calls = self.replay(['flash', 'confirm', 'god_unreadable', chooser,
+                                           'battle', 'loot', 'map'])
+                self.assertEqual(task.spark_obtained, {'劍之雨'})
+                self.assertNotIn(('ROGUE_CARD', 'god_unreadable'), calls)
+                self.assertIn(('ROGUE_CARD', chooser), calls)
+                self.assertEqual(calls[-1], ('walk', 'map'))
+
+    def test_normal_settlement_waits_for_a_recognized_title(self):
+        _, calls = self.replay(['save_unreadable', 'save', 'result'])
+        self.assertEqual(calls, [('ROGUE_SAVE_TRASH', 'save'), ('ROGUE_PURPLE', 'result')])
+
+    def test_save_title_template_recognizes_page_without_ocr(self):
+        task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
+        button = rogue.ROGUE_SAVE_TITLE
+        image = cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
+        x1, y1, x2, y2 = button.area
+        task.device = Mock(image=image)
+        task.card_reader = Mock()
+        task.appear = lambda button, **kwargs: button.match(task.device.image, **kwargs)
+        with patch.object(button, 'image', image[y1:y2, x1:x2]), patch.object(button, '_match_init', True):
+            self.assertEqual(task.rogue_settlement_page(), 'save')
+        task.card_reader.read_name.assert_not_called()
+
+    def test_unreadable_settlement_eventually_requests_human(self):
+        task, calls = self.replay(['save_unreadable', 'save_unreadable'], human_takeover=True)
+        self.assertEqual(calls, [])
+        task.rogue_dump_unknown.assert_called_once()
+
     def test_preview_defers_checkpoint_until_after_reward_flash(self):
         task, calls = self.replay(['loot', 'reward', 'preview', 'flash', 'map'])
         task.rogue_quit.assert_not_called()
@@ -180,6 +222,9 @@ class SparkCheckTest(unittest.TestCase):
                 self.assertEqual(calls[-1], ('walk', 'map'))
 
     def test_spark_retry_decomposes_all_current_saves_before_leaving(self):
+        button = rogue.ROGUE_EXPLORE_RESULT
+        title_image = cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
+        x1, y1, x2, y2 = button.area
         for retry, discarded in ((True, (1, 2, 3)), (False, (1, 3))):
             with self.subTest(retry=retry):
                 task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
@@ -193,7 +238,8 @@ class SparkCheckTest(unittest.TestCase):
 
                 def replay(**_):
                     nonlocal current
-                    for current in ['save', 'popup'] * len(discarded) + ['save', 'team']:
+                    frames = ['confirm', 'loading', 'title_only', 'result', 'unreadable']
+                    for current in frames + ['save', 'popup'] * len(discarded) + ['save', 'team']:
                         yield
 
                 def tap(x, y, *, name):
@@ -202,29 +248,45 @@ class SparkCheckTest(unittest.TestCase):
 
                 task.loop = replay
                 task.ui_page_appear = Mock(return_value=False)
-                task.appear = lambda button, **_: button is rogue.TEAM_TITLE and current == 'team'
-                task.rogue_dialog_point = Mock(return_value=None)
+                task.appear = lambda asset, **kwargs: (
+                    asset is button and current in ('title_only', 'result') and asset.match(title_image, **kwargs))
+                task.rogue_team_appear = lambda: current == 'team'
+                task.rogue_crash_appear = lambda: False
+                task.rogue_dialog_point = lambda: (849, 454) if current == 'confirm' else None
                 task.rogue_item_appear = lambda: current == 'popup'
-                task.rogue_purple_point = lambda: next_point if current == 'save' else None
-                task.rogue_save_appear = lambda: current == 'save'
+                task.rogue_primary_point = Mock(return_value=None)
+                task.rogue_purple_point = lambda: next_point if current in ('result', 'unreadable', 'save') else None
+                task.card_reader = Mock()
+
+                def read_title(*_):
+                    if current == 'unreadable':
+                        raise ValueError('Temporary OCR failure')
+                    return '存檔資料收集完成'
+
+                task.card_reader.read_name.side_effect = read_title
                 task.rogue_save_trash_visible = lambda slot: rogue.SAVE_TRASH[slot - 1] in saves
                 task.tap_point = Mock(side_effect=tap)
 
-                with patch.object(rogue, 'Timer'):
+                with patch.object(rogue, 'Timer'), patch.object(button, '_match_init', True), \
+                        patch.object(button, 'image', title_image[y1:y2, x1:x2]):
                     self.assertTrue(task.rogue_spark_restart_on_core_map() if retry else task.rogue_quit())
                 self.assertEqual(saves, set() if retry else {rogue.SAVE_TRASH[1]})
                 self.assertEqual(task.config.ChaoszeroRogue_RogueSaveKeep, 2)
                 self.assertEqual([call[1]['name'] for call in task.tap_point.call_args_list],
-                                 ['ROGUE_SAVE_TRASH', 'ROGUE_ITEM'] * len(discarded) + ['ROGUE_PURPLE'])
+                                 ['ROGUE_DIALOG', 'ROGUE_PURPLE']
+                                 + ['ROGUE_SAVE_TRASH', 'ROGUE_ITEM'] * len(discarded) + ['ROGUE_PURPLE'])
 
     def test_restarts_through_outer_loop_and_stops_on_failed_retreat(self):
         for retreat in (True, False):
             with self.subTest(retreat=retreat):
-                task, calls = self.replay(['loot', 'map'], retreat=retreat, runs=2)
+                task, calls = self.replay(['loot', 'map'], retreat=retreat, runs=2,
+                                          human_takeover=not retreat)
                 self.assertEqual(task.rogue_enter.call_count, 2 if retreat else 1)
                 self.assertEqual(task.rogue_quit.call_count, task.rogue_enter.call_count)
                 self.assertEqual(task.stopped_by_stuck, not retreat)
                 self.assertFalse(any(action == 'walk' for action, _ in calls))
+                if not retreat:
+                    task.config.task_delay.assert_not_called()
 
     def test_single_build_checkbox_defaults_to_off(self):
         from module.config.config_generated import GeneratedConfig

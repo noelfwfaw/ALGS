@@ -93,6 +93,17 @@ for (const invalid of [
 }
 context.importPicks(JSON.stringify(valid));
 assert.deepEqual(JSON.parse(storage.get('czn_rogue_events_v1')), valid.picks);
+context.exportPicks();
+assert.equal(downloaded, undefined);
+assert.match(control('status').textContent, /殘留物.*需改用优先顺序/);
+assert.doesNotThrow(() => context.validatePicks({ [residue.id]: 2 }, true));
+const legacyVariant = { 'uk_401_s01_02a': 3 };
+context.importPicks(JSON.stringify(legacyVariant));
+assert.deepEqual(JSON.parse(storage.get('czn_rogue_events_v1')), legacyVariant);
+context.exportPicks();
+assert.equal(downloaded, undefined);
+assert.match(control('status').textContent, /路米納斯的呼喚.*请按标题重选/);
+context.importPicks(JSON.stringify(valid));
 context.importPicks(JSON.stringify({ [residue.id]: 9999 }));
 assert.match(control('status').textContent, /当前草稿保留/);
 allowReplace = false;
@@ -206,7 +217,7 @@ assert.equal(byId(galleryFollowup).disabled, false);
 byId(galleryPath + '/clear').onclick();
 
 const confusion = 'uk_904_s01_15a';
-assert.throws(() => context.validatePicks({ [confusion]: [1, 4] }, true), /需改用优先顺序/);
+assert.throws(() => context.validatePicks({ [confusion]: [1, 4] }, true), /请按标题重选/);
 assert.doesNotThrow(() => context.validatePicks({ [confusion]: { priority: [1, '打破混亂', 8] } }, true));
 assert.doesNotThrow(() => context.validatePicks({ 'uk_300_s02_13b-1': { priority: [1, 6, 7] } }, true));
 control('only-picked').checked = false;
@@ -224,6 +235,7 @@ assert.deepEqual(JSON.parse(storage.get('czn_rogue_events_v1'))[confusion], { pr
 byId(confusionPath + '/clear').onclick();
 assert.throws(() => context.validatePicks({ [residue.id]: [1, 2] }, true), /只需配置一次/);
 
+context.importPicks(JSON.stringify({ ...valid.picks, [residue.id]: { priority: [1] } }));
 control('only-picked').checked = false;
 control('search').value = food;
 control('search').oninput();
@@ -299,6 +311,10 @@ assert.throws(() => context.validatePicks({ [finale]: { priority: [1, 2] } }), /
 assert.doesNotThrow(() => context.validatePicks({
   'uk_401_s01_02a': { priority: ['對抗', 1] },
 }, true));
+const bag = 'uk_401_s01_05a-1';
+assert.equal(context.priorityEvent(nodeFor(bag)), true);
+assert.doesNotThrow(() => context.validatePicks({ [bag]: { priority: ['查看袋子'] } }, true));
+assert.throws(() => context.validatePicks({ [bag]: 1 }, true), /请按标题重选/);
 control('search').value = finale;
 control('search').oninput();
 const finalePath = 'uk_402_s01/' + finale;
@@ -355,7 +371,7 @@ assert.ok(byId('uk_904_s01/uk_904_s01_05a/phase'), 'original pack-based option p
 
 context.exportPicks();
 assert.equal(downloaded, 'rogue_event_picks.json');
-exportBlob.text().then(text => {
+exportBlob.text().then(async text => {
   const result = JSON.parse(text);
   assert.equal(result.version, 1);
   assert.deepEqual(result.picks, {
@@ -363,6 +379,87 @@ exportBlob.text().then(text => {
     [finale]: { priority: finalePriority }
   });
   assert.doesNotThrow(() => context.validatePicks(result, true));
+
+  const [convictBase, convictBattle, convictAmbush] = ['uk_300_s02_03b', 'uk_300_s02_03a-1', 'uk_300_s02_03c-1'];
+  const convictCopy = (root, branch, event) => 'uk_300_s02/' + root + (branch ? '/' + root + '_' + branch : '') + '/' + event;
+  const convictCopies = [
+    convictCopy(convictBase, '', convictBase),
+    convictCopy('uk_300_s02_03a', 'sa', convictBattle),
+    convictCopy('uk_300_s02_03c', 'sa', convictBattle),
+    convictCopy('uk_300_s02_03c', 's3', convictAmbush),
+    convictCopy('uk_300_s02_03c', 's4', convictAmbush),
+  ];
+  const draftPicks = () => JSON.parse(storage.get('czn_rogue_events_v1'));
+  const searchFor = (name, onlyConfigured = false) => {
+    control('search').value = name;
+    control('only-picked').checked = onlyConfigured;
+    control('search').oninput();
+  };
+  const convictButtons = order => convictCopies.map(prefix => byId(prefix + '_s' + order));
+  context.importPicks(JSON.stringify({ [convictBattle]: [1], [convictAmbush]: 1 }));
+  assert.deepEqual(draftPicks(), { [convictBase]: 1 });
+  searchFor('定罪者', true);
+  assert.deepEqual(headings(), ['藍壺　3 / 30']);
+  assert.equal(nav.children.find(link => link.textContent === '藍壺').children[0].textContent, '3/30');
+  assert.match(control('stat').textContent, /已选 1 个事件/);
+  assert.ok(shown(list, '战斗胜利后：定罪者（' + convictBattle + '）'));
+  assert.ok(shown(list, '掷骰失败、战斗胜利后：定罪者（' + convictAmbush + '）'));
+  assert.ok(shown(list, '选择会同步到其他入口'));
+  assert.ok(convictButtons(1).every(button => button.className === 'pick on'));
+  assert.equal(byId('uk_300_s02/uk_300_s02_03a/uk_300_s02_03a_s1').className, 'pick');
+  convictButtons(2).at(-1).onclick();
+  assert.deepEqual(draftPicks(), { [convictBase]: 2 });
+  assert.ok(convictButtons(1).every(button => button.className === 'pick'));
+  assert.ok(convictButtons(2).every(button => button.className === 'pick on'));
+
+  const conflict = { [convictBase]: 2, [convictBattle]: 1, [convictAmbush]: 3 };
+  context.importPicks(JSON.stringify(conflict));
+  assert.deepEqual(draftPicks(), conflict);
+  assert.match(control('status').textContent, /有不同选项/);
+  assert.ok(convictButtons(2).every(button => button.className === 'pick'));
+  downloaded = undefined;
+  context.exportPicks();
+  assert.equal(downloaded, undefined);
+  assert.match(control('status').textContent, /定罪者.*请重选/);
+  assert.deepEqual(draftPicks(), conflict);
+  convictButtons(3)[0].onclick();
+  assert.deepEqual(draftPicks(), { [convictBase]: 3 });
+  context.exportPicks();
+  assert.equal(downloaded, 'rogue_event_picks.json');
+  assert.deepEqual(JSON.parse(await exportBlob.text()).picks, { [convictBase]: 3 });
+  context.importPicks(JSON.stringify(conflict));
+  byId('uk_300_s02/' + convictBase + '/shared-clear').onclick();
+  assert.deepEqual(draftPicks(), {});
+
+  const herald = 'uk_sys_s02_01a';
+  const heraldAlias = 'uk_sys_s02_01d';
+  const heraldButton = (id, order) => byId('uk_sys_s02/' + id + '/' + id + '_s' + order);
+  context.importPicks(JSON.stringify({ [herald]: { priority: [1, 2] }, [heraldAlias]: { priority: [1, 2] } }));
+  assert.deepEqual(draftPicks(), { [herald]: { priority: [1, 2] } });
+  searchFor('凱爾肯的傳令兵');
+  assert.ok(shown(heraldButton(heraldAlias, 2), '备选 1'));
+  heraldButton(heraldAlias, 4).onclick();
+  assert.ok(shown(heraldButton(herald, 4), '备选 2'));
+  assert.deepEqual(draftPicks(), { [herald]: { priority: [1, 2, 4] } });
+  const priorityConflict = { [herald]: { priority: [1, 2] }, [heraldAlias]: { priority: [2, 1] } };
+  assert.deepEqual(context.validatePicks(priorityConflict), priorityConflict);
+  assert.throws(() => context.validatePicks(priorityConflict, true), /有不同|不同选项/);
+
+  context.importPicks(JSON.stringify({ 'uk_904_s01_07b-1': 2, 'uk_904_s01_07e-2': 1, 'uk_302_s02_07a-4': 1 }));
+  assert.deepEqual(draftPicks(), { 'uk_904_s01_07a-1': 2, 'uk_904_s01_07d-1': 1, 'uk_302_s02_07a-1': 1 });
+  searchFor('尼希隆研究');
+  assert.equal(byId('uk_904_s01/uk_904_s01_07c/uk_904_s01_07c_sa/uk_904_s01_07c-1_s2').className, 'pick on');
+  assert.equal(byId('uk_904_s01/uk_904_s01_07e/uk_904_s01_07e_sa/uk_904_s01_07e-2_s2').className, 'pick');
+
+  // Startup applies the same migration and does not resolve conflicting drafts by position.
+  storage.set('czn_rogue_events_v1', JSON.stringify({ [convictAmbush]: [2] }));
+  vm.runInNewContext(source, {...context});
+  assert.deepEqual(draftPicks(), { [convictBase]: 2 });
+  storage.set('czn_rogue_events_v1', JSON.stringify(conflict));
+  vm.runInNewContext(source, {...context});
+  assert.deepEqual(draftPicks(), conflict);
+  assert.match(control('status').textContent, /检查草稿.*有不同选项/);
+
   console.log('Event selector classification, import, search, sequence and export checks passed');
 }).catch(error => {
   console.error(error);

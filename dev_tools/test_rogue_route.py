@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -56,7 +57,9 @@ class TestRogueEntry(unittest.TestCase):
 
         def finish(fresh_run):
             self.assertTrue(fresh_run)
-            task.stopped_by_stuck = task.rogue_run.call_count == 2
+            if task.rogue_run.call_count == 2:
+                task.stopped_by_beacon = True
+                task.waypoints = 1
 
         task.rogue_run = Mock(side_effect=finish)
         self.assertFalse(task.appear(ui.ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9))
@@ -64,6 +67,28 @@ class TestRogueEntry(unittest.TestCase):
         self.assertEqual(task.rogue_enter.call_count, 2)
         self.assertEqual(task.rogue_run.call_count, 2)
         task.config.task_delay.assert_called_once_with(minute=1)
+
+    def test_same_entry_pages_finish_retreat_and_normal_run(self):
+        for button, expected in (
+            (ui.page_main.check_button, True), (ui.ROGUE_MODE_ENTRY, True),
+            (rogue.ROGUE_TEAM_ENTER, True), (ui.TEAM_TITLE, False),
+        ):
+            with self.subTest(page=button.name):
+                frame = cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
+                task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+                task.config = SimpleNamespace(data={})
+                task.device = Mock(image=frame)
+                task.tap_point = Mock()
+                task.loop = Mock(return_value=range(1))
+                task.rogue_state_load = lambda key, default: default
+                task.rogue_stuck_check = Mock(side_effect=AssertionError('Entry page handled as in-run'))
+
+                self.assertEqual(task.rogue_outside_appear(), expected)
+                self.assertEqual(task.rogue_quit(discard_saves=True), expected)
+                task.rogue_run()
+                self.assertEqual(task.stopped_by_stuck, not expected)
+                task.device.click.assert_not_called()
+                task.tap_point.assert_not_called()
 
     def test_boot_for_other_tasks_backs_out_of_mode_page(self):
         frame = cv2.cvtColor(cv2.imread(ui.ROGUE_MODE_ENTRY.file), cv2.COLOR_BGR2RGB)
@@ -112,6 +137,30 @@ class TestRogueEntry(unittest.TestCase):
                 names = [call[1]['name'] for call in task.tap_point.call_args_list]
                 self.assertEqual(names, ['ROGUE_MODE', 'ROGUE_TEAM_ENTER']
                                  if len(entry) > 1 else ['ROGUE_TEAM_ENTER'])
+
+
+class TestRogueState(unittest.TestCase):
+    def test_run_state_is_profile_specific_and_leaves_legacy_state_alone(self):
+        first = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        second = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        first.config = SimpleNamespace(config_name='profile-a')
+        second.config = SimpleNamespace(config_name='profile-b')
+
+        with TemporaryDirectory() as folder, patch.object(rogue, 'ROGUE_STATE_DIR', folder):
+            legacy = Path(folder) / 'rogue_state.json'
+            old_state = '{"remove_done": 99, "core_started": true}'
+            legacy.write_text(old_state, encoding='utf-8-sig')
+            self.assertEqual(first.rogue_state_load('remove_done', 0), 0)
+            self.assertFalse(second.rogue_state_load('core_started', False))
+
+            first.rogue_state_save(remove_done=3)
+            first.rogue_state_save(core_started=True)
+            second.rogue_state_save(remove_done=0, core_started=False)
+            self.assertEqual(first.rogue_state_load('remove_done'), 3)
+            self.assertTrue(first.rogue_state_load('core_started'))
+            self.assertEqual(second.rogue_state_load('remove_done'), 0)
+            self.assertFalse(second.rogue_state_load('core_started'))
+            self.assertEqual(legacy.read_text(encoding='utf-8-sig'), old_state)
 
 
 class TestRoute(unittest.TestCase):

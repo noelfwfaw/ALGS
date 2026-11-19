@@ -929,7 +929,8 @@ def best_path(nodes, style=ROUTE_BALANCE, state=None, edges=None):
             给了就用**真实连线**建图；没给（或为空）退回 `link_tiers` 的高度差近似。
 
     Returns:
-        list[RouteNode]: 从最左一层走到最右一层的路径；无节点时为空。
+        list[RouteNode]: 从最左一层走到**最末有效层**的完整路径；无节点或没有
+            一条能走到底的连通路线时为空（由调用方退回本地选卡兜底）。
     """
     state = state or {}
     if not nodes:
@@ -979,9 +980,9 @@ def best_path(nodes, style=ROUTE_BALANCE, state=None, edges=None):
             if chosen is not None:
                 best[(node.x, node.y)] = (chosen[0] + value, chosen[1])
 
-    if not best:
-        return []
-    return max(best.values(), key=lambda item: item[0])[1]
+    # 负分节点会让中途前缀的分数高于完整路线。
+    complete = (item for item in best.values() if item[1][-1].tier == tiers[-1])
+    return max(complete, key=lambda item: item[0], default=(0, []))[1]
 
 
 def plan(nodes, style=ROUTE_BALANCE, state=None, edges=None):

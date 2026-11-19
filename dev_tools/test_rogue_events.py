@@ -1,6 +1,8 @@
 """Event selection and sequence regressions; no device connection is used."""
 
+import ast
 import json
+import re
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,7 +17,7 @@ set_server('chaoszero')
 
 from module.base.timer import Timer
 from module.chaoszero.rogue import ChaoszeroRogue
-from module.chaoszero.rogue_events import EventLibrary, packs_for_world
+from module.chaoszero.rogue_events import EventLibrary, SHARED_CHOICE_GROUPS, packs_for_world
 from module.exception import TaskFailed
 
 
@@ -32,7 +34,7 @@ def make_task():
     task.event_library = EventLibrary.__new__(EventLibrary)
     task.event_library.records = {
         'void': record('虛無牧者', [(1, '將手伸入深處'), (2, '將手伸入更深處'),
-                                  (3, '將手伸入最深處'), (4, '取出能夠抓住的東西'),
+                                  (3, '將手伸入最深處'),
                                   (7, '取出能夠抓住的東西'), (8, '迎接虛無')]),
         'cave': record('猝死洞窟', [(1, '取出左側箱子'), (2, '救出倖存者'),
                                   (3, '取出右側箱子'), (4, '離開洞窟')]),
@@ -45,6 +47,8 @@ def make_task():
     task.event_choice = None
     task.event_pending_choice = None
     task.event_submit_wait = None
+    task.event_submit_clear = Timer(0.8, count=1)
+    task.event_submit_attempts = 0
     task.event_unknown = False
     task.event_page = None
     task.event_index = None
@@ -98,7 +102,9 @@ class EventSelectionTest(unittest.TestCase):
         self.task.rogue_option_check_point.return_value = (x, 681)
         self.assertTrue(self.step())
         self.task.rogue_option_check_point.return_value = None
-        expire(self.task.event_submit_wait)
+        self.assertTrue(self.step())
+        expire(self.task.event_submit_clear)
+        self.assertTrue(self.step())
 
     def test_sequence_reidentifies_after_each_commit_even_with_identical_positions(self):
         pages = [(['取出能夠抓住的東西', '將手伸入深處', '迎接虛無'], 2),
@@ -262,7 +268,122 @@ class EventSelectionTest(unittest.TestCase):
             choice = self.task.event_pending_choice
             self.assertEqual((choice['id'], choice['order']), (event_id, order))
             self.confirm()
-            expire(self.task.event_submit_wait)
+
+    def test_config_does_not_disambiguate_identical_titles_across_events(self):
+        expected = 'uk_900_s02_06c-1'
+        other = 'uk_900_s02_01c'
+        texts = ['取得聖物', '感應聖物']
+        packs = packs_for_world('降臨的混沌')
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {other: [1]}
+        self.assertIsNone(self.task.rogue_event_manual_index(texts, packs))
+        self.task.event_followups = {expected}
+        self.assertIsNone(self.task.rogue_event_manual_index(texts, packs))
+        self.assertEqual(self.task.event_followups, {expected})
+        self.task.event_picks[expected] = [2]
+        self.assertEqual(self.task.rogue_event_manual_index(texts, packs), 1)
+        self.assertEqual(self.task.event_choice['id'], expected)
+
+    def test_convictor_shared_pick_works_from_map_and_followups(self):
+        main, battle, ambush = SHARED_CHOICE_GROUPS[0]
+        titles = ['閱讀聖書', '小睡一下', '喝下聖水']
+        self.task.config.ChaoszeroRogue_RogueWorld = '藍壺'
+        self.task.event_library = EventLibrary()
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / 'picks.json'
+            with patch('module.chaoszero.rogue.EVENT_PICKS_FILE', str(path)):
+                for rules, expected in (
+                    ({main: 1, ambush: [1]}, 1),
+                    ({battle: 2}, 2),
+                    ({main: 3}, 3),
+                    ({main: 1, ambush: 2}, None),
+                ):
+                    for followups in (set(), {battle}, {ambush}):
+                        with self.subTest(rules=rules, followups=followups):
+                            path.write_text(json.dumps({'version': 1, 'picks': rules}), encoding='utf-8')
+                            self.task.event_picks = None
+                            self.task.event_followups = followups
+                            self.feed(titles)
+                            position = self.task.rogue_event_index(self.task.rogue_option_points())
+                            if expected is None:
+                                self.assertIsNone(position)
+                                self.assertIsNone(self.task.event_choice)
+                            else:
+                                self.assertEqual(position, (2, 3, 1)[expected - 1])
+                                self.assertEqual(self.task.event_choice['id'], next(iter(followups), main))
+        self.task.tap_point.assert_not_called()
+
+    def test_shared_priority_checks_actual_options(self):
+        group = SHARED_CHOICE_GROUPS[1]
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {group[-1]: {'priority': [1, 4]}}
+        texts = ['洗清罪刑', '銘記教誨']
+        self.assertEqual(self.task.rogue_event_manual_index(texts, packs_for_world('藍壺')), 1)
+        self.assertEqual(self.task.event_choice['order'], 4)
+
+    def test_shared_groups_have_equivalent_terminal_outcomes_in_source(self):
+        selector = Path(__file__).with_name('rogue_events') / 'index.html'
+        groups = re.search(r'const sharedPickGroups = (\[.*?\]);', selector.read_text(encoding='utf-8'), re.S)
+        self.assertIsNotNone(groups)
+        self.assertEqual(tuple(map(tuple, ast.literal_eval(groups[1]))), SHARED_CHOICE_GROUPS)
+        library = EventLibrary()
+        for group in SHARED_CHOICE_GROUPS:
+            for event_id in group:
+                with self.subTest(event_id=event_id):
+                    self.assertEqual(library.shared_choice_ids(event_id), group)
+
+    def test_changed_outcome_invalidates_shared_choice(self):
+        main, alias, _ = SHARED_CHOICE_GROUPS[0]
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {main: [1]}
+        option = self.task.event_library.records[alias]['options'][0]
+        option['raw']['success_link_encounter_option_eff']['reward0_multiple_link'] = 'up_mhp_10p'
+        self.assertEqual(self.task.event_library.shared_choice_ids(main), (main,))
+        self.assertIsNone(self.task.rogue_event_manual_index(
+            ['小睡一下', '喝下聖水', '閱讀聖書'], packs_for_world('藍壺')))
+        self.assertIsNone(self.task.event_choice)
+
+    def test_optional_failure_link_lasts_until_confirmed_route_change(self):
+        root = 'uk_302_s02_02c'
+        child = 'uk_302_s02_02a'
+        self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {root: [1], child: [3]}
+        self.feed(['欺騙侵略者', '活化蘑菇', '偷偷品嚐蘑菇'])
+        self.assertTrue(self.step())
+        self.confirm()
+        self.assertEqual(self.task.event_followups, {child})
+
+        # A failed attempt opens the linked event; a success returns to the map.
+        packs = packs_for_world(self.task.config.ChaoszeroRogue_RogueWorld)
+        self.assertEqual(self.task.rogue_event_manual_index(['品嚐蘑菇', '吸入孢子'], packs), 2)
+        self.assertEqual(self.task.event_choice['id'], child)
+        self.task.node_pending = object()
+        self.task.route_step = 1
+        self.task.plan_index = 1
+        self.task.rogue_map_appear = Mock(return_value=True)
+        self.task.rogue_map_preview_appear = Mock(return_value=False)
+        self.task.rogue_prompt_appear = Mock(return_value=False)
+        self.task.rogue_battle_appear = Mock(return_value=True)
+        self.assertFalse(self.task.rogue_route_confirm_move())
+        self.assertEqual(self.task.event_followups, {child})
+        self.task.rogue_map_appear.return_value = False
+        self.assertTrue(self.task.rogue_route_confirm_move())
+        self.assertEqual(self.task.event_followups, set())
+        self.assertEqual(self.task.event_visit, {})
+
+    def test_legacy_number_does_not_choose_ordinary_same_title_branches(self):
+        event_id = 'uk_401_s01_02a'
+        titles = ['回想痛苦的記憶', '回想幸福的記憶', '對抗']
+        packs = packs_for_world('燃燒的生命')
+        self.task.event_library = EventLibrary()
+        for order in (3, 4):
+            with self.subTest(order=order):
+                self.task.event_picks = {event_id: [order]}
+                self.assertIsNone(self.task.rogue_event_manual_index(titles, packs))
+        self.task.event_picks = {event_id: {'priority': ['對抗', 1]}}
+        self.assertEqual(self.task.rogue_event_manual_index(titles, packs), 3)
+        self.assertIsNone(self.task.event_choice['order'])
 
     def test_similar_stage_title_does_not_impersonate_requested_stage(self):
         self.task.event_visit['void'] = 1
@@ -343,14 +464,44 @@ class EventSelectionTest(unittest.TestCase):
         self.task.rogue_option_check_any.assert_called_once()
         self.assertEqual(self.task.event_visit, {})
 
-    def test_submit_transition_is_consumed_without_another_pick(self):
-        self.feed(['將手伸入深處', '取出能夠抓住的東西', '迎接虛無'])
-        self.step()
-        self.confirm()
-        self.task.event_submit_wait.reset()
-        self.task.tap_point.reset_mock()
-        self.step()
-        self.task.tap_point.assert_not_called()
+    def test_dropped_confirmation_is_retried_without_advancing(self):
+        event_id = 'uk_904_s01_05a'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {event_id: [2, 6]}
+        self.feed(['剖開腹部。', '餵食糧食', '阻止進食'])
+        self.assertTrue(self.step())
+        check = (640, 681)
+        self.task.rogue_option_check_point.return_value = check
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_visit, {})
+        self.task.rogue_option_check_point.return_value = None
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_visit, {})
+        self.task.rogue_option_check_point.return_value = check
+        self.assertTrue(self.step())
+        self.task.tap_point.assert_called_with(*check, name='ROGUE_OPTION_CONFIRM')
+        self.assertEqual(self.task.event_submit_attempts, 2)
+        self.assertEqual(self.task.event_visit, {})
+        self.assertEqual(self.task.event_pending_choice['order'], 2)
+        self.task.rogue_option_check_point.return_value = None
+        self.assertTrue(self.step())
+        expire(self.task.event_submit_clear)
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_visit, {event_id: 1})
+        self.assertEqual(self.task.event_followups, {event_id})
+        self.assertEqual(self.task.tap_point.call_count, 3)
+
+    def test_persistent_confirmation_stops_after_bounded_attempts(self):
+        self.feed(['取出左側箱子', '離開洞窟'])
+        self.assertTrue(self.step())
+        self.task.rogue_option_check_point.return_value = (308, 681)
+        for _ in range(8):
+            self.assertTrue(self.step())
+        expire(self.task.event_submit_wait)
+        with self.assertRaisesRegex(TaskFailed, 'confirmation did not leave'):
+            self.step()
+        self.assertEqual(self.task.event_visit, {})
+        self.assertEqual(self.task.tap_point.call_count, 4)
 
     def test_sequence_exhaustion_keeps_final_configured_choice(self):
         self.task.event_visit['void'] = 8

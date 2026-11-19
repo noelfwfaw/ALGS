@@ -22,6 +22,42 @@ from module.logger import logger
 from module.chaoszero.rogue_cards import normalize
 
 DATA_FILE = os.path.join(os.path.dirname(__file__), 'rogue_events.json.gz')
+# These terminal pages have identical option conditions and outcomes in the raw data.
+SHARED_CHOICE_GROUPS = (
+    ('uk_300_s02_03b', 'uk_300_s02_03a-1', 'uk_300_s02_03c-1'),
+    ('uk_sys_s02_01a', 'uk_sys_s02_01b', 'uk_sys_s02_01c', 'uk_sys_s02_01d'),
+    ('uk_302_s02_07a-1', 'uk_302_s02_07a-3', 'uk_302_s02_07a-4'),
+    ('uk_904_s01_07a-1', 'uk_904_s01_07b-1', 'uk_904_s01_07c-1'),
+    ('uk_904_s01_07d-1', 'uk_904_s01_07e-2'),
+)
+SHARED_CHOICES = {event_id: group for group in SHARED_CHOICE_GROUPS for event_id in group}
+
+
+def _shared_choice_signature(record):
+    if not record.get('raw') or not record.get('options'):
+        return None
+    source_ids = {'id', 'chaos_collection_info', 'link_encounter_set_id'}
+    source = {key: value for key, value in record['raw'].items() if key not in source_ids}
+    outcomes = ('success_link_encounter_option_eff', 'fail_link_encounter_option_eff')
+    option_ids = {'id', 'link_encounter_id'} | {key + '_id' for key in outcomes}
+    options = []
+    for option in record['options']:
+        if not option.get('raw'):
+            return None
+        raw = {key: value for key, value in option['raw'].items() if key not in option_ids}
+        for key in outcomes:
+            if key not in raw:
+                return None
+            effect = raw[key]
+            if effect:
+                if effect.get('next_encounter') or effect.get('next_encounter_id'):
+                    return None
+                raw[key] = {k: v for k, v in effect.items() if k not in ('id', 'link_encounter_option_id')}
+        parsed = {key: value for key, value in option.items() if key not in ('id', 'raw')}
+        options.append((parsed, raw))
+    return record['pack'], record['name'], source, options
+
+
 # 单条 OCR 标题与库内选项名的相似度下限（繁体模型对 4 字标题常错 1 个字，约 0.75）
 OPTION_MATCH = 0.55
 # 反查事件时要求每一张卡都能对上，再取平均相似度最高的那个事件。
@@ -168,6 +204,15 @@ class EventLibrary:
         with gzip.open(self.file, 'rt', encoding='utf-8') as file:
             self.records = json.load(file)
         logger.info('Event library loaded, %s encounters' % len(self.records))
+
+    def shared_choice_ids(self, event_id):
+        group = SHARED_CHOICES.get(event_id, (event_id,))
+        if len(group) == 1:
+            return group
+        signature = _shared_choice_signature(self.records.get(group[0], {}))
+        if signature and all(_shared_choice_signature(self.records.get(key, {})) == signature for key in group[1:]):
+            return group
+        return (event_id,)
 
     def identify(self, texts, packs=None):
         """

@@ -30,11 +30,16 @@
 """
 
 import collections
+import hashlib
+import json
+import os
 import re
 
 import cv2
 import numpy as np
+from filelock import FileLock, Timeout
 
+from deploy.atomic import atomic_read_bytes, atomic_write
 from module.base.button import Button
 from module.base.timer import Timer
 from module.chaoszero import rogue_cards, rogue_equipment, rogue_events, rogue_fate, rogue_route
@@ -57,7 +62,7 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                     ROGUE_DECK, ROGUE_DETAIL,
                                      ROGUE_DICE, ROGUE_DICE_FAIL, ROGUE_DICE_TAP, ROGUE_DREAM_NOTICE,
                                      ROGUE_DREAM_OFF, ROGUE_DREAM_OK,
-                                     ROGUE_DREAM_ON, ROGUE_EQUIP, ROGUE_FATE,
+                                     ROGUE_DREAM_ON, ROGUE_EQUIP, ROGUE_EXPLORE_RESULT, ROGUE_FATE,
                                      ROGUE_FLASH,
                                      ROGUE_GOD, ROGUE_HERALD, ROGUE_INFO_MENU,
                                      ROGUE_ITEM,
@@ -69,7 +74,7 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                      ROGUE_REMOVE, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP, ROGUE_RESUME,
                                     ROGUE_TRANSFORM,
                                      ROGUE_RETREAT,
-                                     ROGUE_RETREAT_TITLE, ROGUE_STORY,
+                                     ROGUE_RETREAT_TITLE, ROGUE_SAVE_TITLE, ROGUE_STORY,
                                      ROGUE_SHOP_REMOVE,
                                      ROGUE_TEAM_ENTER, ROGUE_TREASURE_CARD, ROGUE_TURN,
                                      ROGUE_WORLD_ENTER, ROGUE_WORLD_JIANGLIN,
@@ -79,7 +84,8 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                      ROGUE_ZOOM_OUT, TEAM_TITLE)
 from module.chaoszero.chaoszero_ui import CHAOSZERO_WAKE, ChaoszeroUI
 from module.chaoszero.page import page_main
-from module.exception import TaskFailed
+from module.config.utils import filepath_config
+from module.exception import RequestHumanTakeover, TaskFailed
 from module.log_retention import prune_diagnostics
 from module.logger import logger
 from module.ocr.ocr import Ocr
@@ -547,6 +553,33 @@ RESUME_CONTINUE_POINT = (815, 508)
 # 2026-11-15 实测：以 (472,677) 下沿为基准，y-125~y-95 读得出 `搜索尿體`/`攝取`，
 # y-133~y-103 就只剩半个字了。
 EVENT_TITLE = (-150, -125, 150, -95)
+EVENT_CONFIRM_ATTEMPTS = 3
+# Same-title numbers in the selector's fixed routes, by confirmed visit.
+EVENT_GUIDED_VARIANTS = {
+    'uk_300_s02_05a': ((1,), (2,)),
+    'uk_302_s02_04c': ((3,), (4,), (5,)),
+    'uk_401_s01_04a': ((1,), (2,), (3,)),
+    'uk_401_s01_17a': ((3,), (4,)),
+    **{f'uk_402_s01_11{variant}-{branch}': ((1,), (2,), (3,), (4,))
+       for variant in 'abc' for branch in (1, 2)},
+    'uk_403_s01_04a': ((3, 6), (4, 7), (5,)),
+    'uk_403_s01_05a-2': ((1, 3, 6), (2, 4, 7), (5, 8)),
+    'uk_403_s01_05b': ((2,), (3,), (4,), (5,)),
+    'uk_403_s01_11a': ((2,), (3,), (4,)),
+    'uk_403_s01_11c': ((4,), (8,)),
+    'uk_403_s01_12a': ((1,), (2,), (3,)),
+    'uk_900_s02_10c': ((1,), (2,)),
+    'uk_900_s02_11a': ((1,), (2,), (3,), (4,)),
+    'uk_900_s02_16a': ((3,), (3,), (4,)),
+    'uk_904_s01_04a': ((2,), (2,), (3,)),
+    'uk_904_s01_05a': ((8,), (6,), (7,)),
+    'uk_904_s01_13a-1': ((4,), (5,), (6,), (7,)),
+    'uk_904_s01_13b-1': ((4,), (5,), (6,), (7,)),
+    'uk_905_s02_02a': ((4,), (5,), (6,), (7,)),
+    'uk_905_s02_13a': ((), (3,), (4,), (5,), (6,)),
+    'uk_905_s02_16a': ((1,), (2,), (3,)),
+    'uk_905_s02_16c': ((2,), (3,), (4,)),
+}
 
 # 事件页识别记录（每页一份 JSON + 截图），用来统计识别正确率。
 # 2026-11-15 用户要求"把整局的事件都匹配一遍，看看正确率"。
@@ -593,7 +626,7 @@ EVENT_PICKS_FILE = './config/rogue/rogue_event_picks.json'
 # 2026-11-16 01:39 实测：01:39:48 已经认出 BOSS 战利品页并置 True，
 # 01:41:28 进程重启后 `Route nodes 18, style 均衡` —— 状态丢了。
 # 放 `config/rogue/` 子目录，避免被 `alas_instance()` 当成 Alas 配置。
-ROGUE_STATE_FILE = './config/rogue/rogue_state.json'
+ROGUE_STATE_DIR = './config/rogue'
 
 # ---- 第一面打完的「BOSS 战利品页」（複製卡牌 / 裝備 / 信用點數 + 獲得 N）----
 # 用户 2026-11-15：这一页之后就是**第二面（核心）**，要在这里读第二张地图的路线。
@@ -614,7 +647,7 @@ EVENT_PICKS_LEGACY = './config/rogue_event_picks.json'
 # 整局结束时的 `存檔資料收集完成` 页：三个角色的存档卡并排，每张卡右边竖着
 # ☆ / 🔒 / 垃圾桶（x 约 427 / 837 / 1237，y 约 474 / 528 / 582），右下紫色
 # `下一步`(1120,662)。页面标题在 (460,58)-(830,104) —— 这一页和 `探索結果`
-# 用同一种紫色主按钮，只能靠标题区分（OCR，见 `rogue_save_appear`）。
+# 用同一种紫色主按钮，点击前先识别标题。
 # ❗垃圾桶不是「点了就删」：点一下立刻显示 `分解完成` 并把存档分解成單元幣
 # （实机 21650TB→488、23270TB→465），同时弹一层 `獲得道具` 白底弹窗盖住整页，
 # 弹窗要按掉才会回到这一页。所以一次只删一张，删完等弹窗过去再看下一张。
@@ -625,6 +658,7 @@ SAVE_TRASH_BOX = ((417, 568, 447, 600), (827, 568, 857, 600), (1227, 568, 1257, 
 SAVE_TRASH_LIGHT = 150
 SAVE_TRASH_MIN = 100
 SAVE_TITLE_WORDS = (u'存檔', u'存档', u'收集完成')
+RESULT_TITLES = ('探索結果', '探索结果', '結算', '结算')
 
 # 掷骰页：掷之前整页只有一个骰子和 `Tap 請點擊畫面查看骰子結果。`，点一下骰子就出结果。
 # ❗`重新擲骰` (435,645) 要花骰子点数（每天固定 20 点，很珍贵），**永远不点**（用户
@@ -1303,31 +1337,34 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         return self.route_step >= step
 
-    def rogue_save_appear(self):
-        """
-        Whether this is the run-end `存檔資料收集完成` page (three save cards + trash icons).
-
-        这一页和 `探索結果` / 整局结算用的是同一颗紫色 `下一步`，形状颜色分不出，
-        所以只能读标题：`SAVE_TITLE_AREA` 里出现 `存檔`/`存档`/`收集完成` 就算。
-        OCR 只在这一页（紫色主按钮在场）时才调，不影响平时帧率。
-
-        Returns:
-            bool:
-        """
+    def rogue_settlement_page(self):
+        """Identify the page before acting on its shared purple button."""
+        if self.appear(ROGUE_SAVE_TITLE, offset=(18, 12), similarity=0.90):
+            self.settlement_title_wait = None
+            return 'save'
+        if self.appear(ROGUE_EXPLORE_RESULT, offset=(18, 12), similarity=0.90):
+            self.settlement_title_wait = None
+            return 'result'
         try:
             if self.card_reader is None:
-                from module.chaoszero import rogue_cards
                 self.card_reader = rogue_cards.CardReader()
-            text = self.card_reader.read_name(self.device.image, SAVE_TITLE_AREA)
+            text = rogue_cards.normalize(self.card_reader.read_name(self.device.image, SAVE_TITLE_AREA))
         except Exception as error:
-            logger.warning('Can not read the save page title: %s' % error)
-            return False
-        text = text or ''
-        for word in SAVE_TITLE_WORDS:
-            if word in text:
-                logger.info('Save page title reads %s' % text)
-                return True
-        return False
+            logger.debug('Can not read the settlement title: %s', error)
+            text = ''
+        if any(word in text for word in SAVE_TITLE_WORDS):
+            self.settlement_title_wait = None
+            return 'save'
+        if text in RESULT_TITLES or self.rogue_crash_appear():
+            self.settlement_title_wait = None
+            return 'result'
+        wait = getattr(self, 'settlement_title_wait', None)
+        if wait is None:
+            logger.warning('Unverified settlement title, wait for a readable frame')
+            self.settlement_title_wait = Timer(12, count=3).start()
+        elif wait.reached():
+            self.rogue_dump_unknown()
+            raise RequestHumanTakeover('Unable to distinguish the settlement and save pages')
 
     def rogue_save_trash_visible(self, slot):
         """
@@ -1591,95 +1628,107 @@ class ChaoszeroRogue(ChaoszeroUI):
             logger.warning('Failed to read %s: %s' % (path, error))
         return self.event_picks
 
+    def rogue_event_identity(self, texts, packs):
+        """Resolve the event from the page and confirmed continuation."""
+        ranked = self.event_library.candidates(texts, packs, limit=None)
+        if not ranked:
+            return None
+        strongest = [candidate for candidate in ranked if candidate[0] == ranked[0][0]]
+        if self.event_followups:
+            strongest = [candidate for candidate in strongest if candidate[1] in self.event_followups]
+        if len(strongest) > 1:
+            compatible = []
+            for candidate in strongest:
+                options = self.event_library.records[candidate[1]]['options']
+                required = {rogue_cards.normalize(option.get('flavor')) for option in options
+                            if option.get('select_type') == 'DEFAULT' and not option.get('appear_conditions')}
+                if all(any(rogue_events.ratio(text, title) >= rogue_events.OPTION_MATCH for text in texts)
+                       for title in required if title):
+                    compatible.append(candidate)
+            strongest = compatible
+        if len(strongest) == 1:
+            return strongest[0]
+        if strongest:
+            score, event_id, name, pack = strongest[0]
+            shared = self.event_library.shared_choice_ids(event_id)
+            if all(candidate[1] in shared for candidate in strongest):
+                logger.info('Equivalent event pages for %s, use shared choice %s', name, shared[0])
+                return score, shared[0], name, pack
+        logger.warning('No unique event identity for %s (matches: %s, expected: %s)'
+                       % (texts, [candidate[1] for candidate in strongest], self.event_followups))
+        return None
+
     def rogue_event_manual_index(self, texts, packs):
-        """
-        If the identified event has a user pick, return the matching card index.
-
-        ❗候选里可能有多个事件 id 共用同一份选项（库里有 31 组这种，
-        例如 `uk_302_s02_03a` 和 `uk_302_s02_03a-1`），所以**任一候选命中 picks
-        都算命中**，只要它的选项文本能在屏幕上找到对应那张卡。
-
-        Args:
-            texts (list[str]): Normalized OCR titles, in screen order.
-            packs (tuple[str]): Packs of this map.
-
-        Returns:
-            int: 1-based card index, or None when nothing was picked by hand.
-        """
+        """Return a configured card only for a uniquely identified event."""
         self.event_choice = None
-        # 每次识别先清掉"上次命中的事件"，只有真的命中才重新赋值。
-        # 不清的话上一次的 enc_id 会残留，点卡时给错误的事件加了轮次。
         self.event_last_enc = None
 
+        identity = self.rogue_event_identity(texts, packs)
+        if identity is None:
+            return None
+        _, enc_id, name, _ = identity
         picks = self.rogue_event_picks()
-        if not picks:
+        group = self.event_library.shared_choice_ids(enc_id)
+        rules = [picks[key] for key in group if key in picks]
+        rule = rules[0] if rules else None
+        if any(other != rule for other in rules[1:]):
+            logger.warning('Conflicting shared choices for %s; reselect this event in the selector', name)
             return None
-        # A submitted option can lead to a page matching more than one event equally well.
-        expected = self.event_followups
-        self.event_followups = set()
-        ranked = self.event_library.candidates(texts, packs)
-        if expected:
-            ranked.sort(key=lambda candidate: (-candidate[0], candidate[1] not in expected))
-        for mean, enc_id, name, pack in ranked:
-            rule = picks.get(enc_id)
-            if not rule:
+        if not rule:
+            logger.warning('No configured choice for identified event %s (%s)' % (enc_id, name))
+            return None
+        round_index = self.event_visit.get(enc_id, 0)
+        priority = isinstance(rule, dict)
+        orders = rule['priority'] if priority else [rule[min(round_index, len(rule) - 1)]]
+        options = self.event_library.records[enc_id]['options']
+        titles = [rogue_cards.normalize(option.get('flavor')) for option in options]
+        stages = EVENT_GUIDED_VARIANTS.get(enc_id, ())
+        for key in orders:
+            if isinstance(key, str):
+                order, target = None, key
+                matching = [option for option, title in zip(options, titles) if title == target]
+                if len(matching) < 2:
+                    continue
+            else:
+                order = key
+                matches = [(option, title) for option, title in zip(options, titles)
+                           if option.get('order') == order]
+                if len(matches) != 1:
+                    continue
+                option, target = matches[0]
+                guided_variant = not priority and round_index < len(stages) and order in stages[round_index]
+                if titles.count(target) != 1 and not guided_variant:
+                    logger.warning('Ambiguous event option %s for %s; reselect it in the event selector'
+                                   % (order, enc_id))
+                    continue
+                matching = [option]
+            if not target or any(option.get('order') == 9999
+                                 or 'ATTACK' in (option.get('select_type'), option.get('option_type'))
+                                 for option in matching):
                 continue
-            # 这是同一个事件的**第几次**出现：反复事件（自环）要按轮次取不同的 order。
-            # Advance only after submitting the checkmark. Card positions can
-            # stay identical across rounds; an unselected card is not a visit.
-            round_index = self.event_visit.get(enc_id, 0)
-            priority = isinstance(rule, dict)
-            orders = rule['priority'] if priority else [rule[min(round_index, len(rule) - 1)]]
-            record = self.event_library.records.get(enc_id) or {}
-            options = record.get('options') or []
-            titles = [rogue_cards.normalize(option.get('flavor')) for option in options]
-            for key in orders:
-                if isinstance(key, str):
-                    # The rule explicitly accepts whichever variant the game presents.
-                    order, target = None, key
-                    matching = [option for option, title in zip(options, titles) if title == target]
-                    if len(matching) < 2:
-                        continue
-                else:
-                    order = key
-                    matches = [(option, title) for option, title in zip(options, titles)
-                               if option.get('order') == order]
-                    if not matches:
-                        continue
-                    option, target = matches[0]
-                    if priority and (len(matches) != 1 or titles.count(target) != 1):
-                        continue
-                    matching = [option]
-                if not target or (priority and any(
-                        option.get('order') == 9999
-                        or 'ATTACK' in (option.get('select_type'), option.get('option_type'))
-                        for option in matching)):
-                    continue
-                scores = [rogue_events.ratio(text, target) for text in texts]
-                score = max(scores, default=0.0)
-                if score < rogue_events.OPTION_MATCH or (priority and scores.count(score) != 1):
-                    continue
-                position = scores.index(score)
-                # Similar titles must compete against the whole encounter.
-                if any(rogue_events.ratio(texts[position], title) >= score
-                       for title in set(titles) if title != target):
-                    continue
-                self.event_last_enc = enc_id
-                self.event_choice = {
-                    'source': 'configured', 'id': enc_id, 'name': name,
-                    'round': round_index + 1, 'order': order, 'target': target,
-                    'position': position + 1, 'text': texts[position],
-                }
-                logger.info('Event %s (%s), round %s -> user pick option %s `%s` at card %s (%.2f)'
-                            % (enc_id, name, round_index + 1, order, target, position + 1, score))
-                return position + 1
-            logger.warning('No verified configured option %s for event %s; stop for review'
-                           % (orders, enc_id))
-            return None
+            scores = [rogue_events.ratio(text, target) for text in texts]
+            score = max(scores, default=0.0)
+            if score < rogue_events.OPTION_MATCH or scores.count(score) != 1:
+                continue
+            position = scores.index(score)
+            # Similar titles must compete against the whole encounter.
+            if any(rogue_events.ratio(texts[position], title) >= score
+                   for title in set(titles) if title != target):
+                continue
+            self.event_last_enc = enc_id
+            self.event_choice = {
+                'source': 'configured', 'id': enc_id, 'name': name,
+                'round': round_index + 1, 'order': order, 'target': target,
+                'position': position + 1, 'text': texts[position],
+            }
+            logger.info('Event %s (%s), round %s -> user pick option %s `%s` at card %s (%.2f)'
+                        % (enc_id, name, round_index + 1, order, target, position + 1, score))
+            return position + 1
+        logger.warning('No verified configured option %s for event %s; stop for review' % (orders, enc_id))
         return None
 
     def rogue_event_confirmed(self):
-        """Advance a configured sequence once, after pressing its checkmark."""
+        """Advance a configured sequence once, after the submitted checkmark clears."""
         choice = self.event_pending_choice
         self.event_followups = set()
         if choice is not None:
@@ -1704,18 +1753,39 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.option_pending = None
         self.event_page = None
         self.event_index = None
-        self.event_submit_wait = Timer(2, count=1).start()
+        self.event_submit_wait = None
+        self.event_submit_clear.clear()
+        self.event_submit_attempts = 0
 
     def handle_rogue_event(self, press):
         """Select and submit one recognized event page, without stale positions."""
+        if self.event_submit_wait is not None:
+            x, _ = self.option_pending
+            point = self.rogue_option_check_point(x)
+            if point is None:
+                if self.event_submit_clear.start().reached():
+                    self.rogue_event_confirmed()
+                    return True
+            else:
+                self.event_submit_clear.clear()
+            if self.event_submit_wait.reached():
+                self.rogue_dump_unknown()
+                raise TaskFailed('Event confirmation did not leave the selected state; stop for review')
+            if point and self.event_submit_attempts < EVENT_CONFIRM_ATTEMPTS and press.reached():
+                press.reset()
+                self.event_submit_attempts += 1
+                logger.info('Retry the event confirmation (attempt %s)' % self.event_submit_attempts)
+                self.tap_point(*point, name='ROGUE_OPTION_CONFIRM')
+            return True
         if self.option_pending:
             x, wait = self.option_pending
             point = self.rogue_option_check_point(x)
             if point and press.reached():
                 press.reset()
                 logger.info('Confirm the selected option at (%s, %s)' % point)
-                self.tap_point(*point, name='ROGUE_OPTION')
-                self.rogue_event_confirmed()
+                self.tap_point(*point, name='ROGUE_OPTION_CONFIRM')
+                self.event_submit_wait = Timer(8, count=4).start()
+                self.event_submit_attempts = 1
             elif wait.reached():
                 logger.warning('The option card did not show the checkmark, retry without advancing')
                 self.option_pending = None
@@ -1723,12 +1793,9 @@ class ChaoszeroRogue(ChaoszeroUI):
                 self.event_page = None
                 self.event_index = None
             return True
-        if self.event_submit_wait is not None:
-            if not self.event_submit_wait.reached():
-                return True
-            self.event_submit_wait = None
         points = self.rogue_option_points()
         if not points:
+            self.event_page = None
             return False
         key = tuple(points)
         if key != self.event_page:
@@ -1829,6 +1896,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             int: 1-based column, or None when nothing can be recognised.
         """
         self.spark_selected = None
+        self.spark_visible_card = None
         table = self.rogue_spark_filter()
         # ❗配置读没读到自己看：`RogueSparkFilter` 是纯文本配置，
         # 写错格式（比如全角等号）就会静默解析成 0 条，行为退回"数值最大"。
@@ -1856,6 +1924,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         if not card:
             logger.info('Flash card not recognised (%.2f, margin %.2f), keep RoguePick' % (score, margin))
             return None
+        self.spark_visible_card = card
         # ❗**三列分别识别成了什么**（用户 2026-11-16 要求）：
         # 只有把每列的 OCR 和它匹配到的 `rspN` 都打出来，事后才能分清三种情况 ——
         #   ① 想要的灵闪根本没出现在这三列里（游戏没闪到）
@@ -1922,10 +1991,15 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     def rogue_choose_flash(self, god=False):
         column = self.rogue_flash_column(scale=1.8 if god else 1.0)
+        if self.spark_pending:
+            if self.spark_visible_card and self.spark_visible_card != self.spark_pending:
+                self.rogue_spark_confirm()
+            elif self.spark_selected != self.spark_pending:
+                # An unreadable or unchanged chooser cannot confirm the previous choice.
+                return
         index = column or (self.rogue_god_pick() if god else None) or self.rogue_pick_index()
-        logger.info('Pick the %sflash form %s' % ('god ' if god else '', index))
-        self.spark_pending = None
-        if self.rogue_pick(FLASH_POINTS, index) and column:
+        logger.info('Pick column %s on the %sflash page' % (index, 'god ' if god else ''))
+        if self.rogue_pick(FLASH_POINTS, index) and self.spark_selected:
             self.spark_pending = self.spark_selected
 
     def rogue_spark_confirm(self):
@@ -2365,17 +2439,18 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     def rogue_visit_rest_shop(self, press):
         if (not self.shop_cooldown.reached() or self.shop_retry >= SHOP_RETRY
-                or not (self.rogue_shop_remove_needed() or self.equipment.shop_target_slots())
-                or not self.appear(ROGUE_REST_SHOP, offset=(20, 10), similarity=0.88)):
+                or not (self.rogue_shop_remove_needed() or self.equipment.shop_target_slots())):
             return False
-        if press.reached():
-            press.reset()
-            self.shop_retry += 1
-            self.shop_wait = Timer(SHOP_LOAD, count=1).start()
-            logger.info('Visit 德朗商店 for equipment/removal (%s/%s removals used, try %s)'
-                        % (self.remove_done, self.rogue_delete_times(), self.shop_retry))
-            self.device.click(ROGUE_REST_SHOP)
-        return True
+        if self.appear(ROGUE_REST_SHOP, offset=(20, 10), similarity=0.88):
+            if press.reached():
+                press.reset()
+                self.shop_retry += 1
+                self.shop_wait = Timer(SHOP_LOAD, count=1).start()
+                logger.info('Visit 德朗商店 for equipment/removal (%s/%s removals used, try %s)'
+                            % (self.remove_done, self.rogue_delete_times(), self.shop_retry))
+                self.device.click(ROGUE_REST_SHOP)
+            return True
+        return False
 
     def rogue_resume_appear(self):
         """
@@ -2615,65 +2690,48 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         return self.appear(ROGUE_DECK, offset=(20, 12), similarity=0.85)
 
-    def rogue_state_load(self, key, default=None):
-        """
-        Read one value from `config/rogue/rogue_state.json`.
+    def rogue_state_path(self):
+        # The legacy rogue_state.json has no profile identity and cannot be assigned safely.
+        profile = os.path.normcase(os.path.normpath(filepath_config(self.config.config_name)))
+        key = hashlib.sha256(profile.encode('utf-8')).hexdigest()
+        return os.path.join(ROGUE_STATE_DIR, f'{key}.json')
 
-        只有 `core_started` 这种「跨重启要记住」的标志需要落盘。
-
-        Args:
-            key (str): 键名。
-            default: 读不到时的返回值。
-
-        Returns:
-            The stored value, or `default`.
-        """
-        import json as json_module
-        import os
-
+    @staticmethod
+    def rogue_state_read(path):
+        content = atomic_read_bytes(path)
+        if not content:
+            return {}
         try:
-            if not os.path.exists(ROGUE_STATE_FILE):
-                return default
-            # ❗`utf-8-sig`：PowerShell 的 `Set-Content -Encoding UTF8`、以及很多
-            # Windows 编辑器存 JSON 时会带**BOM**，用 `utf-8` 读会直接抛
-            # `Unexpected UTF-8 BOM`，整个状态就被当成"读不到"（2026-11-16 实测：
-            # 手写的 `remove_done: 3` 一直读成 0，删卡限制看起来"没生效"）。
-            with open(ROGUE_STATE_FILE, encoding='utf-8-sig') as handle:
-                payload = json_module.load(handle)
-            value = payload.get(key, default)
-            logger.info('Restored `%s` = %s from %s' % (key, value, ROGUE_STATE_FILE))
-            return value
-        except Exception as error:
-            logger.warning('Failed to read %s: %s' % (ROGUE_STATE_FILE, error))
+            # JSON edited on Windows may start with a UTF-8 BOM.
+            payload = json.loads(content.decode('utf-8-sig'))
+            if isinstance(payload, dict):
+                return payload
+            raise ValueError('expected a JSON object')
+        except ValueError as error:
+            logger.warning(f'Invalid Rogue state {path}: {error}')
+            return {}
+
+    def rogue_state_load(self, key, default=None):
+        path = self.rogue_state_path()
+        try:
+            payload = self.rogue_state_read(path)
+        except OSError as error:
+            logger.warning(f'Failed to read {path}: {error}')
             return default
+        if key in payload:
+            logger.info(f'Restored `{key}` = {payload[key]} from {path}')
+        return payload.get(key, default)
 
     def rogue_state_save(self, **kwargs):
-        """
-        Write keys into `config/rogue/rogue_state.json` (merging with existing).
-
-        Args:
-            **kwargs: key=value pairs to store.
-        """
-        import json as json_module
-        import os
-
+        path = self.rogue_state_path()
         try:
-            payload = {}
-            if os.path.exists(ROGUE_STATE_FILE):
-                try:
-                    with open(ROGUE_STATE_FILE, encoding='utf-8-sig') as handle:
-                        payload = json_module.load(handle) or {}
-                except Exception:
-                    payload = {}
-            payload.update(kwargs)
-            folder = os.path.dirname(ROGUE_STATE_FILE)
-            if folder and not os.path.exists(folder):
-                os.makedirs(folder)
-            text = json_module.dumps(payload, ensure_ascii=False, indent=1)
-            with open(ROGUE_STATE_FILE, 'w', encoding='utf-8') as handle:
-                handle.write(text)
-        except Exception as error:
-            logger.warning('Failed to write %s: %s' % (ROGUE_STATE_FILE, error))
+            os.makedirs(ROGUE_STATE_DIR, exist_ok=True)
+            with FileLock(f'{path}.lock', timeout=2):
+                payload = self.rogue_state_read(path)
+                payload.update(kwargs)
+                atomic_write(path, json.dumps(payload, ensure_ascii=False, indent=1))
+        except (OSError, Timeout) as error:
+            logger.warning(f'Failed to write {path}: {error}')
 
     def rogue_stuck_check(self):
         """
@@ -4172,6 +4230,11 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     # ---------------------------------------------------------------- 局内撤退
 
+    def rogue_outside_appear(self):
+        """Recognize the lobby and Rogue entry pages where no run is active."""
+        return (self.ui_page_appear(page_main) or self.rogue_team_appear()
+                or self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92))
+
     def rogue_quit(self, timeout=120, *, discard_saves=False):
         """
         Leave the current run: ☰ → 「卡厄思資訊」→ 橙色 `撤退` → 大厅.
@@ -4190,13 +4253,15 @@ class ChaoszeroRogue(ChaoszeroUI):
             discard_saves (bool): Decompose this run's saves at settlement.
 
         Returns:
-            bool: If the run is over (team page or lobby).
+            bool: If a Rogue entry page or the lobby confirms the run ended.
         """
         logger.hr('Retreat from the run', level=2)
         press = Timer(2, count=2)
         tries = RETREAT_TRIES
         menus = MENU_TRIES
         retreat = False
+        confirm_sent = False
+        self.settlement_title_wait = None
         self.device.click_record_clear()
         self.device.stuck_record_clear()
 
@@ -4204,14 +4269,12 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 也不会给看门狗计数），而且 `Timer.reached()` 在没 start 过时第一次就返回
         # True —— 2026-11-14 14:08 实测裸写直接空跑一次就返回 False。
         for _ in self.loop(timeout=Timer(timeout, count=1)):
-            if self.ui_page_appear(page_main):
-                logger.info('Back at the lobby, the run is over')
+            if self.rogue_outside_appear():
+                logger.info('Back at the lobby or a Rogue entry page, the run is over')
                 return True
-
-            # 撤退的落点是队伍页（实测），这也是重开一局的入口。
             if self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9):
-                logger.info('Back at the team page, the run is over')
-                return True
+                logger.warning('The team page is missing Rogue markers, stop retreat')
+                return False
 
             # `獲得道具` 白底弹窗：删存档（点垃圾桶=分解）后立刻弹出来盖住整页。
             # 它没有任何按钮，提示是「點擊畫面可關閉視窗。」；不在这里点掉的话，
@@ -4251,6 +4314,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                     press.reset()
                     logger.info('Confirm the retreat at (%s, %s)' % point)
                     self.tap_point(point[0], point[1], name='ROGUE_DIALOG')
+                    confirm_sent = True
                 continue
 
             # 撤退后的两页都是紫色按钮：`探索結果` 的 `下一步` 和整局结算的 `確認`
@@ -4260,16 +4324,17 @@ class ChaoszeroRogue(ChaoszeroUI):
             # 那一页要先处理存档，再点紫色 `下一步`。
             point = self.rogue_purple_point()
             if point:
-                if self.rogue_save_appear():
+                page = self.rogue_settlement_page()
+                if page == 'save':
                     if press.reached():
                         press.reset()
                         self.rogue_save_handle(point, discard_saves=discard_saves)
-                    continue
-                if press.reached():
+                elif page == 'result' and press.reached():
                     press.reset()
                     logger.info('Press the purple button at (%s, %s)' % point)
                     self.tap_point(point[0], point[1], name='ROGUE_PURPLE')
                 continue
+            self.settlement_title_wait = None
 
             # 撤退后的结算页：`繼續進行` / `暫時返回` 都是橙色主按钮。
             point = self.rogue_primary_point()
@@ -4281,9 +4346,10 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
 
             # 还没开面板（或面板已经关掉）：点右上角 ☰。
+            # 二次确认发出后，结算页加载期间只等待下一帧。
             # ❗有次数上限：认不出的页面上连点 12 次同一个按钮会触发框架看门狗
             # （GameTooManyClickError 直接重启客户端，2026-11-14 14:17 实测）。
-            if menus > 0:
+            if menus > 0 and not confirm_sent:
                 if press.reached():
                     press.reset()
                     menus -= 1
@@ -4452,6 +4518,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 未知页存帧的时间闸（画面在动时签名挡不住，见 `rogue_dump_unknown`）
         self.unknown_save = Timer(3, count=1).start()
         self.chest_grey = None
+        self.settlement_title_wait = None
         self.shop_wait = Timer(1, count=1)
         self.shop_retry = 0
         self.shop_cooldown = Timer(1, count=1)
@@ -4540,6 +4607,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.event_choice = None
         self.event_pending_choice = None
         self.event_submit_wait = None
+        self.event_submit_clear = Timer(0.8, count=1)
+        self.event_submit_attempts = 0
         self.equipment = rogue_equipment.Equipment(self)
         self.route_plan = None
         self.route_nodes = []
@@ -4589,12 +4658,24 @@ class ChaoszeroRogue(ChaoszeroUI):
             # 计时器（硬约束 152），否则一分钟没点击就被判成卡死。
             self.device.stuck_record_clear()
 
+            if self.rogue_outside_appear():
+                logger.info('Back at the lobby or a Rogue entry page, the run is over')
+                return
+            if self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9):
+                logger.warning('The team page is missing Rogue markers, stop the run')
+                self.stopped_by_stuck = True
+                return
+
             # 卡住 / 死循环：画面长期只有 1~2 种状态就收工，**不撤退、不重开**，
             # 停在原地等人处理（用户 2026-11-16）。外层看到"还在局内"会直接
             # `break` 掉整个任务，所以这里只需要跳出本局循环。
             if self.rogue_stuck_check():
                 self.stopped_by_stuck = True
                 break
+
+            # Verify the option before a successor handler can consume the current frame.
+            if self.event_submit_wait is not None and self.handle_rogue_event(press):
+                continue
 
             if self.node_pending is not None:
                 self.rogue_route_confirm_move()
@@ -4619,16 +4700,6 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 换页了就重新计"这页静了几秒"，场景页的点位才敢落下去。
                 self.scene_wait.reset()
                 self.prompt_tries = 0
-
-            # 0. 回到大厅 = 这一局已经结束（结算页走完、或被踢出来），收工。
-            if self.ui_page_appear(page_main):
-                logger.info('Back at the lobby, the run is over')
-                return
-            # 整局结算完后实际落点是「配置隊伍」页（2026-11-15 04:36 实测），
-            # 有队伍标题就说明这局完了，不用再等 settle_wait 的 90 秒硬超时。
-            if self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9):
-                logger.info('Back at the team page, the run is over')
-                return
 
             # 0.005 航点结算页（`結算` + 戰利品 + 白色 `暫時返回` + 橙色 `繼續進行`）：
             #       过了这里这局才开始有存档，是脚本唯一能确认「进度到哪」的锚点，
@@ -4829,6 +4900,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                         break
                 if not changed:
                     logger.warning('The page did not move either, stop here')
+                    self.rogue_dump_unknown()
+                    self.stopped_by_stuck = True
                     return
                 last_change = None
                 still.reset()
@@ -4852,10 +4925,10 @@ class ChaoszeroRogue(ChaoszeroUI):
             #    回合蓝 ✓ 照旧在，判据分不出来。画面连着 SCENE_STILL 秒一点没动 =
             #    多半被暂停了：点一下战场（y<450，没有手牌）把面板关掉再等。
             #    最多 PANEL_TRIES 次，点过之后一律不再动，避免变成"串击"。
-            if self.rogue_battle_appear():
-                # The battle HUD can still show through a flash chooser.
-                if self.spark_pending and not (self.rogue_flash_appear() or self.rogue_god_appear()):
-                    self.rogue_spark_confirm()
+            # A chooser can still cover the battle HUD after a flash selection.
+            if self.rogue_battle_appear() and not (
+                    self.spark_pending and (self.rogue_flash_appear() or self.rogue_god_appear())):
+                self.rogue_spark_confirm()
                 if self.handle_rogue_battle_settings(press):
                     continue
                 if self.scene_wait.reached() and self.panel_stall < PANEL_TRIES:
@@ -4949,12 +5022,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             #      所以先认标题：认出来就先按这里配置的处理存档，再按下一步。
             point = self.rogue_purple_point()
             if point:
-                if self.rogue_save_appear():
+                page = self.rogue_settlement_page()
+                if page == 'save':
                     if press.reached():
                         press.reset()
                         self.rogue_save_handle(point)
-                    continue
-                if press.reached():
+                elif page == 'result' and press.reached():
                     press.reset()
                     # 这个结算页**每走完几格就出现一次**（2026-11-15 18:51 实测：
                     # 每 5~6 格一次），所以它**不是面末信号** —— 不能在这里作废路线。
@@ -4966,6 +5039,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.settle_wait.reset()
                     self.tap_point(point[0], point[1], name='ROGUE_PURPLE')
                 continue
+            self.settlement_title_wait = None
 
             # 2.0012 **「靈光一閃」单卡详情弹窗**（底部「點擊畫面可關閉視窗。」）：
             #        点画面左侧空白处关掉。
@@ -5504,6 +5578,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                             continue
                         logger.warning('The map is not taking the node press after %s tries, stop'
                                        % MAP_TRIES)
+                        self.rogue_dump_unknown()
+                        self.stopped_by_stuck = True
                         return
                     # 只在本面缺少可用计划时读图，不按步数反复打开预览。
                     if not self.route_plan:
@@ -5783,8 +5859,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 结算页上还有一段动画，`still` 每帧都被重置，等不到 → 用硬超时收工
                 # （2026-11-15 04:17~04:36 在这页干等了 19 分钟）。
                 if self.settle_wait.reached():
-                    logger.warning('Settlement done, waiting for the team page, stop here')
-                    return
+                    self.rogue_dump_unknown()
+                    raise RequestHumanTakeover('Settlement did not reach a Rogue entry page')
                 continue
 
             # ❗**这里原来是最后一个盲点**：未知页只要底部有 2~4 颗白色小圆点、
@@ -5853,17 +5929,17 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         Task: 卡厄思肉鸽 —— 进本、推进、结算。
 
-        起点有两种：大厅（正常调度）和局内（上一次跑到一半被打断）。局内的页面
+        起点有两种：大厅或肉鸽入口页（正常开局），以及上一次中断的局内页面。局内的页面
         认不出 `page_main`，也没法用 `ui_quit_to_main()` 退出去 —— **它退不出去**，
         会落进 boot 的"点顶部唤醒"循环，5 分钟 `GameStuckError` 之后把客户端重启
-        （2026-11-13 实测，白丢 5 分钟）。所以只要不在大厅，就接着把这一局打完。
+        （2026-11-13 实测，白丢 5 分钟）。所以入口页之外接管已有进度。
 
-        一次调度打 `RogueRuns` 局（0 = 不退出）。每局打完必须回到大厅才开下一局：
+        一次调度打 `RogueRuns` 局（0 = 不退出）。回到大厅或肉鸽入口页才开下一局：
         还停在局内说明这局没走完（超时 / 认不出的页面），硬开下一局只会把两局搅在一起。
 
         Pages:
-            in:  page_main 或局内任意一页
-            out:  page_main（正常）或局内任意一页（这一局没走完）
+            in:  大厅、肉鸽入口页或局内页
+            out:  大厅、肉鸽入口页（正常）或局内页（这一局没走完）
         """
         logger.hr('Rogue', level=1)
 
@@ -5879,11 +5955,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 logger.info('Ran %s run(s), stop this round' % runs)
                 break
 
-            at_team = self.rogue_team_appear()
-            # 存档页按完 `下一步` 有时直接落回 `卡厄思` 两张卡那一页（2026-11-15 13:2x
-            # 实机），从那里也能顺着入口链再进队伍页，所以三种都算"可以开始"。
-            at_mode = self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92)
-            fresh_run = self.ui_page_appear(page_main) or at_team or at_mode
+            fresh_run = self.rogue_outside_appear()
             if fresh_run:
                 logger.info('At the lobby / team / 卡厄思 page, walk the entry chain')
                 if not self.rogue_enter():
@@ -5896,7 +5968,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 删卡次数同理：`RogueDelete` 是「一局 3 张」，新局重新计。
                 self.rogue_state_save(core_started=False, remove_done=0, remove_counts={})
             else:
-                logger.info('Not at the lobby, take over the run in progress')
+                logger.info('Not on an entry page, take over the run in progress')
 
             self.rogue_run(fresh_run=fresh_run)
             runs += 1
@@ -5911,23 +5983,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             # 卡住 / 死循环：**停任务等人处理**，不撤退、不重开下一局
             # （用户 2026-11-16）。帧已经存到 `./log/rogue_pages/`。
             if self.stopped_by_stuck:
-                logger.warning('Stopped because the screen got stuck or looped, '
-                               'end this task and wait for a human')
+                raise RequestHumanTakeover('The Rogue screen got stuck or looped')
+
+            if not self.rogue_outside_appear():
+                logger.info('The run did not return to the lobby or a Rogue entry page, stop here')
                 break
-
-
-
-            if self.ui_page_appear(page_main):
-                logger.info('The run is over, back at the lobby')
-            # 结算后实际落到「配置隊伍」页（2026-11-15 04:36 实测），没有存档页。
-            # 停在这里说明这一局结束了，直接开下一局（下一轮 rogue_enter 会从队伍页进去）。
-            elif self.rogue_team_appear():
-                logger.info('The run is over, back at the team page')
-            elif self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
-                logger.info('The run is over, back at the 卡厄思 page')
-            else:
-                logger.info('The run did not get back to the lobby, stop here')
-                break
+            logger.info('The run is over, back at the lobby or a Rogue entry page')
 
             # 一局结束后角色可能崩溃：游戏自己在需要治疗时弹「觸發精神異常」，
             # 上面有绿色 `治療中心` 和紫色 `下一步`（2026-11-15 用户实机图）。

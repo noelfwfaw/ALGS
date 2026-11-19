@@ -178,6 +178,16 @@ const MAP_WORLDS = [
 ];
 const OTHER_MAPS = '其他';
 const eventsById = new Map();
+// 已核对选项与效果一致的终止画面。第一项用于保存，原始入口仍全部展示。
+const sharedPickGroups = [
+  ['uk_300_s02_03b', 'uk_300_s02_03a-1', 'uk_300_s02_03c-1'],
+  ['uk_sys_s02_01a', 'uk_sys_s02_01b', 'uk_sys_s02_01c', 'uk_sys_s02_01d'],
+  ['uk_302_s02_07a-1', 'uk_302_s02_07a-3', 'uk_302_s02_07a-4'],
+  ['uk_904_s01_07a-1', 'uk_904_s01_07b-1', 'uk_904_s01_07c-1'],
+  ['uk_904_s01_07d-1', 'uk_904_s01_07e-2'],
+];
+const sharedPickById = new Map(sharedPickGroups.flatMap(group => group.map(id => [id, group])));
+const sharedConflictHint = '同一页面有不同选项，请重选或清空后导出。';
 const expanded = new Map();
 const search = document.getElementById('search');
 const onlyPicked = document.getElementById('only-picked');
@@ -295,11 +305,13 @@ function matches(node, query) {
 }
 
 function hasPick(node) {
-  return branchHas(node, branch => Object.hasOwn(PICKS, branch.id));
+  return branchHas(node, branch => (sharedPickById.get(branch.id) || [branch.id])
+    .some(id => Object.hasOwn(PICKS, id)));
 }
 
 function updateStat() {
-  document.getElementById('stat').textContent = '已选 ' + Object.keys(PICKS).length + ' 个事件';
+  const keys = new Set(Object.keys(PICKS).map(id => sharedPickById.get(id)?.[0] || id));
+  document.getElementById('stat').textContent = '已选 ' + keys.size + ' 个事件';
 }
 
 /* 地图分组：只影响展示，包 id / 事件 id 仍是原来的。 */
@@ -417,8 +429,10 @@ function variableOption(option) {
 }
 
 function priorityEvent(node) {
-  return !guidedEvent(node) && (isLoopEvent(node)
-    || node.options?.some(option => canPick(option) && variableOption(option)));
+  if (guidedEvent(node)) return false;
+  const options = (node.options || []).filter(canPick);
+  return isLoopEvent(node) || options.some(variableOption)
+    || new Set(options.map(optionTitle)).size < options.length;
 }
 
 function priorityGroups(node) {
@@ -448,6 +462,13 @@ function validationError(message, eventId) {
   const err = new Error(message);
   if (eventId) err.eventId = eventId;
   return err;
+}
+
+function sharedPickState(picks, group) {
+  const values = group.filter(id => Object.hasOwn(picks, id)).map(id => picks[id]);
+  const comparable = values.map(value => Array.isArray(value) && value.length === 1 ? value[0] : value);
+  const conflict = new Set(comparable.map(value => JSON.stringify(value))).size > 1;
+  return {value: conflict ? undefined : comparable[0], conflict};
 }
 
 function validatePicks(parsed, complete = false) {
@@ -484,18 +505,37 @@ function validatePicks(parsed, complete = false) {
       const options = stageOptions(node, sequence);
       if (!options) throw validationError(node.name + '的路线顺序无效，请重新选择。', id);
       if (complete && options.length) throw validationError('请完成「' + node.name + '」的后续选择。', id);
-    } else if (complete && isLoopEvent(node)) {
-      throw validationError('「' + node.name + '」需改用优先顺序点击选项后导出，请清除或重选此事件。', id);
     } else if (sequence.length > 1 && !isLoopEvent(node)) {
       throw validationError(node.name + '的选项只需配置一次。', id);
+    } else if (complete && priorityEvent(node)) {
+      const groups = priorityGroups(node);
+      if (sequence.some(order => !groups.has(order))) {
+        throw validationError('「' + node.name + '」包含同名或无法区分的选项编号，请按标题重选后导出。', id);
+      }
+      if (isLoopEvent(node) || sequence.some(order => groups.get(order).some(variableOption))) {
+        throw validationError('「' + node.name + '」需改用优先顺序点击选项后导出，请清除或重选此事件。', id);
+      }
     }
   }
-  return picks;
+  let result = picks;
+  for (const group of sharedPickGroups) {
+    const [canonical, ...aliases] = group;
+    const {value, conflict} = sharedPickState(picks, group);
+    if (conflict && complete) {
+      const node = eventsById.get(canonical);
+      throw validationError('「' + node.name + '」的同一页面保存了不同选项，请重选一个或清空共同选择。', canonical);
+    }
+    if (conflict || value === undefined) continue;
+    if (picks[canonical] !== value || aliases.some(id => Object.hasOwn(picks, id))) {
+      if (result === picks) result = {...picks};
+      for (const id of aliases) delete result[id];
+      result[canonical] = value;
+    }
+  }
+  return result;
 }
 
-/* 取该事件已选的序列（数字也统一成数组）。 */
-function pickSequence(nodeId) {
-  const stored = PICKS[nodeId];
+function pickSequence(stored) {
   if (Array.isArray(stored)) return stored;
   return stored === undefined ? [] : [stored];
 }
@@ -527,8 +567,10 @@ function loopBar(node, sequence, path) {
 }
 
 function setPick(node, value) {
-  if (value === undefined || (Array.isArray(value) && !value.length)) delete PICKS[node.id];
-  else PICKS[node.id] = value;
+  const [id, ...aliases] = sharedPickById.get(node.id) || [node.id];
+  for (const alias of aliases) delete PICKS[alias];
+  if (value === undefined || (Array.isArray(value) && !value.length)) delete PICKS[id];
+  else PICKS[id] = value;
   save();
   renderNav();
   renderList();
@@ -574,7 +616,6 @@ function renderOption(node, option, sequence, loop, path, depth, query, referenc
     tag.textContent = text;
     body.appendChild(tag);
   }
-  const next = nextNode(option);
   const outcome = returnOutcome(node, option);
   const effects = (text, kind) => {
     const values = text?.split(' / ').map(effect => effect.trim())
@@ -610,7 +651,7 @@ function renderOption(node, option, sequence, loop, path, depth, query, referenc
   button.appendChild(body);
   group.appendChild(button);
 
-  const followup = renderFollowup(node, next, path, depth, query);
+  const followup = renderFollowup(node, option, path, depth, query);
   if (followup) group.appendChild(followup);
   return group;
 }
@@ -644,7 +685,8 @@ function renderTitleGroup(node, variants, sequence, groups, path, depth, query) 
   return group;
 }
 
-function renderFollowup(node, next, path, depth, query) {
+function renderFollowup(node, option, path, depth, query) {
+  const next = nextNode(option);
   if (!next || next.id === node.id || depth >= 3) return null;
   const details = document.createElement('details');
   details.className = 'followup';
@@ -653,7 +695,17 @@ function renderFollowup(node, next, path, depth, query) {
   details.open = expanded.get(path) ?? Boolean(query && branchHas(next, item => matches(item, query))
     || (depth === 0 && hasChoices));
   const summary = document.createElement('summary');
-  summary.textContent = '后续：' + (next.name || next.id) + '（' + next.id + '）';
+  let caption = '后续';
+  if (sharedPickById.has(next.id)) {
+    const success = option.raw?.success_link_encounter_option_eff;
+    const failure = option.raw?.fail_link_encounter_option_eff;
+    const onSuccess = success?.next_encounter_id === next.id;
+    const onFailure = failure?.next_encounter_id === next.id;
+    const diceResult = option.dice && onSuccess !== onFailure ? (onSuccess ? '掷骰成功' : '掷骰失败') : '';
+    const battle = (onSuccess || onFailure) && (!onSuccess || success.battle_id) && (!onFailure || failure.battle_id);
+    if (diceResult || battle) caption = [diceResult, battle && '战斗胜利'].filter(Boolean).join('、') + '后';
+  }
+  summary.textContent = caption + '：' + (next.name || next.id) + '（' + next.id + '）';
   const visit = expanded.get('@' + path) || 0;
   expanded.set('@' + path, visit + 1);
   details.append(summary, renderEvent(next, path + (visit ? '~' + visit : ''), depth + 1, query));
@@ -692,25 +744,50 @@ function renderEvent(node, path, depth, query) {
   const priority = priorityEvent(node);
   const stagedLoop = loop && !priority;
   const groups = priority ? priorityGroups(node) : null;
-  const stored = PICKS[node.id]?.priority;
-  const sequence = priority && Array.isArray(stored) ? stored : pickSequence(node.id);
+  const sharedGroup = sharedPickById.get(node.id);
+  const {value, conflict} = sharedGroup ? sharedPickState(PICKS, sharedGroup) : {value: PICKS[node.id]};
+  const stored = value?.priority;
+  const sequence = priority && Array.isArray(stored) ? stored : pickSequence(value);
   const options = guided ? stageOptions(node, sequence) : stagedLoop ? [] : node.options || [];
+  if (sharedGroup) {
+    const note = document.createElement('p');
+    note.className = conflict ? 'phase invalid' : 'phase';
+    note.textContent = conflict ? '旧配置为这个页面选了不同选项。请重选，或清空共同选择。'
+      : (depth ? '进入此页面后才执行。' : '') + '此页面可从不同入口遇到，选择会同步到其他入口。';
+    box.appendChild(note);
+    if (conflict) {
+      const clear = document.createElement('button');
+      clear.id = path + '/shared-clear';
+      clear.className = 'seq-clear';
+      clear.textContent = '清空共同选择';
+      clear.onclick = () => setPick(node, undefined);
+      box.appendChild(clear);
+    }
+  }
   if (priority) {
     const note = document.createElement('p');
     note.className = 'phase';
     note.textContent = '先点首选，再按偏好点备选。再点已选项可取消。脚本会按此顺序核对当前画面。';
     box.appendChild(note);
     const missingPriority = sequence.some(key => !groups.has(key));
-    if (missingPriority || (sequence.length && !sequence.some(key => groups.get(key)?.some(option =>
-      option.select_type === 'DEFAULT' && !variableOption(option)
-        && !option.select_conditions?.length && !option.condition_ids?.length && !option.conditions?.length)))) {
+    const requiresPriority = loop || sequence.some(key => groups.get(key)?.some(variableOption));
+    if (sequence.length && !Array.isArray(stored) && (missingPriority || requiresPriority)) {
       const hint = document.createElement('p');
       hint.className = 'fu-desc';
-      hint.textContent = missingPriority ? '旧规则指定了同名选项的编号。请重新选择该标题，确认接受任一同名分支。'
-        : '已选项可能都不出现或不可选。可添加常规选项作为备选。';
+      hint.textContent = missingPriority
+        ? '旧规则指定了同名选项的编号。请选择该标题，确认接受任一同名分支。'
+        : '旧规则保存了固定编号。请更新为优先顺序后导出。';
       box.appendChild(hint);
     }
-    if (Object.hasOwn(PICKS, node.id)) {
+    if (!missingPriority && sequence.length && !sequence.some(key => groups.get(key)?.some(option =>
+      option.select_type === 'DEFAULT' && !variableOption(option)
+        && !option.select_conditions?.length && !option.condition_ids?.length && !option.conditions?.length))) {
+      const hint = document.createElement('p');
+      hint.className = 'fu-desc';
+      hint.textContent = '已选项可能都不出现或不可选。可添加常规选项作为备选。';
+      box.appendChild(hint);
+    }
+    if (value !== undefined) {
       const clear = document.createElement('button');
       clear.id = path + '/clear';
       clear.className = 'seq-clear';
@@ -743,7 +820,7 @@ function renderEvent(node, path, depth, query) {
     box.appendChild(phase);
     if (guided && options?.length === 0 && previous) {
       const optionPath = path + '/' + (previous.id || previous.order);
-      const followup = renderFollowup(node, nextNode(previous), optionPath, depth, query);
+      const followup = renderFollowup(node, previous, optionPath, depth, query);
       if (followup) box.appendChild(followup);
     }
   }
@@ -822,8 +899,9 @@ function renderList(resetScroll = false) {
 }
 
 function exportPicks() {
+  let picks;
   try {
-    validatePicks(PICKS, true);
+    picks = validatePicks(PICKS, true);
   } catch (error) {
     status.className = 'hint err';
     status.textContent = '无法导出：' + error.message;
@@ -838,7 +916,7 @@ function exportPicks() {
   const payload = {
     generated: new Date().toISOString(),
     version: 1,
-    picks: PICKS
+    picks
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -850,7 +928,7 @@ function exportPicks() {
   a.remove?.();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   status.className = 'hint ok';
-  status.textContent = '已导出 ' + Object.keys(PICKS).length + ' 条选择。';
+  status.textContent = '已导出 ' + Object.keys(picks).length + ' 条选择。';
 }
 
 function importPicks(file) {
@@ -861,7 +939,11 @@ function importPicks(file) {
       if (Object.keys(PICKS).length && !confirm('用导入文件替换当前草稿？')) return;
       PICKS = next;
       save(); renderNav(); renderList();
-      if (!status.textContent) status.textContent = '已导入 ' + Object.keys(PICKS).length + ' 条选择。';
+      if (!status.textContent) {
+        const conflict = sharedPickGroups.some(group => sharedPickState(PICKS, group).conflict);
+        status.textContent = conflict ? '已导入。' + sharedConflictHint
+          : '已导入 ' + Object.keys(PICKS).length + ' 条选择。';
+      }
     } catch (error) {
       status.textContent = '导入失败，当前草稿保留。' + error.message;
     }
@@ -898,9 +980,13 @@ if (!doc) {
     const draft = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
     if (!draft || typeof draft !== 'object' || Array.isArray(draft)) throw new Error('草稿格式错误');
     PICKS = draft;
-    validatePicks(PICKS);
+    PICKS = validatePicks(draft);
+    if (PICKS !== draft) save();
   } catch (error) {
     status.textContent = '浏览器草稿需要检查。' + error.message;
+  }
+  if (!status.textContent && sharedPickGroups.some(group => sharedPickState(PICKS, group).conflict)) {
+    status.textContent = '检查草稿。' + sharedConflictHint;
   }
   renderNav(); renderList(); updateStat();
 }
