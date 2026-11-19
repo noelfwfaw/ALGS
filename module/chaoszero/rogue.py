@@ -74,14 +74,14 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                      ROGUE_REMOVE, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP, ROGUE_RESUME,
                                     ROGUE_TRANSFORM,
                                      ROGUE_RETREAT,
-                                     ROGUE_RETREAT_TITLE, ROGUE_SAVE_TITLE, ROGUE_STORY,
+                                     ROGUE_RETREAT_TITLE, ROGUE_REWARD_LEVEL, ROGUE_SAVE_TITLE, ROGUE_STORY,
                                      ROGUE_SHOP_REMOVE,
                                      ROGUE_TEAM_ENTER, ROGUE_TREASURE_CARD, ROGUE_TURN,
                                      ROGUE_WORLD_ENTER, ROGUE_WORLD_JIANGLIN,
                                      ROGUE_WORLD_LANHU, ROGUE_WORLD_LIST,
                                      ROGUE_WORLD_SHENPAN, ROGUE_WORLD_SHUANG,
                                      ROGUE_WORLD_WUZHI, ROGUE_ZOOM_IN,
-                                     ROGUE_ZOOM_OUT, TEAM_TITLE)
+                                     ROGUE_ZOOM_OUT, RESULT_CONFIRM, TEAM_TITLE)
 from module.chaoszero.chaoszero_ui import CHAOSZERO_WAKE, ChaoszeroUI
 from module.chaoszero.page import page_main
 from module.config.utils import filepath_config
@@ -1342,7 +1342,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         if self.appear(ROGUE_SAVE_TITLE, offset=(18, 12), similarity=0.90):
             self.settlement_title_wait = None
             return 'save'
-        if self.appear(ROGUE_EXPLORE_RESULT, offset=(18, 12), similarity=0.90):
+        if (self.appear(ROGUE_EXPLORE_RESULT, offset=(18, 12), similarity=0.90)
+                or (self.appear(ROGUE_REWARD_LEVEL, offset=(18, 12), similarity=0.90)
+                    and self.appear(RESULT_CONFIRM, offset=(18, 12), similarity=0.90))):
             self.settlement_title_wait = None
             return 'result'
         try:

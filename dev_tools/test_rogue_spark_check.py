@@ -222,9 +222,18 @@ class SparkCheckTest(unittest.TestCase):
                 self.assertEqual(calls[-1], ('walk', 'map'))
 
     def test_spark_retry_decomposes_all_current_saves_before_leaving(self):
-        button = rogue.ROGUE_EXPLORE_RESULT
-        title_image = cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
-        x1, y1, x2, y2 = button.area
+        explore = rogue.ROGUE_EXPLORE_RESULT
+        level = rogue.ROGUE_REWARD_LEVEL
+        confirm = rogue.RESULT_CONFIRM
+        images = {button: cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
+                  for button in (explore, level, confirm)}
+        markers = {
+            'title_only': (explore,),
+            'explore': (explore,),
+            'confirm_only': (confirm,),
+            'level_only': (level,),
+            'reward': (level, confirm),
+        }
         for retry, discarded in ((True, (1, 2, 3)), (False, (1, 3))):
             with self.subTest(retry=retry):
                 task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
@@ -238,7 +247,8 @@ class SparkCheckTest(unittest.TestCase):
 
                 def replay(**_):
                     nonlocal current
-                    frames = ['confirm', 'loading', 'title_only', 'result', 'unreadable']
+                    frames = ['confirm', 'loading', 'title_only', 'explore', 'confirm_only',
+                              'level_only', 'reward', 'unreadable']
                     for current in frames + ['save', 'popup'] * len(discarded) + ['save', 'team']:
                         yield
 
@@ -248,18 +258,28 @@ class SparkCheckTest(unittest.TestCase):
 
                 task.loop = replay
                 task.ui_page_appear = Mock(return_value=False)
-                task.appear = lambda asset, **kwargs: (
-                    asset is button and current in ('title_only', 'result') and asset.match(title_image, **kwargs))
+
+                def appear(button, **kwargs):
+                    if button not in markers.get(current, ()):
+                        return False
+                    image = images[button]
+                    x1, y1, x2, y2 = button.area
+                    with patch.object(button, '_match_init', True), patch.object(button, 'image', image[y1:y2, x1:x2]):
+                        return button.match(image, **kwargs)
+
+                task.appear = appear
                 task.rogue_team_appear = lambda: current == 'team'
                 task.rogue_crash_appear = lambda: False
                 task.rogue_dialog_point = lambda: (849, 454) if current == 'confirm' else None
                 task.rogue_item_appear = lambda: current == 'popup'
                 task.rogue_primary_point = Mock(return_value=None)
-                task.rogue_purple_point = lambda: next_point if current in ('result', 'unreadable', 'save') else None
+                task.rogue_purple_point = lambda: (
+                    next_point if current in ('explore', 'confirm_only', 'level_only', 'reward', 'unreadable', 'save')
+                    else None)
                 task.card_reader = Mock()
 
                 def read_title(*_):
-                    if current == 'unreadable':
+                    if current != 'save':
                         raise ValueError('Temporary OCR failure')
                     return '存檔資料收集完成'
 
@@ -267,13 +287,13 @@ class SparkCheckTest(unittest.TestCase):
                 task.rogue_save_trash_visible = lambda slot: rogue.SAVE_TRASH[slot - 1] in saves
                 task.tap_point = Mock(side_effect=tap)
 
-                with patch.object(rogue, 'Timer'), patch.object(button, '_match_init', True), \
-                        patch.object(button, 'image', title_image[y1:y2, x1:x2]):
+                with patch.object(rogue, 'Timer') as timer:
+                    timer.return_value.start.return_value.reached.return_value = False
                     self.assertTrue(task.rogue_spark_restart_on_core_map() if retry else task.rogue_quit())
                 self.assertEqual(saves, set() if retry else {rogue.SAVE_TRASH[1]})
                 self.assertEqual(task.config.ChaoszeroRogue_RogueSaveKeep, 2)
                 self.assertEqual([call[1]['name'] for call in task.tap_point.call_args_list],
-                                 ['ROGUE_DIALOG', 'ROGUE_PURPLE']
+                                 ['ROGUE_DIALOG', 'ROGUE_PURPLE', 'ROGUE_PURPLE']
                                  + ['ROGUE_SAVE_TRASH', 'ROGUE_ITEM'] * len(discarded) + ['ROGUE_PURPLE'])
 
     def test_restarts_through_outer_loop_and_stops_on_failed_retreat(self):
