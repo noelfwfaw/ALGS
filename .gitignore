@@ -286,3 +286,7 @@ CODEBUDDY.md
 # Asset maker export list: handwritten labels, rewritten on every export
 assets/*/*/manifest.json
 dev_tools/.tool_last.json
+
+# Agent tooling data (model_desk MCP runs / opencode config), never part of the project
+.model-desk/
+.opencode/
