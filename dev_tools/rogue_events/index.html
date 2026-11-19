@@ -89,6 +89,8 @@
     background: var(--panel); border-top: 1px solid var(--line); padding: 9px 22px;
   }
   footer .hint { color: #aab5c6; font-size: 12.5px; }
+  footer .hint.err { color: #ff9c9c; font-weight: 600; }
+  footer .hint.ok { color: #7ede9d; }
   .empty { color: var(--dim); padding: 30px 0; }
   /* 后续事件折叠块 */
   details.followup {
@@ -159,6 +161,22 @@ const STORE_KEY = 'czn_rogue_events_v1';
 let DATA = null;
 let PICKS = {};
 let ACTIVE = null;
+let MAP_GROUPS = [];
+// 标签与列表按游戏地图分组，而不是按数据包名。这里和运行时
+// module/chaoszero/rogue_events.py 的 PACK_WORLD / COMMON_PACKS 保持一致。
+const MAP_WORLDS = [
+  ['藍壺', ['uk_300_s02']],
+  ['雙星之影', ['uk_302_s02']],
+  ['霧之城市', ['uk_904_s01']],
+  ['審判之沼', ['uk_905_s02']],
+  ['降臨的混沌', ['uk_900_s02']],
+  ['第0研究所', ['uk_400_s01', 'uk_e01_s01']],
+  ['燃燒的生命', ['uk_401_s01']],
+  ['虛像劇場', ['uk_402_s01']],
+  ['萬花筒孵化場', ['uk_403_s01']],
+  ['天上防護牆', ['uk_404_s01']],
+];
+const OTHER_MAPS = '其他';
 const eventsById = new Map();
 const expanded = new Map();
 const search = document.getElementById('search');
@@ -242,6 +260,7 @@ const repeatsLastStage = new Set(['uk_000_s01_02', 'uk_402_s01_12a', 'uk_905_s02
 const caveId = 'uk_904_s01_09b';
 
 function save() {
+  status.className = 'hint';
   status.textContent = '';
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(PICKS));
@@ -283,33 +302,43 @@ function updateStat() {
   document.getElementById('stat').textContent = '已选 ' + Object.keys(PICKS).length + ' 个事件';
 }
 
+/* 地图分组：只影响展示，包 id / 事件 id 仍是原来的。 */
+function mapGroups() {
+  const assigned = new Set(MAP_WORLDS.flatMap(([, ids]) => ids));
+  const groups = MAP_WORLDS.map(([name, ids]) => [name, DATA.packs.filter(pack => ids.includes(pack.id))]);
+  groups.push([OTHER_MAPS, DATA.packs.filter(pack => !assigned.has(pack.id))]);
+  return groups.map(([name, packs]) => ({
+    name,
+    entries: packs.flatMap(pack => pack.events.map(event => ({event, path: pack.id + '/' + event.id}))),
+  })).filter(group => group.entries.length);
+}
+
 function renderNav() {
   const nav = document.getElementById('nav');
   const scroll = nav.scrollTop;
   const horizontal = nav.scrollLeft;
-  const focus = nav.contains(document.activeElement) ? document.activeElement.dataset.pack : '';
+  const focus = nav.contains(document.activeElement) ? document.activeElement.dataset.map : '';
   nav.replaceChildren();
-  DATA.packs.forEach(pack => {
-    const picked = pack.events.filter(hasPick).length;
+  for (const group of MAP_GROUPS) {
     const a = document.createElement('a');
     a.href = '#';
-    a.dataset.pack = pack.id;
-    a.className = (ACTIVE === pack.id ? 'active' : '');
-    a.textContent = (pack.common ? '★ ' : '') + pack.name;
+    a.dataset.map = group.name;
+    a.className = (ACTIVE === group.name ? 'active' : '');
+    a.textContent = group.name;
     const count = document.createElement('span');
     count.className = 'count';
-    count.textContent = picked + '/' + pack.events.length;
+    count.textContent = group.entries.filter(({event}) => hasPick(event)).length + '/' + group.entries.length;
     a.appendChild(count);
     a.onclick = ev => {
       ev.preventDefault();
-      ACTIVE = pack.id;
+      ACTIVE = group.name;
       search.value = '';
       renderNav();
       renderList(true);
     };
     nav.appendChild(a);
-    if (focus === pack.id) a.focus({preventScroll: true});
-  });
+    if (focus === group.name) a.focus({preventScroll: true});
+  }
   nav.scrollTop = scroll;
   nav.scrollLeft = horizontal;
 }
@@ -388,7 +417,8 @@ function variableOption(option) {
 }
 
 function priorityEvent(node) {
-  return !guidedEvent(node) && !isLoopEvent(node) && node.options?.some(option => canPick(option) && variableOption(option));
+  return !guidedEvent(node) && (isLoopEvent(node)
+    || node.options?.some(option => canPick(option) && variableOption(option)));
 }
 
 function priorityGroups(node) {
@@ -414,6 +444,12 @@ function priorityGroups(node) {
   return groups;
 }
 
+function validationError(message, eventId) {
+  const err = new Error(message);
+  if (eventId) err.eventId = eventId;
+  return err;
+}
+
 function validatePicks(parsed, complete = false) {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('需要一个事件配置对象。');
@@ -428,30 +464,30 @@ function validatePicks(parsed, complete = false) {
   }
   for (const [id, value] of Object.entries(picks)) {
     const node = eventsById.get(id);
-    if (!node) throw new Error('未找到事件 ' + id + '。');
+    if (!node) throw validationError('未找到事件 ' + id + '。', id);
     if (value && Object.hasOwn(value, 'priority')) {
       const {priority} = value;
       const groups = priorityEvent(node) ? priorityGroups(node) : new Map();
       if (Object.keys(value).length !== 1 || !Array.isArray(priority)
           || !priority.length || new Set(priority).size !== priority.length
           || !priority.every(key => groups.has(key))) {
-        throw new Error('「' + node.name + '」包含重复或无法识别的优先选项。同名分支请按标题配置。');
+        throw validationError('「' + node.name + '」包含重复或无法识别的优先选项。同名分支请按标题配置。', id);
       }
       continue;
     }
     const orders = new Set(node.options.filter(canPick).map(option => option.order));
     const sequence = Array.isArray(value) ? value : [value];
     if (!sequence.length || sequence.some(order => !Number.isInteger(order) || !orders.has(order))) {
-      throw new Error(node.name + '（' + id + '）包含不可配置的选项编号。');
+      throw validationError(node.name + '（' + id + '）包含不可配置的选项编号。', id);
     }
     if (guidedEvent(node)) {
       const options = stageOptions(node, sequence);
-      if (!options) throw new Error(node.name + '的路线顺序无效，请重新选择。');
-      if (complete && options.length) throw new Error('请完成「' + node.name + '」的后续选择。');
+      if (!options) throw validationError(node.name + '的路线顺序无效，请重新选择。', id);
+      if (complete && options.length) throw validationError('请完成「' + node.name + '」的后续选择。', id);
     } else if (complete && isLoopEvent(node)) {
-      throw new Error('「' + node.name + '」的选项随游戏状态变化，无法导出固定路线。请清除此事件的选择。');
+      throw validationError('「' + node.name + '」需改用优先顺序点击选项后导出，请清除或重选此事件。', id);
     } else if (sequence.length > 1 && !isLoopEvent(node)) {
-      throw new Error(node.name + '的选项只需配置一次。');
+      throw validationError(node.name + '的选项只需配置一次。', id);
     }
   }
   return picks;
@@ -512,7 +548,7 @@ function renderOption(node, option, sequence, loop, path, depth, query, referenc
   const picked = !reference && (groups ? rank !== -1 : sequence[sequence.length - 1] === option.order);
   button.className = 'pick' + (picked ? ' on' : '');
   button.disabled = reference || !canPick(option) || Boolean(groups && !groups.has(option.order));
-  if (!loop) button.setAttribute('aria-pressed', String(picked));
+  if (!loop || groups) button.setAttribute('aria-pressed', String(picked));
   if (!button.disabled) {
     button.onclick = groups ? () => togglePriority(node, sequence, groups, option.order)
       : () => setPick(node, loop ? sequence.concat(option.order) : picked ? undefined : option.order);
@@ -654,10 +690,11 @@ function renderEvent(node, path, depth, query) {
   const loop = isLoopEvent(node);
   const guided = guidedEvent(node);
   const priority = priorityEvent(node);
+  const stagedLoop = loop && !priority;
   const groups = priority ? priorityGroups(node) : null;
   const stored = PICKS[node.id]?.priority;
   const sequence = priority && Array.isArray(stored) ? stored : pickSequence(node.id);
-  const options = guided ? stageOptions(node, sequence) : loop ? [] : node.options || [];
+  const options = guided ? stageOptions(node, sequence) : stagedLoop ? [] : node.options || [];
   if (priority) {
     const note = document.createElement('p');
     note.className = 'phase';
@@ -682,8 +719,8 @@ function renderEvent(node, path, depth, query) {
       box.appendChild(clear);
     }
   }
-  if ((loop || guided) && sequence.length) box.appendChild(loopBar(node, sequence, path));
-  if (guided || loop) {
+  if ((stagedLoop || guided) && sequence.length) box.appendChild(loopBar(node, sequence, path));
+  if (guided || stagedLoop) {
     const phase = document.createElement('p');
     phase.id = path + '/phase';
     phase.className = options ? 'phase' : 'phase invalid';
@@ -720,7 +757,7 @@ function renderEvent(node, path, depth, query) {
     box.appendChild(renderOption(node, option, sequence, loop || guided, optionPath, depth, query, false, groups));
   }
 
-  if (loop || guided) {
+  if (stagedLoop || guided) {
     const known = node.id === caveId ? [1, 2, 3, 4] : eventStages[node.id]?.flat() || [];
     const unverified = node.options.filter(option => canPick(option) && !known.includes(option.order));
     if (unverified.length) {
@@ -751,18 +788,17 @@ function renderList(resetScroll = false) {
     expanded.set(details.dataset.branch, details.open);
   }
   list.replaceChildren();
-  for (const pack of DATA.packs) {
-    if (!query && pack.id !== ACTIVE) continue;
-    const events = pack.events.filter(event =>
+  for (const group of MAP_GROUPS) {
+    if (!query && group.name !== ACTIVE) continue;
+    const shown = group.entries.filter(({event}) =>
       (!onlyPicked.checked || hasPick(event)) && (!query || branchHas(event, node => matches(node, query))));
-    if (!events.length) continue;
+    if (!shown.length) continue;
     const heading = document.createElement('h2');
-    heading.textContent = pack.name + '　' + events.length + ' / ' + pack.events.length
-      + (pack.common ? '（通用）' : '');
+    heading.textContent = group.name + '　' + shown.length + ' / ' + group.entries.length;
     list.appendChild(heading);
-    for (const event of events) {
+    for (const {event, path} of shown) {
       try {
-        list.appendChild(renderEvent(event, pack.id + '/' + event.id, 0, query));
+        list.appendChild(renderEvent(event, path, 0, query));
       } catch (error) {
         const failed = document.createElement('p');
         failed.className = 'empty';
@@ -789,7 +825,14 @@ function exportPicks() {
   try {
     validatePicks(PICKS, true);
   } catch (error) {
+    status.className = 'hint err';
     status.textContent = '无法导出：' + error.message;
+    if (error.eventId && search) {
+      onlyPicked.checked = false;
+      search.value = error.eventId;
+      renderList(true);
+    }
+    if (typeof alert === 'function') alert('无法导出：' + error.message);
     return;
   }
   const payload = {
@@ -801,8 +844,12 @@ function exportPicks() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'rogue_event_picks.json';
+  if (a.style) a.style.display = 'none';
+  document.body?.appendChild?.(a);
   a.click();
+  a.remove?.();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  status.className = 'hint ok';
   status.textContent = '已导出 ' + Object.keys(PICKS).length + ' 条选择。';
 }
 
@@ -845,7 +892,8 @@ if (!doc) {
   for (const pack of DATA.packs) {
     pack.events.forEach(event => indexEvent(event, pack.id + '/' + event.id));
   }
-  ACTIVE = DATA.packs[0] && DATA.packs[0].id;
+  MAP_GROUPS = mapGroups();
+  ACTIVE = MAP_GROUPS[0]?.name;
   try {
     const draft = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
     if (!draft || typeof draft !== 'object' || Array.isArray(draft)) throw new Error('草稿格式错误');

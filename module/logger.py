@@ -12,6 +12,8 @@ from rich.style import Style
 from rich.theme import Theme
 from rich.traceback import Traceback
 
+from module.log_retention import TextLogStream
+
 
 def empty_function(*args, **kwargs):
     pass
@@ -170,14 +172,8 @@ pyw_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 def set_file_logger(name=pyw_name):
     log_file = f'./log/{datetime.date.today()}_{name}.txt'
-    try:
-        file = open(log_file, mode='a', encoding='utf-8')
-    except FileNotFoundError:
-        os.mkdir('./log')
-        file = open(log_file, mode='a', encoding='utf-8')
-
     file_console = Console(
-        file=file,
+        file=TextLogStream(log_file),
         no_color=True,
         highlight=False,
         width=119,

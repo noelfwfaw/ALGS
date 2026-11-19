@@ -40,6 +40,8 @@ from module.base.timer import Timer
 from module.chaoszero.assets import (ANNOUNCE_CLOSE, ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
                                      BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
                                      PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, REWARD_HINT,
+                                     ROGUE_DREAM_ON, ROGUE_MODE_ENTRY, ROGUE_TEAM_MODE,
+                                     ROGUE_TEAM_MODE_DARK,
                                      SIM_PAGE, TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
 from module.chaoszero.maintenance import Maintenance
 from module.chaoszero.page import page_main
@@ -199,6 +201,13 @@ class ChaoszeroUI(Maintenance, UI):
         delta = image.max(axis=2) - image.min(axis=2)
         return float(np.count_nonzero(delta > threshold)) / delta.size
 
+    def rogue_team_appear(self):
+        # 模擬也用「配置隊伍」；卡厄思的深色队伍页有时不显示梦境开关。
+        return self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9) and (
+            self.appear(ROGUE_TEAM_MODE, offset=(20, 20), similarity=0.9)
+            or self.appear(ROGUE_TEAM_MODE_DARK, offset=(20, 20), similarity=0.9)
+            or self.appear(ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9))
+
     def app_start(self):
         """
         Launch the game and walk through the boot screens until page_main.
@@ -210,14 +219,15 @@ class ChaoszeroUI(Maintenance, UI):
 
         Pages:
             in: any
-            out: page_main
+            out: page_main, or a recognized entry page for ChaoszeroRogue
         """
         if self.device.app_is_running():
             logger.info('Game is already running, bring it to the front')
         self.device.app_start()
-        self.handle_app_boot()
+        task = getattr(self.config, 'task', None)
+        self.handle_app_boot(allow_rogue_entry=getattr(task, 'command', None) == 'ChaoszeroRogue')
 
-    def handle_app_boot(self, skip_first_screenshot=True):
+    def handle_app_boot(self, skip_first_screenshot=True, *, allow_rogue_entry=False):
         """
         Walk the boot screens until the lobby is on screen.
 
@@ -226,7 +236,7 @@ class ChaoszeroUI(Maintenance, UI):
         0. Server maintenance ends the task (`TaskEnd`) instead of the loop -
            the client stays on that screen for hours, so neither waiting nor
            tapping can reach the lobby. See `handle_maintenance()`.
-        1. A lobby ends the loop - the right-hand menu is drawn, nothing else is.
+        1. A lobby ends the loop. During Rogue startup, a verified mode or team page also suffices.
         2. 「遊戲連接失敗」 before the title check: the dialog is drawn on top of
            the title screen, and its only key is "tap anywhere". Checking the
            title first would keep tapping a screen that is behind the dialog.
@@ -241,7 +251,7 @@ class ChaoszeroUI(Maintenance, UI):
 
         Pages:
             in: any
-            out: page_main
+            out: page_main, or a Rogue entry page when allow_rogue_entry is set
 
         Returns:
             bool: True if page_main is reached.
@@ -295,6 +305,20 @@ class ChaoszeroUI(Maintenance, UI):
             # Title screen
             if self.appear_then_click(BOOT_TOUCH_START, offset=(20, 20), interval=3):
                 logger.info('Title screen, touch to start')
+                continue
+
+            if allow_rogue_entry and self.rogue_team_appear():
+                logger.info('Already at the 卡厄思 team page')
+                return True
+
+            if self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
+                if allow_rogue_entry:
+                    logger.info('Already at the 卡厄思 mode page')
+                    return True
+                if back.reached():
+                    back.reset()
+                    logger.info('At the 卡厄思 mode page, tap the back arrow')
+                    self.device.click(CHAOSZERO_BACK)
                 continue
 
             # 游戏停在模擬那几张页里（上一个任务退出时留的、或者手动点进去的）：

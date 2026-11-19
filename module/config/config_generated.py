@@ -172,6 +172,8 @@ class GeneratedConfig:
     ChaoszeroRogue_RogueDelete = 3
     ChaoszeroRogue_RogueDeleteFilter = ''
     ChaoszeroRogue_RogueSparkFilter = None
+    ChaoszeroRogue_RogueSparkCheck = False
+    ChaoszeroRogue_RogueSparkCheckCard = ''
     ChaoszeroRogue_RogueCopyMember = 0
     ChaoszeroRogue_RogueCopyCard = '劍之雨'
     ChaoszeroRogue_RogueEquipFilter = None

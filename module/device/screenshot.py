@@ -18,6 +18,7 @@ from module.device.method.nemu_ipc import NemuIpc
 from module.device.method.scrcpy import Scrcpy
 from module.device.method.wsa import WSA
 from module.exception import RequestHumanTakeover, ScriptError
+from module.log_retention import prune_diagnostics
 from module.logger import logger
 
 
@@ -146,6 +147,7 @@ class Screenshot(Adb, WSA, DroidCast, AScreenCap, Scrcpy, NemuIpc, LDOpenGL):
 
             file = os.path.join(folder, file)
             self.image_save(file)
+            prune_diagnostics(folder, 'screenshot')
             self._last_save_time[genre] = now
             return True
         else:

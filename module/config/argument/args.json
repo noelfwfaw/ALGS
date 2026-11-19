@@ -2769,6 +2769,15 @@
         "type": "textarea",
         "value": ""
       },
+      "RogueSparkCheck": {
+        "type": "checkbox",
+        "value": false
+      },
+      "RogueSparkCheckCard": {
+        "type": "input",
+        "value": "",
+        "valuetype": "str"
+      },
       "RogueCopyMember": {
         "type": "input",
         "value": 0

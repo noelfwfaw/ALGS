@@ -12,6 +12,7 @@ from module.base.timer import Timer
 from module.chaoszero import rogue_cards
 from module.chaoszero.assets import (ROGUE_EQUIP_ASSAULT_BOOTS, ROGUE_EQUIP_EMPTY_SLOTS,
                                    ROGUE_EQUIP_SALVAGE, ROGUE_EQUIP_SALVAGE_CONFIRM,
+                                   ROGUE_EQUIP_SPARK_LIMIT_CONFIRM,
                                    ROGUE_SHOP_EQUIPMENT_TYPES, ROGUE_SHOP_REFRESH_CONFIRM,
                                    ROGUE_SHOP_REFRESH_PAID)
 from module.exception import TaskFailed
@@ -497,6 +498,14 @@ class Equipment:
                 press.reset()
                 task.tap_point(435, 454, name='ROGUE_EQUIP_SALVAGE_RECHECK')
                 self.page = {'identity': None, 'phase': 'recheck', 'wait': Timer(6, count=1).start()}
+            return True
+        if task.appear(ROGUE_EQUIP_SPARK_LIMIT_CONFIRM, offset=(8, 8), similarity=0.90):
+            if press.reached():
+                point = task.rogue_dialog_point()
+                if point:
+                    press.reset()
+                    logger.info('Confirm equipment for a character with no remaining spark cards')
+                    task.tap_point(*point, name='ROGUE_EQUIP_SPARK_LIMIT_CONFIRM')
             return True
         if not task.rogue_equip_appear():
             self.record_equipped_target()

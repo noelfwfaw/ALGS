@@ -15,7 +15,7 @@ set_server('chaoszero')
 from dev_tools.gen_chaoszero_rogue_relics import records
 from module.chaoszero.rogue import ChaoszeroRogue, REST_WAIT
 from module.chaoszero.rogue_equipment import DETAIL_TITLE, Equipment, RelicLibrary
-from module.chaoszero.assets import ROGUE_EQUIP_ASSAULT_BOOTS
+from module.chaoszero.assets import ROGUE_EQUIP_ASSAULT_BOOTS, ROGUE_REST_SHOP
 from module.exception import TaskFailed
 
 
@@ -412,6 +412,24 @@ class EquipmentTest(unittest.TestCase):
         equipment.handle(Mock())
         task.tap_point.assert_not_called()
 
+    def test_spark_limit_dialog_confirms_equipment(self):
+        task, equipment = make_task('spark_limit_confirm')
+        press = Mock()
+        press.reached.return_value = False
+        self.assertTrue(equipment.handle(press))
+        task.tap_point.assert_not_called()
+
+        press.reached.return_value = True
+        self.assertTrue(equipment.handle(press))
+        task.tap_point.assert_called_once()
+        x, y = task.tap_point.call_args[0]
+        self.assertTrue(650 <= x < 1040 and 427 <= y < 483)
+        self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_EQUIP_SPARK_LIMIT_CONFIRM')
+
+        task.device.image[420:510] = 0
+        self.assertTrue(equipment.handle(press))
+        task.tap_point.assert_called_once()
+
     def test_shop_buys_only_configured_item_for_correct_character(self):
         task, equipment = make_task('shop', '寶石的心臟 = 海德瑪麗')
         equipment.handle(Mock())
@@ -681,6 +699,32 @@ class EquipmentTest(unittest.TestCase):
             self.assertIs(task.rest_wait, wait)
         wait._start -= REST_WAIT + 1
         self.assertTrue(task.rogue_rest_settled())
+
+    def test_camp_shop_only_clicks_when_current_frame_contains_entrance(self):
+        task, _ = make_task('store')
+        task.device.click = Mock()
+        task.rogue_shop_remove_needed = Mock(return_value=True)
+        task.rogue_delete_times = Mock(return_value=3)
+        task.shop_cooldown = Mock()
+        task.shop_retry = task.remove_done = 0
+        press = Mock()
+
+        self.assertFalse(task.rogue_visit_rest_shop(press))
+        task.device.click.assert_not_called()
+        self.assertEqual(task.shop_retry, 0)
+
+        x1, y1, x2, y2 = ROGUE_REST_SHOP.area
+        asset = np.array(Image.open(ROGUE_REST_SHOP.file).convert('RGB'))
+        task.device.image[y1:y2, x1 + 7:x2 + 7] = asset[y1:y2, x1:x2]
+        self.assertTrue(task.rogue_visit_rest_shop(press))
+        task.device.click.assert_called_once_with(ROGUE_REST_SHOP)
+        self.assertEqual(ROGUE_REST_SHOP.button, (x1 + 7, y1, x2 + 7, y2))
+        self.assertEqual(task.shop_retry, 1)
+
+        task.device.image = frame('store')
+        self.assertFalse(task.rogue_visit_rest_shop(press))
+        self.assertEqual(task.device.click.call_count, 1)
+        self.assertEqual(task.shop_retry, 1)
 
     def test_store_only_previews_remaining_target_types(self):
         rules = '亡魂之花 = 1号位\n非典型方塊 = 1号位\n黑曜石劍 = 1号位'

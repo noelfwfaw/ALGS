@@ -1022,6 +1022,14 @@
       "name": "Preferred flash forms",
       "help": "One card per line. Use 劍之雨 = 2 to select form 2 in the card details, or supply Traditional Chinese effect keywords."
     },
+    "RogueSparkCheck": {
+      "name": "Retry if first-floor target flash is missing",
+      "help": "After collecting the first boss rewards, check whether the card selected below has its specified flash form. If it is missing, retreat, decompose all three saves from this run, and retry within the run limit. Character flash, card flash, and meditation all count. Resumed runs skip the check."
+    },
+    "RogueSparkCheckCard": {
+      "name": "Target card for retry",
+      "help": "Select one party card with a specified flash form. Leave blank to skip the check."
+    },
     "RogueCopyMember": {
       "name": "Copy source slot",
       "help": "Choose which party slot to try first when copying. If that slot is unavailable, other combatants are tried."

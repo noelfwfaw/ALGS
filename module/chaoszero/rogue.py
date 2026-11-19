@@ -65,7 +65,7 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                      ROGUE_MEMBER, ROGUE_MENU,
                                      ROGUE_MODE_ENTRY, ROGUE_MODAL,
                                      ROGUE_PANEL,
-                                     ROGUE_PROMPT, ROGUE_PREVIEW, ROGUE_REST,
+                                     ROGUE_PROMPT, ROGUE_PREVIEW, ROGUE_REST, ROGUE_REST_SHOP,
                                      ROGUE_REMOVE, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP, ROGUE_RESUME,
                                     ROGUE_TRANSFORM,
                                      ROGUE_RETREAT,
@@ -80,6 +80,7 @@ from module.chaoszero.assets import (DIALOG_ENTER,
 from module.chaoszero.chaoszero_ui import CHAOSZERO_WAKE, ChaoszeroUI
 from module.chaoszero.page import page_main
 from module.exception import TaskFailed
+from module.log_retention import prune_diagnostics
 from module.logger import logger
 from module.ocr.ocr import Ocr
 
@@ -309,8 +310,6 @@ FLASH_DETAIL_CLOSE = (200, 400)
 FLASH_CARD_POINT = (320, 400)
 FLASH_CONFIRM_POINT = (1153, 666)
 
-# 「卡牌獎勵」页（三张卡挑一张 + 底部「跳過」/「確認」）：点第 1 张卡再按確認。
-# 实测 1280x720 上第 1 张卡中心约 (344, 370)，「確認」交给橙色主按钮判据。
 # ❗复制卡页**只复制这一张**（用户 2026-11-17：「复制卡牌设定为只复制一号位的剑雨」）。
 # 认不出它（分数不够 / 领先不够）就点「跳過」，一张都不拿 —— 复制会直接把卡塞进
 # 牌堆，认错一张就是往牌堆里加垃圾。
@@ -346,8 +345,6 @@ TREASURE_CARD_POINT = (634, 588)
 TREASURE_CARD_SIMILARITY = 0.85
 
 # ---- 休息点的「德朗商店」删卡（用户 2026-11-15 的 spec `chaoszero_卡牌移除`）----
-# 营地页顶部那颗「德朗商店」标题就是入口（spec page_1 的 box (416,76)-(512,113)）。
-REST_SHOP = (464, 94)
 # 商店内部右上那张「移除卡牌」卡（spec page_2 的 box (780,162)-(857,250)），
 # 花 70~106 金删一张。营地页只有「德朗商店」标题、没有这张卡，两者分得开。
 SHOP_REMOVE_AREA = (780, 162, 857, 250)
@@ -397,6 +394,8 @@ OPTION_WIDTH = (240, 470)
 # 上限仍是 30，配合"合并相邻段"和宽度 240~470，误检风险可控。
 OPTION_HEIGHT = (8, 30)
 OPTION_FILL = 0.30
+# Straight event borders occupy most of one row; curved battle effects do not.
+OPTION_FLAT_RATIO = 0.65
 OPTION_LIFT = 87
 # 选中之后卡片下缘正中会出现一枚**金色 ∨**，点它才是提交（用户 2026-11-14 实机确认：
 # "点一次选项后，再点下面那个勾就行"）。它是 y 650~700 里唯一的小亮团：
@@ -492,8 +491,6 @@ CUTSCENE_POINT = (640, 300)
 # 剧情页右下那颗空心白 ▼ 的中心（`ROGUE_STORY` 的 area 是 (1188,608)-(1214,638)）。
 # 点它推一句台词 —— 这是**有判据**的动作，不是以前那种"没有判据就点画面中部"的盲点。
 STORY_POINT = (1201, 623)
-# 未知页存帧最多留这么多张（战斗过场也会被存，实测 10 分钟 276 张）。
-UNKNOWN_KEEP = 120
 
 # 卡牌页收集器两次存盘的最小间隔（秒）：卡片呼吸动画会让画面签名每帧都变。
 CARD_PAGE_GATE = 3
@@ -508,7 +505,6 @@ CARD_PAGE_GATE = 3
 # 每页存 `HHMMSS.png`（整页）+ `HHMMSS.json`（三列 OCR / 识别到的卡 / 匹配列 / 分数）。
 # 灵光页另外裁三列描述块 `HHMMSS_c1..c3.png`，方便直接看那一列到底是什么字。
 CARD_PAGE_DIR = './log/rogue_card_pages'
-CARD_PAGE_KEEP = 80
 # 灵光面板三列描述的裁剪区（和 `rogue_cards.COLUMNS` 一致，上下用 `DESC_AREA`）
 CARD_PAGE_COLUMNS = rogue_cards.COLUMNS
 CARD_PAGE_DESC = rogue_cards.DESC_AREA
@@ -1351,22 +1347,25 @@ class ChaoszeroRogue(ChaoszeroUI):
         bright = int((patch.min(axis=2) > SAVE_TRASH_LIGHT).sum())
         return bright > SAVE_TRASH_MIN
 
-    def rogue_save_handle(self, next_point):
+    def rogue_save_handle(self, next_point, *, discard_saves=False):
         """
         Trash one unwanted save, or press the purple `下一步` when nothing is left.
 
         `RogueSaveKeep`：1/2/3 = 只留该队伍位次的存档，另外两张点垃圾桶分解掉；
-        0 = 三个全删（测试期用）。**一次只删一张**：点垃圾桶后会立刻弹 `獲得道具`（分解给的
+        0 或重刷撤退 = 三个全删。**一次只删一张**：点垃圾桶后会立刻弹 `獲得道具`（分解给的
         單元幣）盖住整页，弹窗由通用关闭分支按掉，下一帧再回到这一页继续删；
         等要删的都没了（或一张都不删）才点右下紫色 `下一步`（(1120,662)）。
 
         Args:
             next_point (tuple[int]): centre of the purple `下一步`.
+            discard_saves (bool): Decompose all three saves from this run.
         """
-        try:
-            keep = int(self.config.ChaoszeroRogue_RogueSaveKeep)
-        except (AttributeError, TypeError, ValueError):
-            keep = 0
+        keep = 0
+        if not discard_saves:
+            try:
+                keep = int(self.config.ChaoszeroRogue_RogueSaveKeep)
+            except (AttributeError, TypeError, ValueError):
+                pass
         if not 1 <= keep <= len(SAVE_TRASH):
             keep = 0
         for index, point in enumerate(SAVE_TRASH):
@@ -1800,6 +1799,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 handle.write(payload)
             cv2.imwrite(base + '.png',
                         cv2.cvtColor(self.device.image, cv2.COLOR_RGB2BGR))
+            prune_diagnostics(EVENT_LOG_DIR, 'event')
             logger.info('Event page logged to %s.json (%s candidate(s))'
                         % (base, len(ranked)))
         except Exception as error:
@@ -1828,6 +1828,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         Returns:
             int: 1-based column, or None when nothing can be recognised.
         """
+        self.spark_selected = None
         table = self.rogue_spark_filter()
         # ❗配置读没读到自己看：`RogueSparkFilter` 是纯文本配置，
         # 写错格式（比如全角等号）就会静默解析成 0 条，行为退回"数值最大"。
@@ -1913,9 +1914,39 @@ class ChaoszeroRogue(ChaoszeroUI):
             logger.info('No flash form matches %s, keep RoguePick' % card)
             return None
         column, ratio, index, raw = picked
+        if card in table and table[card] == getattr(self, 'spark_targets', {}).get(card):
+            self.spark_selected = card
         logger.info('Flash card %s, take column %s (library form %s, %.2f) %s'
                     % (card, column + 1, index + 1, ratio, raw[:24]))
         return column + 1
+
+    def rogue_choose_flash(self, god=False):
+        column = self.rogue_flash_column(scale=1.8 if god else 1.0)
+        index = column or (self.rogue_god_pick() if god else None) or self.rogue_pick_index()
+        logger.info('Pick the %sflash form %s' % ('god ' if god else '', index))
+        self.spark_pending = None
+        if self.rogue_pick(FLASH_POINTS, index) and column:
+            self.spark_pending = self.spark_selected
+
+    def rogue_spark_confirm(self):
+        if self.spark_pending:
+            self.spark_obtained.add(self.spark_pending)
+            logger.info('Obtained target flash for %s' % self.spark_pending)
+            self.spark_pending = None
+
+    def rogue_spark_restart_on_core_map(self):
+        if not self.spark_boss_pending:
+            return False
+        self.spark_boss_pending = False
+        missing = self.spark_targets.keys() - self.spark_obtained
+        self.spark_targets = {}
+        if not missing:
+            return False
+        logger.info('Missing target flash after the first boss: %s' % ', '.join(sorted(missing)))
+        if not self.rogue_quit(timeout=300, discard_saves=True):
+            logger.warning('Spark reroll retreat did not reach the lobby or team, stop for review')
+            self.stopped_by_stuck = True
+        return True
 
     def rogue_god_pick(self):
         """
@@ -2001,6 +2032,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         points = []
         for x, y, w, h in merged:
             if not OPTION_WIDTH[0] <= w <= OPTION_WIDTH[1]:
+                continue
+            sub = mask[y - y1:y - y1 + h, x - x1:x - x1 + w]
+            if not sub.size or float(sub.sum(axis=1).max()) / float(w) < OPTION_FLAT_RATIO:
                 continue
             points.append((x + w // 2, y))
 
@@ -2328,6 +2362,20 @@ class ChaoszeroRogue(ChaoszeroUI):
             bool: If this frame is a rest point.
         """
         return self.appear(ROGUE_REST, offset=(20, 10), similarity=0.9)
+
+    def rogue_visit_rest_shop(self, press):
+        if (not self.shop_cooldown.reached() or self.shop_retry >= SHOP_RETRY
+                or not (self.rogue_shop_remove_needed() or self.equipment.shop_target_slots())
+                or not self.appear(ROGUE_REST_SHOP, offset=(20, 10), similarity=0.88)):
+            return False
+        if press.reached():
+            press.reset()
+            self.shop_retry += 1
+            self.shop_wait = Timer(SHOP_LOAD, count=1).start()
+            logger.info('Visit 德朗商店 for equipment/removal (%s/%s removals used, try %s)'
+                        % (self.remove_done, self.rogue_delete_times(), self.shop_retry))
+            self.device.click(ROGUE_REST_SHOP)
+        return True
 
     def rogue_resume_appear(self):
         """
@@ -2723,6 +2771,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 handle.write(payload)
             logger.info('Fate page logged [%s]: %s (effects saved as %s_effect1..3.png)'
                         % (phase, titles, stamp))
+            prune_diagnostics(folder, 'fate')
         except Exception as error:
             logger.warning('Failed to log the fate page: %s' % error)
 
@@ -2799,7 +2848,7 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     def rogue_card_reward_appear(self):
         """
-        Whether this is the 「卡牌獎勵 / 請選擇1張欲獲得的卡牌。」page.
+        Whether this is the 「卡牌獎勵」page, including single-card assignment.
 
         开局和战斗后都会出这一页：三张卡挑一张（致命射擊 / 睡眠果實 / 神聖一擊…），
         底部「跳過」+「確認」。以前**没有判据** —— 2026-11-16 18:06 实测开局第一帧
@@ -3753,10 +3802,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
 
             page = None
-            # ❗队伍页判据用标题 `配置隊伍`（TEAM_TITLE），不能用 `進入` 那颗按钮：
-            # 梦境模式开启后整页变紫，`ROGUE_TEAM_ENTER`（在浅色页上量的）实测
-            # 直接不匹配（2026-11-14 14:01 因此喷了 12 次 ROGUE_WAKE）。
-            if self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9):
+            if self.rogue_team_appear():
                 logger.info('Team page is up')
                 # 队伍页右上角就是梦境模式开关：开 = 整页变紫、上限 110pt，刷档要开。
                 mode = self.config.ChaoszeroRogue_RogueDreamMode
@@ -3864,7 +3910,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             page = None
             if self.appear(DIALOG_ENTER, offset=(20, 20), similarity=0.92):
                 page = 'dialog'
-            elif self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9):
+            elif self.rogue_team_appear():
                 page = 'team'
 
             if page != last:
@@ -4126,7 +4172,7 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     # ---------------------------------------------------------------- 局内撤退
 
-    def rogue_quit(self, timeout=120):
+    def rogue_quit(self, timeout=120, *, discard_saves=False):
         """
         Leave the current run: ☰ → 「卡厄思資訊」→ 橙色 `撤退` → 大厅.
 
@@ -4141,6 +4187,7 @@ class ChaoszeroRogue(ChaoszeroUI):
 
         Args:
             timeout (int): Seconds to spend getting out of the run.
+            discard_saves (bool): Decompose this run's saves at settlement.
 
         Returns:
             bool: If the run is over (team page or lobby).
@@ -4210,13 +4257,13 @@ class ChaoszeroRogue(ChaoszeroUI):
             # （2026-11-15 11:28 实测：确认撤退后落在 `探索結果`，只有紫色下一步，
             # 旧代码认不出它就一直点 ☰，最后 GameStuckError 把客户端重启了）。
             # ❗撤退同样会走到 `存檔資料收集完成`（过了第一个信标就有存档），
-            # 那一页的紫色 `下一步` 也要先按 `RogueSaveKeep` 处理存档，不能直接按过去。
+            # 那一页要先处理存档，再点紫色 `下一步`。
             point = self.rogue_purple_point()
             if point:
                 if self.rogue_save_appear():
                     if press.reached():
                         press.reset()
-                        self.rogue_save_handle(point)
+                        self.rogue_save_handle(point, discard_saves=discard_saves)
                     continue
                 if press.reached():
                     press.reset()
@@ -4257,7 +4304,6 @@ class ChaoszeroRogue(ChaoszeroUI):
         24px 采样去重后存一张，跑一局就能收齐「认不出来的页面」，之后再照真帧补判据。
         同一画面只存一次，一局几十张，不会撑爆磁盘。
         """
-        import glob
         import os
         import time
 
@@ -4279,16 +4325,8 @@ class ChaoszeroRogue(ChaoszeroUI):
             os.makedirs(folder)
         path = os.path.join(folder, time.strftime('unknown_%H%M%S.png'))
         cv2.imwrite(path, image[:, :, ::-1])
+        prune_diagnostics(folder, 'unknown')
         logger.warning('Unknown rogue page, saved a frame to %s' % path)
-        # 磁盘闸：战斗过场这类"会自己过去"的页也会被存，一局能攒几百张
-        # （2026-11-16 实测 10 分钟 276 张）。只保留最近 UNKNOWN_KEEP 张。
-        try:
-            saved = sorted(glob.glob(os.path.join(folder, 'unknown_*.png')),
-                           key=os.path.getmtime)
-            for stale in saved[:-UNKNOWN_KEEP]:
-                os.remove(stale)
-        except Exception:
-            pass
 
     def rogue_card_page_record(self, kind):
         """
@@ -4309,7 +4347,6 @@ class ChaoszeroRogue(ChaoszeroUI):
         Args:
             kind (str): 'flash' / 'god' / 'remove' / 'copy'。
         """
-        import glob
         import json as json_module
         import os
         import time
@@ -4385,20 +4422,13 @@ class ChaoszeroRogue(ChaoszeroUI):
 
             with open(base + '.json', 'w', encoding='utf-8') as handle:
                 handle.write(json_module.dumps(payload, ensure_ascii=False, indent=1))
+            prune_diagnostics(folder, 'card')
             logger.info('Card page [%s] saved: %s (card=%s score=%s)'
                         % (kind, stamp, payload.get('card'), payload.get('score')))
-
-            # 每个子目录只留最近 CARD_PAGE_KEEP 页（整页 900KB，攒多了很占地方）
-            saved = sorted(glob.glob(os.path.join(folder, '*.png')), key=os.path.getmtime)
-            for stale in saved[:-CARD_PAGE_KEEP]:
-                os.remove(stale)
-                meta = stale[:-4] + '.json'
-                if os.path.exists(meta):
-                    os.remove(meta)
         except Exception as error:
             logger.warning('Failed to record the card page: %s' % error)
 
-    def rogue_run(self):
+    def rogue_run(self, fresh_run=False):
         """
         Drive one run from the first cutscene until the settlement shows up.
 
@@ -4480,7 +4510,6 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.flash_card_stage = 0
         self.flash_card_wait = Timer(1, count=1).start()
         # 卡牌奖励页：0 = 还没选卡，1 = 已选卡、等着按「確認」
-        self.card_reward_stage = 0
         self.card_reward_wait = Timer(1, count=1).start()
         # ❗删卡次数**跨重启**保留：`RogueDelete=3` 是「这一局一共删 3 张」，
         # 不是「这个进程删 3 张」。只存内存时，脚本一重启（`RUN TASK` 重新进来）
@@ -4535,6 +4564,21 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 第一面是否已经打完（BOSS 战利品页出现过）：之后就是「核心」第二面。
         # 「本局已进第二面」跨重启保留：只存内存的话，脚本一重启又按第一面走。
         self.core_started = self.rogue_state_load('core_started', False)
+        # Only track complete runs started by this invocation.
+        self.spark_targets = {}
+        if fresh_run and getattr(self.config, 'ChaoszeroRogue_RogueSparkCheck', False):
+            card = getattr(self.config, 'ChaoszeroRogue_RogueSparkCheckCard', '')
+            if card and any(
+                card in rogue_cards.character_spark_cards(
+                    getattr(self.config, 'ChaoszeroRogue_RogueSlot%sMember' % slot, ''))
+                for slot in (1, 2, 3)
+            ):
+                rules = self.rogue_spark_filter().get(card)
+                if rules:
+                    self.spark_targets[card] = rules
+        self.spark_obtained = set()
+        self.spark_pending = None
+        self.spark_boss_pending = False
         self.card_library = None
         self.card_reader = None
         # 事件选择器导出的 picks（懒加载，`None` 表示还没读过）
@@ -4809,6 +4853,9 @@ class ChaoszeroRogue(ChaoszeroUI):
             #    多半被暂停了：点一下战场（y<450，没有手牌）把面板关掉再等。
             #    最多 PANEL_TRIES 次，点过之后一律不再动，避免变成"串击"。
             if self.rogue_battle_appear():
+                # The battle HUD can still show through a flash chooser.
+                if self.spark_pending and not (self.rogue_flash_appear() or self.rogue_god_appear()):
+                    self.rogue_spark_confirm()
                 if self.handle_rogue_battle_settings(press):
                     continue
                 if self.scene_wait.reached() and self.panel_stall < PANEL_TRIES:
@@ -4828,11 +4875,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 self.rogue_card_page_record('god')
                 if press.reached():
                     press.reset()
-                    # 神闪用 1.8 倍放大提字（离线实测 50% → 61%）
-                    index = self.rogue_flash_column(scale=1.8) or self.rogue_god_pick() \
-                        or self.rogue_pick_index()
-                    logger.info('Pick the god flash form %s' % index)
-                    self.rogue_pick(FLASH_POINTS, index)
+                    self.rogue_choose_flash(god=True)
                 continue
 
             # 1.5 战斗中的灵光一闪三选一：同一张卡的不同闪形态，**必须选一个**。
@@ -4841,9 +4884,18 @@ class ChaoszeroRogue(ChaoszeroUI):
                 self.rogue_card_page_record('flash')
                 if press.reached():
                     press.reset()
-                    index = self.rogue_flash_column() or self.rogue_pick_index()
-                    logger.info('Pick a flash form %s' % index)
-                    self.rogue_pick(FLASH_POINTS, index)
+                    self.rogue_choose_flash()
+                continue
+
+            # 「卡牌獎勵」页也有橙色「確認」，必须在通用主按钮之前处理。
+            if self.rogue_card_reward_appear():
+                self.rogue_card_page_record('reward')
+                point = self.rogue_secondary_point()
+                if point and press.reached():
+                    press.reset()
+                    self.card_tries = 0
+                    logger.info('Card reward page, press 跳過 at (%s, %s)' % point)
+                    self.tap_point(*point, name='ROGUE_SECONDARY')
                 continue
 
             # 这一帧是不是「複製卡牌」的选人页：主按钮分支和 4.15 都要用，只算一次。
@@ -4859,6 +4911,8 @@ class ChaoszeroRogue(ChaoszeroUI):
             # "中途接管"不用担心：`core_started` 已经落盘，重启会读回来。
             if (not self.core_started and self.rogue_loot_appear()
                     and self.route_step >= LOOT_MIN_STEP):
+                self.rogue_spark_confirm()
+                self.spark_boss_pending = bool(self.spark_targets)
                 self.core_started = True
                 self.rogue_state_save(core_started=True)
                 logger.info('BOSS loot page after %s step(s), the core map comes next, '
@@ -4912,32 +4966,6 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.settle_wait.reset()
                     self.tap_point(point[0], point[1], name='ROGUE_PURPLE')
                 continue
-
-            # 2.001 **「卡牌獎勵」页**（三张卡挑一张）：点第 1 张卡 → 按橙色「確認」。
-            #        ❗以前没有判据，开局第一帧就掉进未知页、20 秒后撤退把整局废掉
-            #        （2026-11-16 18:06 实测）。
-            #        选哪张先固定第 1 张（和 `RoguePick` 一致）—— 等卡牌识别做完
-            #        再改成按价值挑。
-            if self.rogue_card_reward_appear():
-                # ❗这页也是**加卡途径**（`請選擇1張欲獲得的卡牌。`），
-                # 而且脚本固定点第 1 张 —— 第 1 张是中立卡/诅咒卡就直接进牌堆了。
-                # 用户 2026-11-16 问「一堆中立卡哪里来的」，这一页必须先留下证据：
-                # 存整页 + 三列卡名裁剪（`reward/` 目录，和其他几类同样格式）。
-                self.rogue_card_page_record('reward')
-                # ❗**整页跳过，一张都不拿**（用户 2026-11-17：
-                #   「现在所在的页面是事件里获得一张中立卡，这种的要跳过」）。
-                # 这一页有 10 张卡（2 行 x 5 列），大半是中立卡/诅咒卡；
-                # 卡牌识别还没做完、判断不了价值，拿了就是往牌堆里塞垃圾。
-                # 底部那颗白色「跳過」在 (899,669) 一带，用通用白按钮检测定位。
-                point = self.rogue_secondary_point()
-                if point and press.reached():
-                    press.reset()
-                    self.card_tries = 0
-                    logger.info('Card reward page, press 跳過 at (%s, %s) — do not take the card'
-                                % point)
-                    self.tap_point(point[0], point[1], name='ROGUE_SECONDARY')
-                continue
-            self.card_reward_stage = 0
 
             # 2.0012 **「靈光一閃」单卡详情弹窗**（底部「點擊畫面可關閉視窗。」）：
             #        点画面左侧空白处关掉。
@@ -5359,27 +5387,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             if rest and self.rest_stage == 0 and not self.rogue_rest_settled():
                 continue
 
-            # 4.75 营地页先进「德朗商店」：有指定装备规则或删卡配额时，点顶部那颗
-            #      「德朗商店」标题进去（删卡比休息值钱，用户 2026-11-15）。
-            #      进店后由 `# 4.6` 点「移除卡牌」、`# 4.3` 选卡 + 按 `移除`。
-            #      ❗用**冷却计时**而不是"进店次数"：售罄页的 rest/shop 判据都是 False，
-            #      按"离开营地就清零"会被它清掉，回营地又进店 → 死循环。
-            #      一个营地从进店到离开通常 10~30 秒，冷却 120 秒足够挡住回头，
-            #      又不影响下一个营地（走过去要一分多钟）。
-            if (rest and self.shop_cooldown.reached()
-                    and self.shop_retry < SHOP_RETRY
-                    and (self.rogue_shop_remove_needed() or self.equipment.shop_target_slots())):
-                if press.reached():
-                    press.reset()
-                    self.shop_retry += 1
-                    self.shop_wait = Timer(SHOP_LOAD, count=1).start()
-                    logger.info('Visit 德朗商店 for equipment/removal (%s/%s removals used, try %s)'
-                                % (self.remove_done, self.rogue_delete_times(),
-                                   self.shop_retry))
-                    self.tap_point(REST_SHOP[0], REST_SHOP[1], name='ROGUE_REST_SHOP')
+            # 4.75 识别到「德朗商店」入口才进店，点空后也要重新识别。
+            if rest and self.rogue_visit_rest_shop(press):
                 continue
 
             if rest:
+                self.rogue_spark_confirm()
                 # ❗只停这里（自动选休息/回血/冥想/看商店）。上面的"休息确认框"
                 # 分支不能停 —— 那个一停就卡死在压暗的页面上。
                 if self._pause_for_similar_page('营地/休息（回血 · 冥想 · 商店）'):
@@ -5472,6 +5485,9 @@ class ChaoszeroRogue(ChaoszeroUI):
 
             # 5. 地图：核对 2D 计划分支与 3D 立卡后，点对应平台。
             if self.rogue_map_appear():
+                self.rogue_spark_confirm()
+                if self.rogue_spark_restart_on_core_map():
+                    return
                 if self.node_pending is not None and not self.node_pending.reached():
                     continue
                 if press.reached():
@@ -5863,11 +5879,12 @@ class ChaoszeroRogue(ChaoszeroUI):
                 logger.info('Ran %s run(s), stop this round' % runs)
                 break
 
-            at_team = self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9)
+            at_team = self.rogue_team_appear()
             # 存档页按完 `下一步` 有时直接落回 `卡厄思` 两张卡那一页（2026-11-15 13:2x
             # 实机），从那里也能顺着入口链再进队伍页，所以三种都算"可以开始"。
             at_mode = self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92)
-            if self.ui_page_appear(page_main) or at_team or at_mode:
+            fresh_run = self.ui_page_appear(page_main) or at_team or at_mode
+            if fresh_run:
                 logger.info('At the lobby / team / 卡厄思 page, walk the entry chain')
                 if not self.rogue_enter():
                     logger.warning('Could not start a run, give up this round')
@@ -5881,7 +5898,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             else:
                 logger.info('Not at the lobby, take over the run in progress')
 
-            self.rogue_run()
+            self.rogue_run(fresh_run=fresh_run)
             runs += 1
 
             # `RogueStopBeacon` 到点撤退：这一局是我们主动收掉的，别再开下一局
@@ -5904,7 +5921,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 logger.info('The run is over, back at the lobby')
             # 结算后实际落到「配置隊伍」页（2026-11-15 04:36 实测），没有存档页。
             # 停在这里说明这一局结束了，直接开下一局（下一轮 rogue_enter 会从队伍页进去）。
-            elif self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9):
+            elif self.rogue_team_appear():
                 logger.info('The run is over, back at the team page')
             elif self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
                 logger.info('The run is over, back at the 卡厄思 page')

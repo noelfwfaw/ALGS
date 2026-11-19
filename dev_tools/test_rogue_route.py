@@ -1,12 +1,15 @@
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import cv2
 
 from module.config.server import set_server
 
 set_server('chaoszero')
+from module.chaoszero import chaoszero_ui as ui
+from module.chaoszero import rogue
 from module.chaoszero import rogue_route as route
 from module.chaoszero.rogue import ChaoszeroRogue
 
@@ -16,6 +19,99 @@ FIXTURES = Path(__file__).parent / 'fixtures' / 'chaoszero'
 
 def capture(name):
     return cv2.cvtColor(cv2.imread(str(FIXTURES / name)), cv2.COLOR_BGR2RGB)
+
+
+class TestRogueEntry(unittest.TestCase):
+    def boot_task(self, command, image):
+        task = ui.ChaoszeroUI.__new__(ui.ChaoszeroUI)
+        task.config = SimpleNamespace(task=SimpleNamespace(command=command))
+        task.interval_timer = {}
+        task.device = Mock(image=image, has_cached_image=True)
+        task.device.screenshot.side_effect = AssertionError('Unexpected boot loop')
+        return task
+
+    def test_rogue_boot_hands_off_both_entry_pages_without_back_or_wake(self):
+        for button in (rogue.ROGUE_TEAM_ENTER, ui.ROGUE_MODE_ENTRY):
+            with self.subTest(page=button.name):
+                frame = cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
+                task = self.boot_task('ChaoszeroRogue', frame)
+                task.app_start()
+                task.device.click.assert_not_called()
+                task.device.adb_shell.assert_not_called()
+                task.device.screenshot.assert_not_called()
+
+    def test_unlimited_runs_restart_from_dark_team_page_without_dream_switch(self):
+        frame = cv2.cvtColor(cv2.imread(ui.TEAM_TITLE.file), cv2.COLOR_BGR2RGB)
+        label = cv2.cvtColor(cv2.imread(ui.ROGUE_TEAM_MODE_DARK.file), cv2.COLOR_BGR2RGB)
+        x1, y1, x2, y2 = ui.ROGUE_TEAM_MODE_DARK.area
+        frame[y1:y2, x1:x2] = label[y1:y2, x1:x2]
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.config = Mock(ChaoszeroRogue_RogueRuns=0, ChaoszeroRogue_RogueLoop=True,
+                           ChaoszeroRogue_RogueCure=False)
+        task.device = Mock(image=frame)
+        task.rogue_enter = Mock(return_value=True)
+        task.rogue_state_save = Mock()
+        task.stopped_by_beacon = False
+        task.stopped_by_stuck = False
+
+        def finish(fresh_run):
+            self.assertTrue(fresh_run)
+            task.stopped_by_stuck = task.rogue_run.call_count == 2
+
+        task.rogue_run = Mock(side_effect=finish)
+        self.assertFalse(task.appear(ui.ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9))
+        task.run()
+        self.assertEqual(task.rogue_enter.call_count, 2)
+        self.assertEqual(task.rogue_run.call_count, 2)
+        task.config.task_delay.assert_called_once_with(minute=1)
+
+    def test_boot_for_other_tasks_backs_out_of_mode_page(self):
+        frame = cv2.cvtColor(cv2.imread(ui.ROGUE_MODE_ENTRY.file), cv2.COLOR_BGR2RGB)
+        task = self.boot_task('ChaoszeroMain', frame)
+        task.ui_page_appear = Mock(side_effect=[False, True])
+        task.device.screenshot.side_effect = None
+        task.app_start()
+        task.device.click.assert_called_once_with(ui.CHAOSZERO_BACK)
+        task.device.adb_shell.assert_not_called()
+
+    def test_rogue_boot_backs_out_of_a_team_page_without_rogue_markers(self):
+        frame = cv2.cvtColor(cv2.imread(ui.TEAM_TITLE.file), cv2.COLOR_BGR2RGB)
+        task = self.boot_task('ChaoszeroRogue', frame)
+        task.ui_page_appear = Mock(side_effect=[False, True])
+        task.device.screenshot.side_effect = None
+        task.app_start()
+        task.device.adb_shell.assert_called_once_with(['input', 'keyevent', '4'])
+        task.device.click.assert_not_called()
+
+    def test_rogue_navigation_clicks_left_mode_card_then_enters_from_team(self):
+        mode = cv2.cvtColor(cv2.imread(ui.ROGUE_MODE_ENTRY.file), cv2.COLOR_BGR2RGB)
+        team = cv2.cvtColor(cv2.imread(rogue.ROGUE_TEAM_ENTER.file), cv2.COLOR_BGR2RGB)
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.config = SimpleNamespace(ChaoszeroRogue_RogueWorld='', ChaoszeroRogue_RogueDreamMode='')
+        task.device = Mock()
+        task.tap_point = Mock()
+        task.rogue_resume_appear = Mock(return_value=False)
+        task.rogue_primary_point = Mock(side_effect=[False, True])
+        for name in ('rogue_story_appear', 'rogue_choice_appear', 'rogue_battle_appear',
+                     'rogue_herald_appear', 'rogue_option_points', 'rogue_equip_appear',
+                     'rogue_rest_appear', 'rogue_copy_appear', 'rogue_remove_appear', 'rogue_map_appear'):
+            setattr(task, name, Mock(return_value=False))
+
+        def replay(frames):
+            for frame in frames:
+                task.device.image = frame
+                yield
+
+        for entry in ([mode, team], [team]):
+            with self.subTest(from_mode=len(entry) > 1):
+                task.tap_point.reset_mock()
+                task.loop = Mock(side_effect=[replay(entry), replay([team, team])])
+                task.rogue_primary_point.side_effect = [False, True]
+                with patch.object(rogue, 'Timer'):
+                    self.assertTrue(task.rogue_enter())
+                names = [call[1]['name'] for call in task.tap_point.call_args_list]
+                self.assertEqual(names, ['ROGUE_MODE', 'ROGUE_TEAM_ENTER']
+                                 if len(entry) > 1 else ['ROGUE_TEAM_ENTER'])
 
 
 class TestRoute(unittest.TestCase):

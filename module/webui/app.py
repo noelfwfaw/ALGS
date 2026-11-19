@@ -108,6 +108,8 @@ ROGUE_SECTIONS = {
         "RogueSlot2Member",
         "RogueSlot3Member",
         "RogueSparkFilter",
+        "RogueSparkCheck",
+        "RogueSparkCheckCard",
         "RogueRemoveMember",
         "RogueDelete",
         "RogueDeleteFilter",
@@ -122,7 +124,12 @@ ROGUE_SECTIONS = {
     "Settlement": ("RogueSaveKeep", "RogueRuns", "RogueLoop", "RogueStopBeacon", "RogueCure"),
 }
 ROGUE_SLOT_MEMBER_ARGS = ("RogueSlot1Member", "RogueSlot2Member", "RogueSlot3Member")
-ROGUE_HIDDEN_BUILD_ARGS = ("RogueSparkFilter", "RogueDelete", "RogueDeleteFilter")
+ROGUE_BUILD_PICKERS = {
+    "RogueSparkFilter": "rogue_spark_picker",
+    "RogueSparkCheckCard": "rogue_spark_check_picker",
+    "RogueDeleteFilter": "rogue_remove_picker",
+}
+ROGUE_HIDDEN_BUILD_ARGS = (*ROGUE_BUILD_PICKERS, "RogueDelete")
 ROGUE_PICKER_WATCH_ARGS = ROGUE_SLOT_MEMBER_ARGS + ("RogueRemoveMember",)
 ROGUE_SPARK_WATCH_PATHS = {
     f"ChaoszeroRogue.ChaoszeroRogue.{arg}" for arg in ROGUE_PICKER_WATCH_ARGS
@@ -390,12 +397,11 @@ class AlasGUI(Frame):
 
             arg_name = arg[0]  # [arg_name,]
             if group_name == "ChaoszeroRogue" and arg_name in ROGUE_HIDDEN_BUILD_ARGS:
-                if arg_name in ("RogueSparkFilter", "RogueDeleteFilter"):
+                if arg_name in ROGUE_BUILD_PICKERS:
                     self._rogue_hidden_values[arg_name] = str(
                         deep_get(config, [task, group_name, arg_name], output_kwargs["value"]) or ""
                     )
-                    scope_name = "rogue_spark_picker" if arg_name == "RogueSparkFilter" else "rogue_remove_picker"
-                    scope_out = put_scope(scope_name)
+                    scope_out = put_scope(ROGUE_BUILD_PICKERS[arg_name])
                     scope_out.spec["scope"] = f"#pywebio-scope-group_{section_name}"
                     output_list.append(scope_out)
                 continue
@@ -558,12 +564,12 @@ class AlasGUI(Frame):
             rules = rogue_cards.parse_spark_filter(spark_text)
             norm_rules = {rogue_cards.normalize(k): v for k, v in rules.items()}
             selected = [item for item in self._rogue_selected_slots(config) if item[2] in by_char]
+            targets = {}
 
             with use_scope("rogue_spark_picker", clear=True):
                 put_text(t("Gui.Rogue.SparkPickerTitle")).style("--arg-title--")
                 if not selected:
                     put_text(t("Gui.Rogue.SparkPickerEmpty")).style("--arg-help--")
-                    return
                 for _, slot_label, cid, char_name in selected:
                     put_text(f"{slot_label} · {char_name}").style("--arg-title--")
                     for card in by_char[cid]:
@@ -586,6 +592,8 @@ class AlasGUI(Frame):
                         else:
                             current = ""
 
+                        if rules.get(card_name) and help_text:
+                            targets[card_name] = f"{card_name} · {help_text}"
                         pin_name = f"rogue_spark_card_{card['id']}"
                         put_arg_select({
                             "name": pin_name,
@@ -600,6 +608,19 @@ class AlasGUI(Frame):
                             onchange=partial(self._on_rogue_spark_card_change, card_name),
                             clear=True,
                         )
+
+            with use_scope("rogue_spark_check_picker", clear=True):
+                target = self._rogue_pin_or_config(config, "RogueSparkCheckCard")
+                pin_name = "rogue_spark_check_card"
+                put_arg_select({
+                    "name": pin_name,
+                    "title": t("ChaoszeroRogue.RogueSparkCheckCard.name"),
+                    "help": t("ChaoszeroRogue.RogueSparkCheckCard.help"),
+                    "value": target if target in targets else "",
+                    "options": ["", *targets],
+                    "options_label": [t("Gui.Rogue.Unselected"), *targets.values()],
+                }).show()
+                pin_on_change(name=pin_name, onchange=self._on_rogue_spark_check_card_change, clear=True)
 
     def _render_rogue_remove_picker(self, config=None) -> None:
         if not self._rogue_spark_active:
@@ -670,6 +691,10 @@ class AlasGUI(Frame):
         with self._get_rogue_picker_lock():
             self._update_rogue_hidden_filter("RogueSparkFilter", rogue_cards.update_spark_filter, card_name, new_value)
             self._render_rogue_spark_picker()
+
+    def _on_rogue_spark_check_card_change(self, value: str) -> None:
+        with self._get_rogue_picker_lock():
+            self._update_rogue_hidden_filter("RogueSparkCheckCard", lambda _: value or "")
 
     def _on_rogue_remove_card_change(self, card_name: str, new_value: str) -> None:
         with self._get_rogue_picker_lock():

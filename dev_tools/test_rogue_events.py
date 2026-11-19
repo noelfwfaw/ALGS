@@ -77,6 +77,14 @@ class EventSelectionTest(unittest.TestCase):
         image[677:689, 639] = 255
         self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [(640, 677)])
 
+    def test_border_band_rejects_battle_bottom_curved_arc(self):
+        image = self.task.device.image
+        for base_x in (362, 664):
+            for dx in range(252):
+                y = 671 + int(round(19 * (dx / 251.0) ** 2))
+                image[y:min(y + 2, 691), base_x + dx] = 255
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+
     def feed(self, texts):
         self.task.card_reader.read_name = Mock(side_effect=texts)
         self.task.rogue_option_points.return_value = [(308 + index * 332, 677)
@@ -370,6 +378,23 @@ class EventSelectionTest(unittest.TestCase):
         self.task.rogue_option_points.return_value = []
         self.assertFalse(self.step())
         self.task.tap_point.assert_not_called()
+
+    def test_priority_rule_handles_confusion_loop_and_variant_fallback(self):
+        self.task.event_library = EventLibrary()
+        self.task.event_picks['uk_904_s01_15a'] = {'priority': [1, '打破混亂', 8]}
+        self.assertEqual(
+            self.task.rogue_event_manual_index(['重新分析現況', '打破混亂', '接受怪物'],
+                                               packs_for_world('霧之城市')),
+            1,
+        )
+        self.assertEqual(self.task.event_choice['order'], 1)
+        self.assertEqual(
+            self.task.rogue_event_manual_index(['打破混亂', '接受怪物'],
+                                               packs_for_world('霧之城市')),
+            1,
+        )
+        self.assertIsNone(self.task.event_choice['order'])
+        self.assertEqual(self.task.event_choice['target'], '打破混亂')
 
 
 if __name__ == '__main__':

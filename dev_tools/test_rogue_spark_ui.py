@@ -123,11 +123,15 @@ class RogueSparkWebUITest(unittest.TestCase):
                 patch.object(webui_app, 't', side_effect=lambda k, *_: k), \
                 patch.object(webui_app, 'use_scope'), \
                 patch.object(webui_app, 'put_text', side_effect=fake_text), \
-                patch.object(webui_app, 'put_arg_select') as mock_select:
+                patch.object(webui_app, 'put_arg_select') as mock_select, \
+                patch.object(webui_app, 'pin_on_change'):
             gui._render_rogue_spark_picker()
 
         self.assertIn('Gui.Rogue.SparkPickerEmpty', texts)
-        mock_select.assert_not_called()
+        mock_select.assert_called_once()
+        target = mock_select.call_args[0][0]
+        self.assertEqual(target['options'], [''])
+        self.assertEqual(target['value'], '')
 
     def test_render_selected_slots_and_sync_card_change(self):
         gui = self._make_gui()
@@ -173,7 +177,7 @@ class RogueSparkWebUITest(unittest.TestCase):
             self.assertEqual(remove_by_title['增幅治療']['value'], '2')
             self.assertEqual(remove_by_title['增幅治療']['options'], ['0', '1', '2'])
             self.assertEqual(remove_by_title['掃弦']['options'], ['0', '1'])
-            self.assertEqual(mock_watch.call_count, 22)
+            self.assertEqual(mock_watch.call_count, 23)
             for call in mock_watch.call_args_list:
                 self.assertTrue(call[1].get('clear'))
 
@@ -195,6 +199,39 @@ class RogueSparkWebUITest(unittest.TestCase):
         self.assertEqual(q1['value'], saved_spark)
         self.assertEqual(q2['name'], 'ChaoszeroRogue.ChaoszeroRogue.RogueDeleteFilter')
         self.assertEqual(q2['value'], saved_delete)
+
+    def test_spark_check_picker_saves_one_card_and_refreshes_valid_targets(self):
+        gui = self._make_gui()
+        gui._rogue_hidden_values['RogueSparkFilter'] = 'G和弦 = 3\n慢板 = 自訂關鍵詞\n劍之雨 = 2'
+        slot_pin = 'ChaoszeroRogue_ChaoszeroRogue_RogueSlot1Member'
+        fake_pin = FakePin({slot_pin: '1003'})
+
+        with patch.object(webui_app, 'pin', fake_pin), \
+                patch.object(webui_app, 't', side_effect=lambda k, *_: k), \
+                patch.object(webui_app, 'use_scope'), \
+                patch.object(webui_app, 'put_text'), \
+                patch.object(webui_app, 'put_arg_select') as select, \
+                patch.object(webui_app, 'pin_on_change') as watch:
+            gui._render_rogue_spark_picker()
+            target = select.call_args[0][0]
+            self.assertEqual(target['name'], 'rogue_spark_check_card')
+            self.assertCountEqual(target['options'], ['', 'G和弦', '慢板'])
+            self.assertEqual(target['value'], '')
+            self.assertIn('③', target['options_label'][target['options'].index('G和弦')])
+            watch.call_args[1]['onchange']('G和弦')
+            self.assertEqual(gui.modified_config_queue.get_nowait(), {
+                'name': 'ChaoszeroRogue.ChaoszeroRogue.RogueSparkCheckCard',
+                'value': 'G和弦',
+            })
+            gui._render_rogue_spark_picker()
+            self.assertEqual(select.call_args[0][0]['value'], 'G和弦')
+            gui._on_rogue_spark_card_change('G和弦', '')
+            self.assertNotIn('G和弦', select.call_args[0][0]['options'])
+            self.assertEqual(select.call_args[0][0]['value'], '')
+            fake_pin[slot_pin] = '30093'
+            gui._render_rogue_spark_picker()
+            self.assertEqual(select.call_args[0][0]['options'], ['', '劍之雨'])
+            self.assertEqual(select.call_args[0][0]['value'], '')
 
     def test_remove_priority_reorders_slots_and_watcher_uses_clear(self):
         gui = self._make_gui()

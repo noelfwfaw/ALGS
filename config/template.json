@@ -766,6 +766,8 @@
       "RogueDelete": 3,
       "RogueDeleteFilter": "",
       "RogueSparkFilter": null,
+      "RogueSparkCheck": false,
+      "RogueSparkCheckCard": "",
       "RogueCopyMember": 0,
       "RogueCopyCard": "劍之雨",
       "RogueEquipFilter": null,

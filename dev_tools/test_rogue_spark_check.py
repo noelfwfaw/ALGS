@@ -1,0 +1,242 @@
+"""Offline replay of the first-floor spark checkpoint."""
+
+import json
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+import cv2
+import numpy as np
+
+from module.config.server import set_server
+
+set_server('chaoszero')
+
+from module.chaoszero import rogue
+from module.webui.app import ROGUE_SECTIONS
+
+
+class SparkCheckTest(unittest.TestCase):
+    def replay(self, frames, enabled=True, fresh=True, rules='劍之雨 = 2', retreat=True,
+               runs=0, core=False, target='劍之雨', member='30093', reward_image=None):
+        task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
+        task.config = SimpleNamespace(
+            data={'ChaoszeroRogue': {'ChaoszeroRogue': {'RogueSparkFilter': rules}}},
+            ChaoszeroRogue_RogueSparkCheck=enabled, ChaoszeroRogue_RogueSparkCheckCard=target,
+            ChaoszeroRogue_RogueSlot1Member=member,
+            ChaoszeroRogue_RogueCure=False,
+            ChaoszeroRogue_RogueRuns=runs, ChaoszeroRogue_RogueLoop=False, task_delay=Mock(),
+        )
+        task.device = Mock(image=np.zeros((720, 1280, 3), dtype=np.uint8))
+        frame = 'lobby'
+        calls = []
+
+        def replay_loop(**_):
+            nonlocal frame
+            task.route_step = rogue.LOOT_MIN_STEP
+            for frame in frames:
+                if frame == 'card_reward':
+                    task.device.image = reward_image
+                yield
+
+        def quit_run(**_):
+            nonlocal frame
+            calls.append(('retreat', frame))
+            if retreat:
+                frame = 'team'
+            return retreat
+
+        def enter_run():
+            nonlocal frame
+            calls.append(('enter', frame))
+            frame = 'entry'
+            return True
+
+        task.loop = replay_loop
+        task.rogue_quit = Mock(side_effect=quit_run)
+        task.rogue_enter = Mock(side_effect=enter_run)
+        task.ui_page_appear = lambda _: frame == 'lobby'
+        task.appear = lambda button, **_: button is rogue.TEAM_TITLE and frame == 'team'
+        task.rogue_team_appear = lambda: frame == 'team'
+        task.rogue_state_load = lambda key, default: core if key == 'core_started' else default
+        task.rogue_state_save = Mock()
+        task.rogue_route_plan = lambda: calls.append(('walk', frame)) or True
+        task.tap_point = Mock(side_effect=lambda *args, name: calls.append((name, frame)))
+        for name in (
+            'rogue_stuck_check', 'rogue_checkpoint_appear', 'rogue_resume_appear',
+            'handle_rogue_remove', 'rogue_meditate_appear', 'rogue_detail_appear',
+            'rogue_deck_appear', 'rogue_panel_appear', 'rogue_click_stuck',
+            'rogue_copy_appear', 'rogue_card_reward_appear', 'rogue_flash_card_appear',
+            'rogue_copy_card_appear', 'rogue_transform_appear', 'handle_rogue_fate',
+            'rogue_story_appear', 'rogue_herald_appear', 'rogue_member_appear',
+            'rogue_shop_appear', 'rogue_shop_sold_appear', 'rogue_rest_appear',
+            'rogue_prompt_appear', 'rogue_purple_point', 'rogue_god_pick',
+            '_rogue_meditate_allows',
+        ):
+            setattr(task, name, Mock(return_value=False))
+        task.rogue_item_appear = lambda: frame == 'reward'
+        task.rogue_modal_appear = lambda: frame == 'modal'
+        task.rogue_primary_point = lambda: (1, 1) if frame == 'loot' else None
+        if reward_image is not None:
+            task.appear = lambda button, **kwargs: (
+                button is rogue.ROGUE_CARD_REWARD and button.match(task.device.image, **kwargs))
+            task.rogue_card_reward_appear = rogue.ChaoszeroRogue.rogue_card_reward_appear.__get__(task)
+            task.rogue_primary_point = rogue.ChaoszeroRogue.rogue_primary_point.__get__(task)
+        task.rogue_dialog_point = lambda: (1, 1) if frame == 'confirm' else None
+        task.rogue_battle_appear = lambda: frame == 'battle'
+        task.handle_rogue_battle_settings = Mock(return_value=True)
+        task.rogue_flash_appear = lambda: frame in ('flash', 'wrong')
+        task.rogue_god_appear = lambda: frame == 'god'
+        task.rogue_loot_appear = lambda: frame == 'loot'
+        task.rogue_map_appear = lambda: frame in ('map', 'preview')
+        task.rogue_map_preview_appear = lambda: frame == 'preview'
+        task.rogue_card_page_record = Mock()
+        forms, _ = rogue.rogue_cards.CardLibrary().forms('劍之雨')
+        reader = Mock()
+        reader.read_all.side_effect = lambda *_, **__: (
+            [forms[i] for i in ([0, 2, 3] if frame == 'wrong' else [0, 1, 2])]
+        )
+        timer = Mock()
+        timer.start.return_value = timer
+        with patch.object(rogue, 'Timer', return_value=timer), \
+                patch.object(rogue.rogue_equipment, 'Equipment') as equipment, \
+                patch.object(rogue.rogue_cards, 'CardReader', return_value=reader):
+            equipment.return_value.handle.return_value = False
+            if runs:
+                task.run()
+            else:
+                task.rogue_run(fresh_run=fresh)
+        return task, calls
+
+    def test_single_neutral_card_reward_skips_before_generic_confirm(self):
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_card_reward_neutral.png'
+        image = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        button = rogue.ROGUE_CARD_REWARD
+        template = cv2.cvtColor(cv2.imread(button.file), cv2.COLOR_BGR2RGB)
+        x1, y1, x2, y2 = button.area
+        with patch.object(button, 'image', template[y1:y2, x1:x2]), patch.object(button, '_match_init', True):
+            task, _ = self.replay(['card_reward'], reward_image=image)
+            self.assertIsNotNone(task.rogue_primary_point())
+            task.tap_point.assert_called_once_with(899, 669, name='ROGUE_SECONDARY')
+            task.rogue_card_page_record.assert_called_once_with('reward')
+
+            image[640:701, 790:1010] = 0
+            task, _ = self.replay(['card_reward'], reward_image=image)
+            self.assertIsNotNone(task.rogue_primary_point())
+            task.tap_point.assert_not_called()
+
+    def test_missed_or_wrong_target_restarts_after_rewards(self):
+        for spark in ([], ['wrong', 'battle']):
+            with self.subTest(spark=spark):
+                task, calls = self.replay(['map'] + spark + ['loot', 'reward', 'map'])
+                self.assertEqual(task.spark_obtained, set())
+                self.assertEqual(calls[-3:], [
+                    ('ROGUE_PRIMARY', 'loot'), ('ROGUE_ITEM', 'reward'), ('retreat', 'map'),
+                ])
+                self.assertEqual(calls[0], ('walk', 'map'))
+
+    def test_both_choosers_and_existing_keyword_rules_count(self):
+        for spark, rule in (('flash', '2'), ('god', '2'), ('flash', '不存在的詞,劍')):
+            with self.subTest(spark=spark, rule=rule):
+                task, calls = self.replay([spark, 'confirm', 'battle', 'loot', 'map'],
+                                          rules='劍之雨 = ' + rule)
+                task.rogue_quit.assert_not_called()
+                self.assertEqual(task.spark_obtained, {'劍之雨'})
+                self.assertEqual(calls[-1], ('walk', 'map'))
+
+    def test_a_tap_and_dialog_are_not_acquisition(self):
+        task, _ = self.replay(['god', 'confirm', 'god', 'modal'])
+        self.assertEqual(task.spark_obtained, set())
+        task.rogue_quit.assert_not_called()
+
+    def test_preview_defers_checkpoint_until_after_reward_flash(self):
+        task, calls = self.replay(['loot', 'reward', 'preview', 'flash', 'map'])
+        task.rogue_quit.assert_not_called()
+        self.assertEqual(task.spark_obtained, {'劍之雨'})
+        self.assertEqual(calls[-3:], [
+            ('ROGUE_ZOOM', 'preview'), ('ROGUE_CARD', 'flash'), ('walk', 'map'),
+        ])
+
+    def test_only_the_selected_card_controls_retreat(self):
+        rules = '劍之雨 = 2\n展開極光 = 2'
+        frames = ['flash', 'battle', 'loot', 'map']
+        for target, action, obtained in (
+            ('劍之雨', 'walk', {'劍之雨'}),
+            ('展開極光', 'retreat', set()),
+        ):
+            with self.subTest(target=target):
+                task, calls = self.replay(frames, rules=rules, target=target)
+                self.assertIn(('ROGUE_CARD', 'flash'), calls)
+                self.assertEqual(task.spark_obtained, obtained)
+                self.assertEqual(calls[-1], (action, 'map'))
+
+    def test_disabled_empty_resumed_or_later_boss_never_restarts(self):
+        for args in ({'enabled': False}, {'fresh': False}, {'rules': ''}, {'core': True},
+                     {'target': ''}, {'target': '展開極光'}, {'member': '1003'}, {'member': ''}):
+            with self.subTest(args=args):
+                task, calls = self.replay(['loot', 'reward', 'map'], **args)
+                task.rogue_quit.assert_not_called()
+                self.assertEqual(calls[-1], ('walk', 'map'))
+
+    def test_spark_retry_decomposes_all_current_saves_before_leaving(self):
+        for retry, discarded in ((True, (1, 2, 3)), (False, (1, 3))):
+            with self.subTest(retry=retry):
+                task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
+                task.config = SimpleNamespace(ChaoszeroRogue_RogueSaveKeep=2)
+                task.device = Mock()
+                task.spark_boss_pending = True
+                task.spark_targets, task.spark_obtained = {'劍之雨': ['2']}, set()
+                current = None
+                saves = set(rogue.SAVE_TRASH)
+                next_point = (1120, 662)
+
+                def replay(**_):
+                    nonlocal current
+                    for current in ['save', 'popup'] * len(discarded) + ['save', 'team']:
+                        yield
+
+                def tap(x, y, *, name):
+                    if name == 'ROGUE_SAVE_TRASH':
+                        saves.remove((x, y))
+
+                task.loop = replay
+                task.ui_page_appear = Mock(return_value=False)
+                task.appear = lambda button, **_: button is rogue.TEAM_TITLE and current == 'team'
+                task.rogue_dialog_point = Mock(return_value=None)
+                task.rogue_item_appear = lambda: current == 'popup'
+                task.rogue_purple_point = lambda: next_point if current == 'save' else None
+                task.rogue_save_appear = lambda: current == 'save'
+                task.rogue_save_trash_visible = lambda slot: rogue.SAVE_TRASH[slot - 1] in saves
+                task.tap_point = Mock(side_effect=tap)
+
+                with patch.object(rogue, 'Timer'):
+                    self.assertTrue(task.rogue_spark_restart_on_core_map() if retry else task.rogue_quit())
+                self.assertEqual(saves, set() if retry else {rogue.SAVE_TRASH[1]})
+                self.assertEqual(task.config.ChaoszeroRogue_RogueSaveKeep, 2)
+                self.assertEqual([call[1]['name'] for call in task.tap_point.call_args_list],
+                                 ['ROGUE_SAVE_TRASH', 'ROGUE_ITEM'] * len(discarded) + ['ROGUE_PURPLE'])
+
+    def test_restarts_through_outer_loop_and_stops_on_failed_retreat(self):
+        for retreat in (True, False):
+            with self.subTest(retreat=retreat):
+                task, calls = self.replay(['loot', 'map'], retreat=retreat, runs=2)
+                self.assertEqual(task.rogue_enter.call_count, 2 if retreat else 1)
+                self.assertEqual(task.rogue_quit.call_count, task.rogue_enter.call_count)
+                self.assertEqual(task.stopped_by_stuck, not retreat)
+                self.assertFalse(any(action == 'walk' for action, _ in calls))
+
+    def test_single_build_checkbox_defaults_to_off(self):
+        from module.config.config_generated import GeneratedConfig
+
+        name = 'RogueSparkCheck'
+        self.assertEqual(sum(names.count(name) for names in ROGUE_SECTIONS.values()), 1)
+        self.assertIn(name, ROGUE_SECTIONS['Build'])
+        path = Path(__file__).resolve().parents[1] / 'module/config/argument/args.json'
+        option = json.loads(path.read_text(encoding='utf-8'))['ChaoszeroRogue']['ChaoszeroRogue'][name]
+        self.assertEqual(option, {'type': 'checkbox', 'value': False})
+        self.assertIs(GeneratedConfig.ChaoszeroRogue_RogueSparkCheck, False)
+
+
+if __name__ == '__main__':
+    unittest.main()

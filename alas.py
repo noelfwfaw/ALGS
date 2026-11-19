@@ -3,6 +3,7 @@ import re
 import threading
 import time
 from datetime import datetime, timedelta
+from io import BytesIO
 
 import inflection
 from cached_property import cached_property
@@ -11,6 +12,7 @@ from module.base.decorator import del_cached_property, has_cached_property
 from module.config.config import AlasConfig, TaskEnd
 from module.config.deep import deep_get, deep_set
 from module.exception import *
+from module.log_retention import ERROR_BUNDLE_BYTES, ERROR_LOG_BYTES, prune_diagnostics
 from module.logger import logger
 
 
@@ -294,11 +296,8 @@ class GameScheduler:
             return False
 
     def save_error_log(self):
-        """
-        Save last 60 screenshots in ./log/error/<timestamp>
-        Save logs to ./log/error/<timestamp>/log.txt
-        """
-        from module.base.utils import save_image
+        """Save the most recent screenshots and log tail within the error bundle budget."""
+        from PIL import Image
 
         if self.config.Error_SaveError:
             if not os.path.exists('./log/error'):
@@ -306,19 +305,30 @@ class GameScheduler:
             folder = f'./log/error/{int(time.time() * 1000)}'
             logger.warning(f'Saving error: {folder}')
             os.mkdir(folder)
-            for data in self.device.screenshot_deque:
+            remaining = ERROR_BUNDLE_BYTES - ERROR_LOG_BYTES
+            for data in reversed(self.device.screenshot_deque):
+                image = BytesIO()
+                Image.fromarray(data['image']).save(image, format='PNG')
+                if image.tell() > remaining:
+                    break
                 image_time = datetime.strftime(data['time'], '%Y-%m-%d_%H-%M-%S-%f')
-                save_image(data['image'], f'{folder}/{image_time}.png')
-            with open(logger.log_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                start = 0
-                for index, line in enumerate(lines):
-                    line = line.strip(' \r\t\n')
-                    if re.match('^═{15,}$', line):
-                        start = index
-                lines = lines[start - 2:]
-            with open(f'{folder}/log.txt', 'w', encoding='utf-8') as f:
-                f.writelines(lines)
+                with open(f'{folder}/{image_time}.png', 'wb') as f:
+                    f.write(image.getbuffer())
+                remaining -= image.tell()
+            try:
+                with open(logger.log_file, 'rb') as f:
+                    end = f.seek(0, os.SEEK_END)
+                    f.seek(max(0, end - ERROR_LOG_BYTES))
+                    lines = f.read(ERROR_LOG_BYTES).decode('utf-8', errors='ignore').splitlines(keepends=True)
+            except OSError:
+                lines = []
+            start = 0
+            for index, line in enumerate(lines):
+                if re.match('^═{15,}$', line.strip(' \r\t\n')):
+                    start = max(0, index - 2)
+            with open(f'{folder}/log.txt', 'w', encoding='utf-8', newline='') as f:
+                f.writelines(lines[start:])
+            prune_diagnostics('./log/error', 'error')
 
     def game_ui(self):
         """

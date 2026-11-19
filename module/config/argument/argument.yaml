@@ -353,6 +353,11 @@ ChaoszeroRogue:
   # OCR 出来，和卡牌形态库里含这些关键词的形态比对，挑最像的那一列。
   # 留空 = 完全按 RoguePick 的固定位置点。
   RogueSparkFilter: ''
+  # 第一层 Boss 奖励结束后，仅检查下方所选卡牌的指定灵光形态。
+  RogueSparkCheck: false
+  RogueSparkCheckCard:
+    valuetype: str
+    value: ''
   RogueCopyMember: 0
   RogueCopyCard:
     valuetype: str
