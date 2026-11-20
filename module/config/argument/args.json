@@ -2795,6 +2795,10 @@
         "type": "checkbox",
         "value": true
       },
+      "RogueEventCapture": {
+        "type": "checkbox",
+        "value": false
+      },
       "RogueSaveKeep": {
         "type": "input",
         "value": 0

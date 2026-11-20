@@ -178,6 +178,7 @@ class GeneratedConfig:
     ChaoszeroRogue_RogueCopyCard = '劍之雨'
     ChaoszeroRogue_RogueEquipFilter = None
     ChaoszeroRogue_RogueEventPick = True
+    ChaoszeroRogue_RogueEventCapture = False
     ChaoszeroRogue_RogueSaveKeep = 0
     ChaoszeroRogue_RogueLoop = True
     ChaoszeroRogue_RogueRuns = 1

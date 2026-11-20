@@ -1044,7 +1044,11 @@
     },
     "RogueEventPick": {
       "name": "按配置自动选择事件",
-      "help": "开启后按事件规则选择。识别失败、规则缺失、目标未出现，或关闭此开关时，任务会保存截图并停下。"
+      "help": "开启后按事件规则选择。识别失败、规则缺失、目标未出现，或关闭此开关时，任务会停下。"
+    },
+    "RogueEventCapture": {
+      "name": "未识别事件保存截图（调试）",
+      "help": "仅作调试工具：开启后在事件识别失败、规则缺失、目标未出现或关闭自动选择事件时保存截图。日常建议关闭。"
     },
     "RogueSaveKeep": {
       "name": "结算保留的存档",
@@ -1717,7 +1721,12 @@
       "PriorityTag": "优先",
       "CardKindBasic": "基础卡 · 初始 {count} 张",
       "CardKindSpark": "可灵闪卡 · 初始 {count} 张",
-      "CardKindUnique": "角色卡 · 初始 {count} 张"
+      "CardKindUnique": "角色卡 · 初始 {count} 张",
+      "EventRecorderTitle": "事件记录器（调试）",
+      "EventRecorderHelp": "仅记录已成功确认选择过的事件种类（不截图），重复遇到不会重复计数。当前已记录：{seen} / {total}",
+      "EventRecorderRefresh": "刷新",
+      "EventRecorderClear": "清空记录",
+      "EventRecorderCleared": "已清空事件记录"
     }
   }
 }

@@ -1044,7 +1044,11 @@
     },
     "RogueEventPick": {
       "name": "ルールに従ってイベントを選択",
-      "help": "有効時は設定済みルールで選択します。無効時やイベント・ルール・対象選択肢を確認できない場合は、画面を保存して停止します。"
+      "help": "有効時は設定済みルールで選択します。無効時やイベント・ルール・対象選択肢を確認できない場合は停止します。"
+    },
+    "RogueEventCapture": {
+      "name": "未認識イベントの画面を保存（デバッグ）",
+      "help": "デバッグ専用：自動選択が無効な場合や、イベント・ルール・対象選択肢を確認できない場合に画面を保存します。通常はオフにしてください。"
     },
     "RogueSaveKeep": {
       "name": "精算時に保持するセーブ",
@@ -1717,7 +1721,12 @@
       "PriorityTag": "優先",
       "CardKindBasic": "基本カード · 初期 {count} 枚",
       "CardKindSpark": "閃き対象 · 初期 {count} 枚",
-      "CardKindUnique": "固有カード · 初期 {count} 枚"
+      "CardKindUnique": "固有カード · 初期 {count} 枚",
+      "EventRecorderTitle": "イベント記録（デバッグ）",
+      "EventRecorderHelp": "スクリーンショットなしで選択確定済みのイベント種類のみを記録します。重複時は加算されません。記録済み：{seen} / {total}",
+      "EventRecorderRefresh": "更新",
+      "EventRecorderClear": "記録をクリア",
+      "EventRecorderCleared": "イベント記録をクリアしました"
     }
   }
 }

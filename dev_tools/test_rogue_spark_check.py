@@ -48,7 +48,7 @@ class SparkCheckTest(unittest.TestCase):
                 frame = 'team'
             return retreat
 
-        def enter_run():
+        def enter_run(**_):
             nonlocal frame
             calls.append(('enter', frame))
             frame = 'entry'

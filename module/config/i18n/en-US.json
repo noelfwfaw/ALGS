@@ -1044,7 +1044,11 @@
     },
     "RogueEventPick": {
       "name": "Choose events from rules",
-      "help": "Use configured event choices when enabled. The task saves a screenshot and stops if this is off or an event, rule or target option cannot be matched."
+      "help": "Use configured event choices when enabled. The task stops if this is off or an event, rule or target option cannot be matched."
+    },
+    "RogueEventCapture": {
+      "name": "Save unrecognized event screenshots (debug)",
+      "help": "Debug tool only: save a screenshot when an event, rule or target option cannot be matched, or when automatic event selection is off. Leave off for regular runs."
     },
     "RogueSaveKeep": {
       "name": "Save to keep at settlement",
@@ -1717,7 +1721,12 @@
       "PriorityTag": "Priority",
       "CardKindBasic": "Basic · {count} copy(s)",
       "CardKindSpark": "Sparkable · {count} copy(s)",
-      "CardKindUnique": "Character · {count} copy(s)"
+      "CardKindUnique": "Character · {count} copy(s)",
+      "EventRecorderTitle": "Event Recorder (Debug)",
+      "EventRecorderHelp": "Records unique event types confirmed without screenshots. Repeated encounters do not increment the count. Recorded: {seen} / {total}",
+      "EventRecorderRefresh": "Refresh",
+      "EventRecorderClear": "Clear",
+      "EventRecorderCleared": "Event records cleared"
     }
   }
 }

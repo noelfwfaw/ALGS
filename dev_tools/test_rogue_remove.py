@@ -14,7 +14,9 @@ set_server('chaoszero')
 
 from module.base.timer import Timer
 from module.chaoszero.assets import ROGUE_FLASH_DETAIL, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP
-from module.chaoszero.rogue import ChaoszeroRogue, REMOVE_MAX_TRIES, REMOVE_SCROLL_TIMES
+from module.chaoszero.rogue import (ChaoszeroRogue, REMOVE_CARD_WIDTH, REMOVE_GRID_COLS,
+                                     REMOVE_MAX_TRIES, REMOVE_SCROLL_TIMES,
+                                     REMOVE_STILL_THRESHOLD)
 from module.chaoszero.rogue_cards import CardReader
 from module.exception import TaskFailed
 
@@ -308,6 +310,36 @@ class RemovalFlowTest(unittest.TestCase):
         self.task.tap_point.assert_called_once_with(877, 218, name='ROGUE_REMOVE_CARD')
         self.assertEqual(self.task.remove_done, 0)
 
+    def test_missed_scan_rehomes_before_retrying(self):
+        self.task.rogue_remove_to_top = Mock()
+        self.task.rogue_remove_pick.side_effect = [None, self.target]
+        self.assertTrue(self.step())
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.rogue_remove_to_top.call_count, 2)
+        self.task.tap_point.assert_called_once_with(877, 218, name='ROGUE_REMOVE_CARD')
+
+    def test_remove_card_points_handles_dark_and_clipped_cards_by_left_border(self):
+        task = make_task()
+        image = task.device.image
+        image[:] = 28
+        # Top-clipped partial row (header scrolled off) should be ignored.
+        for left in REMOVE_GRID_COLS[:3]:
+            image[69:270, left:left + 4] = (230, 80, 140)
+        # Full row including a dark-art card (body stays dark) at col 2.
+        for left in REMOVE_GRID_COLS:
+            image[294:572, left:left + 4] = (230, 80, 140)
+        image[294:572, REMOVE_GRID_COLS[0]:REMOVE_GRID_COLS[0] + REMOVE_CARD_WIDTH] = 220
+        points = task.rogue_remove_card_points()
+        self.assertEqual([(pt[2], pt[3]) for pt in points],
+                         [(293, left) for left in REMOVE_GRID_COLS])
+
+    def test_scroll_wait_uses_relaxed_still_threshold_for_card_glow(self):
+        task = make_task()
+        task.rogue_flash_card_points = Mock(return_value=[(450, 220, 82, 360, 188, 280)])
+        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['一縷光芒', '劍幕']))
+        task.rogue_remove_pick()
+        self.assertEqual(task.wait_until_still.call_args[1]['threshold'], REMOVE_STILL_THRESHOLD)
+
 
 SAMPLE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)),
                           'log', 'rogue_card_pages', 'remove')
@@ -362,6 +394,35 @@ class RemovalCaptureTest(unittest.TestCase):
         task.tap_point.assert_called_once_with(849, 454, name='ROGUE_REMOVE_SKIP_CONFIRM')
         self.assertEqual(task.remove_done, 3)
         task.rogue_state_save.assert_not_called()
+
+
+@unittest.skipUnless(os.path.exists(os.path.join(SAMPLE_DIR, '003508.png')),
+                     'Latest removal captures are not available')
+class LiveRemovalCaptureRegressionTest(unittest.TestCase):
+    def test_live_captures_find_dark_rapid_fire_and_merged_sword_light(self):
+        task = make_task()
+        del task.rogue_delete_times
+        task.card_reader = CardReader()
+        node = {'RogueDeleteFilter': '劍光 = 2\n劍幕 = 1\n速射彈 = 2\n山茶花幻象 = 1\n水箭 = 1'}
+        task.config = SimpleNamespace(
+            data={'ChaoszeroRogue': {'ChaoszeroRogue': node}},
+            ChaoszeroRogue_RogueDeleteFilter=node['RogueDeleteFilter'],
+        )
+        task.remove_counts = {}
+        task.device.image = np.array(Image.open(os.path.join(SAMPLE_DIR, '001531.png')))
+        self.assertEqual(len(task.rogue_remove_card_points()), 8)
+        self.assertEqual(task.rogue_remove_pick()[:2], ((454, 222), '劍光'))
+
+        task.remove_counts = {'劍光': 2, '劍幕': 1}
+        task.device.image = np.array(Image.open(os.path.join(SAMPLE_DIR, '003508.png')))
+        self.assertEqual(len(task.rogue_remove_card_points()), 4)
+        self.assertEqual(task.rogue_remove_pick()[:2], ((454, 433), '速射彈'))
+
+        task.device.image = np.array(Image.open(os.path.join(SAMPLE_DIR, '003459.png')))
+        self.assertEqual(len(task.rogue_remove_card_points()), 7)
+
+        task.device.image = np.array(Image.open(os.path.join(SAMPLE_DIR, '003513.png')))
+        self.assertEqual(len(task.rogue_remove_card_points()), 8)
 
 
 class ConfiguredRemovalTest(unittest.TestCase):

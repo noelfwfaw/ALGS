@@ -320,10 +320,15 @@ FLASH_CONFIRM_POINT = (1153, 666)
 # ❗复制卡页**只复制这一张**（用户 2026-11-17：「复制卡牌设定为只复制一号位的剑雨」）。
 # 认不出它（分数不够 / 领先不够）就点「跳過」，一张都不拿 —— 复制会直接把卡塞进
 # 牌堆，认错一张就是往牌堆里加垃圾。
-# ❗神闪选卡页（`請選擇1張要賦予神之靈光一閃的卡牌。`）优先选这张，
-# 找不到就点第一张（用户 2026-11-17：「直接指定一个卡名，没有的时候就点第一个」）。
+# ❗神闪选卡页（`請選擇1張要賦予神之靈光一閃的卡牌。`）按灵闪状态分级：
+#   0=未灵闪 → 1=普通灵闪（未神闪） → 2=已神闪；同级再优先这张卡，找不到点同级第一张。
 GOD_CARD_NAME = '劍之雨'
 GOD_CARD_MATCH = 0.55
+FLASH_BADGE_ASSET = './assets/chaoszero/chaoszero/ROGUE_GOD_CARD_TITLE.png'
+FLASH_BADGE_CROP = (1010, 438, 1036, 464)
+GOD_BADGE_ASSET = './assets/chaoszero/chaoszero/ROGUE_GOD_BADGE.png'
+FLASH_BADGE_MATCH = 0.65
+GOD_BADGE_MATCH = 0.40
 
 COPY_CARD_MATCH = 0.55      # 卡名相似度门槛（实测 科沃斯基爵士 0.96 / 決心墜飾 0.39）
 COPY_CARD_MARGIN = 0.12     # 领先第二名多少才算"确定是这一张"
@@ -747,6 +752,9 @@ REMOVE_OK_AREA = (1000, 640, 1270, 700)  # 选中卡片后变橙的「移除」�
 REMOVE_SCROLL = ((1220, 600), (1220, 200))  # 往下翻，露出下面的行
 REMOVE_HOME = ((1220, 200), (1220, 600))  # 拖回顶部
 REMOVE_SCROLL_TIMES = 3
+REMOVE_GRID_COLS = (360, 573, 784, 994)
+REMOVE_CARD_WIDTH = 188
+REMOVE_STILL_THRESHOLD = 3.5
 
 # 地图节点提示卡 `進入傳送門內部 / 觸發【…】事件`：点**卡身**才有反应，卡外的点击
 # 会被卡吃掉。卡大约占 (478,528)-(802,700)，所以点 (640,600)。
@@ -1544,7 +1552,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         if not ranked:
             self.event_unknown = True
             logger.warning('No event matches this page (%s card(s)), maybe a card grid. '
-                           'Stop and save a frame instead of picking blindly.' % len(texts))
+                           'Stop instead of picking blindly.' % len(texts))
             return None
         self.event_unknown = True
         logger.warning('Event has candidates but no matching configured option; stop for review')
@@ -1713,6 +1721,8 @@ class ChaoszeroRogue(ChaoszeroUI):
             enc_id = choice.get('id')
             if enc_id:
                 self.event_visit[enc_id] = self.event_visit.get(enc_id, 0) + 1
+                root_id = getattr(self, 'event_root', None) or rogue_events.resolve_root_event(enc_id)
+                self.rogue_event_record_seen(root_id, choice.get('name'))
                 record = self.event_library.records.get(enc_id) or {}
                 for option in record.get('options', []):
                     if choice['order'] is None:
@@ -1724,7 +1734,12 @@ class ChaoszeroRogue(ChaoszeroUI):
                             child = (option.get('raw', {}).get(field) or {}).get('next_encounter')
                             if isinstance(child, str):
                                 self.event_followups.add(child)
+                self.event_root = root_id if self.event_followups else None
+            else:
+                self.event_root = None
             logger.info('Event choice submitted: %s' % choice)
+        else:
+            self.event_root = None
         self.event_pending_choice = None
         self.event_last_enc = None
         self.event_choice = None
@@ -1734,6 +1749,21 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.event_submit_wait = None
         self.event_submit_clear.clear()
         self.event_submit_attempts = 0
+
+    def rogue_event_record_seen(self, event_id, name=None):
+        """Record a confirmed event kind for coverage debugging without screenshots."""
+        if rogue_events.record_seen_event(event_id):
+            label = f'{name} ({event_id})' if name else str(event_id)
+            logger.info('Event recorder: added %s' % label)
+
+    def rogue_event_capture(self):
+        """Whether unrecognized or unmatched event pages should dump a debug screenshot."""
+        data = getattr(self.config, 'data', None)
+        if isinstance(data, dict):
+            node = (data.get('ChaoszeroRogue', {}) or {}).get('ChaoszeroRogue', {})
+            if isinstance(node, dict) and 'RogueEventCapture' in node:
+                return bool(node['RogueEventCapture'])
+        return bool(getattr(self.config, 'ChaoszeroRogue_RogueEventCapture', False))
 
     def handle_rogue_event(self, press):
         """Select and submit one recognized event page, without stale positions."""
@@ -1780,7 +1810,8 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.event_page = key
             self.event_index = self.rogue_event_index(points)
         if self.event_unknown or self.event_index is None or self.event_choice is None:
-            self.rogue_dump_unknown()
+            if self.rogue_event_capture():
+                self.rogue_dump_unknown()
             if self.event_missing_pick:
                 event_id, name = self.event_missing_pick
                 world = self.config.ChaoszeroRogue_RogueWorld
@@ -2378,6 +2409,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.event_unknown = False
         self.event_visit = {}
         self.event_followups = set()
+        self.event_root = None
         self.event_last_enc = None
         logger.info('Entered route node (step %s, plan index %s)' % (self.route_step, self.plan_index))
         return True
@@ -2951,37 +2983,85 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         return self.appear(ROGUE_GOD_CARD_TITLE, offset=(16, 10), similarity=0.85)
 
-    def rogue_god_card_pick(self):
-        """Find `GOD_CARD_NAME` on the god-flash card picker.
+    @staticmethod
+    def _card_grad_blur(patch):
+        grey = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY).astype(np.float32)
+        gx = cv2.Sobel(grey, cv2.CV_32F, 1, 0, ksize=3)
+        gy = cv2.Sobel(grey, cv2.CV_32F, 0, 1, ksize=3)
+        return cv2.GaussianBlur(np.sqrt(gx * gx + gy * gy), (3, 3), 0.8)
 
-        用户 2026-11-17：「直接指定一个卡名，没有的时候就点第一个」。
-        所以这里只负责"找得到就返回它"，找不到返回 None，由调用方点第一张。
+    def _flash_badge_templates(self):
+        cache = getattr(self, 'template_cache', None)
+        if cache is None:
+            cache = {}
+            self.template_cache = cache
+        pair = cache.get('flash_badges')
+        if pair is None:
+            norm_img = cv2.imread(FLASH_BADGE_ASSET, cv2.IMREAD_GRAYSCALE)
+            god_img = cv2.imread(GOD_BADGE_ASSET, cv2.IMREAD_GRAYSCALE)
+            x1, y1, x2, y2 = FLASH_BADGE_CROP
+            norm = norm_img[y1:y2, x1:x2] if norm_img is not None else None
+            god = god_img.astype(np.float32) if god_img is not None else None
+            pair = (norm, god)
+            cache['flash_badges'] = pair
+        return pair
+
+    def rogue_card_flash_tier(self, image, top, left, width, height):
+        """Classify a card's flash state: 0=none, 1=normal flash, 2=god flash."""
+        norm, god = self._flash_badge_templates()
+        if width > 230:
+            card = cv2.resize(image[top:top + height, left:left + width],
+                              (188, 280), interpolation=cv2.INTER_AREA)
+            search = card[44:96, 11:52]
+        else:
+            search = image[max(0, top + 44):top + 96, max(0, left + 11):left + 52]
+        if norm is not None and search.shape[0] >= norm.shape[0] and search.shape[1] >= norm.shape[1]:
+            grey = cv2.cvtColor(search, cv2.COLOR_RGB2GRAY)
+            if cv2.matchTemplate(grey, norm, cv2.TM_CCOEFF_NORMED).max() >= FLASH_BADGE_MATCH:
+                return 1
+        if god is not None and search.shape[0] >= god.shape[0] and search.shape[1] >= god.shape[1]:
+            if cv2.matchTemplate(self._card_grad_blur(search), god, cv2.TM_CCOEFF_NORMED).max() >= GOD_BADGE_MATCH:
+                return 2
+        return 0
+
+    def rogue_god_card_pick(self, points=None):
+        """Pick a card on the god-flash card picker by flash tier, then `GOD_CARD_NAME`.
+
+        Priority: no flash (0) > normal flash without god flash (1) > already god-flashed (2).
+        Within the best tier, prefer `GOD_CARD_NAME`, otherwise pick the first card.
 
         Returns:
-            tuple | None: (x, y, name, score)；None = 按第一张处理。
+            tuple | None: (x, y, name, score), or None when no card boxes are detected.
         """
-        points = self.rogue_flash_card_points()
+        if points is None:
+            points = self.rogue_flash_card_points(opening=11) or self.rogue_flash_card_points()
         if not points:
             return None
-        if self.card_reader is None:
-            self.card_reader = rogue_cards.CardReader()
         image = self.device.image
-        best = None
-        for x, y, top, left, width, height in points:
-            area = (left + 20, top + 6, left + width - 10, top + 40)
-            text = self.card_reader.read_name(image, area)
-            if not text:
-                continue
-            score = rogue_cards.name_score(text, GOD_CARD_NAME)
-            if best is None or score > best[3]:
-                best = (x, y, GOD_CARD_NAME, score, text)
-        if best is None or best[3] < GOD_CARD_MATCH:
-            logger.info('God-card picker: no %s (best %.2f), use the first card'
-                        % (GOD_CARD_NAME, best[3] if best else 0.0))
-            return None
-        logger.info('God-card picker: %s at (%s, %s) %.2f OCR=%r'
-                    % (best[2], best[0], best[1], best[3], best[4][:12]))
-        return best[0], best[1], best[2], best[3]
+        tiers = [self.rogue_card_flash_tier(image, top, left, width, height)
+                 for _, _, top, left, width, height in points]
+        best_tier = min(tiers)
+        candidates = [point for point, tier in zip(points, tiers) if tier == best_tier]
+        if len(candidates) > 1:
+            if self.card_reader is None:
+                self.card_reader = rogue_cards.CardReader()
+            best = None
+            for x, y, top, left, width, height in candidates:
+                area = (left + 20, top + 6, left + width - 10, top + 40)
+                text = self.card_reader.read_name(image, area)
+                if not text:
+                    continue
+                score = rogue_cards.name_score(text, GOD_CARD_NAME)
+                if best is None or score > best[3]:
+                    best = (x, y, GOD_CARD_NAME, score, text)
+            if best is not None and best[3] >= GOD_CARD_MATCH:
+                logger.info('God-card picker: tier %s %s at (%s, %s) %.2f OCR=%r'
+                            % (best_tier, best[2], best[0], best[1], best[3], best[4][:12]))
+                return best[0], best[1], best[2], best[3]
+        first = candidates[0]
+        logger.info('God-card picker: tier %s (%s/%s cards) -> (%s, %s)'
+                    % (best_tier, len(candidates), len(points), first[0], first[1]))
+        return first[0], first[1], '', 0.0
 
 
     def rogue_flash_card_points(self, opening=0):
@@ -3163,7 +3243,55 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.device.click_record_clear()
             self.device.drag(REMOVE_HOME[0], REMOVE_HOME[1], name='ROGUE_REMOVE_HOME')
             self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                  threshold=REMOVE_STILL_THRESHOLD,
                                   skip_first_screenshot=False)
+
+    def rogue_remove_card_points(self):
+        """Locate visible removal cards using each column's bright left border.
+
+        Bright-art cards merge across the 25px column gap and dark-art cards
+        lose their top header when segmented by V>90 alone. Detecting the
+        4px-wide left border strip in the fixed 4-column removal grid preserves
+        every card's exact top edge, falling back to `rogue_flash_card_points`
+        if no fixed-column cards are found.
+        """
+        image = self.device.image
+        points = []
+        kernel = np.ones((7, 1), np.uint8)
+        for left in REMOVE_GRID_COLS:
+            strip = np.max(image[68:630, left:left + 4, :3], axis=(1, 2))
+            active = (strip > 130).astype(np.uint8)
+            active = cv2.morphologyEx(active.reshape(-1, 1), cv2.MORPH_CLOSE, kernel).ravel()
+            runs = []
+            start = None
+            for idx, val in enumerate(active):
+                if val and start is None:
+                    start = idx + 68
+                elif not val and start is not None:
+                    runs.append((start, idx + 68))
+                    start = None
+            if start is not None:
+                runs.append((start, 630))
+            for top, bottom in runs:
+                height = bottom - top
+                if height < 60:
+                    continue
+                if top <= 72 and height < 255:
+                    continue
+                if top >= 585:
+                    continue
+                points.append((
+                    left + REMOVE_CARD_WIDTH // 2,
+                    (top + bottom) // 2,
+                    max(68, top - 1),
+                    left,
+                    REMOVE_CARD_WIDTH,
+                    height,
+                ))
+        if points:
+            points.sort(key=lambda item: (item[2] // 150, item[0]))
+            return points
+        return self.rogue_flash_card_points(opening=11)
 
     def rogue_remove_pick(self):
         """Return ((x, y), name, score, OCR) for the highest-priority removal target.
@@ -3183,10 +3311,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         seen = set()
         points = []
         for page in range(REMOVE_SCROLL_TIMES + 1):
-            # Removal captures 044408/204838: glow joins two rows into a 518px
-            # component or shifts a card's left edge by 5px (劍幕 OCR becomes 劍墓).
-            # An 11px opening separates the rows and restores the name crop.
-            points = self.rogue_flash_card_points(opening=11)
+            points = self.rogue_remove_card_points()
             if not points:
                 logger.info('Removal pick: no card boxes detected, do not pick by position')
                 return None
@@ -3228,6 +3353,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.device.click_record_clear()
             self.device.drag(REMOVE_SCROLL[0], REMOVE_SCROLL[1], name='ROGUE_REMOVE_SCROLL')
             if not self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                         threshold=REMOVE_STILL_THRESHOLD,
                                          skip_first_screenshot=False):
                 break
             if not self.rogue_remove_appear():
@@ -3375,10 +3501,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                         % self.remove_tries)
             self.rogue_remove_cancel()
             return True
-        if self.remove_tries == 0:
-            # First scan of this page visit: the grid may still be scrolled from
-            # a previous visit, so home it before looking (hard rule 181).
-            self.rogue_remove_to_top()
+        # Re-home before each full scan so retries never start stranded at the bottom.
+        self.rogue_remove_to_top()
         self.remove_tries += 1
         picked = self.rogue_remove_pick()
         if picked is None:
@@ -3388,7 +3512,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.remove_target = picked
         self.remove_stage = 1
         self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
-        logger.info('Remove %s at %s, priority 劍幕 > 劍光' % (picked[1], picked[0]))
+        logger.info('Remove %s at %s (score %.2f, OCR=%r)'
+                    % (picked[1], picked[0], picked[2], picked[3]))
         self.tap_point(*picked[0], name='ROGUE_REMOVE_CARD')
         return True
 
@@ -4646,6 +4771,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 每点成功一次卡 +1（在 `# 6.5`），所以一轮恰好加一次。
         self.event_visit = {}
         self.event_followups = set()
+        self.event_root = None
         self.event_last_enc = None
         self.event_choice = None
         self.event_pending_choice = None
@@ -5045,6 +5171,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 self.event_index = None
                 self.event_visit = {}
                 self.event_followups = set()
+                self.event_root = None
                 self.event_last_enc = None
 
             # 2. 橙色主按钮：確認 / 繼續進行 / 獲得 / 進入。
@@ -5122,19 +5249,19 @@ class ChaoszeroRogue(ChaoszeroUI):
                     # ❗坐标**动态检测**：这页有 4 张大卡 / 6 张小卡两种布局，
                     # 固定的 (320,400) 在 6 卡布局里落在卡下方空白处，
                     # 点五轮都选不中（2026-11-16 18:30 实测）。
-                    points = self.rogue_flash_card_points()
+                    is_god = self.rogue_god_card_appear()
+                    points = (self.rogue_flash_card_points(opening=11) or self.rogue_flash_card_points()
+                              if is_god else self.rogue_flash_card_points())
                     if not points:
                         if press.reached():
                             press.reset()
                             logger.info('Flash-card picker, no card detected yet, wait')
                         continue
                     # ❗两版选卡页的"选哪张"不一样：
-                    #   神之靈光一閃（要賦予）→ 按 `GOD_CARD_NAME` 找，找不到点第一张
+                    #   神之靈光一閃（要賦予）→ 无灵闪 > 无神闪 > 已神闪，同级优先 `GOD_CARD_NAME`
                     #   欲觸發靈光一閃        → 按 `RoguePick` 号位
-                    if self.rogue_god_card_appear():
-                        target = self.rogue_god_card_pick()
-                        if target is None:
-                            target = points[0]
+                    if is_god:
+                        target = self.rogue_god_card_pick(points) or points[0]
                         label = 'god-card'
                     else:
                         index = min(self.rogue_pick_index(), len(points))

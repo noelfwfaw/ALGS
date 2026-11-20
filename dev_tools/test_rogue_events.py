@@ -18,7 +18,9 @@ set_server('chaoszero')
 from module.base.timer import Timer
 from module.chaoszero.rogue import ChaoszeroRogue
 from module.chaoszero.rogue_events import EventLibrary, SHARED_CHOICE_GROUPS, packs_for_world
+from module.config.config_generated import GeneratedConfig
 from module.exception import RequestHumanTakeover, TaskFailed
+from module.webui.app import ROGUE_SECTIONS
 
 
 def record(name, options):
@@ -30,6 +32,7 @@ def make_task():
     task = ChaoszeroRogue.__new__(ChaoszeroRogue)
     task.device = SimpleNamespace(image=np.zeros((720, 1280, 3), dtype=np.uint8))
     task.config = SimpleNamespace(ChaoszeroRogue_RogueEventPick=True,
+                                  ChaoszeroRogue_RogueEventCapture=False,
                                   ChaoszeroRogue_RogueWorld='霧之城市')
     task.event_library = EventLibrary.__new__(EventLibrary)
     task.event_library.records = {
@@ -43,6 +46,7 @@ def make_task():
     task.card_reader = SimpleNamespace(read_name=Mock())
     task.event_visit = {}
     task.event_followups = set()
+    task.event_root = None
     task.event_last_enc = None
     task.event_choice = None
     task.event_pending_choice = None
@@ -54,6 +58,7 @@ def make_task():
     task.event_index = None
     task.option_pending = None
     task.rogue_event_record = Mock()
+    task.rogue_event_record_seen = Mock()
     task.rogue_dump_unknown = Mock()
     task.tap_point = Mock()
     task.rogue_pick_index = Mock(return_value=1)
@@ -158,7 +163,7 @@ class EventSelectionTest(unittest.TestCase):
             self.step()
         self.task.tap_point.assert_not_called()
         self.task.rogue_pick_index.assert_not_called()
-        self.task.rogue_dump_unknown.assert_called_once()
+        self.task.rogue_dump_unknown.assert_not_called()
         self.assertIsNone(self.task.event_pending_choice)
         self.assertEqual(self.task.event_visit, {})
 
@@ -174,7 +179,7 @@ class EventSelectionTest(unittest.TestCase):
             self.step()
         self.task.tap_point.assert_not_called()
         self.task.rogue_pick_index.assert_not_called()
-        self.task.rogue_dump_unknown.assert_called_once()
+        self.task.rogue_dump_unknown.assert_not_called()
 
     def test_residue_priority_uses_first_verified_choice_on_each_page(self):
         event_id = 'uk_904_s01_06b'
@@ -205,7 +210,7 @@ class EventSelectionTest(unittest.TestCase):
                             with self.assertRaises(TaskFailed):
                                 self.step()
                             self.task.tap_point.assert_not_called()
-                            self.task.rogue_dump_unknown.assert_called_once()
+                            self.task.rogue_dump_unknown.assert_not_called()
                             self.assertIsNone(self.task.event_pending_choice)
                         else:
                             self.assertTrue(self.step())
@@ -241,7 +246,7 @@ class EventSelectionTest(unittest.TestCase):
                             with self.assertRaises(TaskFailed):
                                 self.step()
                             self.task.tap_point.assert_not_called()
-                            self.task.rogue_dump_unknown.assert_called_once()
+                            self.task.rogue_dump_unknown.assert_not_called()
                         else:
                             self.assertTrue(self.step())
                             choice = self.task.event_pending_choice
@@ -427,7 +432,7 @@ class EventSelectionTest(unittest.TestCase):
         self.assertTrue(self.task.event_unknown)
         self.assertIsNone(self.task.event_index)
         self.task.tap_point.assert_not_called()
-        self.task.rogue_dump_unknown.assert_called_once()
+        self.task.rogue_dump_unknown.assert_not_called()
         self.task.rogue_pick_index.assert_not_called()
 
     def test_known_event_without_user_rule_requests_human_once(self):
@@ -439,7 +444,7 @@ class EventSelectionTest(unittest.TestCase):
         with self.assertRaisesRegex(RequestHumanTakeover, '藍壺「食屍鬼飼養場」\\(uk_300_s02_15b\\)'):
             self.step()
         self.task.tap_point.assert_not_called()
-        self.task.rogue_dump_unknown.assert_called_once()
+        self.task.rogue_dump_unknown.assert_not_called()
 
     def test_disabled_event_recognition_does_not_enable_position_fallback(self):
         self.task.config.ChaoszeroRogue_RogueEventPick = False
@@ -448,6 +453,35 @@ class EventSelectionTest(unittest.TestCase):
             self.step()
         self.task.tap_point.assert_not_called()
         self.task.rogue_pick_index.assert_not_called()
+        self.task.rogue_dump_unknown.assert_not_called()
+
+    def test_unrecognized_event_capture_is_off_by_default_and_saves_only_when_enabled(self):
+        self.assertFalse(GeneratedConfig.ChaoszeroRogue_RogueEventCapture)
+        self.assertEqual(ROGUE_SECTIONS['Events'], ('RogueEventPick', 'RogueEventCapture'))
+
+        self.task.config.ChaoszeroRogue_RogueEventCapture = True
+        self.feed(['亂碼未知甲', '亂碼未知乙'])
+        with self.assertRaises(TaskFailed):
+            self.step()
+        self.task.rogue_dump_unknown.assert_called_once()
+
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueWorld = '藍壺'
+        self.task.config.ChaoszeroRogue_RogueEventCapture = True
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {}
+        self.feed(['查看食尿鬼飼養場', '忽路'])
+        with self.assertRaises(RequestHumanTakeover):
+            self.step()
+        self.task.rogue_dump_unknown.assert_called_once()
+
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueEventPick = False
+        self.task.config.ChaoszeroRogue_RogueEventCapture = True
+        self.feed(['取出左側箱子', '離開洞窟'])
+        with self.assertRaises(TaskFailed):
+            self.step()
+        self.task.rogue_dump_unknown.assert_called_once()
 
     def test_preselected_option_without_own_pending_choice_is_not_confirmed(self):
         self.feed(['取出左側箱子', '離開洞窟'])
@@ -549,6 +583,106 @@ class EventSelectionTest(unittest.TestCase):
         )
         self.assertIsNone(self.task.event_choice['order'])
         self.assertEqual(self.task.event_choice['target'], '打破混亂')
+
+    def test_event_recorder_counts_unique_confirmed_root_events_without_screenshots(self):
+        from module.chaoszero import rogue_events
+
+        with TemporaryDirectory() as directory:
+            seen_path = Path(directory) / 'rogue_event_seen.json'
+            with patch.object(rogue_events, 'EVENT_SEEN_FILE', str(seen_path)):
+                summary = rogue_events.summarize_seen_events()
+                lanhu = next(item for item in summary if item['world'] == '藍壺')
+                self.assertEqual((lanhu['seen'], lanhu['total']), (0, 30))
+
+                # Real confirmation on 藍壺 root event increments 0 -> 1, repeat stays 1.
+                self.task = make_task()
+                self.task.config.ChaoszeroRogue_RogueWorld = '藍壺'
+                self.task.event_library = EventLibrary()
+                self.task.rogue_event_record_seen = ChaoszeroRogue.rogue_event_record_seen.__get__(
+                    self.task, ChaoszeroRogue)
+                self.task.event_picks = {
+                    'uk_300_s02_15b': {'priority': ['查看食屍鬼飼養場']},
+                    'uk_300_s02_15b-1': {'priority': ['打開左邊的箱子']},
+                }
+                self.feed(['查看食屍鬼飼養場', '忽略'])
+                self.assertTrue(self.step())
+                self.confirm()
+                lanhu = next(item for item in rogue_events.summarize_seen_events() if item['world'] == '藍壺')
+                self.assertEqual((lanhu['seen'], lanhu['total']), (1, 30))
+
+                # Sub-event and repeated encounter of the same root event do not increment again.
+                self.feed(['打開左邊的箱子', '打開右邊的箱子'])
+                self.assertTrue(self.step())
+                self.confirm()
+                self.feed(['查看食屍鬼飼養場', '忽略'])
+                self.assertTrue(self.step())
+                self.confirm()
+                lanhu = next(item for item in rogue_events.summarize_seen_events() if item['world'] == '藍壺')
+                self.assertEqual((lanhu['seen'], lanhu['total']), (1, 30))
+
+                # Follow-up chain into another root id (02c -> 02a) attributes to the entry root (02c).
+                self.task.event_followups.clear()
+                self.task.event_root = None
+                self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+                self.task.event_picks = {'uk_302_s02_02c': [1], 'uk_302_s02_02a': [3]}
+                self.feed(['欺騙侵略者', '活化蘑菇', '偷偷品嚐蘑菇'])
+                self.assertTrue(self.step())
+                self.confirm()
+                self.feed(['品嚐蘑菇', '吸入孢子'])
+                self.assertTrue(self.step())
+                self.confirm()
+                self.assertEqual(rogue_events.load_seen_events(), {'uk_300_s02_15b', 'uk_302_s02_02c'})
+
+                # Unconfirmed / missing-rule / unknown events are never recorded.
+                self.task.event_picks = {}
+                self.feed(['亂碼未知甲', '亂碼未知乙'])
+                with self.assertRaises(TaskFailed):
+                    self.step()
+                self.assertEqual(rogue_events.load_seen_events(), {'uk_300_s02_15b', 'uk_302_s02_02c'})
+
+                # Clearing resets back to 0 / 30.
+                self.assertTrue(rogue_events.clear_seen_events())
+                lanhu = next(item for item in rogue_events.summarize_seen_events() if item['world'] == '藍壺')
+                self.assertEqual((lanhu['seen'], lanhu['total']), (0, 30))
+
+    def test_webui_event_recorder_renders_world_counts_and_clears(self):
+        from contextlib import nullcontext
+        from unittest.mock import MagicMock
+        from module.chaoszero import rogue_events
+        from module.webui import app as webui_app
+
+        gui = webui_app.AlasGUI.__new__(webui_app.AlasGUI)
+        collapses = []
+        texts = []
+
+        def fake_text(val):
+            texts.append(val)
+            m = MagicMock()
+            m.style.return_value = m
+            return m
+
+        def fake_collapse(title, content):
+            collapses.append(title)
+            return MagicMock()
+
+        with TemporaryDirectory() as directory:
+            seen_path = Path(directory) / 'rogue_event_seen.json'
+            with patch.object(rogue_events, 'EVENT_SEEN_FILE', str(seen_path)), \
+                    patch.object(webui_app, 'use_scope', return_value=nullcontext()), \
+                    patch.object(webui_app, 'put_html'), \
+                    patch.object(webui_app, 'put_text', side_effect=fake_text), \
+                    patch.object(webui_app, 'put_buttons'), \
+                    patch.object(webui_app, 'put_collapse', side_effect=fake_collapse), \
+                    patch.object(webui_app, 'toast') as fake_toast, \
+                    patch.object(webui_app, 't', side_effect=lambda k, **kw: f'{k}:{kw}' if kw else k):
+                rogue_events.record_seen_event('uk_300_s02_01a')
+                gui._render_rogue_event_recorder()
+                self.assertIn('藍壺　1 / 30', collapses)
+
+                collapses.clear()
+                gui._clear_rogue_event_recorder()
+                self.assertIn('藍壺　0 / 30', collapses)
+                fake_toast.assert_called_once()
 
 
 if __name__ == '__main__':

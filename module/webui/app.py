@@ -83,7 +83,7 @@ from module.webui.utils import (
     re_fullmatch,
     to_pin_value,
 )
-from module.chaoszero import rogue_spark_catalog as rogue_cards
+from module.chaoszero import rogue_events, rogue_spark_catalog as rogue_cards
 from module.webui.widgets import (
     BinarySwitchButton,
     RichLog,
@@ -120,7 +120,7 @@ ROGUE_SECTIONS = {
         "RoguePick",
     ),
     "Fate": ("RogueFateMainFilter", "RogueFateCoreFilter", "RogueFateCapture"),
-    "Events": ("RogueEventPick",),
+    "Events": ("RogueEventPick", "RogueEventCapture"),
     "Settlement": ("RogueSaveKeep", "RogueRuns", "RogueLoop", "RogueStopBeacon", "RogueCure"),
 }
 ROGUE_SLOT_MEMBER_ARGS = ("RogueSlot1Member", "RogueSlot2Member", "RogueSlot3Member")
@@ -495,10 +495,14 @@ class AlasGUI(Frame):
                 ])
             for output in output_list:
                 output.show()
+            if section == "Events":
+                put_scope("rogue_event_recorder")
 
         if section == "Build":
             self._rogue_spark_active = True
             self._render_rogue_pickers(config)
+        elif section == "Events":
+            self._render_rogue_event_recorder()
 
         return len(output_list)
 
@@ -699,6 +703,37 @@ class AlasGUI(Frame):
     def _on_rogue_remove_card_change(self, card_name: str, new_value: str) -> None:
         with self._get_rogue_picker_lock():
             self._update_rogue_hidden_filter("RogueDeleteFilter", rogue_cards.update_delete_filter, card_name, new_value)
+
+    def _render_rogue_event_recorder(self) -> None:
+        summary = rogue_events.summarize_seen_events()
+        total_seen = sum(item["seen"] for item in summary)
+        total_all = sum(item["total"] for item in summary)
+        with use_scope("rogue_event_recorder", clear=True):
+            put_html('<hr class="hr-group">')
+            put_text(t("Gui.Rogue.EventRecorderTitle")).style("--arg-title--")
+            put_text(t("Gui.Rogue.EventRecorderHelp", seen=total_seen, total=total_all)).style("--arg-help--")
+            put_buttons(
+                buttons=[
+                    {"label": t("Gui.Rogue.EventRecorderRefresh"), "value": "refresh"},
+                    {"label": t("Gui.Rogue.EventRecorderClear"), "value": "clear", "color": "danger"},
+                ],
+                onclick=[self._render_rogue_event_recorder, self._clear_rogue_event_recorder],
+                small=True,
+            )
+            for item in summary:
+                lines = [
+                    f"{'✓' if is_seen else '○'} {ev_name} ({ev_id})"
+                    for ev_id, ev_name, is_seen in item["events"]
+                ]
+                put_collapse(
+                    title=f"{item['world']}　{item['seen']} / {item['total']}",
+                    content=[put_text("\n".join(lines)).style("white-space: pre-wrap; font-size: 0.85rem;")],
+                )
+
+    def _clear_rogue_event_recorder(self) -> None:
+        rogue_events.clear_seen_events()
+        self._render_rogue_event_recorder()
+        toast(t("Gui.Rogue.EventRecorderCleared"), color="success")
 
     @use_scope("navigator")
     def set_navigator(self, group, section=None):

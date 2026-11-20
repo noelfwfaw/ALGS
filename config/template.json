@@ -772,6 +772,7 @@
       "RogueCopyCard": "劍之雨",
       "RogueEquipFilter": null,
       "RogueEventPick": true,
+      "RogueEventCapture": false,
       "RogueSaveKeep": 0,
       "RogueLoop": true,
       "RogueRuns": 1,

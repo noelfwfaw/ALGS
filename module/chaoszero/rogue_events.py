@@ -17,11 +17,18 @@ import json
 import os
 from difflib import SequenceMatcher
 
+from filelock import FileLock, Timeout
+
+from deploy.atomic import atomic_read_bytes, atomic_write
+from module.chaoszero.rogue_spark_catalog import normalize
 from module.logger import logger
 
-from module.chaoszero.rogue_cards import normalize
-
 DATA_FILE = os.path.join(os.path.dirname(__file__), 'rogue_events.json.gz')
+SELECTOR_DATA_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', 'dev_tools', 'rogue_events', 'events.json')
+)
+EVENT_SEEN_FILE = './config/rogue/rogue_event_seen.json'
+_CATALOG_CACHE = {}
 # These terminal pages have identical option conditions and outcomes in the raw data.
 SHARED_CHOICE_GROUPS = (
     ('uk_300_s02_03b', 'uk_300_s02_03a-1', 'uk_300_s02_03c-1'),
@@ -114,6 +121,195 @@ def packs_for_world(world):
     if not own:
         return None
     return COMMON_PACKS + tuple(own)
+
+
+WORLD_GROUPS = (
+    ('藍壺', ('uk_300_s02',)),
+    ('雙星之影', ('uk_302_s02',)),
+    ('霧之城市', ('uk_904_s01',)),
+    ('審判之沼', ('uk_905_s02',)),
+    ('降臨的混沌', ('uk_900_s02',)),
+    ('第0研究所', ('uk_400_s01', 'uk_e01_s01')),
+    ('燃燒的生命', ('uk_401_s01',)),
+    ('虛像劇場', ('uk_402_s01',)),
+    ('萬花筒孵化場', ('uk_403_s01',)),
+    ('天上防護牆', ('uk_404_s01',)),
+    ('其他', COMMON_PACKS),
+)
+
+
+def event_catalog(selector_file=None):
+    """Return `(groups, root_ids, parent_map)` built from the selector's root events."""
+    if selector_file is None:
+        selector_file = SELECTOR_DATA_FILE
+    key = os.path.abspath(selector_file)
+    if key in _CATALOG_CACHE:
+        return _CATALOG_CACHE[key]
+    if not os.path.exists(key):
+        return [], set(), {}
+    try:
+        with open(key, encoding='utf-8-sig') as handle:
+            data = json.load(handle)
+    except (OSError, ValueError) as error:
+        logger.warning('Failed to read event catalog %s: %s' % (key, error))
+        return [], set(), {}
+
+    pack_events = {}
+    root_ids = set()
+    parent_map = {}
+    packs = data.get('packs') or []
+    for pack in packs:
+        pack_id = pack.get('id')
+        if not pack_id:
+            continue
+        entries = pack_events.setdefault(pack_id, [])
+        for event in pack.get('events') or []:
+            root_id = event.get('id')
+            if not root_id:
+                continue
+            root_ids.add(root_id)
+            entries.append((root_id, event.get('name') or root_id))
+
+    for pack in packs:
+        for event in pack.get('events') or []:
+            root_id = event.get('id')
+            if not root_id:
+                continue
+            stack = [event]
+            visited = {root_id}
+            while stack:
+                node = stack.pop()
+                for option in node.get('options') or []:
+                    nxt = option.get('nextDetail') or (
+                        option.get('next') if isinstance(option.get('next'), dict) else None
+                    )
+                    if not nxt:
+                        continue
+                    child_id = nxt.get('id')
+                    if child_id and child_id not in visited:
+                        visited.add(child_id)
+                        if child_id not in root_ids:
+                            parent_map.setdefault(child_id, root_id)
+                        stack.append(nxt)
+
+    assigned = set()
+    groups = []
+    for world, pack_ids in WORLD_GROUPS:
+        events = []
+        for pack_id in pack_ids:
+            assigned.add(pack_id)
+            events.extend(pack_events.get(pack_id, ()))
+        if events:
+            groups.append((world, events))
+    leftover = [item for pack_id, items in pack_events.items() if pack_id not in assigned for item in items]
+    if leftover:
+        for index, (world, events) in enumerate(groups):
+            if world == '其他':
+                groups[index] = (world, events + leftover)
+                break
+        else:
+            groups.append(('其他', leftover))
+
+    result = (groups, root_ids, parent_map)
+    _CATALOG_CACHE[key] = result
+    return result
+
+
+def resolve_root_event(event_id, selector_file=None):
+    """Map a confirmed encounter (including sub-events) back to its root event ID."""
+    if not event_id:
+        return None
+    if selector_file is None:
+        selector_file = SELECTOR_DATA_FILE
+    _, root_ids, parent_map = event_catalog(selector_file)
+    if event_id in root_ids:
+        return event_id
+    return parent_map.get(event_id, event_id)
+
+
+def load_seen_events(path=None):
+    """Load the set of recorded root event IDs from disk."""
+    if path is None:
+        path = EVENT_SEEN_FILE
+    try:
+        content = atomic_read_bytes(path)
+    except OSError as error:
+        logger.warning('Failed to read %s: %s' % (path, error))
+        return set()
+    if not content:
+        return set()
+    try:
+        payload = json.loads(content.decode('utf-8-sig'))
+    except ValueError as error:
+        logger.warning('Invalid event recorder file %s: %s' % (path, error))
+        return set()
+    items = payload.get('seen') if isinstance(payload, dict) else payload
+    if not isinstance(items, list):
+        return set()
+    return {str(item) for item in items if item}
+
+
+def record_seen_event(event_id, path=None, selector_file=None):
+    """Persist one confirmed event ID without duplicates; returns True if newly added."""
+    if path is None:
+        path = EVENT_SEEN_FILE
+    if selector_file is None:
+        selector_file = SELECTOR_DATA_FILE
+    root_id = resolve_root_event(event_id, selector_file=selector_file)
+    if not root_id:
+        return False
+    try:
+        folder = os.path.dirname(path)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        with FileLock(f'{path}.lock', timeout=2):
+            seen = load_seen_events(path)
+            if root_id in seen:
+                return False
+            seen.add(root_id)
+            atomic_write(path, json.dumps({'version': 1, 'seen': sorted(seen)}, ensure_ascii=False, indent=1))
+        return True
+    except (OSError, Timeout) as error:
+        logger.warning('Failed to update %s: %s' % (path, error))
+        return False
+
+
+def clear_seen_events(path=None):
+    """Reset the recorded event kinds back to empty."""
+    if path is None:
+        path = EVENT_SEEN_FILE
+    try:
+        folder = os.path.dirname(path)
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        with FileLock(f'{path}.lock', timeout=2):
+            atomic_write(path, json.dumps({'version': 1, 'seen': []}, ensure_ascii=False, indent=1))
+        return True
+    except (OSError, Timeout) as error:
+        logger.warning('Failed to clear %s: %s' % (path, error))
+        return False
+
+
+def summarize_seen_events(seen=None, path=None, selector_file=None):
+    """Return per-world seen counts and per-event flags in selector order."""
+    if path is None:
+        path = EVENT_SEEN_FILE
+    if selector_file is None:
+        selector_file = SELECTOR_DATA_FILE
+    if seen is None:
+        seen = load_seen_events(path)
+    seen_roots = {resolve_root_event(eid, selector_file=selector_file) for eid in seen}
+    groups, _, _ = event_catalog(selector_file)
+    summary = []
+    for world, events in groups:
+        entries = [(ev_id, ev_name, ev_id in seen_roots) for ev_id, ev_name in events]
+        summary.append({
+            'world': world,
+            'seen': sum(1 for _, _, matched in entries if matched),
+            'total': len(entries),
+            'events': entries,
+        })
+    return summary
 
 # 奖励类型的基础分：卡组质量 > 卡牌数量 > 资源 > 装备。
 # 神闪 > 重灵閃/變形 > 複製 > 角色靈閃 > 靈閃 > 刪卡 > 抽卡 > 资源。

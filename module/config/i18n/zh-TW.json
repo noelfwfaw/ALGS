@@ -1044,7 +1044,11 @@
     },
     "RogueEventPick": {
       "name": "依設定自動選擇事件",
-      "help": "開啟後依事件規則選擇。辨識失敗、規則缺少、目標未出現，或關閉此開關時，任務會儲存截圖並停止。"
+      "help": "開啟後依事件規則選擇。辨識失敗、規則缺少、目標未出現，或關閉此開關時，任務會停止。"
+    },
+    "RogueEventCapture": {
+      "name": "未辨識事件儲存截圖（除錯）",
+      "help": "僅作除錯工具：開啟後在事件辨識失敗、規則缺少、目標未出現或關閉自動選擇事件時儲存截圖。日常建議關閉。"
     },
     "RogueSaveKeep": {
       "name": "結算保留的存檔",
@@ -1717,7 +1721,12 @@
       "PriorityTag": "優先",
       "CardKindBasic": "基礎卡 · 初始 {count} 張",
       "CardKindSpark": "可靈閃卡 · 初始 {count} 張",
-      "CardKindUnique": "角色卡 · 初始 {count} 張"
+      "CardKindUnique": "角色卡 · 初始 {count} 張",
+      "EventRecorderTitle": "事件記錄器（除錯）",
+      "EventRecorderHelp": "僅記錄已成功確認選擇過的事件種類（不截圖），重複遇到不會重複計數。目前記錄：{seen} / {total}",
+      "EventRecorderRefresh": "重新整理",
+      "EventRecorderClear": "清空記錄",
+      "EventRecorderCleared": "已清空事件記錄"
     }
   }
 }
