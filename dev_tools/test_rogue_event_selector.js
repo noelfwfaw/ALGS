@@ -350,7 +350,7 @@ const headings = () => list.children.filter(element => element.tagName === 'h2')
 const maps = [
   ['藍壺', 30], ['雙星之影', 40], ['霧之城市', 38], ['審判之沼', 32], ['降臨的混沌', 36],
   ['第0研究所', 45], ['燃燒的生命', 46], ['虛像劇場', 47], ['萬花筒孵化場', 43], ['天上防護牆', 37],
-  ['其他', 12],
+  ['其他', 13],
 ];
 assert.deepEqual(nav.children.map(link => [link.textContent, Number(link.children[0].textContent.split('/')[1])]), maps);
 for (const [name, count] of maps) {

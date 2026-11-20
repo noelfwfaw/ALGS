@@ -410,9 +410,45 @@ class EventLibrary:
             return group
         return (event_id,)
 
+    @staticmethod
+    def _encounter_match_score(texts, options):
+        """Return max mean similarity assigning each screen card to a distinct option, or 0.0."""
+        if len(options) < len(texts) or not texts:
+            return 0.0
+        norm_options = [normalize(option.get('flavor') or '') for option in options]
+        rows = []
+        for text in texts:
+            matches = [(idx, ratio(text, title)) for idx, title in enumerate(norm_options)]
+            matches = [(idx, sc) for idx, sc in matches if sc >= ENCOUNTER_MATCH]
+            if not matches:
+                return 0.0
+            matches.sort(key=lambda item: -item[1])
+            rows.append(matches)
+        best = 0.0
+        used = set()
+
+        def search(pos, total):
+            nonlocal best
+            if pos == len(rows):
+                mean = total / len(rows)
+                if mean > best:
+                    best = mean
+                return
+            rem_max = sum(rows[k][0][1] for k in range(pos, len(rows)))
+            if (total + rem_max) / len(rows) <= best:
+                return
+            for idx, sc in rows[pos]:
+                if idx not in used:
+                    used.add(idx)
+                    search(pos + 1, total + sc)
+                    used.remove(idx)
+
+        search(0, 0.0)
+        return best
+
     def identify(self, texts, packs=None):
         """
-        Find the encounter whose options match every on-screen title.
+        Find the encounter whose distinct options match every on-screen title.
 
         Args:
             texts (list[str]): Normalized option titles, one per card.
@@ -425,28 +461,14 @@ class EventLibrary:
         for key, record in self.records.items():
             if packs and record.get('pack') not in packs:
                 continue
-            options = record.get('options') or []
-            if len(options) < len(texts):
-                continue
-            total = 0.0
-            usable = True
-            for text in texts:
-                score = max([ratio(text, normalize(option.get('flavor') or ''))
-                             for option in options] or [0.0])
-                if score < ENCOUNTER_MATCH:
-                    usable = False
-                    break
-                total += score
-            if not usable:
-                continue
-            mean = total / len(texts)
+            mean = self._encounter_match_score(texts, record.get('options') or [])
             if mean > best[2]:
                 best = (key, record.get('name'), mean)
         return best
 
     def candidates(self, texts, packs=None, limit=5):
         """
-        Rank every encounter whose options can cover all on-screen titles.
+        Rank every encounter whose distinct options can cover all on-screen titles.
 
         和 `identify()` 的区别：那个只返回最高分的一个；这里返回**排好序的候选列表**，
         用来判断"是不是唯一"以及"正确答案排第几"（2026-11-15 用户要求统计识别正确率）。
@@ -465,22 +487,9 @@ class EventLibrary:
         for key, record in self.records.items():
             if packs and record.get('pack') not in packs:
                 continue
-            options = record.get('options') or []
-            if len(options) < len(texts):
-                continue
-            total = 0.0
-            usable = True
-            for text in texts:
-                score = max([ratio(text, normalize(option.get('flavor') or ''))
-                             for option in options] or [0.0])
-                if score < ENCOUNTER_MATCH:
-                    usable = False
-                    break
-                total += score
-            if not usable:
-                continue
-            found.append((total / len(texts), key, record.get('name'),
-                          record.get('pack')))
+            mean = self._encounter_match_score(texts, record.get('options') or [])
+            if mean > 0.0:
+                found.append((mean, key, record.get('name'), record.get('pack')))
         found.sort(key=lambda item: -item[0])
         return found[:limit]
 

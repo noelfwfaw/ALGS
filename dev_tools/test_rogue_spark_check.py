@@ -319,6 +319,42 @@ class SparkCheckTest(unittest.TestCase):
         self.assertEqual(option, {'type': 'checkbox', 'value': False})
         self.assertIs(GeneratedConfig.ChaoszeroRogue_RogueSparkCheck, False)
 
+    def test_rogue_enter_does_not_start_on_team_page_with_orange_enter_button(self):
+        task = rogue.ChaoszeroRogue.__new__(rogue.ChaoszeroRogue)
+        task.device = Mock(image=np.zeros((720, 1280, 3), dtype=np.uint8),
+                           stuck_record_clear=Mock())
+        stage = 'team'
+
+        def loop_frames(**_):
+            for _ in range(3):
+                yield
+
+        task.loop = loop_frames
+        task.rogue_enter_team = Mock(return_value=True)
+        task.rogue_team_appear = lambda: stage == 'team'
+        task.rogue_outside_appear = lambda: stage == 'team'
+        task.appear = lambda button, **_: False
+        task.rogue_primary_point = lambda: (1200, 657) if stage in ('team', 'fate') else None
+        for name in (
+            'rogue_story_appear', 'rogue_choice_appear', 'rogue_battle_appear',
+            'rogue_herald_appear', 'rogue_option_points', 'rogue_equip_appear',
+            'rogue_rest_appear', 'rogue_copy_appear', 'rogue_remove_appear',
+            'rogue_map_appear',
+        ):
+            setattr(task, name, Mock(return_value=False))
+
+        def tap(*_, **__):
+            nonlocal stage
+            stage = 'fate'
+
+        task.tap_point = Mock(side_effect=tap)
+        timer = Mock()
+        timer.reached.return_value = True
+        with patch.object(rogue, 'Timer', return_value=timer):
+            self.assertTrue(task.rogue_enter())
+        task.tap_point.assert_called_once_with(*rogue.TEAM_ENTER_POINT, name='ROGUE_TEAM_ENTER')
+        self.assertEqual(stage, 'fate')
+
 
 if __name__ == '__main__':
     unittest.main()

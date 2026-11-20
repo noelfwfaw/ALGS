@@ -118,7 +118,7 @@ class TestRogueEntry(unittest.TestCase):
         task.device = Mock()
         task.tap_point = Mock()
         task.rogue_resume_appear = Mock(return_value=False)
-        task.rogue_primary_point = Mock(side_effect=[False, True])
+        task.rogue_primary_point = Mock(return_value=True)
         for name in ('rogue_story_appear', 'rogue_choice_appear', 'rogue_battle_appear',
                      'rogue_herald_appear', 'rogue_option_points', 'rogue_equip_appear',
                      'rogue_rest_appear', 'rogue_copy_appear', 'rogue_remove_appear', 'rogue_map_appear'):
@@ -129,11 +129,11 @@ class TestRogueEntry(unittest.TestCase):
                 task.device.image = frame
                 yield
 
+        in_run = team * 0
         for entry in ([mode, team], [team]):
             with self.subTest(from_mode=len(entry) > 1):
                 task.tap_point.reset_mock()
-                task.loop = Mock(side_effect=[replay(entry), replay([team, team])])
-                task.rogue_primary_point.side_effect = [False, True]
+                task.loop = Mock(side_effect=[replay(entry), replay([team, in_run])])
                 with patch.object(rogue, 'Timer'):
                     self.assertTrue(task.rogue_enter())
                 names = [call[1]['name'] for call in task.tap_point.call_args_list]
@@ -318,6 +318,25 @@ class TestRoute(unittest.TestCase):
         self.assertFalse(confirm())
         self.assertEqual((task.route_step, task.plan_index), (8, 3))
         self.assertEqual(task.event_visit, {})
+
+    def test_route_plan_waits_for_preview_settle_before_reading_and_closing(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.rogue_map_preview_appear = Mock(side_effect=[False, True])
+        task.tap_point = Mock()
+        task.wait_until_appear = Mock(return_value=True)
+        task.wait_until_disappear = Mock(side_effect=[False, True])
+        task.rogue_route_read = Mock(return_value=[])
+        task.rogue_route_style = Mock(return_value=route.ROUTE_EVENT)
+        task.rogue_route_state = Mock(return_value={})
+
+        self.assertFalse(task.rogue_route_plan())
+        task.wait_until_appear.assert_called_once_with(
+            rogue.ROGUE_PREVIEW, offset=(10, 8), timeout=rogue.ROUTE_OPEN_TIMEOUT, settle=3)
+        self.assertEqual(
+            [c[1]['name'] for c in task.tap_point.call_args_list],
+            ['ROGUE_ROUTE_OPEN', 'ROGUE_ROUTE_CLOSE', 'ROGUE_ROUTE_CLOSE'],
+        )
+        self.assertEqual(task.wait_until_disappear.call_count, 2)
 
 
 if __name__ == '__main__':

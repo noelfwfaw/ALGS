@@ -17,7 +17,7 @@ set_server('chaoszero')
 
 from module.base.timer import Timer
 from module.chaoszero.rogue import ChaoszeroRogue
-from module.chaoszero.rogue_events import EventLibrary, SHARED_CHOICE_GROUPS, packs_for_world
+from module.chaoszero.rogue_events import EventLibrary, SHARED_CHOICE_GROUPS, packs_for_world, summarize_seen_events
 from module.config.config_generated import GeneratedConfig
 from module.exception import RequestHumanTakeover, TaskFailed
 from module.webui.app import ROGUE_SECTIONS
@@ -85,6 +85,13 @@ class EventSelectionTest(unittest.TestCase):
         image[677, 480:800] = 255
         image[677:689, 639] = 255
         self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [(640, 677)])
+        # Side-border pixels reaching y=674 must still anchor y from the flat bottom edge (689-12=677).
+        u_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+        u_frame[689, 320:620] = 255
+        u_frame[674:690, 320:322] = 255
+        u_frame[677:690, 618:620] = 255
+        self.task.device.image = u_frame
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [(470, 677)])
 
     def test_border_band_rejects_battle_bottom_curved_arc(self):
         image = self.task.device.image
@@ -683,6 +690,140 @@ class EventSelectionTest(unittest.TestCase):
                 gui._clear_rogue_event_recorder()
                 self.assertIn('藍壺　0 / 30', collapses)
                 fake_toast.assert_called_once()
+
+    def test_ambiguous_candidates_proceed_only_when_all_agree_on_same_card(self):
+        self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+        self.task.event_library = EventLibrary()
+        texts = ['取得生肉', '取得烤肉一', '調查尿體']
+
+        # User configured both 糧倉倉庫 (05a -> 3, 05a-1 -> 2), both mean 取得烤肉 (card 2).
+        self.task.event_picks = {'uk_302_s02_05a': [3], 'uk_302_s02_05a-1': [2]}
+        self.feed(texts)
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_pending_choice['position'], 2)
+        self.assertEqual(self.task.event_pending_choice['target'], '取得烤肉')
+        self.confirm()
+        self.task.rogue_event_record_seen.assert_called_with('uk_302_s02_05a', '糧倉倉庫')
+
+        # Missing one candidate or disagreeing on which card to pick still stops.
+        for picks in (
+            {'uk_302_s02_05a': [3]},
+            {'uk_302_s02_05a': [3], 'uk_302_s02_05a-1': [1]},
+        ):
+            with self.subTest(picks=picks):
+                self.task = make_task()
+                self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+                self.task.event_library = EventLibrary()
+                self.task.event_picks = picks
+                self.feed(texts)
+                with self.assertRaises(TaskFailed):
+                    self.step()
+                self.task.tap_point.assert_not_called()
+
+        # Ambiguous sibling variants propagate followups from all agreeing candidates (08a/08b/08c).
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {
+            'uk_302_s02_08a': [2], 'uk_302_s02_08b': [2], 'uk_302_s02_08c': [2],
+        }
+        self.feed(['剝掉甲殼', '進入內部'])
+        self.assertTrue(self.step())
+        self.confirm()
+        self.assertEqual(
+            self.task.event_followups,
+            {'uk_302_s02_08a-1', 'uk_302_s02_08b-1', 'uk_302_s02_08c-1'},
+        )
+
+    def test_glowing_gold_frame_dice_event_is_detected(self):
+        import cv2
+
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_event_glow.png'
+        self.task.device.image = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        points = ChaoszeroRogue.rogue_option_points(self.task)
+        self.assertEqual([x for x, _ in points], [472, 808])
+        self.assertTrue(all(y == 677 for _, y in points))
+        # Battle curve / empty frames must not trigger the glow fallback.
+        self.task.device.image = np.zeros((720, 1280, 3), dtype=np.uint8)
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+        # Solid white buttons and bright clouds in OPTION_BAND must not trigger the glow fallback.
+        shop_fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_equipment_shop.png'
+        self.task.device.image = cv2.cvtColor(cv2.imread(str(shop_fixture)), cv2.COLOR_BGR2RGB)
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+        cloud = np.zeros((720, 1280, 3), dtype=np.uint8)
+        cloud[650:700, 764:1128] = 190
+        self.task.device.image = cloud
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+        # Cyan battle card-play arc at y=675..678 (and even y=689) must not trigger glow fallback.
+        arc = np.zeros((720, 1280, 3), dtype=np.uint8)
+        arc[675:679, 450:830] = (230, 255, 255)
+        self.task.device.image = arc
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+        arc[675:679] = 0
+        arc[689:691, 450:830] = (180, 245, 245)
+        self.task.device.image = arc
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [])
+        # White event card borders joined by bright sand at y=689..690 must still be detected cleanly.
+        white_joined = np.zeros((720, 1280, 3), dtype=np.uint8)
+        for seg in ((323, 460), (484, 621), (659, 796), (820, 957)):
+            white_joined[689:691, seg[0]:seg[1]] = (250, 250, 250)
+        white_joined[689:691, 621:659] = (165, 160, 155)
+        self.task.device.image = white_joined
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [(472, 677), (808, 677)])
+        # One clean card plus two sand-bridged cards must recover all 3 cards via glow fallback.
+        three_partial = np.zeros((720, 1280, 3), dtype=np.uint8)
+        three_partial[677:691, 150] = (250, 250, 250)
+        three_partial[677:691, 466] = (250, 250, 250)
+        for seg in ((158, 294), (318, 455), (491, 628), (652, 789), (825, 962), (986, 1123)):
+            three_partial[689:691, seg[0]:seg[1]] = (250, 250, 250)
+        three_partial[689:691, 628:652] = (165, 160, 155)
+        three_partial[650:700, 790:825] = (165, 160, 155)
+        self.task.device.image = three_partial
+        self.assertEqual(ChaoszeroRogue.rogue_option_points(self.task), [(306, 677), (640, 677), (974, 677)])
+
+    def test_compatible_filter_uses_encounter_match_for_noisy_non_target_ocr(self):
+        self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {'uk_302_s02_03a': [2], 'uk_302_s02_03a-1': [2]}
+        # 剝取甲殼 OCR'd as 劍取甲殼一一子 has ratio 0.545 (between ENCOUNTER_MATCH 0.45 and OPTION_MATCH 0.55).
+        self.feed(['劍取甲殼一一子', '抽取精華'])
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_pending_choice['position'], 2)
+        self.assertEqual(self.task.event_pending_choice['target'], '抽取精華')
+        self.confirm()
+        self.task.rogue_event_record_seen.assert_called_with('uk_302_s02_03a', '侵略者的中樞')
+
+    def test_noisy_sibling_card_does_not_steal_or_block_configured_option(self):
+        self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {
+            'uk_302_s02_04a': {'priority': [1]},
+            'uk_302_s02_04c': [3],
+        }
+        # Card 1 is 翻找表面 with trailing OCR noise; card 2 is 翻找裡面 OCR'd as 翻找裸面.
+        # Distinct-option matching rules out 04c (only one 翻找表面) and per-card competition picks card 1.
+        self.feed(['翻找表面一一名', '翻找裸面'])
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_pending_choice['id'], 'uk_302_s02_04a')
+        self.assertEqual(self.task.event_pending_choice['position'], 1)
+        self.assertEqual(self.task.event_pending_choice['target'], '翻找表面')
+        self.confirm()
+        self.task.rogue_event_record_seen.assert_called_with('uk_302_s02_04a', '駭人的糧食')
+
+    def test_custom_altar_event_matches_under_other_category(self):
+        self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {'uk_000_s01_05': {'priority': [2]}}
+        self.feed(['順從一生', '抵抗一三', '奪取凝聚體一'])
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_pending_choice['id'], 'uk_000_s01_05')
+        self.assertEqual(self.task.event_pending_choice['position'], 2)
+        self.assertEqual(self.task.event_pending_choice['target'], '抵抗')
+        self.confirm()
+        self.task.rogue_event_record_seen.assert_called_with('uk_000_s01_05', '不明能量的祭壇')
+        summary = {item['world']: item for item in summarize_seen_events({'uk_000_s01_05'})}
+        self.assertEqual(summary['其他']['seen'], 1)
+        self.assertEqual(summary['其他']['total'], 13)
 
 
 if __name__ == '__main__':

@@ -1,9 +1,11 @@
 """Regression coverage for configurable roguelike card copying."""
 
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import cv2
 import numpy as np
 
 from module.config.config_generated import GeneratedConfig
@@ -14,7 +16,26 @@ set_server('chaoszero')
 from module.chaoszero.rogue import ChaoszeroRogue
 
 
+ASSETS_DIR = Path(__file__).resolve().parent.parent / 'assets' / 'chaoszero' / 'chaoszero'
+
+
 class RogueCopyTest(unittest.TestCase):
+    def test_copy_header_does_not_match_transform_or_remove_pages(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        for name, expected_copy, expected_transform in (
+            ('ROGUE_COPY_CARD_TITLE.png', True, False),
+            ('ROGUE_COPY_TITLE2.png', True, False),
+            ('ROGUE_TRANSFORM.png', False, True),
+            ('ROGUE_REMOVE.png', False, False),
+        ):
+            with self.subTest(name=name):
+                img = cv2.imread(str(ASSETS_DIR / name))
+                task.device = SimpleNamespace(
+                    image=cv2.cvtColor(img, cv2.COLOR_BGR2RGB),
+                    stuck_record_add=Mock(),
+                )
+                self.assertEqual(task.rogue_copy_card_appear(), expected_copy)
+                self.assertEqual(task.rogue_transform_appear(), expected_transform)
     def test_target_config_selects_the_matching_card(self):
         task = ChaoszeroRogue.__new__(ChaoszeroRogue)
         task.config = GeneratedConfig()

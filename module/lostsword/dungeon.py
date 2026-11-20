@@ -1,9 +1,9 @@
 from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
-from module.lostsword.assets import (DUNGEON_BTN_BACK, DUNGEON_BTN_CONFIRM,
-                                     DUNGEON_BTN_MATCH, DUNGEON_CLEAR,
-                                     DUNGEON_DIALOG_TITLE, DUNGEON_TITLE)
+from module.lostsword.assets import (DUNGEON_BTN_CONFIRM, DUNGEON_BTN_MATCH,
+                                     DUNGEON_CLEAR, DUNGEON_DIALOG_TITLE,
+                                     DUNGEON_TITLE)
 from module.lostsword.lostsword_ui import (LostswordUI, page_battle,
                                           page_dungeon)
 
@@ -188,8 +188,7 @@ class LostswordDungeon(LostswordUI):
                 report.reset()
                 logger.info(f'Still in the dungeon, {int(timeout.current_time())}s elapsed')
 
-        self.dungeon_leave_result()
-        return True
+        return self.dungeon_leave_result()
 
     def dungeon_leave_result(self, timeout=40):
         """
@@ -223,9 +222,7 @@ class LostswordDungeon(LostswordUI):
             # Click - 「返回」 is the only way out of the result page.
             if retry.reached():
                 retry.reset()
-                if self.appear(DUNGEON_BTN_BACK, offset=30):
-                    logger.info('Leave the result page')
-                    self.device.click(DUNGEON_BTN_BACK)
+                self.click_dungeon_back(reason='Leave the result page')
 
             if timeout.reached():
                 logger.warning('Did not return to the squad dungeon page')

@@ -409,6 +409,14 @@ OPTION_FILL = 0.30
 # Straight event borders occupy most of one row; curved battle effects do not.
 OPTION_FLAT_RATIO = 0.65
 OPTION_LIFT = 87
+# 金色发光边框（掷骰检定事件，如「[巧手] 协助作业」）的底边比普通卡低 12px。
+GLOW_BORDER_SHIFT = 12
+# 发光底边只是 2~6px 的细线；实心云雾/白按钮会连续占十几到三十行，必须拦掉。
+GLOW_BORDER_MAX_ROWS = 6
+# 发光底边固定在 y=689~690（战斗底部的青蓝弧光在 y=675~678 且 B>R），限定位置+排除冷青色（保留白框与金框）。
+GLOW_BORDER_MIN_Y = 685
+GLOW_BORDER_WARMTH = -5
+GLOW_BORDER_LIGHT = 180
 # 选中之后卡片下缘正中会出现一枚**金色 ∨**，点它才是提交（用户 2026-11-14 实机确认：
 # "点一次选项后，再点下面那个勾就行"）。它是 y 650~700 里唯一的小亮团：
 # 实测 33x23 / 120 像素，未选中的同页没有（只剩两张卡各 318x21 的边框和 148x11 的虚线）。
@@ -743,6 +751,12 @@ REMOVE_MAX_TRIES = 4
 # 都是 (105,12)-(430,58)）。不再用 OCR 读标题 —— 模板在 0.93 阈值下互斥，
 # 比 OCR（会认错字、每次 ~100ms）更快更准。
 REMOVE_OK_AREA = (1000, 640, 1270, 700)  # 选中卡片后变橙的「移除」；左边「提煉」是深红
+# 删 2 张（或 N 张）卡页面标题只差数字「2」，`ROGUE_REMOVE` 整条会掉到 0.85；
+# 取右边固定不变的「欲移除的卡牌。」段做二次匹配（2张页 0.95 / 转换页 0.80 / 复制页 0.77）。
+REMOVE_HEADER_AREA = (105, 12, 430, 58)
+REMOVE_SUFFIX_AREA = (230, 4, 440, 66)
+REMOVE_SUFFIX_CROP = (4, 42, 140, 320)
+REMOVE_SUFFIX_SIM = 0.90
 
 # 删卡页一屏只有 2 行 x 4 列 = 8 张；3 号位的卡在第 3 行（y≳690），被底部按钮条
 # (y≈640~700) 挡死。右缘 x≈1254 是滚动条、卡片右缘≈1197，所以贴着卡区右侧 1220
@@ -1613,11 +1627,11 @@ class ChaoszeroRogue(ChaoszeroUI):
             logger.warning('Failed to read %s: %s' % (path, error))
         return self.event_picks
 
-    def rogue_event_identity(self, texts, packs):
-        """Resolve the event from the page and confirmed continuation."""
+    def rogue_event_candidates(self, texts, packs):
+        """Return strongest matching encounters after followup and required-option filters."""
         ranked = self.event_library.candidates(texts, packs, limit=None)
         if not ranked:
-            return None
+            return []
         strongest = [candidate for candidate in ranked if candidate[0] == ranked[0][0]]
         if self.event_followups:
             strongest = [candidate for candidate in strongest if candidate[1] in self.event_followups]
@@ -1627,42 +1641,38 @@ class ChaoszeroRogue(ChaoszeroUI):
                 options = self.event_library.records[candidate[1]]['options']
                 required = {rogue_cards.normalize(option.get('flavor')) for option in options
                             if option.get('select_type') == 'DEFAULT' and not option.get('appear_conditions')}
-                if all(any(rogue_events.ratio(text, title) >= rogue_events.OPTION_MATCH for text in texts)
+                if all(any(rogue_events.ratio(text, title) >= rogue_events.ENCOUNTER_MATCH for text in texts)
                        for title in required if title):
                     compatible.append(candidate)
             strongest = compatible
+        return strongest
+
+    def rogue_event_identity(self, texts, packs):
+        """Resolve the event from the page and confirmed continuation."""
+        strongest = self.rogue_event_candidates(texts, packs)
+        if not strongest:
+            return None
         if len(strongest) == 1:
             return strongest[0]
-        if strongest:
-            score, event_id, name, pack = strongest[0]
-            shared = self.event_library.shared_choice_ids(event_id)
-            if all(candidate[1] in shared for candidate in strongest):
-                logger.info('Equivalent event pages for %s, use shared choice %s', name, shared[0])
-                return score, shared[0], name, pack
+        score, event_id, name, pack = strongest[0]
+        shared = self.event_library.shared_choice_ids(event_id)
+        if all(candidate[1] in shared for candidate in strongest):
+            logger.info('Equivalent event pages for %s, use shared choice %s', name, shared[0])
+            return score, shared[0], name, pack
         logger.warning('No unique event identity for %s (matches: %s, expected: %s)'
                        % (texts, [candidate[1] for candidate in strongest], self.event_followups))
         return None
 
-    def rogue_event_manual_index(self, texts, packs):
-        """Return a configured card only for a uniquely identified event."""
-        self.event_choice = None
-        self.event_last_enc = None
-        self.event_missing_pick = None
-
-        identity = self.rogue_event_identity(texts, packs)
-        if identity is None:
-            return None
-        _, enc_id, name, _ = identity
-        picks = self.rogue_event_picks()
-        group = self.event_library.shared_choice_ids(enc_id)
+    def _rogue_resolve_event_choice(self, enc_id, name, texts, picks, shared=True):
+        """Resolve one candidate event against `picks`, returning `(choice, missing)`."""
+        group = self.event_library.shared_choice_ids(enc_id) if shared else (enc_id,)
         rules = [picks[key] for key in group if key in picks]
         rule = rules[0] if rules else None
         if any(other != rule for other in rules[1:]):
             logger.warning('Conflicting shared choices for %s; reselect this event in the selector', name)
-            return None
+            return None, False
         if not rule:
-            self.event_missing_pick = (enc_id, name)
-            return None
+            return None, True
         round_index = self.event_visit.get(enc_id, 0)
         priority = isinstance(rule, dict)
         orders = rule['priority'] if priority else [rule[min(round_index, len(rule) - 1)]]
@@ -1692,25 +1702,79 @@ class ChaoszeroRogue(ChaoszeroUI):
                                  or 'ATTACK' in (option.get('select_type'), option.get('option_type'))
                                  for option in matching):
                 continue
-            scores = [rogue_events.ratio(text, target) for text in texts]
+            other_titles = [title for title in set(titles) if title != target]
+            scores = []
+            for text in texts:
+                sc = rogue_events.ratio(text, target)
+                # Filter per-card competition first so a noisy sibling card tying
+                # another title does not hide an unambiguous card for `target`.
+                if sc >= rogue_events.OPTION_MATCH and not any(
+                        rogue_events.ratio(text, title) >= sc for title in other_titles):
+                    scores.append(sc)
+                else:
+                    scores.append(0.0)
             score = max(scores, default=0.0)
             if score < rogue_events.OPTION_MATCH or scores.count(score) != 1:
                 continue
             position = scores.index(score)
-            # Similar titles must compete against the whole encounter.
-            if any(rogue_events.ratio(texts[position], title) >= score
-                   for title in set(titles) if title != target):
-                continue
-            self.event_last_enc = enc_id
-            self.event_choice = {
+            return {
                 'source': 'configured', 'id': enc_id, 'name': name,
                 'round': round_index + 1, 'order': order, 'target': target,
-                'position': position + 1, 'text': texts[position],
-            }
-            logger.info('Event %s (%s), round %s -> user pick option %s `%s` at card %s (%.2f)'
-                        % (enc_id, name, round_index + 1, order, target, position + 1, score))
-            return position + 1
+                'position': position + 1, 'text': texts[position], 'score': score,
+            }, False
         logger.warning('No verified configured option %s for event %s; stop for review' % (orders, enc_id))
+        return None, False
+
+    def rogue_event_manual_index(self, texts, packs):
+        """Return a configured card when the event is unique or all candidates agree."""
+        self.event_choice = None
+        self.event_last_enc = None
+        self.event_missing_pick = None
+
+        strongest = self.rogue_event_candidates(texts, packs)
+        if not strongest:
+            return None
+        picks = self.rogue_event_picks()
+        score0, event_id0, name0, _ = strongest[0]
+        shared = self.event_library.shared_choice_ids(event_id0)
+        if len(strongest) == 1 or all(candidate[1] in shared for candidate in strongest):
+            enc_id = event_id0 if len(strongest) == 1 else shared[0]
+            if len(strongest) > 1:
+                logger.info('Equivalent event pages for %s, use shared choice %s', name0, enc_id)
+            choice, missing = self._rogue_resolve_event_choice(enc_id, name0, texts, picks, shared=True)
+            if missing:
+                self.event_missing_pick = (enc_id, name0)
+            if choice is None:
+                return None
+            match_score = choice.pop('score')
+            self.event_last_enc = enc_id
+            self.event_choice = choice
+            logger.info('Event %s (%s), round %s -> user pick option %s `%s` at card %s (%.2f)'
+                        % (enc_id, name0, choice['round'], choice['order'], choice['target'],
+                           choice['position'], match_score))
+            return choice['position']
+
+        resolved = []
+        for _, enc_id, name, _ in strongest:
+            choice, _ = self._rogue_resolve_event_choice(enc_id, name, texts, picks, shared=False)
+            if choice is None:
+                resolved = []
+                break
+            resolved.append(choice)
+        if resolved and len({(c['position'], c['target']) for c in resolved}) == 1:
+            primary = dict(resolved[0])
+            match_score = primary.pop('score')
+            primary['candidates'] = [
+                {'id': c['id'], 'order': c['order'], 'target': c['target']} for c in resolved
+            ]
+            self.event_last_enc = primary['id']
+            self.event_choice = primary
+            logger.info('Ambiguous event candidates %s all pick `%s` at card %s (%.2f)'
+                        % ([c['id'] for c in resolved], primary['target'], primary['position'], match_score))
+            return primary['position']
+
+        logger.warning('No unique event identity for %s (matches: %s, expected: %s)'
+                       % (texts, [candidate[1] for candidate in strongest], self.event_followups))
         return None
 
     def rogue_event_confirmed(self):
@@ -1718,22 +1782,27 @@ class ChaoszeroRogue(ChaoszeroUI):
         choice = self.event_pending_choice
         self.event_followups = set()
         if choice is not None:
+            candidates = choice.get('candidates') or [choice]
             enc_id = choice.get('id')
             if enc_id:
-                self.event_visit[enc_id] = self.event_visit.get(enc_id, 0) + 1
                 root_id = getattr(self, 'event_root', None) or rogue_events.resolve_root_event(enc_id)
                 self.rogue_event_record_seen(root_id, choice.get('name'))
-                record = self.event_library.records.get(enc_id) or {}
-                for option in record.get('options', []):
-                    if choice['order'] is None:
-                        matches = rogue_cards.normalize(option.get('flavor')) == choice['target']
-                    else:
-                        matches = option.get('order') == choice['order']
-                    if matches:
-                        for field in ('success_link_encounter_option_eff', 'fail_link_encounter_option_eff'):
-                            child = (option.get('raw', {}).get(field) or {}).get('next_encounter')
-                            if isinstance(child, str):
-                                self.event_followups.add(child)
+                for cand in candidates:
+                    cid = cand.get('id')
+                    if not cid:
+                        continue
+                    self.event_visit[cid] = self.event_visit.get(cid, 0) + 1
+                    record = self.event_library.records.get(cid) or {}
+                    for option in record.get('options', []):
+                        if cand['order'] is None:
+                            matches = rogue_cards.normalize(option.get('flavor')) == cand['target']
+                        else:
+                            matches = option.get('order') == cand['order']
+                        if matches:
+                            for field in ('success_link_encounter_option_eff', 'fail_link_encounter_option_eff'):
+                                child = (option.get('raw', {}).get(field) or {}).get('next_encounter')
+                                if isinstance(child, str):
+                                    self.event_followups.add(child)
                 self.event_root = root_id if self.event_followups else None
             else:
                 self.event_root = None
@@ -2125,14 +2194,85 @@ class ChaoszeroRogue(ChaoszeroUI):
             if not OPTION_WIDTH[0] <= w <= OPTION_WIDTH[1]:
                 continue
             sub = mask[y - y1:y - y1 + h, x - x1:x - x1 + w]
-            if not sub.size or float(sub.sum(axis=1).max()) / float(w) < OPTION_FLAT_RATIO:
+            row_counts = sub.sum(axis=1) if sub.size else None
+            if not sub.size or float(row_counts.max()) / float(w) < OPTION_FLAT_RATIO:
                 continue
-            points.append((x + w // 2, y))
+            # Anchor y to the actual horizontal bottom edge (not noisy side-border
+            # pixels above it) so EVENT_TITLE crops the title row consistently.
+            flat_y = y + int(row_counts.argmax())
+            anchor_y = flat_y - GLOW_BORDER_SHIFT if flat_y - y >= h // 2 else y
+            points.append((x + w // 2, anchor_y))
 
         points.sort()
         # 1 张也要认：航点（`啟用航點 獲得裝備[...]`）就是单独一张卡，实测同样是
-        # 320x21、填充率 9% 的边框。
-        return points
+        # 320x21、填充率 9% 的边框。但如果亮沙地把另外几张卡连成整块，CC 只会扫出
+        # 部分卡，此时行扫描（180 阈值）能把全部卡找齐，所以哪个找到得多用哪个。
+        glow = self.rogue_option_points_glow(image)
+        return glow if len(glow) > len(points) else points
+
+    def _scan_option_points_glow(self, image, light):
+        """Scan `OPTION_BAND` row runs at brightness threshold `light`."""
+        x1, y1, x2, y2 = OPTION_BAND
+        band = image[y1:y2, x1:x2].min(axis=2) > light
+        mask = band[OPTION_BORDER_TOP - y1:]
+        found = []  # [centre, first row, rows seen]
+        for dy, row in enumerate(mask):
+            edges = np.flatnonzero(np.diff(np.concatenate(([0], row.astype(np.int8), [0]))))
+            runs = [(s, e - s) for s, e in zip(edges[::2], edges[1::2]) if e - s >= 60]
+            merged = []
+            for start, length in runs:
+                if merged and start - (merged[-1][0] + merged[-1][1]) <= 30 \
+                        and start + length - merged[-1][0] <= OPTION_WIDTH[1]:
+                    merged[-1] = (merged[-1][0], start + length - merged[-1][0])
+                else:
+                    merged.append((start, length))
+            for start, length in merged:
+                if not OPTION_WIDTH[0] <= length <= OPTION_WIDTH[1]:
+                    continue
+                centre = x1 + start + length // 2
+                for item in found:
+                    if abs(item[0] - centre) <= 30:
+                        item[2] += 1
+                        break
+                else:
+                    found.append([centre, OPTION_BORDER_TOP + dy, 1])
+        # The glow frame's bottom edge sits 12px below a plain card's border row.
+        points = []
+        for centre, y, rows in found:
+            if y < GLOW_BORDER_MIN_Y or not 2 <= rows <= GLOW_BORDER_MAX_ROWS or y + rows >= y2:
+                continue
+            interior = band[max(0, y - 16 - y1):max(0, y - 2 - y1),
+                            max(0, centre - 120 - x1):min(x2 - x1, centre + 120 - x1)]
+            if not interior.size or float(interior.mean()) > OPTION_FILL:
+                continue
+            edge_left = max(x1, centre - 140)
+            edge_right = min(x2, centre + 140)
+            edge_rgb = image[y:y + rows, edge_left:edge_right].astype(int)
+            edge_mask = band[y - y1:y + rows - y1, edge_left - x1:edge_right - x1]
+            if not edge_mask.any():
+                continue
+            warmth = float((edge_rgb[edge_mask, 0] - edge_rgb[edge_mask, 2]).mean())
+            if warmth < GLOW_BORDER_WARMTH:
+                continue
+            points.append((centre, y - GLOW_BORDER_SHIFT))
+        return sorted(points)
+
+    def rogue_option_points_glow(self, image):
+        """
+        Locate option cards drawn with a glowing gold frame or bright-sand-merged border.
+
+        Try `GLOW_BORDER_LIGHT` (180) first so bright sand (~150-175) between two
+        adjacent cards does not bridge their borders into a phantom middle run, then
+        fall back to `OPTION_LIGHT` (140) for dimmer frames.
+
+        Args:
+            image (np.ndarray): RGB screenshot.
+
+        Returns:
+            list[tuple]: (x, y) like `rogue_option_points()`, y at the usual border row.
+        """
+        return (self._scan_option_points_glow(image, GLOW_BORDER_LIGHT)
+                or self._scan_option_points_glow(image, OPTION_LIGHT))
 
     def rogue_option_check_point(self, x):
         """
@@ -2343,15 +2483,16 @@ class ChaoszeroRogue(ChaoszeroUI):
         logger.hr('Route plan', level=2)
         if not self.rogue_map_preview_appear():
             self.tap_point(ROUTE_OPEN_POINT[0], ROUTE_OPEN_POINT[1], name='ROGUE_ROUTE_OPEN')
+            # 2D 预览打开时有约半秒淡入，过早点关闭会被吃掉且节点未亮起读到 0 个。
             if not self.wait_until_appear(ROGUE_PREVIEW, offset=(10, 8),
-                                          timeout=ROUTE_OPEN_TIMEOUT, settle=1):
+                                          timeout=ROUTE_OPEN_TIMEOUT, settle=3):
                 # 小地图面板有时是收起的，面板里的 ⊕ (509,470) 就不存在，点空。
                 # 先点左下角那块把面板展开，再点一次 ⊕（2026-11-15 06:32 / 06:36 两次点空）。
                 logger.info('The minimap panel looks collapsed, open it first')
                 self.tap_point(ZOOM_POINT[0], ZOOM_POINT[1], name='ROGUE_ROUTE_PANEL')
                 self.tap_point(ROUTE_OPEN_POINT[0], ROUTE_OPEN_POINT[1], name='ROGUE_ROUTE_OPEN')
                 if not self.wait_until_appear(ROGUE_PREVIEW, offset=(10, 8),
-                                              timeout=ROUTE_OPEN_TIMEOUT, settle=1):
+                                              timeout=ROUTE_OPEN_TIMEOUT, settle=3):
                     logger.warning('Can not open the 2D route preview')
                     self.route_plan = []
                     return False
@@ -2378,7 +2519,10 @@ class ChaoszeroRogue(ChaoszeroUI):
                 logger.info(line)
 
         self.tap_point(ROUTE_CLOSE_POINT[0], ROUTE_CLOSE_POINT[1], name='ROGUE_ROUTE_CLOSE')
-        self.wait_until_disappear(ROGUE_PREVIEW, offset=(10, 8), timeout=5, settle=1)
+        if not self.wait_until_disappear(ROGUE_PREVIEW, offset=(10, 8), timeout=5, settle=1):
+            if self.rogue_map_preview_appear():
+                self.tap_point(ROUTE_CLOSE_POINT[0], ROUTE_CLOSE_POINT[1], name='ROGUE_ROUTE_CLOSE')
+                self.wait_until_disappear(ROGUE_PREVIEW, offset=(10, 8), timeout=3, settle=1)
         return bool(self.route_plan)
 
     def rogue_route_entry(self):
@@ -3166,16 +3310,14 @@ class ChaoszeroRogue(ChaoszeroUI):
         - 居中版 `(500,58)-(790,112)`（02:24 那次，3 张卡）
         - 靠左版 `(110,16)-(730,64)`（2026-11-16 19:20 那次，8 张卡，标题顶在左上角）
         只认居中版时，靠左版命中 **False**，整页掉进未知页 → 40 秒后停任务。
-        靠左版实测：命中帧 1.000、灵光选卡页 0.654（都是蓝白标题条但字不同）、
-        其它页 ≤0.319，阈值 0.85 够。
+        靠左版实测与删卡/转化共用同一条顶部标题栏，后者在该模板上可到 0.85~0.86，
+        因此靠左版同样要用 0.93 才和「轉換」「移除」互斥（实测自匹配 ≥0.99）。
 
         Returns:
             bool: If the copy-card picker is on screen.
         """
-        for button in (ROGUE_COPY_CARD_TITLE, ROGUE_COPY_TITLE2):
-            if self.appear(button, offset=(16, 10), similarity=0.85):
-                return True
-        return False
+        return (self.appear(ROGUE_COPY_CARD_TITLE, offset=(16, 10), similarity=0.85)
+                or self.appear(ROGUE_COPY_TITLE2, offset=(16, 10), similarity=0.93))
 
     def rogue_transform_appear(self):
         """
@@ -3293,14 +3435,13 @@ class ChaoszeroRogue(ChaoszeroUI):
             return points
         return self.rogue_flash_card_points(opening=11)
 
-    def rogue_remove_pick(self):
-        """Return ((x, y), name, score, OCR) for the highest-priority removal target.
+    def _scan_remove_picks(self, count=1):
+        """Scan the removal grid from top to bottom and pick up to `count` cards.
 
-        Only detected card boxes with a readable target name are eligible.
-        Read each box once so all configured targets use the same OCR result.
-        The page holds 2 rows per screen, so scan, drag down and scan again at
-        most REMOVE_SCROLL_TIMES times; stop early only when the grid is gone or
-        a drag brings no new card name (bottom reached). Never pick by position.
+        Returns:
+            tuple[list[tuple], int] | None: `(picks, last_page)` where each pick
+            is `(page, (x, y), name, score, ocr)`, or None if fewer than `count`
+            verified targets were found.
         """
         targets = self.rogue_remove_targets()
         if not targets:
@@ -3308,15 +3449,24 @@ class ChaoszeroRogue(ChaoszeroUI):
         if self.card_reader is None:
             self.card_reader = rogue_cards.CardReader()
         has_ascii = any(ord(ch) < 128 and ch.isalnum() for name in targets for ch in name)
+        used = getattr(self, 'remove_counts', {}) or {}
+        rule_quotas = {}
+        for name, quota in self.rogue_delete_rules():
+            rule_quotas[name] = rule_quotas.get(name, 0) + quota
+        avail = {name: max(0, rule_quotas.get(name, 99) - used.get(name, 0)) for name in targets}
+
         seen = set()
+        picked = []
+        last_page = 0
         points = []
         for page in range(REMOVE_SCROLL_TIMES + 1):
+            last_page = page
             points = self.rogue_remove_card_points()
             if not points:
                 logger.info('Removal pick: no card boxes detected, do not pick by position')
                 return None
             image = self.device.image
-            candidates = {}
+            reads = []
             names = set()
             for x, y, top, left, width, height in points:
                 # 卡名只有 ~20px：旧带下沿 +40 吃进卡框/描述首行，3 字名读成半截；
@@ -3327,21 +3477,33 @@ class ChaoszeroRogue(ChaoszeroUI):
                 text = rogue_cards.normalize(raw)
                 if text:
                     names.add(text)
-                logger.info('Removal card at (%s,%s) OCR=%r'
-                            % (x, y, raw if has_ascii else text))
-                for name in targets:
-                    score = self._match_remove_name(raw, text, name)
-                    if score <= 0.0:
-                        continue
-                    best = candidates.get(name)
-                    if best is None or score > best[2]:
-                        candidates[name] = ((x, y), name, score, raw if has_ascii else text)
+                disp = raw if has_ascii else text
+                logger.info('Removal card at (%s,%s) OCR=%r' % (x, y, disp))
+                reads.append(((x, y), raw, text, disp))
+
+            used_indices = set()
             for name in targets:
-                if name in candidates:
-                    best = candidates[name]
+                while avail.get(name, 0) > 0 and len(picked) < count:
+                    best = None
+                    for idx, (pt, raw, text, disp) in enumerate(reads):
+                        if idx in used_indices:
+                            continue
+                        score = self._match_remove_name(raw, text, name)
+                        if score <= 0.0:
+                            continue
+                        if best is None or score > best[2]:
+                            best = (idx, pt, score, disp)
+                    if best is None:
+                        break
+                    idx, pt, score, disp = best
+                    used_indices.add(idx)
+                    avail[name] -= 1
+                    picked.append((page, pt, name, score, disp))
                     logger.info('Removal pick: at (%s,%s) -> %s (%.2f) OCR=%r'
-                                % (best[0][0], best[0][1], best[1], best[2], best[3]))
-                    return best
+                                % (pt[0], pt[1], name, score, disp))
+                    if len(picked) >= count:
+                        return picked, last_page
+
             if page == REMOVE_SCROLL_TIMES:
                 break
             if names and names <= seen:
@@ -3359,9 +3521,24 @@ class ChaoszeroRogue(ChaoszeroUI):
             if not self.rogue_remove_appear():
                 logger.info('Removal pick: the removal page is gone after scrolling')
                 break
-        logger.info('Removal pick: no configured target (%s) found on %s card(s)'
-                    % (', '.join(targets), len(points)))
+        logger.info('Removal pick: only %s/%s configured target(s) (%s) found on %s card(s)'
+                    % (len(picked), count, ', '.join(targets), len(points)))
         return None
+
+    def rogue_remove_pick(self):
+        """Return ((x, y), name, score, OCR) for the highest-priority removal target."""
+        result = self._scan_remove_picks(1)
+        return result[0][0][1:] if result else None
+
+    def rogue_remove_picks(self, count):
+        """Return `count` ordered picks `(page, (x, y), name, score, OCR)`, re-homing if scrolled."""
+        result = self._scan_remove_picks(count)
+        if not result:
+            return None
+        picks, last_page = result
+        if last_page > picks[0][0]:
+            self.rogue_remove_to_top()
+        return picks
 
     def rogue_shop_remove_needed(self):
         return (self.remove_done < self.rogue_delete_times()
@@ -3371,6 +3548,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         """Clear page-local state; preserve the run count and node skip."""
         self.remove_stage = 0
         self.remove_target = None
+        self.remove_targets = []
+        self.remove_pending_picks = []
+        self.remove_scroll_page = 0
         self.remove_tries = 0
         self.remove_cancel_tries = 0
         self.remove_wait.clear()
@@ -3384,13 +3564,19 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.remove_skip_node = (self.core_started, self.route_step)
         self.remove_stage = 3
         self.remove_target = None
+        self.remove_targets = []
+        self.remove_pending_picks = []
+        self.remove_scroll_page = 0
         self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
         self.tap_point(*point, name=name)
 
     def rogue_remove_submit(self, point):
-        """Submit the card selected by this handler; wait for explicit success."""
+        """Submit the card(s) selected by this handler; wait for explicit success."""
+        targets = getattr(self, 'remove_targets', None) or (
+            [self.remove_target] if self.remove_target else [])
+        names = ', '.join(item[1] for item in targets)
         logger.info('The card is picked, press 移除 for %s (confirmed %s/%s)'
-                    % (self.remove_target[1], self.remove_done, self.rogue_delete_times()))
+                    % (names, self.remove_done, self.rogue_delete_times()))
         self.remove_stage = 2
         self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
         self.tap_point(*point, name='ROGUE_REMOVE_OK')
@@ -3400,21 +3586,28 @@ class ChaoszeroRogue(ChaoszeroUI):
 
         Stages: 0 scan, 1 selected, 2 submitted, 3 completed/cancelled.
         Transition frames are consumed without clicks. Count only the explicit
-        卡牌移除完成 banner, once, after submitting our recognized target.
+        卡牌移除完成 banner, once, after submitting our recognized target(s).
         """
         if self.appear(ROGUE_REMOVE_DONE, offset=(12, 8), similarity=0.85):
-            if self.remove_stage == 2 and self.remove_target is not None:
-                self.remove_done += 1
+            done_targets = getattr(self, 'remove_targets', None) or (
+                [self.remove_target] if self.remove_target is not None else [])
+            if self.remove_stage == 2 and done_targets:
+                self.remove_done += len(done_targets)
                 counts = getattr(self, 'remove_counts', None)
                 if counts is None:
                     counts = self.remove_counts = {}
-                counts[self.remove_target[1]] = counts.get(self.remove_target[1], 0) + 1
+                for item in done_targets:
+                    counts[item[1]] = counts.get(item[1], 0) + 1
                 self.rogue_state_save(remove_done=self.remove_done, remove_counts=counts)
                 logger.info('Removal confirmed: %s (%s/%s used this run)'
-                            % (self.remove_target[1], self.remove_done, self.rogue_delete_times()))
+                            % (', '.join(item[1] for item in done_targets),
+                               self.remove_done, self.rogue_delete_times()))
             if self.remove_stage != 3:
                 self.remove_stage = 3
                 self.remove_target = None
+                self.remove_targets = []
+                self.remove_pending_picks = []
+                self.remove_scroll_page = 0
                 self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
             # Live 2026-11-17: this is a modal with 點擊畫面可關閉視窗,
             # not an automatic transition. Consume it without submitting again.
@@ -3489,11 +3682,30 @@ class ChaoszeroRogue(ChaoszeroUI):
             return True
         if self.remove_stage == 1:
             if ready:
+                self.remove_pending_picks = []
                 self.rogue_remove_submit(ready)
+            elif getattr(self, 'remove_pending_picks', None):
+                page, point, name, score, ocr = self.remove_pending_picks.pop(0)
+                cur_page = getattr(self, 'remove_scroll_page', 0)
+                while cur_page < page:
+                    self.device.click_record_clear()
+                    self.device.drag(REMOVE_SCROLL[0], REMOVE_SCROLL[1], name='ROGUE_REMOVE_SCROLL')
+                    self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                          threshold=REMOVE_STILL_THRESHOLD,
+                                          skip_first_screenshot=False)
+                    cur_page += 1
+                self.remove_scroll_page = cur_page
+                self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
+                logger.info('Remove next card %s at %s (score %.2f, OCR=%r)'
+                            % (name, point, score, ocr))
+                self.tap_point(*point, name='ROGUE_REMOVE_CARD')
             elif self.remove_wait.reached():
                 logger.info('Removal card was not selected, retry recognition')
                 self.remove_stage = 0
                 self.remove_target = None
+                self.remove_targets = []
+                self.remove_pending_picks = []
+                self.remove_scroll_page = 0
             return True
         if ready or self.remove_tries >= REMOVE_MAX_TRIES:
             # An externally selected card has no verified identity or priority.
@@ -3501,21 +3713,88 @@ class ChaoszeroRogue(ChaoszeroUI):
                         % self.remove_tries)
             self.rogue_remove_cancel()
             return True
+        required = self.rogue_remove_required()
+        if required is None:
+            logger.info('Removal count is not readable yet, wait')
+            return True
+        remaining = self.rogue_delete_times() - self.remove_done
+        if remaining < required:
+            logger.info('Removal quota %s left, less than %s required; leave the page'
+                        % (remaining, required))
+            self.rogue_remove_cancel()
+            return True
         # Re-home before each full scan so retries never start stranded at the bottom.
         self.rogue_remove_to_top()
         self.remove_tries += 1
-        picked = self.rogue_remove_pick()
-        if picked is None:
-            logger.info('Removal recognition missed (%s/%s), quota unchanged'
-                        % (self.remove_tries, REMOVE_MAX_TRIES))
+        if required == 1:
+            picked = self.rogue_remove_pick()
+            if picked is None:
+                logger.info('Removal recognition missed (%s/%s), quota unchanged'
+                            % (self.remove_tries, REMOVE_MAX_TRIES))
+                return True
+            self.remove_target = picked
+            self.remove_targets = [picked]
+            self.remove_pending_picks = []
+            self.remove_scroll_page = 0
+            self.remove_stage = 1
+            self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
+            logger.info('Remove %s at %s (score %.2f, OCR=%r)'
+                        % (picked[1], picked[0], picked[2], picked[3]))
+            self.tap_point(*picked[0], name='ROGUE_REMOVE_CARD')
             return True
-        self.remove_target = picked
+        picks = self.rogue_remove_picks(required)
+        if not picks:
+            logger.info('Removal recognition missed for %s cards (%s/%s), quota unchanged'
+                        % (required, self.remove_tries, REMOVE_MAX_TRIES))
+            return True
+        self.remove_targets = [(pt, name, score, ocr) for _, pt, name, score, ocr in picks]
+        self.remove_target = self.remove_targets[0]
+        self.remove_pending_picks = list(picks[1:])
+        self.remove_scroll_page = 0
         self.remove_stage = 1
         self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
-        logger.info('Remove %s at %s (score %.2f, OCR=%r)'
-                    % (picked[1], picked[0], picked[2], picked[3]))
-        self.tap_point(*picked[0], name='ROGUE_REMOVE_CARD')
+        page0, pt0, name0, score0, ocr0 = picks[0]
+        while self.remove_scroll_page < page0:
+            self.device.click_record_clear()
+            self.device.drag(REMOVE_SCROLL[0], REMOVE_SCROLL[1], name='ROGUE_REMOVE_SCROLL')
+            self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                  threshold=REMOVE_STILL_THRESHOLD,
+                                  skip_first_screenshot=False)
+            self.remove_scroll_page += 1
+        logger.info('Remove %s at %s (1/%s, score %.2f, OCR=%r)'
+                    % (name0, pt0, required, score0, ocr0))
+        self.tap_point(*pt0, name='ROGUE_REMOVE_CARD')
         return True
+
+    def _rogue_remove_suffix_appear(self):
+        """Match the invariant `欲移除的卡牌。` header suffix so 2-card removal pages match too."""
+        image = getattr(getattr(self, 'device', None), 'image', None)
+        if image is None or getattr(image, 'ndim', 0) != 3:
+            return False
+        x1, y1, x2, y2 = REMOVE_SUFFIX_AREA
+        if image.shape[0] < y2 or image.shape[1] < x2:
+            return False
+        ROGUE_REMOVE.ensure_template()
+        t1, t2, l1, l2 = REMOVE_SUFFIX_CROP
+        tpl = ROGUE_REMOVE.image[t1:t2, l1:l2]
+        roi = image[y1:y2, x1:x2, :3]
+        if roi.shape[0] < tpl.shape[0] or roi.shape[1] < tpl.shape[1]:
+            return False
+        return float(cv2.matchTemplate(roi, tpl, cv2.TM_CCOEFF_NORMED).max()) >= REMOVE_SUFFIX_SIM
+
+    def rogue_remove_required(self):
+        """Return how many cards the current removal page requires selecting."""
+        if self.appear(ROGUE_REMOVE, offset=(12, 8), similarity=0.93):
+            return 1
+        if not self._rogue_remove_suffix_appear():
+            return 1
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        text = self.card_reader.read_name(self.device.image, REMOVE_HEADER_AREA, scale=2, raw=True)
+        match = re.search(r'(\d+)\s*張', text) or re.search(r'(\d+)', text)
+        if match and int(match.group(1)) >= 1:
+            return int(match.group(1))
+        return None
 
     def rogue_remove_appear(self):
         """
@@ -3523,12 +3802,15 @@ class ChaoszeroRogue(ChaoszeroUI):
 
         顶部红色标题条 (105,12)-(430,58)：955 帧里 14 帧 ≥0.85（其中 12 帧 ≥0.999），
         次高 0.352；`rouge_dev_13/14/15` 的 0.895 是「轉換卡牌」页（标题只差一个字），
-        所以这里用 0.93 把它们排除掉。
+        所以这里用 0.93 把它们排除掉；「請選擇2張欲移除的卡牌」改由右半固定后缀
+        `欲移除的卡牌。` 在 0.90 阈值下补全（转换页/复制页约 0.77~0.80）。
 
         Returns:
             bool: If this frame is the card-removal page.
         """
-        return self.appear(ROGUE_REMOVE, offset=(12, 8), similarity=0.93)
+        if self.appear(ROGUE_REMOVE, offset=(12, 8), similarity=0.93):
+            return True
+        return self._rogue_remove_suffix_appear()
 
     def rogue_member_index(self, preferred=None):
         """
@@ -4123,7 +4405,14 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
                 continue
 
-            if (self.rogue_primary_point() or self.rogue_story_appear()
+            page = None
+            if self.appear(DIALOG_ENTER, offset=(20, 20), similarity=0.92):
+                page = 'dialog'
+            elif self.rogue_team_appear():
+                page = 'team'
+
+            if page is None and not self.rogue_outside_appear() and (
+                    self.rogue_primary_point() or self.rogue_story_appear()
                     or self.rogue_choice_appear() or self.rogue_battle_appear()
                     or self.rogue_herald_appear() or self.rogue_option_points()
                     or self.rogue_equip_appear() or self.rogue_rest_appear()
@@ -4132,12 +4421,6 @@ class ChaoszeroRogue(ChaoszeroUI):
                     or self.rogue_map_appear()):
                 logger.info('Run started')
                 return True
-
-            page = None
-            if self.appear(DIALOG_ENTER, offset=(20, 20), similarity=0.92):
-                page = 'dialog'
-            elif self.rogue_team_appear():
-                page = 'team'
 
             if page != last:
                 last = page
@@ -4726,6 +5009,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.copy_wait = Timer(MEMBER_WAIT, count=2)
         self.remove_stage = 0
         self.remove_target = None
+        self.remove_targets = []
+        self.remove_pending_picks = []
+        self.remove_scroll_page = 0
         # 相似页面等待日志的节流键（见 `_pause_for_similar_page`）
         self.pause_logged = None
         # 卡牌页收集器的去重键（同一页会连续命中很多帧）
@@ -5295,6 +5581,22 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
             self.flash_card_stage = 0
 
+            # 2.015 **卡牌轉換页**「請選擇 N 張欲轉換的卡牌」：**整页跳过**，一张都不选。
+            #       ❗必须排在**所有**"会误命中这页"的判断之前（实测塔罗命运页和靠左版
+            #       複製卡页的判据都在这一页上命中过，会把「轉換」当成复制或塔罗而死循环）。
+            #       判据绑在这一页自己身上（用户 2026-11-16：「只判定这个页面的时候才跳过，
+            #       不要把跳过做成通用状态机」）。`ROGUE_TRANSFORM` 与 `ROGUE_REMOVE`
+            #       在阈值 0.93 下互斥（1.000/0.896 和 0.895/0.999）。
+            #       为什么要跳过：转卡会把普通卡换成另一张（「捨棄世俗」→ 致命射擊）。
+            if self.rogue_transform_appear():
+                point = self.rogue_secondary_point()
+                if point and press.reached():
+                    press.reset()
+                    self.card_tries = 0
+                    logger.info('Card TRANSFORM page, skip it at (%s, %s)' % point)
+                    self.tap_point(point[0], point[1], name='ROGUE_SECONDARY')
+                continue
+
             # 2.005 **「請選擇欲複製的卡牌」页**：点卡就完成复制。
             #        ❗必须排在 `rogue_meditate_appear()`（4.7）之前：那一页会被冥想判据
             #        误吃，然后去点左下角图标区 (134,616)，连点十几次都不动
@@ -5344,23 +5646,6 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
             self.copy_target = None
             self.copy_miss = 0
-
-            # 2.015 **卡牌轉換页**「請選擇 N 張欲轉換的卡牌」：**整页跳过**，一张都不选。
-            #       ❗必须排在**所有**"会误命中这页"的判断之前（实测塔罗命运页的判据
-            #       在这一页上就命中过，日志报的却是 `命运三选一（塔罗）`，
-            #       于是被那个暂停分支拦住、根本不跳）。
-            #       判据绑在这一页自己身上（用户 2026-11-16：「只判定这个页面的时候才跳过，
-            #       不要把跳过做成通用状态机」）。`ROGUE_TRANSFORM` 与 `ROGUE_REMOVE`
-            #       在阈值 0.93 下互斥（1.000/0.896 和 0.895/0.999）。
-            #       为什么要跳过：转卡会把普通卡换成另一张（「捨棄世俗」→ 致命射擊）。
-            if self.rogue_transform_appear():
-                point = self.rogue_secondary_point()
-                if point and press.reached():
-                    press.reset()
-                    self.card_tries = 0
-                    logger.info('Card TRANSFORM page, skip it at (%s, %s)' % point)
-                    self.tap_point(point[0], point[1], name='ROGUE_SECONDARY')
-                continue
 
             # 2.02 塔罗命运页：先点一张卡，再点确认。
             #      必须排在 `跳過` 之前：那页右下有颗白色 ▶ 圆钮，正好落在跳过判据
@@ -5815,9 +6100,10 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
 
             # 走到这里说明已经不在地图上了，节点尝试次数清零（下一格重新给 10 次）。
+            # 注意不能在这里清 `route_retry`：2D 预览关回 3D 地图的过渡帧也会落到这里，
+            # 清零会让 `ROUTE_RETRY` 永远停在 try 1（进新节点时由 confirm_move 清零）。
             if self.node_pending is None:
                 self.node_tries = 0
-                self.route_retry = 0
 
             # 5.9 航点（信标）场景：中间一座青色石柱 + 底部「啟用航點 / 獲得裝備[...]」提示卡。
             #     ❗必须排在事件选项卡之前：`rogue_option_points()` 会把这个提示卡

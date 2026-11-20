@@ -53,6 +53,33 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
     # 连续多少帧看不到才算"真的消失"：淡出动画期间元素已经不再匹配，但还在吃点击。
     SETTLE_FRAMES = 3
 
+    # On the squad dungeon CLEAR page, 「返回」 can shift left (for example when
+    # a second button is present) beyond the ±3px x-window of `offset=30`.
+    DUNGEON_BACK_OFFSET = (-400, -60, 50, 45)
+
+    def click_dungeon_back(self, reason=None):
+        """
+        Click 「返回」 on a CLEAR page only when the button actually matches.
+
+        `Button.match()` mutates `_button_offset` even when matching fails, so
+        clear the offset afterwards on both hit and miss to prevent leaving a
+        stale click box for `ui_additional()` or `event.py`.
+
+        Args:
+            reason (str | None): Optional info log message when clicked.
+
+        Returns:
+            bool: If DUNGEON_BTN_BACK was found and clicked.
+        """
+        if self.appear(DUNGEON_BTN_BACK, offset=self.DUNGEON_BACK_OFFSET):
+            if reason:
+                logger.info(reason)
+            self.device.click(DUNGEON_BTN_BACK)
+            DUNGEON_BTN_BACK.clear_offset()
+            return True
+        DUNGEON_BTN_BACK.clear_offset()
+        return False
+
     def tap_point(self, x, y):
         """
         Press a point of this game with an adb tap.
@@ -324,9 +351,8 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
             return True
 
         if self.appear(DUNGEON_CLEAR, offset=30, interval=2):
-            logger.info('Squad dungeon clear page, leave it')
-            self.device.click(DUNGEON_BTN_BACK)
-            return True
+            if self.click_dungeon_back(reason='Squad dungeon clear page, leave it'):
+                return True
 
         # The two dialogs of the boss raid cover the middle of the page only, so
         # the page underneath keeps matching and `ui_goto` believes it already

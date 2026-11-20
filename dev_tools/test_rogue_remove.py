@@ -478,6 +478,64 @@ class ConfiguredRemovalTest(unittest.TestCase):
         picked = task.rogue_remove_pick()
         self.assertEqual(picked[:2], ((660, 220), '水護盾'))
 
+    def test_two_card_removal_selects_two_submits_and_counts_both(self):
+        task = self._configured_task('劍幕 = 1\n劍光 = 1')
+        task.rogue_remove_to_top = Mock()
+        task.rogue_remove_ready = Mock(side_effect=[None, None, (1154, 671)])
+        task.rogue_remove_required = Mock(return_value=2)
+        task.rogue_flash_card_points = Mock(return_value=[
+            (454, 222, 83, 360, 188, 276),
+            (667, 222, 83, 573, 188, 276),
+        ])
+        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['劍光', '劍幕']))
+
+        # Step 1: picks 劍幕 (higher priority) and 劍光, taps 劍幕 first.
+        self.assertTrue(task.handle_rogue_remove(Timer(0)))
+        task.tap_point.assert_called_once_with(667, 222, name='ROGUE_REMOVE_CARD')
+        task.tap_point.reset_mock()
+
+        # Step 2: ready is still None (1/2 selected), taps 劍光 second.
+        self.assertTrue(task.handle_rogue_remove(Timer(0)))
+        task.tap_point.assert_called_once_with(454, 222, name='ROGUE_REMOVE_CARD')
+        task.tap_point.reset_mock()
+
+        # Step 3: ready lights up (2/2 selected), presses 移除.
+        self.assertTrue(task.handle_rogue_remove(Timer(0)))
+        task.tap_point.assert_called_once_with(1154, 671, name='ROGUE_REMOVE_OK')
+        task.tap_point.reset_mock()
+
+        # Step 4: completion banner confirms 2 removals across both card names.
+        task.appear = Mock(side_effect=lambda button, **kwargs: button is ROGUE_REMOVE_DONE)
+        self.assertTrue(task.handle_rogue_remove(Timer(0)))
+        self.assertEqual(task.remove_done, 2)
+        self.assertEqual(task.remove_counts, {'劍幕': 1, '劍光': 1})
+        task.rogue_state_save.assert_called_once_with(
+            remove_done=2, remove_counts={'劍幕': 1, '劍光': 1})
+
+    def test_two_card_removal_skips_when_remaining_quota_is_one(self):
+        task = self._configured_task('劍幕 = 1\n劍光 = 1', remove_counts={'劍幕': 1})
+        task.remove_done = 1
+        task.rogue_remove_ready = Mock(return_value=None)
+        task.rogue_remove_required = Mock(return_value=2)
+        task.rogue_remove_picks = Mock()
+
+        self.assertTrue(task.handle_rogue_remove(Timer(0)))
+        task.tap_point.assert_called_once_with(913, 673, name='ROGUE_REMOVE_CANCEL')
+        task.rogue_remove_picks.assert_not_called()
+
+    def test_two_card_removal_header_distinguished_from_transform_and_copy(self):
+        from module.chaoszero.assets import ROGUE_COPY_TITLE2, ROGUE_REMOVE, ROGUE_TRANSFORM
+        for button, expected in (
+            (ROGUE_REMOVE, True),
+            (ROGUE_TRANSFORM, False),
+            (ROGUE_COPY_TITLE2, False),
+        ):
+            with self.subTest(template=button.name):
+                task = make_task()
+                del task.rogue_remove_appear
+                task.device.image = np.array(Image.open(button.file).convert('RGB'))
+                self.assertEqual(task.rogue_remove_appear(), expected)
+
 
 class RemovalTemplateTest(unittest.TestCase):
     def test_template_keeps_full_frame_and_extractable_nonempty_title(self):
