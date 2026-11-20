@@ -180,11 +180,19 @@ Crosscore:
     CrosscoreExplore:
       - Scheduler
       - CrosscoreExplore
+    CrosscoreChip:
+      - Scheduler
+      - CrosscoreChip
     CrosscoreExercise:
       - Scheduler
+    CrosscoreWeekly:
+      - Scheduler
+      - CrosscoreWeekly
     CrosscoreBase:
       - CrosscoreBase
       - Scheduler
+    # 独立剧情跳过工具：归类在交错战线菜单下，但不带 Scheduler 组，不参与调度。
+    CrosscoreStory: []
 
 
 # ==================== Star Savior (星之救援者) ====================

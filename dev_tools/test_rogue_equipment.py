@@ -158,6 +158,19 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(equipment.read_item(image, DETAIL_TITLE)[1]['id'], 'eq_pub_018')
         self.assertIsNone(equipment.read_item(image, (525, 151, 890, 188))[1])
 
+    def test_ambiguous_ocr_name_disambiguates_via_detail_icon(self):
+        task, equipment = make_task('verdant_day')
+        text, item = equipment.read_item(task.device.image, DETAIL_TITLE)
+        self.assertIsNotNone(item, text)
+        self.assertEqual(item['id'], 'eq_sec_011')
+        equipment.handle(Mock())
+        task.tap_point.assert_called_once_with(1153, 551, name='ROGUE_EQUIP_SLOT')
+
+        # Without a matching icon (e.g. blank card art), tied OCR names remain rejected.
+        blank = task.device.image.copy()
+        blank[270:440, 80:250] = 0
+        self.assertIsNone(equipment.read_item(blank, DETAIL_TITLE)[1])
+
     def test_empty_slots_precede_confirmed_upgrades_and_designated_gear_is_protected(self):
         task, equipment = make_task('shop', '調節時間器 = 維若妮卡')
         image = task.device.image

@@ -131,8 +131,21 @@ EXPLORE_SUB_SKILL = Button(area={'crosscore': (855, 140, 1046, 215)}, color={'cr
 EXPLORE_SUB_COIN = Button(area={'crosscore': (854, 244, 1027, 314)}, color={'crosscore': (106, 100, 99)}, button={'crosscore': (854, 244, 1027, 314)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_COIN.png'})
 EXPLORE_SUB_TECH = Button(area={'crosscore': (850, 356, 1036, 430)}, color={'crosscore': (53, 59, 69)}, button={'crosscore': (850, 356, 1036, 430)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_TECH.png'})
 EXPLORE_SUB_RELIC = Button(area={'crosscore': (854, 463, 1044, 532)}, color={'crosscore': (93, 96, 108)}, button={'crosscore': (854, 463, 1044, 532)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_RELIC.png'})
-# 关卡详情页左下角的「扫荡」。❗未通关的层这个按钮是灰的、点了没反应。
+# 芯片嵌合（8 项）与跃升行动（3 项）前两字标题模板（在右栏按全卡区搜索定位，兼容「明日开放」沉底重排）。
+EXPLORE_SUB_INSPIRE = Button(area={'crosscore': (853, 143, 912, 168)}, color={'crosscore': (114, 114, 122)}, button={'crosscore': (853, 143, 912, 168)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_INSPIRE.png'}, name='EXPLORE_SUB_INSPIRE')
+EXPLORE_SUB_OPTIC = Button(area={'crosscore': (853, 251, 912, 276)}, color={'crosscore': (101, 101, 104)}, button={'crosscore': (853, 251, 912, 276)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_OPTIC.png'}, name='EXPLORE_SUB_OPTIC')
+EXPLORE_SUB_INJECT = Button(area={'crosscore': (853, 359, 912, 384)}, color={'crosscore': (86, 89, 96)}, button={'crosscore': (853, 359, 912, 384)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_INJECT.png'}, name='EXPLORE_SUB_INJECT')
+EXPLORE_SUB_LINK = Button(area={'crosscore': (853, 467, 912, 492)}, color={'crosscore': (104, 105, 111)}, button={'crosscore': (853, 467, 912, 492)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_LINK.png'}, name='EXPLORE_SUB_LINK')
+EXPLORE_SUB_PHYSIQUE = Button(area={'crosscore': (332, 195, 391, 220)}, color={'crosscore': (121, 121, 129)}, button={'crosscore': (332, 195, 391, 220)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_PHYSIQUE.png'}, name='EXPLORE_SUB_PHYSIQUE')
+EXPLORE_SUB_EROSION = Button(area={'crosscore': (332, 303, 391, 328)}, color={'crosscore': (112, 112, 120)}, button={'crosscore': (332, 303, 391, 328)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_EROSION.png'}, name='EXPLORE_SUB_EROSION')
+EXPLORE_SUB_BLADE = Button(area={'crosscore': (332, 411, 391, 436)}, color={'crosscore': (97, 98, 107)}, button={'crosscore': (332, 411, 391, 436)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_BLADE.png'}, name='EXPLORE_SUB_BLADE')
+EXPLORE_SUB_PARADOX = Button(area={'crosscore': (332, 519, 391, 544)}, color={'crosscore': (101, 102, 109)}, button={'crosscore': (332, 519, 391, 544)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_PARADOX.png'}, name='EXPLORE_SUB_PARADOX')
+EXPLORE_SUB_NATURE = Button(area={'crosscore': (332, 143, 391, 168)}, color={'crosscore': (146, 139, 146)}, button={'crosscore': (332, 143, 391, 168)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_NATURE.png'}, name='EXPLORE_SUB_NATURE')
+EXPLORE_SUB_SYNTH = Button(area={'crosscore': (332, 251, 391, 276)}, color={'crosscore': (93, 96, 104)}, button={'crosscore': (332, 251, 391, 276)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_SYNTH.png'}, name='EXPLORE_SUB_SYNTH')
+EXPLORE_SUB_LIFE = Button(area={'crosscore': (332, 359, 391, 384)}, color={'crosscore': (104, 103, 108)}, button={'crosscore': (332, 359, 391, 384)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SUB_LIFE.png'}, name='EXPLORE_SUB_LIFE')
+# 关卡详情页左下角的「扫荡」。❗未通关的层这个按钮是灰的+右上带锁图标（EXPLORE_SWEEP_LOCKED），点了没反应。
 EXPLORE_SWEEP = Button(area={'crosscore': (869, 599, 932, 648)}, color={'crosscore': (200, 200, 203)}, button={'crosscore': (869, 599, 932, 648)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SWEEP.png'})
+EXPLORE_SWEEP_LOCKED = Button(area={'crosscore': (865, 595, 938, 672)}, color={'crosscore': (64, 69, 80)}, button={'crosscore': (865, 595, 938, 672)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_SWEEP_LOCKED.png'}, name='EXPLORE_SWEEP_LOCKED')
 # 扫荡面板里的金色「开始战斗」。详情页右侧也有一个「开始战斗」，但它在 y≈587–640，
 # 和这里的 540–577 不重叠，不会互相误命中。
 EXPLORE_START = Button(area={'crosscore': (969, 540, 1063, 577)}, color={'crosscore': (177, 131, 42)}, button={'crosscore': (969, 540, 1063, 577)}, file={'crosscore': './assets/crosscore/crosscore/EXPLORE_START.png'})
@@ -162,6 +175,13 @@ EXPLORE_LAYER_ROW_3 = Button(area={'crosscore': (960, 385, 1040, 417)}, color={'
 EXPLORE_LAYER_ROW_4 = Button(area={'crosscore': (960, 448, 1040, 480)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 448, 1040, 480)}, name='EXPLORE_LAYER_ROW_4')
 EXPLORE_LAYER_ROW_5 = Button(area={'crosscore': (960, 511, 1040, 543)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 511, 1040, 543)}, name='EXPLORE_LAYER_ROW_5')
 EXPLORE_LAYER_ROW_6 = Button(area={'crosscore': (960, 574, 1040, 606)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (960, 574, 1040, 606)}, name='EXPLORE_LAYER_ROW_6')
+# 点进关卡详情后，层列表左移到中栏（x 450..580，y 与右栏同）。纯坐标 → **永远不能进 `appear()` 家族**。
+EXPLORE_MID_LAYER_ROW_1 = Button(area={'crosscore': (450, 259, 580, 291)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (450, 259, 580, 291)}, name='EXPLORE_MID_LAYER_ROW_1')
+EXPLORE_MID_LAYER_ROW_2 = Button(area={'crosscore': (450, 322, 580, 354)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (450, 322, 580, 354)}, name='EXPLORE_MID_LAYER_ROW_2')
+EXPLORE_MID_LAYER_ROW_3 = Button(area={'crosscore': (450, 385, 580, 417)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (450, 385, 580, 417)}, name='EXPLORE_MID_LAYER_ROW_3')
+EXPLORE_MID_LAYER_ROW_4 = Button(area={'crosscore': (450, 448, 580, 480)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (450, 448, 580, 480)}, name='EXPLORE_MID_LAYER_ROW_4')
+EXPLORE_MID_LAYER_ROW_5 = Button(area={'crosscore': (450, 511, 580, 543)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (450, 511, 580, 543)}, name='EXPLORE_MID_LAYER_ROW_5')
+EXPLORE_MID_LAYER_ROW_6 = Button(area={'crosscore': (450, 574, 580, 606)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (450, 574, 580, 606)}, name='EXPLORE_MID_LAYER_ROW_6')
 
 # 燃料不足时点「开始战斗」弹出的「燃料补给」对话框标题（实测 1.000 → 其余截图 ≤0.60）。
 # 扫完当天体力后必然出现，属于正常终态，不是卡死。
@@ -215,6 +235,11 @@ EXERCISE_OPPONENT_1 = Button(area={'crosscore': (340, 115, 1010, 255)}, color={'
 EXERCISE_ITEM_1 = Button(area={'crosscore': (15, 135, 225, 390)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (15, 135, 225, 390)}, name='EXERCISE_ITEM_1')
 EXERCISE_RESULT_CLICK = Button(area={'crosscore': (560, 650, 720, 710)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (560, 650, 720, 710)}, name='EXERCISE_RESULT_CLICK')
 
+# 模拟次数用尽时点对手行弹出的「模拟次数购买」对话框标题（绝对不能点黄色购买按钮）。
+EXERCISE_NO_ATTEMPT = Button(area={'crosscore': (217, 179, 379, 207)}, color={'crosscore': (112, 113, 117)}, button={'crosscore': (217, 179, 379, 207)}, file={'crosscore': './assets/crosscore/crosscore/EXERCISE_NO_ATTEMPT.png'}, name='EXERCISE_NO_ATTEMPT')
+# 选对手页顶部正中空白区，点一下关掉「模拟次数购买」弹窗且不会误触任何底层按钮。纯坐标 → 永远不能进 `appear()` 家族。
+EXERCISE_DIALOG_OUTSIDE = Button(area={'crosscore': (550, 40, 750, 90)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (550, 40, 750, 90)}, name='EXERCISE_DIALOG_OUTSIDE')
+
 # ==================== 兑换码 ====================
 
 # 大厅右上角的菜单图标（三条横线）。点它拉出右侧菜单。
@@ -237,3 +262,57 @@ COUPON_KEYBOARD_OK = Button(area={'crosscore': (1156, 650, 1226, 700)}, color={'
 # 右上角的菜单图标，所以只能用场景里的空白点；纯坐标，只在 `COUPON_SETTINGS`
 # 命中（=菜单面板在）之后点击。
 COUPON_MENU_DISMISS = Button(area={'crosscore': (360, 280, 400, 320)}, color={'crosscore': (60, 60, 66)}, button={'crosscore': (360, 280, 400, 320)}, name='COUPON_MENU_DISMISS')
+
+# ==================== 剧情跳过工具 ====================
+
+STORY_SKIP = Button(area={'crosscore': (1126, 27, 1226, 58)}, color={'crosscore': (68, 70, 77)}, button={'crosscore': (1126, 27, 1226, 58)}, file={'crosscore': './assets/crosscore/crosscore/STORY_SKIP.png'}, name='STORY_SKIP')
+STORY_CONFIRM_TITLE = Button(area={'crosscore': (268, 174, 386, 206)}, color={'crosscore': (94, 95, 99)}, button={'crosscore': (268, 174, 386, 206)}, file={'crosscore': './assets/crosscore/crosscore/STORY_CONFIRM_TITLE.png'}, name='STORY_CONFIRM_TITLE')
+STORY_CONFIRM = Button(area={'crosscore': (728, 426, 876, 470)}, color={'crosscore': (230, 175, 66)}, button={'crosscore': (728, 426, 876, 470)}, file={'crosscore': './assets/crosscore/crosscore/STORY_CONFIRM.png'}, name='STORY_CONFIRM')
+
+# ==================== 芯片分解 ====================
+
+MAIN_STORAGE = Button(area={'crosscore': (1126, 26, 1166, 61)}, color={'crosscore': (93, 93, 100)}, button={'crosscore': (1126, 26, 1166, 61)}, file={'crosscore': './assets/crosscore/crosscore/MAIN_STORAGE.png'}, name='MAIN_STORAGE')
+CHIP_TAB = Button(area={'crosscore': (1148, 32, 1244, 68)}, color={'crosscore': (50, 50, 50)}, button={'crosscore': (1135, 30, 1245, 70)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_TAB.png'}, name='CHIP_TAB')
+CHIP_DISMANTLE_BATCH = Button(area={'crosscore': (1122, 632, 1170, 658)}, color={'crosscore': (142, 107, 40)}, button={'crosscore': (1095, 623, 1241, 666)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_DISMANTLE_BATCH.png'}, name='CHIP_DISMANTLE_BATCH')
+CHIP_QUICK_SELECT = Button(area={'crosscore': (1120, 542, 1220, 572)}, color={'crosscore': (141, 141, 143)}, button={'crosscore': (1097, 534, 1243, 578)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_QUICK_SELECT.png'}, name='CHIP_QUICK_SELECT')
+CHIP_DISMANTLE_CONFIRM = Button(area={'crosscore': (1122, 632, 1170, 658)}, color={'crosscore': (157, 119, 45)}, button={'crosscore': (1095, 623, 1241, 666)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_DISMANTLE_CONFIRM.png'}, name='CHIP_DISMANTLE_CONFIRM')
+CHIP_SELECTED_ZERO = Button(area={'crosscore': (1150, 487, 1190, 511)}, color={'crosscore': (116, 118, 125)}, button={'crosscore': (1150, 487, 1190, 511)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_SELECTED_ZERO.png'}, name='CHIP_SELECTED_ZERO')
+CHIP_QUALITY_TITLE = Button(area={'crosscore': (844, 484, 888, 510)}, color={'crosscore': (109, 109, 109)}, button={'crosscore': (844, 484, 888, 510)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_QUALITY_TITLE.png'}, name='CHIP_QUALITY_TITLE')
+CHIP_QUALITY_CONFIRM = Button(area={'crosscore': (800, 607, 929, 643)}, color={'crosscore': (220, 169, 61)}, button={'crosscore': (800, 607, 929, 643)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_QUALITY_CONFIRM.png'}, name='CHIP_QUALITY_CONFIRM')
+CHIP_STAR_1 = Button(area={'crosscore': (682, 541, 718, 566)}, color={'crosscore': (110, 110, 114)}, button={'crosscore': (669, 521, 732, 585)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_STAR_1.png'}, name='CHIP_STAR_1')
+CHIP_STAR_2 = Button(area={'crosscore': (764, 541, 801, 566)}, color={'crosscore': (110, 110, 113)}, button={'crosscore': (750, 521, 815, 585)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_STAR_2.png'}, name='CHIP_STAR_2')
+CHIP_STAR_3 = Button(area={'crosscore': (847, 541, 884, 566)}, color={'crosscore': (111, 110, 114)}, button={'crosscore': (834, 521, 898, 585)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_STAR_3.png'}, name='CHIP_STAR_3')
+CHIP_STAR_4 = Button(area={'crosscore': (929, 541, 966, 566)}, color={'crosscore': (112, 112, 115)}, button={'crosscore': (917, 521, 980, 585)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_STAR_4.png'}, name='CHIP_STAR_4')
+CHIP_STAR_5 = Button(area={'crosscore': (1012, 541, 1049, 566)}, color={'crosscore': (111, 111, 115)}, button={'crosscore': (1000, 521, 1063, 585)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_STAR_5.png'}, name='CHIP_STAR_5')
+CHIP_SELL_PROMPT = Button(area={'crosscore': (535, 305, 735, 333)}, color={'crosscore': (118, 122, 129)}, button={'crosscore': (535, 305, 735, 333)}, file={'crosscore': './assets/crosscore/crosscore/CHIP_SELL_PROMPT.png'}, name='CHIP_SELL_PROMPT')
+
+# ==================== 碎星虚影（周本） ====================
+
+WEEKLY_ACTIVITY_ENTRY = Button(area={'crosscore': (545, 132, 705, 168)}, color={'crosscore': (82, 86, 94)}, button={'crosscore': (545, 132, 705, 168)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_ACTIVITY_ENTRY.png'}, name='WEEKLY_ACTIVITY_ENTRY')
+WEEKLY_ACTIVITY_HEADER = Button(area={'crosscore': (555, 80, 705, 118)}, color={'crosscore': (91, 94, 101)}, button={'crosscore': (555, 80, 705, 118)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_ACTIVITY_HEADER.png'}, name='WEEKLY_ACTIVITY_HEADER')
+WEEKLY_SHATTER_CARD = Button(area={'crosscore': (520, 495, 642, 535)}, color={'crosscore': (114, 114, 118)}, button={'crosscore': (490, 200, 740, 560)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_SHATTER_CARD.png'}, name='WEEKLY_SHATTER_CARD')
+WEEKLY_MAP_GOLIKE = Button(area={'crosscore': (165, 425, 365, 470)}, color={'crosscore': (145, 145, 148)}, button={'crosscore': (155, 180, 375, 550)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_MAP_GOLIKE.png'}, name='WEEKLY_MAP_GOLIKE')
+WEEKLY_MAP_NOS = Button(area={'crosscore': (540, 425, 735, 470)}, color={'crosscore': (123, 125, 127)}, button={'crosscore': (525, 180, 750, 550)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_MAP_NOS.png'}, name='WEEKLY_MAP_NOS')
+WEEKLY_MAP_NECRO = Button(area={'crosscore': (910, 425, 1110, 470)}, color={'crosscore': (55, 60, 67)}, button={'crosscore': (900, 180, 1120, 550)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_MAP_NECRO.png'}, name='WEEKLY_MAP_NECRO')
+WEEKLY_STAGE_REWARD_BTN = Button(area={'crosscore': (1162, 184, 1236, 224)}, color={'crosscore': (164, 128, 52)}, button={'crosscore': (1162, 184, 1236, 224)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_STAGE_REWARD_BTN.png'}, name='WEEKLY_STAGE_REWARD_BTN')
+WEEKLY_BATTLE_START = Button(area={'crosscore': (1070, 640, 1185, 676)}, color={'crosscore': (174, 131, 47)}, button={'crosscore': (911, 628, 1211, 688)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_BATTLE_START.png'}, name='WEEKLY_BATTLE_START')
+WEEKLY_FORMATION_TITLE = Button(area={'crosscore': (75, 168, 265, 202)}, color={'crosscore': (43, 48, 58)}, button={'crosscore': (75, 168, 265, 202)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_FORMATION_TITLE.png'}, name='WEEKLY_FORMATION_TITLE')
+WEEKLY_ACTION_START = Button(area={'crosscore': (1075, 642, 1190, 678)}, color={'crosscore': (188, 141, 51)}, button={'crosscore': (918, 629, 1219, 689)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_ACTION_START.png'}, name='WEEKLY_ACTION_START')
+
+# 中栏可见的 4 张关卡卡槽（135 + 128*i .. +110）。纯坐标 → **永远不能进 `appear()` 家族**。
+WEEKLY_STAGE_SLOT_1 = Button(area={'crosscore': (550, 165, 720, 215)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (550, 165, 720, 215)}, name='WEEKLY_STAGE_SLOT_1')
+WEEKLY_STAGE_SLOT_2 = Button(area={'crosscore': (550, 293, 720, 343)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (550, 293, 720, 343)}, name='WEEKLY_STAGE_SLOT_2')
+WEEKLY_STAGE_SLOT_3 = Button(area={'crosscore': (550, 421, 720, 471)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (550, 421, 720, 471)}, name='WEEKLY_STAGE_SLOT_3')
+WEEKLY_STAGE_SLOT_4 = Button(area={'crosscore': (550, 549, 720, 599)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (550, 549, 720, 599)}, name='WEEKLY_STAGE_SLOT_4')
+
+# 左下「本周报酬微晶 45/540」与「N天 HH:MM:SS后重置」OCR 区域（仅框选白色当前值+斜杠，避开左侧微晶图标反光与右侧小字上限）。
+WEEKLY_CRYSTAL_OCR = Button(area={'crosscore': (103, 628, 156, 653)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (103, 628, 156, 653)}, name='WEEKLY_CRYSTAL_OCR')
+WEEKLY_RESET_OCR = Button(area={'crosscore': (62, 664, 230, 690)}, color={'crosscore': (0, 0, 0)}, button={'crosscore': (62, 664, 230, 690)}, name='WEEKLY_RESET_OCR')
+
+# Step 2 战棋地图与敌方/BOSS 判据。
+WEEKLY_MAP_HUD = Button(area={'crosscore': (88, 602, 208, 640)}, color={'crosscore': (78, 79, 85)}, button={'crosscore': (88, 602, 208, 640)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_MAP_HUD.png'}, name='WEEKLY_MAP_HUD')
+WEEKLY_MY_TURN = Button(area={'crosscore': (912, 644, 988, 670)}, color={'crosscore': (104, 97, 73)}, button={'crosscore': (912, 644, 988, 670)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_MY_TURN.png'}, name='WEEKLY_MY_TURN')
+WEEKLY_BOSS_ICON = Button(area={'crosscore': (584, 20, 634, 46)}, color={'crosscore': (101, 61, 64)}, button={'crosscore': (584, 20, 634, 46)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_BOSS_ICON.png'}, name='WEEKLY_BOSS_ICON')
+WEEKLY_ENEMY_LV = Button(area={'crosscore': (258, 86, 305, 111)}, color={'crosscore': (99, 100, 103)}, button={'crosscore': (258, 86, 305, 111)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_ENEMY_LV.png'}, name='WEEKLY_ENEMY_LV')
+WEEKLY_OVERFLOW_TITLE = Button(area={'crosscore': (430, 295, 850, 345)}, color={'crosscore': (110, 115, 122)}, button={'crosscore': (430, 295, 850, 345)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_OVERFLOW_TITLE.png'}, name='WEEKLY_OVERFLOW_TITLE')
+WEEKLY_OVERFLOW_CONFIRM = Button(area={'crosscore': (728, 426, 876, 470)}, color={'crosscore': (233, 178, 62)}, button={'crosscore': (728, 426, 876, 470)}, file={'crosscore': './assets/crosscore/crosscore/WEEKLY_OVERFLOW_CONFIRM.png'}, name='WEEKLY_OVERFLOW_CONFIRM')

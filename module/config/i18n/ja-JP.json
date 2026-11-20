@@ -246,13 +246,25 @@
       "name": "クロス：デイリー探索",
       "help": "ロビーの「出擊 → 每日探索」から入り、設定した 1 つのサブ項目だけを周回します：そのサブ項目の解放済み最高層を選び、「掃蕩 → 開始戰鬥」を押し、ドロップボーナスの確認は「使用」、掃蕩完了後は右下の「獎勵」で結果画面を閉じてメイン画面に戻ります。掃蕩はスタミナをすべて消費します"
     },
+    "CrosscoreChip": {
+      "name": "Task.CrosscoreChip.name",
+      "help": "Task.CrosscoreChip.help"
+    },
     "CrosscoreExercise": {
       "name": "クロス：模擬演習",
       "help": "ロビーの「出擊 → 模擬軍演 → 鏡像競技」から入り、対戦相手リストの 1 番目だけを毎回選んで（戦力は見ません）1 日の模擬回数 10 回を使い切ります。勝敗どちらも同じ結果画面で止まるので、空白部分をタップして閉じます。その後「商店兌換」で左上の商品から順に購入し、数量を選べる商品は「最大」で買い、星幣と技術點は買わず、この 2 つだけになったら終了します"
     },
+    "CrosscoreWeekly": {
+      "name": "Task.CrosscoreWeekly.name",
+      "help": "Task.CrosscoreWeekly.help"
+    },
     "CrosscoreBase": {
       "name": "クロス：基地",
       "help": "基地素材の受け取り、時間制の駐員シフト交代、自他のオーダー庫での建設オーダー購入。素材不足時は先に制作素材で合成します"
+    },
+    "CrosscoreStory": {
+      "name": "ストーリースキップ",
+      "help": "右上のスキップと確認ダイアログを自動で連続クリックする単独ツールです。Stop を押すまで動作し続けます。"
     },
     "Starsavior2": {
       "name": "スター：リセマラ",
@@ -1135,6 +1147,47 @@
       "help": "第 2 チームの勤務時間。基地を実行するたびに別のチームへ交代します。今回の実行で第 2 チームになった場合、この時間で次回実行を予約します"
     }
   },
+  "CrosscoreChip": {
+    "_info": {
+      "name": "CrosscoreChip._info.name",
+      "help": "CrosscoreChip._info.help"
+    },
+    "Rarity": {
+      "name": "CrosscoreChip.Rarity.name",
+      "help": "CrosscoreChip.Rarity.help",
+      "5星": "5星",
+      "4星": "4星",
+      "3星": "3星",
+      "2星": "2星"
+    }
+  },
+  "CrosscoreWeekly": {
+    "_info": {
+      "name": "CrosscoreWeekly._info.name",
+      "help": "CrosscoreWeekly._info.help"
+    },
+    "Map": {
+      "name": "CrosscoreWeekly.Map.name",
+      "help": "CrosscoreWeekly.Map.help",
+      "戈里刻虚影": "戈里刻虚影",
+      "诺斯虚影": "诺斯虚影",
+      "尼克罗虚影": "尼克罗虚影"
+    },
+    "Stage": {
+      "name": "CrosscoreWeekly.Stage.name",
+      "help": "CrosscoreWeekly.Stage.help",
+      "第1关": "第1关",
+      "第2关": "第2关",
+      "第3关": "第3关",
+      "第4关": "第4关",
+      "第5关": "第5关",
+      "第6关": "第6关"
+    },
+    "IgnoreCap": {
+      "name": "CrosscoreWeekly.IgnoreCap.name",
+      "help": "CrosscoreWeekly.IgnoreCap.help"
+    }
+  },
   "Starsavior2": {
     "_info": {
       "name": "リセマラ設定",
@@ -1721,12 +1774,7 @@
       "PriorityTag": "優先",
       "CardKindBasic": "基本カード · 初期 {count} 枚",
       "CardKindSpark": "閃き対象 · 初期 {count} 枚",
-      "CardKindUnique": "固有カード · 初期 {count} 枚",
-      "EventRecorderTitle": "イベント記録（デバッグ）",
-      "EventRecorderHelp": "スクリーンショットなしで選択確定済みのイベント種類のみを記録します。重複時は加算されません。記録済み：{seen} / {total}",
-      "EventRecorderRefresh": "更新",
-      "EventRecorderClear": "記録をクリア",
-      "EventRecorderCleared": "イベント記録をクリアしました"
+      "CardKindUnique": "固有カード · 初期 {count} 枚"
     }
   }
 }

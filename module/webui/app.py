@@ -57,7 +57,7 @@ from module.config.utils import (
 from module.logger import logger
 from module.ocr.rpc import start_ocr_server_process, stop_ocr_server_process
 from module.submodule.submodule import load_config
-from module.submodule.utils import get_config_mod
+from module.submodule.utils import get_available_func, get_config_mod
 from module.webui.base import Frame
 from module.webui.discord_presence import close_discord_rpc, init_discord_rpc
 from module.webui.fastapi import asgi_app
@@ -299,11 +299,9 @@ class AlasGUI(Frame):
             onclick=[self.alas_overview],
         ).style(f"--menu-Overview--")
 
+        tool_tasks = set(get_available_func())
         for menu, task_data in self.ALAS_MENU.items():
-            if task_data.get("page") == "tool":
-                _onclick = self.alas_daemon_overview
-            else:
-                _onclick = self.alas_set_group
+            is_tool_menu = task_data.get("page") == "tool"
 
             if task_data.get("menu") == "collapse":
                 task_btn_list = [
@@ -315,7 +313,7 @@ class AlasGUI(Frame):
                                 "color": "menu",
                             }
                         ],
-                        onclick=_onclick,
+                        onclick=self.alas_daemon_overview if (is_tool_menu or task in tool_tasks) else self.alas_set_group,
                     ).style(f"--menu-{task}--")
                     for task in task_data.get("tasks", [])
                 ]
@@ -338,7 +336,7 @@ class AlasGUI(Frame):
                                 "color": "menu",
                             }
                         ],
-                        onclick=_onclick,
+                        onclick=self.alas_daemon_overview if (is_tool_menu or task in tool_tasks) else self.alas_set_group,
                     ).style(f"--menu-{task}--").style(f"padding-left: 0.75rem")
 
         self.alas_overview()
@@ -1084,9 +1082,12 @@ class AlasGUI(Frame):
         config = self.alas_config.read_file(self.alas_name)
         now = datetime.now().replace(microsecond=0)
 
+        tool_tasks = set(get_available_func())
         queued = []
         skipped = []
         for task in tasks:
+            if task in tool_tasks:
+                continue
             if deep_get(config, [task, 'Scheduler', 'Enable'], default=False):
                 deep_set(config, [task, 'Scheduler', 'NextRun'], now)
                 queued.append(task)

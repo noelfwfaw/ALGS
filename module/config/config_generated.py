@@ -198,6 +198,14 @@ class GeneratedConfig:
     CrosscoreBase_Team1Hours = 15.5
     CrosscoreBase_Team2Hours = 8.5
 
+    # Group `CrosscoreChip`
+    CrosscoreChip_Rarity = '3星'  # 5星, 4星, 3星, 2星
+
+    # Group `CrosscoreWeekly`
+    CrosscoreWeekly_Map = '戈里刻虚影'  # 戈里刻虚影, 诺斯虚影, 尼克罗虚影
+    CrosscoreWeekly_Stage = '第6关'  # 第1关, 第2关, 第3关, 第4关, 第5关, 第6关
+    CrosscoreWeekly_IgnoreCap = False
+
     # Group `Starsavior2`
     Starsavior2_Nickname = ''
     Starsavior2_TargetMode = 'any'  # any, all

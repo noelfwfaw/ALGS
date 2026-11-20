@@ -3124,6 +3124,63 @@
       }
     }
   },
+  "CrosscoreChip": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "CrosscoreChip",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "CrosscoreChip": {
+      "Rarity": {
+        "type": "select",
+        "value": "3星",
+        "option": [
+          "5星",
+          "4星",
+          "3星",
+          "2星"
+        ]
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "CrosscoreExercise": {
     "Scheduler": {
       "Enable": {
@@ -3158,6 +3215,78 @@
         "type": "input",
         "value": "05:00",
         "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "CrosscoreWeekly": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "CrosscoreWeekly",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "CrosscoreWeekly": {
+      "Map": {
+        "type": "select",
+        "value": "戈里刻虚影",
+        "option": [
+          "戈里刻虚影",
+          "诺斯虚影",
+          "尼克罗虚影"
+        ]
+      },
+      "Stage": {
+        "type": "select",
+        "value": "第6关",
+        "option": [
+          "第1关",
+          "第2关",
+          "第3关",
+          "第4关",
+          "第5关",
+          "第6关"
+        ]
+      },
+      "IgnoreCap": {
+        "type": "checkbox",
+        "value": false
       }
     },
     "Storage": {
@@ -3215,6 +3344,16 @@
         "display": "hide"
       }
     },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "CrosscoreStory": {
     "Storage": {
       "Storage": {
         "type": "storage",

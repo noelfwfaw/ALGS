@@ -86,8 +86,11 @@
       "CrosscoreTask",
       "CrosscorePass",
       "CrosscoreExplore",
+      "CrosscoreChip",
       "CrosscoreExercise",
-      "CrosscoreBase"
+      "CrosscoreWeekly",
+      "CrosscoreBase",
+      "CrosscoreStory"
     ]
   },
   "Starsavior": {

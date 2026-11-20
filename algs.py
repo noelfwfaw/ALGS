@@ -278,10 +278,20 @@ class AlGS(GameScheduler):
         from module.crosscore.explore import CrosscoreExplore
         CrosscoreExplore(config=self.config, device=self.device).run()
 
+    def crosscore_chip(self):
+        # 芯片分解：进仓库切到芯片页，按配置勾选 1~N 星批量分解并回主界面。
+        from module.crosscore.chip import CrosscoreChip
+        CrosscoreChip(config=self.config, device=self.device).run()
+
     def crosscore_exercise(self):
         # 模拟军演：只打对手列表第一个，打满模拟次数后到军演商店买东西。
         from module.crosscore.exercise import CrosscoreExercise
         CrosscoreExercise(config=self.config, device=self.device).run()
+
+    def crosscore_weekly(self):
+        # 周本（碎星虚影）：走棋盘打怪清BOSS，刷满本周报酬微晶后调度至下次周重置。
+        from module.crosscore.weekly import CrosscoreWeekly
+        CrosscoreWeekly(config=self.config, device=self.device).run()
 
     def crosscore_base(self):
         # 基地：领素材 / 驻员换班 / 订单库买构建订单。
@@ -292,6 +302,19 @@ class AlGS(GameScheduler):
         # 兑换码：从 GameKee 抓，新的在游戏里兑掉（官服 / B服 都试一遍）。
         from module.crosscore.redeem import CrosscoreRedeem
         CrosscoreRedeem(config=self.config, device=self.device).run()
+
+    def crosscore_story(self):
+        # 剧情跳过工具：WebUI「工具」页单独启动，循环点右上角「跳过」与弹窗「确认」。
+        from module.config.server import set_server
+
+        device = self.device
+        set_server('crosscore')
+        self.switch_game('crosscore', boot=False)
+
+        from module.crosscore.story import CrosscoreStory
+
+        self.config.bind('CrosscoreStory')
+        CrosscoreStory(config=self.config, device=device).run()
 
     # ==================== Star Savior (星之救援者) ====================
     #

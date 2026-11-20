@@ -24,6 +24,8 @@ ROOT = os.path.dirname(__file__)
 SLOT_X = (971, 1062, 1153)
 ROW_Y = (231, 391, 551)
 DETAIL_TITLE = (278, 278, 645, 316)
+DETAIL_ICON_ROI = (80, 270, 250, 440)
+CARD_ICON_SCALES = (108, 120, 124, 132)
 SHOP_FREE_REFRESH_COUNT = Ocr((370, 651, 392, 695), alphabet='0123456789', name='ROGUE_SHOP_FREE_REFRESH_COUNT')
 SHOP_EQUIPMENT_ICONS = ((375, 532, 406, 563), (124, 508, 155, 539), (874, 527, 905, 558))
 
@@ -70,12 +72,70 @@ class RelicLibrary:
         self.item_index = list(groups.values())
         self.faces = None
         self.icons = {}
+        self.card_icons = {}
 
     @staticmethod
     def aliases(record):
         return [record['id'], record['name']] + list(record.get('names', {}).values()) + record.get('aliases', [])
 
-    def lookup(self, text, characters=False, fuzzy=False):
+    def card_icon_score(self, image, roi, icon):
+        """Return max masked TM_CCOEFF_NORMED score of `icon` inside `roi`, or -1.0."""
+        if not icon or image is None or roi is None:
+            return -1.0
+        templates = self.card_icons.get(icon)
+        if templates is None:
+            templates = []
+            with np.load(os.path.join(ROOT, 'rogue_equipment_icons.npz'), allow_pickle=False) as archive:
+                if icon in archive:
+                    art = cv2.imdecode(archive[icon], cv2.IMREAD_UNCHANGED)
+                    if art is not None and art.ndim == 3 and art.shape[2] == 4:
+                        rgb = cv2.cvtColor(art[:, :, :3], cv2.COLOR_BGR2RGB)
+                        mask = (art[:, :, 3] > 200).astype(np.uint8) * 255
+                        for size in CARD_ICON_SCALES:
+                            s_rgb = cv2.resize(rgb, (size, size), interpolation=cv2.INTER_AREA)
+                            s_m = cv2.resize(mask, (size, size), interpolation=cv2.INTER_AREA)
+                            if (s_m > 128).sum() >= 50:
+                                templates.append((s_rgb, s_m))
+            self.card_icons[icon] = templates
+        x1, y1, x2, y2 = roi
+        patch = image[max(0, y1):y2, max(0, x1):x2]
+        if not templates or not patch.size:
+            return -1.0
+        best = -1.0
+        for s_rgb, s_m in templates:
+            if s_rgb.shape[0] > patch.shape[0] or s_rgb.shape[1] > patch.shape[1]:
+                continue
+            val = float(cv2.matchTemplate(patch, s_rgb, cv2.TM_CCOEFF_NORMED, mask=s_m).max())
+            if np.isfinite(val) and val > best:
+                best = val
+        return best
+
+    def _disambiguate_by_icon(self, ranked, image, icon_roi):
+        """Resolve tied/noisy equipment OCR candidates using the card artwork in `icon_roi`."""
+        if not ranked or ranked[0][0] < 0.60:
+            return None
+        floor = max(0.60, ranked[0][0] - 0.15)
+        pool = [(score, record) for score, record in ranked
+                if score >= floor and record.get('icon')]
+        if not pool:
+            return None
+        icon_scores = {}
+        for _, record in pool:
+            ic = record['icon']
+            if ic not in icon_scores:
+                icon_scores[ic] = self.card_icon_score(image, icon_roi, ic)
+        ordered = sorted(icon_scores.items(), key=lambda pair: pair[1], reverse=True)
+        best_icon, best_score = ordered[0]
+        if best_score < 0.85:
+            return None
+        if len(ordered) > 1 and best_score - ordered[1][1] < 0.15:
+            return None
+        same_icon = [(score, record) for score, record in pool if record['icon'] == best_icon]
+        if len(same_icon) == 1 or same_icon[0][0] - same_icon[1][0] >= 0.08:
+            return same_icon[0][1]
+        return None
+
+    def lookup(self, text, characters=False, fuzzy=False, image=None, icon_roi=None):
         table = self.characters if characters else self.item_index
         exact = [r for r in table if key(text) in {key(a) for a in self.aliases(r)}]
         if len(exact) == 1:
@@ -86,6 +146,8 @@ class RelicLibrary:
                          for r in table], key=lambda pair: pair[0], reverse=True)
         if ranked[0][0] >= 0.75 and ranked[0][0] - ranked[1][0] >= 0.08:
             return ranked[0][1]
+        if not characters and image is not None and icon_roi is not None:
+            return self._disambiguate_by_icon(ranked, image, icon_roi)
         return None
 
     def _parse_recipient(self, text):
@@ -416,21 +478,24 @@ class Equipment:
                 continue
             # 提示可能遮住卡面顶部，用底边定位标题；部分装备没有放大镜。
             cy = int(y + height) + 130 - 198
-            _, item = self.read_item(image, (525, cy - 17, 890, cy + 20))
+            icon_roi = (325, max(0, cy), 475, min(720, cy + 190))
+            _, item = self.read_item(image, (525, cy - 17, 890, cy + 20), icon_roi=icon_roi)
             candidates.append((cy, item))
         candidates.sort(key=lambda pair: (self.priority.get(pair[1]['id'], len(self.priority))
                                           if pair[1] else len(self.priority), pair[0]))
         return candidates
 
-    def read_item(self, image, area):
+    def read_item(self, image, area, icon_roi=None):
+        if icon_roi is None and area == DETAIL_TITLE:
+            icon_roi = DETAIL_ICON_ROI
         text = self.reader.read_name(image, area, scale=1.5, raw=True)
-        item = self.library.lookup(text, fuzzy=True)
+        item = self.library.lookup(text, fuzzy=True, image=image, icon_roi=icon_roi)
         if item is None:
             # 紫色装备名转普通灰度对比不足，保留最亮色通道再读一次。
             crop = image[area[1]:area[3], area[0]:area[2]].max(axis=2)
             bright = np.repeat(crop[:, :, None], 3, axis=2)
             alternative = self.reader.read_name(bright, (0, 0, bright.shape[1], bright.shape[0]), scale=1.2, raw=True)
-            match = self.library.lookup(alternative, fuzzy=True)
+            match = self.library.lookup(alternative, fuzzy=True, image=image, icon_roi=icon_roi)
             if match:
                 return alternative, match
             # shortcut: repeated 突擊靴 OCR error; check the actual art until general detail icon matching is reliable.

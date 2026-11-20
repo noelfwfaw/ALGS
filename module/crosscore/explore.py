@@ -1,109 +1,83 @@
 """每日探索 of 交错战线 (Cross Core).
 
-The explore page opens from 「出击」 on the lobby, then 「每日探索」. It is two
-columns: the left rail holds three category cards (资源采集 / 芯片嵌合 / 跃升行动),
-the right column first lists the sub items of the chosen category and then the
-layers of the chosen sub item. Pressing a layer opens its detail page, whose
-bottom left 「扫荡」 leads to the sweep panel.
+    大厅出击 → 每日探索 → 类别卡 → 子项（匹配前两字 + 亮度判「明日开放」）
+    → 层（从高到低找已解锁有字行；点进详情若「扫荡」带锁则顺延下一层）
+    → 扫荡 → 开始战斗 → 掉落加成提示（使用）→ 扫荡结算（点 奖励 关掉）→ 大厅
 
-    大厅出击 → 每日探索 → 类别卡 → 子项 → 层 → 关卡详情 → 扫荡 → 开始战斗
-    → 掉落加成提示（使用）→ 扫荡结算（点右下 奖励 标题关掉）→ 大厅
-
-What the 2026-11-08 measurements settled:
-
-1. Which category is open is read from the 8 px golden strip on its left edge:
-   the selected card gets a golden band, the other two do not. The three bands
-   are listed in `CATEGORY`, and `gold_pixels()` over such a narrow band can not
-   be hit by the card art behind it.
-2. Only 资源采集 exports its four sub item names as templates. 芯片嵌合 (8 items)
-   and 跃升行动 (3 items) have no text assets, so their sub items are pressed by
-   row (`SUB_ROWS`, pure coordinate buttons - never passed to `appear()`).
-3. The chip list holds 8 items in 5 rows and the game remembers the scroll
-   offset, so every row press first scrolls the list to an end, where the
-   mapping is known again. Scrolling only works with a slow drag (0.9 s); a
-   400 ms swipe is swallowed (用户实测).
-4. The lock icons are the only way to tell whether a layer is unlocked. They are
-   found with `find_all()` (a multi-target scan), never with `appear()`. Only
-   the **highest unlocked** layer is swept - 用户要求「只扫最高层」.
-5. The sweep result is closed through the golden 「奖励」 title at the bottom
-   right. Tapping the middle of the black area does nothing, and the item icons
-   open an item detail page instead (用户实测).
+Measured notes:
+1. Selected category is read from `CATEGORY` gold strip via `gold_pixels()`.
+2. Open sub-items sort above closed ones (`明日开放`, dimmed to luma ~75 vs
+   197~255), so sub-items are located by 2-char title template instead of row.
+3. Empty rows and locked rows carry 0 bright text pixels; an unlocked higher
+   layer whose own stage was never cleared opens with locked `扫荡` and must
+   step down to the highest cleared layer.
+4. Sweep result closes via golden 「奖励」 title (bottom-right); tapping icons
+   opens item details and dark area does nothing.
 """
 
+import cv2
+import numpy as np
+
 from module.base.button import Button
-from module.crosscore.assets import (EXPLORE_CAT_ASCEND, EXPLORE_CAT_CHIP,
-                                     EXPLORE_CAT_RESOURCE, EXPLORE_CONFIRM,
-                                     EXPLORE_DAILY, EXPLORE_DIALOG_OUTSIDE,
-                                     EXPLORE_DROP, EXPLORE_LOCK,
-                                     EXPLORE_LAYER_ROW_1, EXPLORE_LAYER_ROW_2,
-                                     EXPLORE_LAYER_ROW_3, EXPLORE_LAYER_ROW_4,
-                                     EXPLORE_LAYER_ROW_5, EXPLORE_LAYER_ROW_6,
-                                     EXPLORE_NO_FUEL, EXPLORE_RESULT,
-                                     EXPLORE_SORTIE,
-                                     EXPLORE_START, EXPLORE_SUB_COIN,
-                                     EXPLORE_SUB_RELIC, EXPLORE_SUB_ROW_1,
-                                     EXPLORE_SUB_ROW_2, EXPLORE_SUB_ROW_3,
-                                     EXPLORE_SUB_ROW_4, EXPLORE_SUB_ROW_5,
-                                     EXPLORE_SUB_SKILL, EXPLORE_SUB_TECH,
-                                     EXPLORE_SWEEP)
+from module.base.timer import Timer
+from module.base.utils import crop
+from module.crosscore.assets import (
+    EXPLORE_CAT_ASCEND, EXPLORE_CAT_CHIP, EXPLORE_CAT_RESOURCE, EXPLORE_CONFIRM,
+    EXPLORE_DAILY, EXPLORE_DIALOG_OUTSIDE, EXPLORE_DROP, EXPLORE_LAYER_ROW_1,
+    EXPLORE_LAYER_ROW_2, EXPLORE_LAYER_ROW_3, EXPLORE_LAYER_ROW_4, EXPLORE_LAYER_ROW_5,
+    EXPLORE_LAYER_ROW_6, EXPLORE_LOCK, EXPLORE_MID_LAYER_ROW_1, EXPLORE_MID_LAYER_ROW_2,
+    EXPLORE_MID_LAYER_ROW_3, EXPLORE_MID_LAYER_ROW_4, EXPLORE_MID_LAYER_ROW_5,
+    EXPLORE_MID_LAYER_ROW_6, EXPLORE_NO_FUEL, EXPLORE_RESULT, EXPLORE_SORTIE,
+    EXPLORE_START, EXPLORE_SUB_BLADE, EXPLORE_SUB_COIN, EXPLORE_SUB_EROSION,
+    EXPLORE_SUB_INJECT, EXPLORE_SUB_INSPIRE, EXPLORE_SUB_LIFE, EXPLORE_SUB_LINK,
+    EXPLORE_SUB_NATURE, EXPLORE_SUB_OPTIC, EXPLORE_SUB_PARADOX, EXPLORE_SUB_PHYSIQUE,
+    EXPLORE_SUB_RELIC, EXPLORE_SUB_SKILL, EXPLORE_SUB_SYNTH, EXPLORE_SUB_TECH,
+    EXPLORE_SWEEP, EXPLORE_SWEEP_LOCKED,
+)
 from module.crosscore.crosscore_ui import CrosscoreUI
 from module.crosscore.page import page_main
 from module.crosscore.utils import (find_all, gold_pixels, image_diff,
                                     template_of)
 from module.logger import logger
 
-# Rows of the right column. Sub items: centre y = 160 + 108 x (i-1), x = 1000.
-SUB_X, SUB_Y0, SUB_PITCH = 1000, 160, 108
-# Scrolled to the bottom the list clamps with the last card at y 540, i.e. 52 px
-# above the row grid above (measured 2026-11-08: pressing 592 does nothing).
-SUB_LAST_Y = 540
-# The whole sub item list, used to tell "the list stopped moving" after a drag.
 SUB_BAND = (840, 120, 1110, 630)
-# Layers: centre y = 275 + 63 x (i-1).
-LAYER_Y0, LAYER_PITCH = 275, 63
-# The lock icons sit on the right of the layer rows (top y 324 / 387 / 450 / 512).
+SUB_SEARCH_REGION = (830, 125, 1080, 560)
+# 95th percentile title luma: open stages measure 197~255, 「明日开放」 measures 74~76.
+SUB_OPEN_LUMA = 135
+LAYER_PITCH = 63
 LAYER_LOCK_REGION = (1040, 250, 1095, 600)
+# Unlocked existing layer rows measure 471~1025 bright pixels; locked/empty rows 0.
+LAYER_ROW_TEXT_LUMA = 140
+LAYER_ROW_BRIGHT_PIXELS = 100
+# Middle-column selection highlight bars (`316~701` gold pixels vs `0` idle).
+MID_BAR_GOLD_PIXELS = 100
 
-LAYER_ROWS = (EXPLORE_LAYER_ROW_1, EXPLORE_LAYER_ROW_2, EXPLORE_LAYER_ROW_3,
-              EXPLORE_LAYER_ROW_4, EXPLORE_LAYER_ROW_5, EXPLORE_LAYER_ROW_6)
-SUB_ROWS = (EXPLORE_SUB_ROW_1, EXPLORE_SUB_ROW_2, EXPLORE_SUB_ROW_3,
-            EXPLORE_SUB_ROW_4, EXPLORE_SUB_ROW_5)
+LAYER_ROWS = (
+    EXPLORE_LAYER_ROW_1, EXPLORE_LAYER_ROW_2, EXPLORE_LAYER_ROW_3,
+    EXPLORE_LAYER_ROW_4, EXPLORE_LAYER_ROW_5, EXPLORE_LAYER_ROW_6,
+)
+MID_LAYER_ROWS = (
+    EXPLORE_MID_LAYER_ROW_1, EXPLORE_MID_LAYER_ROW_2, EXPLORE_MID_LAYER_ROW_3,
+    EXPLORE_MID_LAYER_ROW_4, EXPLORE_MID_LAYER_ROW_5, EXPLORE_MID_LAYER_ROW_6,
+)
 
-# Category card and the golden strip on its left edge, which is lit while the
-# category is open. The strip is 5 px wide and ~83 px tall for 资源采集 and
-# 芯片嵌合, drifting between x 278 and x 300 while the selection animates, so
-# their bands hold both ends (2026-11-08, two frames of the same selection).
-# The three cards are **not** evenly spaced: the third one starts at y 451 (its
-# art at 473~575), and its lit strip sits at x 297~309, y 433~594 (2026-11-09
-# error frame). The old band (266, 370, 312, 465) only caught its top 34 rows
-# and read 100 gold pixels, below the threshold, so 跃升行动 was reported as
-# "did not highlight" while it was selected all along.
+# Left-edge gold strip bands per category (`ascend` sits lower, at y 390~620).
 CATEGORY = {
     'resource': (EXPLORE_CAT_RESOURCE, (266, 150, 312, 245)),
     'chip': (EXPLORE_CAT_CHIP, (266, 260, 312, 355)),
     'ascend': (EXPLORE_CAT_ASCEND, (266, 390, 330, 620)),
 }
-
-# A selected strip has 255~548 gold pixels, an idle one 10~46 (the glow of the
-# neighbouring card and the bracket line leak into the band). 120 sits in the
-# middle of the gap.
 CATEGORY_GOLD_PIXELS = 120
 
-# 资源采集 is the only category whose sub items have templates.
-RESOURCE_SUB = {'技能磨砺': EXPLORE_SUB_SKILL, '星币开采': EXPLORE_SUB_COIN,
-                '技术分析': EXPLORE_SUB_TECH, '荒墟拾遗': EXPLORE_SUB_RELIC}
-
-# 芯片嵌合 is the only list longer than one screen (8 items in 5 rows).
-CHIP_COUNT = 8
-
-# Option name -> (category, 0-based index inside the category).
 OPTIONS = {
-    '技能磨砺': ('resource', 0), '星币开采': ('resource', 1),
-    '技术分析': ('resource', 2), '荒墟拾遗': ('resource', 3),
-    '鼓舞嵌合': ('chip', 0), '光枢嵌合': ('chip', 1), '注刘嵌合': ('chip', 2),
-    '链接嵌合': ('chip', 3), '体魄嵌合': ('chip', 4), '侵蚀嵌合': ('chip', 5),
-    '迅刃嵌合': ('chip', 6), '矛盾嵌合': ('chip', 7),
-    '自然跃升': ('ascend', 0), '人造跃升': ('ascend', 1), '生命跃升': ('ascend', 2),
+    '技能磨砺': ('resource', EXPLORE_SUB_SKILL), '星币开采': ('resource', EXPLORE_SUB_COIN),
+    '技术分析': ('resource', EXPLORE_SUB_TECH), '荒墟拾遗': ('resource', EXPLORE_SUB_RELIC),
+    '鼓舞嵌合': ('chip', EXPLORE_SUB_INSPIRE), '光枢嵌合': ('chip', EXPLORE_SUB_OPTIC),
+    '注刘嵌合': ('chip', EXPLORE_SUB_INJECT), '链接嵌合': ('chip', EXPLORE_SUB_LINK),
+    '体魄嵌合': ('chip', EXPLORE_SUB_PHYSIQUE), '侵蚀嵌合': ('chip', EXPLORE_SUB_EROSION),
+    '迅刃嵌合': ('chip', EXPLORE_SUB_BLADE), '矛盾嵌合': ('chip', EXPLORE_SUB_PARADOX),
+    '自然跃升': ('ascend', EXPLORE_SUB_NATURE), '人造跃升': ('ascend', EXPLORE_SUB_SYNTH),
+    '生命跃升': ('ascend', EXPLORE_SUB_LIFE),
 }
 
 
@@ -129,25 +103,43 @@ class CrosscoreExplore(CrosscoreUI):
         if name not in OPTIONS:
             logger.warning(f'Unknown explore option <{name}>, fall back to 技能磨砺')
             name = '技能磨砺'
-        category, index = OPTIONS[name]
-        logger.info(f'Explore <{name}>, category {category}, index {index}')
+        category, _ = OPTIONS[name]
+        logger.info(f'Explore <{name}>, category {category}')
 
         if not self.explore_enter() \
-                or not self.explore_open_category(category) \
-                or not self.explore_pick_sub(name, category, index) \
-                or not self.explore_pick_layer() \
-                or not self.explore_sweep():
-            logger.warning('Explore failed, retry in 15 minutes')
-            # The failure leaves the game on the explore page, which is not a
-            # registered Page: the next task's `ui_get_current_page()` would
-            # time out and die with GamePageUnknownError (2026-11-09 real run).
+                or not self.explore_open_category(category):
+            self._handle_explore_fail()
+            return
+
+        sub_state = self.explore_pick_sub(name, category)
+        if sub_state == 'skip':
             self.back_to_main()
-            self.config.task_delay(minute=15)
+            self.config.task_delay(server_update=True)
+            return
+        if sub_state != 'ok':
+            self._handle_explore_fail()
+            return
+
+        layer_state = self.explore_pick_layer()
+        if layer_state == 'skip':
+            self.back_to_main()
+            self.config.task_delay(server_update=True)
+            return
+        if layer_state != 'ok' or not self.explore_sweep():
+            self._handle_explore_fail()
             return
 
         self.back_to_main()
         # Explore entries reset with the daily server update.
         self.config.task_delay(server_update=True)
+
+    def _handle_explore_fail(self):
+        logger.warning('Explore failed, retry in 15 minutes')
+        # The failure leaves the game on the explore page, which is not a
+        # registered Page: the next task's `ui_get_current_page()` would
+        # time out and die with GamePageUnknownError (2026-11-09 real run).
+        self.back_to_main()
+        self.config.task_delay(minute=15)
 
     def explore_enter(self):
         """
@@ -221,88 +213,79 @@ class CrosscoreExplore(CrosscoreUI):
         logger.warning(f'Category <{category}> did not highlight')
         return False
 
-    def explore_pick_sub(self, name, category, index):
+    def explore_pick_sub(self, name, category):
         """
-        Select one sub item of the open category.
+        Locate one sub item by template inside `SUB_SEARCH_REGION`, skip if
+        dimmed (`明日开放`), otherwise click it and wait for the layer list.
+
+        Open stages sort above closed (`明日开放`) stages and can shift row
+        positions on any day, so matching by title template avoids fixed-row
+        drift.
 
         Args:
-            name (str): Option name, for the log.
+            name (str): Option name.
             category (str): One of the keys of `CATEGORY`.
-            index (int): 0-based index inside the category.
 
         Returns:
-            bool: If the layer list (its 「固定掉落」 title) is on screen.
+            str: `'ok'`, `'skip'` (not open today), or `'fail'`.
         """
         logger.hr(name, level=2)
-        if category == 'resource':
-            return self.explore_pick_sub_button(RESOURCE_SUB[name])
-        return self.explore_pick_sub_row(category, index)
+        _, target_btn = OPTIONS[name]
+        tmpl = template_of(target_btn)
+        found = self._locate_sub_item(tmpl, category)
+        if found is None:
+            logger.warning(f'Sub item <{name}> not found in list')
+            return 'fail'
 
-    def explore_pick_sub_button(self, button):
-        """
-        Press a sub item that has a template (资源采集 only).
+        mx, my, p95 = found
+        if p95 < SUB_OPEN_LUMA:
+            logger.info(f'Sub item <{name}> is not open today (明日开放), skip')
+            return 'skip'
 
-        Args:
-            button (Button): Sub item to press.
-
-        Returns:
-            bool: If the layer list showed up.
-        """
+        button = Button(area=(mx + 20, my, mx + 120, my + 30),
+                        color=(0, 0, 0),
+                        button=(mx + 20, my, mx + 120, my + 30),
+                        name=target_btn.name)
+        retry = Timer(3)
         for _ in self.loop(timeout=30):
-            if self.appear(button, offset=(20, 20), interval=2):
-                logger.info(f'Press sub item {button.name}')
-                self.device.click(button)
-                if self.wait_until_appear(EXPLORE_DROP, offset=(20, 20), timeout=8):
-                    return True
+            if self.appear(EXPLORE_DROP, offset=(20, 20), similarity=0.80):
+                return 'ok'
+            if self.explore_page_appear() and retry.reached():
+                retry.reset()
+                logger.info(f'Press sub item <{name}> at ({mx}, {my})')
+                self.device.click(button)  # alas-lint: allow - 动态定位子项卡，左栏类别卡 appear() 是守卫
 
-        logger.warning(f'Sub item {button.name} did not open the layer list')
-        return False
+        logger.warning(f'Sub item <{name}> did not open the layer list')
+        return 'fail'
 
-    def explore_pick_sub_row(self, category, index):
-        """
-        Press a sub item that has no template (芯片嵌合 / 跃升行动), by row.
+    def _locate_sub_item(self, tmpl, category):
+        """Find `(x, y, p95_luma)` in `SUB_SEARCH_REGION`, scrolling `chip` top then bottom."""
+        found = self._match_sub_in_view(tmpl)
+        if found is not None or category != 'chip':
+            return found
 
-        The chip list is 8 items in 5 rows and the game remembers the scroll
-        offset it was left at, so the list is scrolled to a known end before the
-        press:
-
-        - items 1~5: scrolled to the top, row centres are 160 + 108 x (i-1);
-        - items 6~8: scrolled to the bottom, the last card is clamped at
-          y 540 and the rows count upwards in 108 px steps from there.
-
-        Args:
-            category (str): `chip` or `ascend`.
-            index (int): 0-based index inside the category.
-
-        Returns:
-            bool: If the layer list showed up.
-        """
         self.explore_scroll(top=True)
-        if index < len(SUB_ROWS):
-            button = SUB_ROWS[index]
-        else:
-            # Beyond the fifth item the list is scrolled to its end. The last
-            # card does not land on the row grid then, so the click is built
-            # from the clamped position and counted upwards instead.
-            self.explore_scroll(top=False)
-            y = SUB_LAST_Y - SUB_PITCH * (CHIP_COUNT - 1 - index)
-            button = Button(area=(SUB_X - 6, y - 6, SUB_X + 6, y + 6),
-                            color=(0, 0, 0),
-                            button=(SUB_X - 6, y - 6, SUB_X + 6, y + 6),
-                            name=f'EXPLORE_SUB_{index}')
+        found = self._match_sub_in_view(tmpl)
+        if found is not None:
+            return found
 
-        for _ in self.loop(timeout=30):
-            # The opened category card is highlighted, and the template of the
-            # card is the idle one: guarding on it drops the press once the
-            # category is selected. Any of the three cards is the guard instead.
-            if self.explore_page_appear():
-                logger.info(f'Press sub item {category} index {index}')
-                self.device.click(button)  # alas-lint: allow - 子项行没有模板，上面的类别卡 appear() 是守卫
-                if self.wait_until_appear(EXPLORE_DROP, offset=(20, 20), timeout=8):
-                    return True
+        self.explore_scroll(top=False)
+        return self._match_sub_in_view(tmpl)
 
-        logger.warning(f'Sub item {category} index {index} did not open the layer list')
-        return False
+    def _match_sub_in_view(self, tmpl):
+        """Match `tmpl` in `SUB_SEARCH_REGION` and return `(x, y, p95_luma)` or None."""
+        x1, y1, _, _ = SUB_SEARCH_REGION
+        roi = crop(self.device.image, SUB_SEARCH_REGION, copy=False)
+        if roi.shape[0] < tmpl.shape[0] or roi.shape[1] < tmpl.shape[1]:
+            return None
+        res = cv2.matchTemplate(roi, tmpl, cv2.TM_CCOEFF_NORMED)
+        if float(res.max()) < 0.85:
+            return None
+        dy, dx = np.unravel_index(res.argmax(), res.shape)
+        mx, my = x1 + int(dx), y1 + int(dy)
+        patch = self.device.image[my:my + tmpl.shape[0], mx:mx + tmpl.shape[1]]
+        p95 = float(np.percentile(patch.mean(axis=2), 95))
+        return mx, my, p95
 
     def explore_scroll(self, top, swipes=3):
         """
@@ -349,26 +332,19 @@ class CrosscoreExplore(CrosscoreUI):
 
     def explore_pick_layer(self):
         """
-        Open the highest unlocked layer of the chosen sub item.
+        Open the highest sweepable layer of the chosen sub item.
 
-        A layer that was never cleared carries a lock on the right of its row.
-        The locks are found with `find_all()` (a multi-target scan; `appear()`
-        would answer for one row only), and a row counts as locked when a lock
-        top sits within 8 px of 259 + 63 x (i-1) - the lock template is 28 px
-        high and starts at the row top.
-
-        Candidates are the unlocked rows from the bottom of the screen up, so
-        the highest unlocked layer is the first one tried (用户要求「只扫最高层」).
-        A locked row is never pressed. When the sub item has fewer than six
-        layers the rows below the last one are empty: pressing one does not
-        leave the page, so the loop falls through to the next candidate.
+        An unlocked layer whose previous tier was cleared can still have locked
+        「扫荡」 (`EXPLORE_SWEEP_LOCKED`) because the current tier itself was
+        never cleared. Step down through lower unlocked candidates in the middle
+        column until a sweepable layer is found, or return `'skip'` if none.
 
         Pages:
             in: explore page, layer list
-            out: layer detail page
+            out: layer detail page (sweepable) or same
 
         Returns:
-            bool: If a layer detail page is on screen.
+            str: `'ok'`, `'skip'` (no cleared/sweepable layer), or `'fail'`.
         """
         # The layer list fades in after the sub item press; a half drawn frame
         # carries no lock yet and every row would read as unlocked.
@@ -381,18 +357,66 @@ class CrosscoreExplore(CrosscoreUI):
             if any(abs(y - top) <= 8 for y in lock_y):
                 locked.add(row)
 
-        for row in range(len(LAYER_ROWS), 0, -1):
-            if row in locked:
-                continue
-            if self.appear(EXPLORE_DROP, offset=(20, 20)):
-                logger.info(f'Press layer {row}')
-                self.device.click(LAYER_ROWS[row - 1])  # alas-lint: allow - 层行没有模板，EXPLORE_DROP 是守卫
-                if self.wait_until_appear(EXPLORE_SWEEP, offset=(20, 20), timeout=5):
-                    logger.info(f'Layer {row} is open')
-                    return True
+        candidates = [row for row in range(len(LAYER_ROWS), 0, -1)
+                      if row not in locked and self._layer_row_has_text(row)]
+        if not candidates:
+            logger.warning('No unlocked layer to sweep')
+            return 'fail'
 
-        logger.warning('No unlocked layer to sweep')
-        return False
+        saw_locked_sweep = False
+        for row in candidates:
+            state = self._open_layer_candidate(row)
+            if state == 'ok':
+                return 'ok'
+            if state == 'locked':
+                saw_locked_sweep = True
+
+        if saw_locked_sweep:
+            logger.info('No layer has cleared sweep unlocked, skip daily explore')
+            return 'skip'
+        logger.warning('Failed to open any unlocked layer')
+        return 'fail'
+
+    def _open_layer_candidate(self, row):
+        """Click candidate `row` and return `'ok'`, `'locked'`, or `'timeout'`."""
+        self.interval_timer.pop(EXPLORE_DROP.name, None)
+        self.interval_timer.pop(EXPLORE_SWEEP_LOCKED.name, None)
+        from_drop = self.appear(EXPLORE_DROP, offset=(20, 20), similarity=0.80)
+        for _ in self.loop(timeout=6):
+            if self.appear(EXPLORE_SWEEP, offset=(20, 20)):
+                logger.info(f'Layer {row} is open')
+                return 'ok'
+            if from_drop or self._mid_layer_selected(row):
+                if self.appear(EXPLORE_SWEEP_LOCKED, offset=(20, 20), similarity=0.80):
+                    self.wait_until_still(EXPLORE_SWEEP_LOCKED.area, timeout=2)
+                    if self.appear(EXPLORE_SWEEP, offset=(20, 20)):
+                        logger.info(f'Layer {row} is open')
+                        return 'ok'
+                    if self.appear(EXPLORE_SWEEP_LOCKED, offset=(20, 20), similarity=0.80):
+                        logger.info(f'Layer {row} sweep is locked, try lower layer')
+                        return 'locked'
+            if self.appear(EXPLORE_DROP, offset=(20, 20), similarity=0.80, interval=2):
+                logger.info(f'Press layer {row}')
+                self.device.click(LAYER_ROWS[row - 1])
+            elif self.appear(EXPLORE_SWEEP_LOCKED, offset=(20, 20), similarity=0.80, interval=2):
+                logger.info(f'Press middle layer {row}')
+                self.device.click(MID_LAYER_ROWS[row - 1])
+
+        return 'timeout'
+
+    def _mid_layer_selected(self, row):
+        """Whether `row` (1-based) in the middle list shows golden selection bars."""
+        y1 = 248 + LAYER_PITCH * (row - 1)
+        y2 = y1 + 54
+        golds = gold_pixels(self.device.image, (366, y1, 382, y2)) \
+            + gold_pixels(self.device.image, (670, y1, 686, y2))
+        return golds >= MID_BAR_GOLD_PIXELS
+
+    def _layer_row_has_text(self, row):
+        """Whether layer `row` (1-based) renders bright unlocked layer text (`第N层`)."""
+        roi = crop(self.device.image, LAYER_ROWS[row - 1].area, copy=False)
+        bright = int(np.count_nonzero(roi.mean(axis=2) > LAYER_ROW_TEXT_LUMA))
+        return bright >= LAYER_ROW_BRIGHT_PIXELS
 
     def explore_sweep(self):
         """

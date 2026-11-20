@@ -246,13 +246,25 @@
       "name": "Cross Core: Daily Explore",
       "help": "Enter via 「出擊 → 每日探索」 from the lobby and farm a single sub-stage as configured: pick that sub-stage's highest unlocked floor, press 「掃蕩 → 開始戰鬥」, accept the drop bonus with 「使用」, then press 「獎勵」 at the bottom right to close the result screen and return to the main screen. Sweeping consumes all stamina"
     },
+    "CrosscoreChip": {
+      "name": "Task.CrosscoreChip.name",
+      "help": "Task.CrosscoreChip.help"
+    },
     "CrosscoreExercise": {
       "name": "Cross Core: Simulation Exercise",
       "help": "Enter via 「出擊 → 模擬軍演 → 鏡像競技」 from the lobby. Always fight the first opponent (power is ignored) for all 10 daily simulation attempts; victory and defeat both end on the same result page, which is dismissed with a tap on the blank area. Then open 「商店兌換」 and buy from the top-left item in order, using 「最大」 for stackable items and skipping 星幣 / 技術點 until only those two are left"
     },
+    "CrosscoreWeekly": {
+      "name": "Task.CrosscoreWeekly.name",
+      "help": "Task.CrosscoreWeekly.help"
+    },
     "CrosscoreBase": {
       "name": "Cross Core: Base",
       "help": "Collect base materials, rotate the staff on schedule, and buy construction orders from your own and your friends' libraries. Missing materials are crafted first"
+    },
+    "CrosscoreStory": {
+      "name": "Crosscore Story Skip",
+      "help": "Standalone story skip tool: repeatedly clicks top-right Skip and confirms the skip dialog until stopped manually."
     },
     "Starsavior2": {
       "name": "Star Savior: Reroll",
@@ -1135,6 +1147,47 @@
       "help": "How long team 2 works. Every run of Base switches to the other team; when a run leaves team 2 on duty, the next run is scheduled from this value"
     }
   },
+  "CrosscoreChip": {
+    "_info": {
+      "name": "CrosscoreChip._info.name",
+      "help": "CrosscoreChip._info.help"
+    },
+    "Rarity": {
+      "name": "CrosscoreChip.Rarity.name",
+      "help": "CrosscoreChip.Rarity.help",
+      "5星": "5星",
+      "4星": "4星",
+      "3星": "3星",
+      "2星": "2星"
+    }
+  },
+  "CrosscoreWeekly": {
+    "_info": {
+      "name": "CrosscoreWeekly._info.name",
+      "help": "CrosscoreWeekly._info.help"
+    },
+    "Map": {
+      "name": "CrosscoreWeekly.Map.name",
+      "help": "CrosscoreWeekly.Map.help",
+      "戈里刻虚影": "戈里刻虚影",
+      "诺斯虚影": "诺斯虚影",
+      "尼克罗虚影": "尼克罗虚影"
+    },
+    "Stage": {
+      "name": "CrosscoreWeekly.Stage.name",
+      "help": "CrosscoreWeekly.Stage.help",
+      "第1关": "第1关",
+      "第2关": "第2关",
+      "第3关": "第3关",
+      "第4关": "第4关",
+      "第5关": "第5关",
+      "第6关": "第6关"
+    },
+    "IgnoreCap": {
+      "name": "CrosscoreWeekly.IgnoreCap.name",
+      "help": "CrosscoreWeekly.IgnoreCap.help"
+    }
+  },
   "Starsavior2": {
     "_info": {
       "name": "Reroll settings",
@@ -1721,12 +1774,7 @@
       "PriorityTag": "Priority",
       "CardKindBasic": "Basic · {count} copy(s)",
       "CardKindSpark": "Sparkable · {count} copy(s)",
-      "CardKindUnique": "Character · {count} copy(s)",
-      "EventRecorderTitle": "Event Recorder (Debug)",
-      "EventRecorderHelp": "Records unique event types confirmed without screenshots. Repeated encounters do not increment the count. Recorded: {seen} / {total}",
-      "EventRecorderRefresh": "Refresh",
-      "EventRecorderClear": "Clear",
-      "EventRecorderCleared": "Event records cleared"
+      "CardKindUnique": "Character · {count} copy(s)"
     }
   }
 }

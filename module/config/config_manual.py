@@ -71,7 +71,7 @@ class ManualConfig:
     > BrowndustSummon > BrowndustHunt > BrowndustManager > BrowndustMail > BrowndustTask > BrowndustEvent > BrowndustPass
     > BrowndustRedeem
     > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroPass > ChaoszeroRedeem > ChaoszeroMain > ChaoszeroRogue
-    > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreExercise > CrosscoreBase > CrosscoreTask > CrosscorePass
+    > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreChip > CrosscoreExercise > CrosscoreWeekly > CrosscoreBase > CrosscoreTask > CrosscorePass
     > TrickcalLogin > TrickcalMail > TrickcalFriend > TrickcalTask > TrickcalShop > TrickcalNormalShop > TrickcalPass
     """
 
@@ -82,6 +82,7 @@ class ManualConfig:
     # 跑完进程就结束，不排 NextRun。
     TOOL_TASKS = """
     Starsavior2
+    CrosscoreStory
     """
 
     """

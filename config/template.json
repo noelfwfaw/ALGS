@@ -866,6 +866,22 @@
       "Storage": {}
     }
   },
+  "CrosscoreChip": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "CrosscoreChip",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "CrosscoreChip": {
+      "Rarity": "3星"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "CrosscoreExercise": {
     "Scheduler": {
       "Enable": false,
@@ -874,6 +890,24 @@
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "CrosscoreWeekly": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "CrosscoreWeekly",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "CrosscoreWeekly": {
+      "Map": "戈里刻虚影",
+      "Stage": "第6关",
+      "IgnoreCap": false
     },
     "Storage": {
       "Storage": {}
@@ -892,6 +926,11 @@
       "FailureInterval": 120,
       "ServerUpdate": "05:00"
     },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "CrosscoreStory": {
     "Storage": {
       "Storage": {}
     }

@@ -26,9 +26,10 @@ What the 2026-11-09 measurements settled:
 from module.base.timer import Timer
 from module.crosscore.assets import (E_5_1, EXERCISE_BUY, EXERCISE_BUY_QTY,
                                      EXERCISE_CHALLENGE, EXERCISE_COIN_ITEM,
-                                     EXERCISE_ENTRY, EXERCISE_ITEM_1,
-                                     EXERCISE_LOSE, EXERCISE_MAX,
-                                     EXERCISE_MIRROR, EXERCISE_OPPONENT,
+                                     EXERCISE_DIALOG_OUTSIDE, EXERCISE_ENTRY,
+                                     EXERCISE_ITEM_1, EXERCISE_LOSE,
+                                     EXERCISE_MAX, EXERCISE_MIRROR,
+                                     EXERCISE_NO_ATTEMPT, EXERCISE_OPPONENT,
                                      EXERCISE_OPPONENT_1, EXERCISE_RESULT,
                                      EXERCISE_RESULT_CLICK, EXERCISE_SHOP,
                                      EXERCISE_SHOP_PAGE, EXERCISE_TECH_ITEM,
@@ -109,13 +110,21 @@ class CrosscoreExercise(CrosscoreUI):
                 # The list fades in; a click on a half drawn row is lost.
                 self.wait_until_still(EXERCISE_OPPONENT.area, timeout=3)
                 return True
-            if self.appear(EXERCISE_MIRROR, offset=(20, 20), interval=3):
-                logger.info('模拟军演 page, press 镜像竞技')
-                self.device.click(EXERCISE_MIRROR)
-            elif self.appear(EXERCISE_ENTRY, offset=(20, 20), interval=3):
-                logger.info('Sortie page, press 模拟军演')
-                self.device.click(EXERCISE_ENTRY)
-            elif self.appear(EXPLORE_SORTIE, offset=(20, 20), interval=3):
+            if self.appear(EXERCISE_MIRROR, offset=(20, 20)):
+                # The cards slide in from the left; wait for the card to stop
+                # moving before pressing so the click lands cleanly.
+                self.wait_until_still(EXERCISE_MIRROR.area, timeout=3)
+                if self.appear(EXERCISE_MIRROR, offset=(20, 20), interval=2):
+                    logger.info('模拟军演 page, press 镜像竞技')
+                    self.device.click(EXERCISE_MIRROR)
+            elif self.appear(EXERCISE_ENTRY, offset=(20, 20)):
+                # Wait for the sortie page transition to settle before clicking
+                # 模拟军演 so the click is not swallowed on the first fade frame.
+                self.wait_until_still(EXERCISE_ENTRY.area, timeout=3)
+                if self.appear(EXERCISE_ENTRY, offset=(20, 20), interval=2):
+                    logger.info('Sortie page, press 模拟军演')
+                    self.device.click(EXERCISE_ENTRY)
+            elif self.appear(EXPLORE_SORTIE, offset=(20, 20), interval=2):
                 logger.info('Lobby, press 出击')
                 self.device.click(EXPLORE_SORTIE)
 
@@ -167,29 +176,45 @@ class CrosscoreExercise(CrosscoreUI):
 
         The row is the button: pressing it jumps straight to the VS page, there
         is no 「进攻部署」 step in between - that button opens the 战棋编队 page
-        instead (实测 2026-11-09).
+        instead (实测 2026-11-09). When free simulation attempts are exhausted,
+        pressing the row opens the 「模拟次数购买」 popup instead: never buy
+        extra attempts, close the popup via `EXERCISE_DIALOG_OUTSIDE` and stop
+        battling once the opponent page is clean again.
+
+        Pages:
+            in: opponent page
+            out: VS page or opponent page (no attempt left)
 
         Returns:
             bool: If the VS page (its 「挑战」) is on screen.
         """
-        for retry in range(3):
-            for _ in self.loop(timeout=10):
-                if self.handle_item_popup():
-                    continue
-                if self.appear(EXERCISE_OPPONENT, offset=(20, 20)):
+        clicks = 0
+        no_attempt = False
+
+        for _ in self.loop(timeout=30):
+            if self.handle_item_popup():
+                continue
+            if self.appear(EXERCISE_CHALLENGE, offset=(20, 20)):
+                return True
+            if self.appear(EXERCISE_NO_ATTEMPT, offset=(20, 20)):
+                no_attempt = True
+                if self.appear(EXERCISE_NO_ATTEMPT, offset=(20, 20), interval=2):
+                    logger.info('「模拟次数购买」 popup, close it without buying')
+                    self.device.click(EXERCISE_DIALOG_OUTSIDE)
+                continue
+            if self.appear(EXERCISE_OPPONENT, offset=(20, 20)):
+                if no_attempt:
+                    logger.info('No free simulation attempts left')
+                    return False
+                if clicks >= 3:
+                    logger.warning('The VS page did not show up after 3 tries')
+                    return False
+                if self.appear(EXERCISE_OPPONENT, offset=(20, 20), interval=3):
+                    clicks += 1
                     logger.info('Select the first opponent')
                     self.device.click(EXERCISE_OPPONENT_1)
-                    break
-            else:
-                logger.warning('Lost the opponent page')
-                return False
 
-            # A popup opening on top of the row, or a click on a half drawn
-            # list, can swallow the press, so try again before giving up.
-            if self.wait_until_appear(EXERCISE_CHALLENGE, offset=(20, 20), timeout=8):
-                return True
-            logger.warning(f'The VS page did not show up, retry {retry + 1}/3')
-
+        logger.warning('Cannot open VS page or detect attempts exhausted')
         return False
 
     def exercise_challenge(self):
@@ -313,6 +338,10 @@ class CrosscoreExercise(CrosscoreUI):
 
         for _ in self.loop(timeout=30):
             if self.handle_item_popup():
+                continue
+            if self.appear(EXERCISE_NO_ATTEMPT, offset=(20, 20), interval=2):
+                logger.info('Close 「模拟次数购买」 popup before opening shop')
+                self.device.click(EXERCISE_DIALOG_OUTSIDE)
                 continue
             if self.appear(EXERCISE_SHOP_PAGE, offset=(20, 20)):
                 # The grid slides after each purchase; only read it once still.

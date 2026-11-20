@@ -418,6 +418,23 @@ CrosscoreBase:
   Team1Hours: 15.5
   Team2Hours: 8.5
 
+CrosscoreChip:
+  # 分解几星及以下的芯片：游戏内的快捷选择只勾选单个星级，脚本会从 1星 依次点选到目标星级。
+  Rarity:
+    value: 3星
+    option: [ 5星, 4星, 3星, 2星 ]
+
+CrosscoreWeekly:
+  # 碎星虚影（周本）地图与关卡：每周微晶打满后自动按倒计时推迟到下周重置后。
+  Map:
+    value: 戈里刻虚影
+    option: [ 戈里刻虚影, 诺斯虚影, 尼克罗虚影 ]
+  Stage:
+    value: 第6关
+    option: [ 第1关, 第2关, 第3关, 第4关, 第5关, 第6关 ]
+  # 调试开关：默认关闭；开启后不检测本周报酬微晶是否已达上限，用于测试各关卡能否通关。
+  IgnoreCap: false
+
 
 # ==================== Star Savior (星之救援者) ====================
 # 刷初始工具的配置。**这个任务不进调度器**（`task.yaml` 里写的是 `page: 'tool'`），
