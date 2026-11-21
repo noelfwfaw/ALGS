@@ -109,6 +109,7 @@ E_220_1 = Button(area={'starsavior': (560, 315, 716, 341)}, color={'starsavior':
 # 潜质点去住收费房间 —— 用户 2026-11-16 16:21 截图就是这个屏。
 # 正例 1.000，434 张历史截图最高 0.474。
 E_221_1 = Button(area={'starsavior': (1043, 258, 1106, 302)}, color={'starsavior': (150, 150, 150)}, button={'starsavior': (1043, 258, 1106, 302)}, file={'starsavior': './assets/starsavior/starsavior/E_221_1.png'})
+E_221_2 = Button(area={'starsavior': (1102, 265, 1160, 311)}, color={'starsavior': (103, 100, 96)}, button={'starsavior': (1049, 262, 1160, 313)}, file={'starsavior': './assets/starsavior/starsavior/E_221_2.png'})
 
 # 「选择特殊技攻击敌人」(引导 page_23) 的提示文字带是 E_23_1，但这一步真正要点的是
 # 右下角那枚特殊技按钮。真机 2026-11-07 01:17 点 (1053,657) 一次就把教学战推进到

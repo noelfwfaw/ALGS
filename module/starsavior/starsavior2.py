@@ -85,7 +85,7 @@ from module.starsavior.assets import (
     E_98_1, E_99_1, E_9_1,
     E_205_1, E_206_1, E_206_2, E_207_1, E_208_1, E_209_1, E_210_1, E_211_1,
     E_212_1, E_213_1, E_214_1, E_215_1, E_216_1, E_217_1, E_218_1, E_219_1, E_220_1,
-    E_221_1, E_194_4,
+    E_221_1, E_221_2, E_194_4,
     BATTLE_SKILL,
 )
 from module.starsavior import highlight
@@ -605,6 +605,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.check_game_crash()
             yield image
 
+    def wait_seconds(self, seconds):
+        """等待指定秒数，同时保持闪退检测与卡死计数清理。"""
+        for _ in self.loop(timeout=seconds):
+            self.device.stuck_record_clear()
+
     def check_game_crash(self):
         """按秒查一次，连续多次确认「进程没了 / 退回桌面」才抛 `GameCrashed`。
 
@@ -804,12 +809,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if not self.open_menu(timeout=6):
             logger.info('重进：四格在但菜单打不开，当成还在引导期')
             return False
-        # 菜单是浮层，验证完先收起来；后面的领奖 / 抽卡会自己重开。
-        self.device.screenshot()
-        if self.appear(E_171_1, offset=(10, 10)):
-            self.click_button(E_171_1, '菜单 → 主界面')
-            self.wait_until_disappear(E_176_2, offset=(10, 10),
-                                      timeout=3, settle=2)
+        # 菜单是浮层，验证完先收起来；否则会挡住邮箱入口。
+        self.close_menu()
         return True
 
     def at_main_screen(self):
@@ -896,7 +897,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 if clicks == 1:
                     # 空白卡组时先「自动编制」，否则那颗按钮是灰的。
                     self.tap_at(1166, 624, '出发准备：自动编制')
-                    self.loop(timeout=2)
+                    self.wait_seconds(2)
                 logger.info('出发准备：点「旅程起点」继续（第 %d 次）' % clicks)
                 self.device.click(Button(  # alas-lint: allow - 上面 at_prep_screen() 是本帧的正面判据
                     (1100, 648, 1230, 690), (90, 150, 220),
@@ -987,16 +988,16 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             if self.appear(E_193_1, offset=CHAIN_OFFSET):
                 # 详情页：星辰档案 tab → 装备第一个档案 → 回大厅
                 self.tap_at(905, 240, '教学解锁：星辰档案')
-                self.loop(timeout=2)
+                self.wait_seconds(2)
                 self.tap_at(1050, 664, '教学解锁：装备')
-                self.loop(timeout=2)
+                self.wait_seconds(2)
                 self.tap_at(120, 44, '教学解锁：回大厅')
-                self.loop(timeout=2)
+                self.wait_seconds(2)
                 continue
             if self.appear(E_176_2, offset=CHAIN_OFFSET):
                 # 管理面板四卡：点「救援者」的「前往」
                 self.tap_at(302, 526, '教学解锁：救援者 → 前往')
-                self.loop(timeout=2)
+                self.wait_seconds(2)
                 continue
             if time.time() - action_at > 6:
                 # 大厅上只点一次「管理」并等 6 秒：面板真开了下一轮就会命中
@@ -1004,7 +1005,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 if self.at_main_screen():
                     self.tap_at(104, 271, '教学解锁：管理（只点一次）')
                 action_at = time.time()
-                self.loop(timeout=6)
+                self.wait_seconds(6)
                 if self.appear(E_176_2, offset=CHAIN_OFFSET):
                     continue
                 if self.at_main_screen():
@@ -1040,11 +1041,17 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             if stage == RESUME_UNKNOWN:
                 return False
             if stage == RESUME_BATTLE:
-                # 战斗里没有别的可点：等胜利 / 旅程结束，交给下一轮再分类。
-                self.press(JOURNEY, '落点：战斗', timeout=180, idle=60,
-                           speed=True, stop_on=(E_208_1,))
+                # 战斗里没有别的可点：等胜利 / 旅程结束，打完直接接结算（掉线弹窗时重登续跑）。
+                self.guide_press(JOURNEY, '落点：战斗', timeout=180, idle=60,
+                                 speed=True, stop_on=(E_208_1,))
+                self.device.screenshot()
+                if not self.at_journey() and not self.in_battle():
+                    self.settle()
             elif stage == RESUME_JOURNEY:
                 self.journey()
+                self.device.screenshot()
+                if not self.at_journey() and not self.in_battle():
+                    self.settle()
             elif stage == RESUME_STORY:
                 self.story_advance()
             elif stage == RESUME_PREP:
@@ -1065,11 +1072,11 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     for _ in range(6):
                         if self.appear(E_219_1, offset=CHAIN_OFFSET):
                             self.tap_at(640, 638, '落点：旅程目标达成 → 点击以继续')
-                            self.loop(timeout=2)
+                            self.wait_seconds(2)
                 elif self.appear(E_220_1, offset=CHAIN_OFFSET):
                     # 「确定要结束旅程吗?」的蓝确认比 E_200_2 那颗宽，只能点固定点。
                     self.tap_at(733, 465, '落点：确认结束旅程')
-                    self.loop(timeout=3)
+                    self.wait_seconds(3)
                 elif self.appear(E_218_1, offset=CHAIN_OFFSET):
                     # 签到面板只是结算链中间的一屏，关掉 X 就回到正常的结算流。
                     self.tap_at(1222, 50, '落点：关签到面板')
@@ -1078,7 +1085,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     # RANK 版「旅程结束」：点它弹确认框，下一轮分类会落到 E_200_2 那屏，
                     # 交给 settle() 继续。
                     self.tap_at(1088, 388, '落点：旅程结束')
-                    self.loop(timeout=3)
+                    self.wait_seconds(3)
                 elif stage == RESUME_TUTORIAL_HALL:
                     # 结算表里没有「管理 → 救援者 → 星辰档案 → 装备」这一段，
                     # 先跑一遍结算，走不通就补那条教学通路。
@@ -1961,17 +1968,37 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.device.stuck_record_clear()
             # 「NOA指南」帮助弹窗会整屏盖住按钮（2026-11-14 19:18 验号卡死）。
             self.dismiss_noa_guide()
+            # 断线/报错弹窗（「通知：与服务器联机中断。」等）：先点确认，再交由 guide_press 重登续跑。
+            if self.dismiss_game_error() or self.dismiss_notice():
+                quiet.reset()
+                self.device.click_record_clear()
+                if stop_on_login:
+                    for _ in self.loop(timeout=15):
+                        self.device.stuck_record_clear()
+                        if self.dismiss_game_error() or self.dismiss_notice():
+                            continue
+                        if (self.appear(E_1_1, offset=CHAIN_OFFSET)
+                                or self.appear(E_4_2, offset=CHAIN_OFFSET)
+                                or self.appear(E_3_1, offset=CHAIN_OFFSET)
+                                or self.appear(E_2_1, offset=CHAIN_OFFSET)):
+                            break
+                    self.need_relogin = True
+                    return False
+                continue
             # 「住宿」面板：只选免费的「露宿」，再点「休息」。
             # ❗这屏右栏和旅程页几乎重合：`E_122_1`（训练）在这里正好压在第二行
             #   「住处 30」上，等于花 30 潜质点住收费房间（用户 2026-11-16 16:21
             #   截图就是这个屏，并指出「按截图位置不可能点到训练」）。所以面板
             #   一开就先接管，别让旅程那张表去点右栏。
-            if self.appear(E_221_1, offset=CHAIN_OFFSET):
+            if self.appear(E_221_1, offset=CHAIN_OFFSET) \
+                    or self.appear(E_221_2, offset=CHAIN_OFFSET):
                 logger.info('住宿面板：只选免费的「露宿」，再点「休息」')
                 self.tap_at(1100, 282, '住宿：露宿（免费）')
-                self.loop(timeout=2)
+                self.wait_seconds(2)
                 self.tap_at(1135, 665, '住宿：休息')
-                self.loop(timeout=3)
+                self.wait_seconds(3)
+                quiet.reset()
+                self.device.click_record_clear()
                 continue
             # ===== 中途回到标题 / 登录页：立刻收工，交给 guide_press() =====
             # ❗不能只靠按钮表：标题页的 E_4_2 / E_1_1 会被当成引导页一直点，
@@ -2001,6 +2028,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             # 离线 34 帧验证：三张 VICTORY 1.000，其余全 0.000。
             if speed and self.appear(E_135_1, offset=(10, 10)):
                 logger.info(f'{note}：评鉴战 VICTORY，这一段结束')
+                self.click_button(E_135_1, '评鉴战 VICTORY → 离开')
                 self.report_pages(note, buttons, hit)
                 self.report_guide_timing(note, guide_log)
                 return True
@@ -3235,7 +3263,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             bool: 同 `press()`。
         """
         pending = start_pending
-        for attempt in range(2):
+        for attempt in range(3):
             self.need_relogin = False
             ok = self.press(buttons, note, stop_on_login=True,
                             login_start_pending=pending, **kwargs)
@@ -3275,6 +3303,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         for _ in self.loop(timeout=timeout):
             self.device.stuck_record_clear()
             self.device.screenshot()
+            if self.dismiss_game_error() or self.dismiss_notice():
+                logger.warning('剧情续跑：检测到掉线或异常弹窗，停止当前段以便重登')
+                return False
             if self.appear(E_119_1, offset=CHAIN_OFFSET):
                 self.click_button(E_119_1, '剧情 → 跳过新手教学')
                 self.wait_until_disappear(E_119_1, offset=CHAIN_OFFSET, timeout=5, settle=2)
@@ -3415,8 +3446,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   下一段 settle() 也是空转，整条链断在那儿。
         #   评鉴战本身要 60~70 秒才出 VICTORY（03:51:13 开 AUTO → 03:52:2x 胜利），
         #   40 秒会在胜利前 30 秒就收工，所以放到 75 秒。
-        self.press(JOURNEY, '旅程：倍速 / 训练 / 评鉴战', timeout=600, idle=75,
-                   speed=True, stop_on=(E_208_1,))
+        self.guide_press(JOURNEY, '旅程：倍速 / 训练 / 评鉴战', timeout=600, idle=75,
+                         speed=True, stop_on=(E_208_1,))
 
     def settle(self):
         """旅程结算：点掉两个签到 -> 解锁 -> 后续引导 -> 主界面。
@@ -3450,8 +3481,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   不带 `hit_out` 的 press，第一遍 168 收工后又从头扫了一遍，
         #   点掉两个教学却没有收工判据，硬等满 40 秒。
         hit1 = []
-        self.press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40,
-                   stop_after_page=168, hit_out=hit1)
+        self.guide_press(SETTLE, '结算 / 签到 / 解锁', timeout=600, idle=40,
+                         stop_after_page=168, hit_out=hit1)
         # ❗第二遍只在「还没回到主界面」时才跑。原来那句「第二遍没东西可点的话
         #   就是空转 12 秒，不亏」是错的：真机 2026-11-07 10:26 实测，`E_168_1`
         #   一过就已经在主界面了，第二遍整整 12 秒**一页都没点到**
@@ -3463,9 +3494,9 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         # （多花 40 秒），也不要漏掉「跳过新手教学」。
         hit2 = []
         if not self.appear(E_171_1, offset=(10, 10)):  # alas-lint: allow - 判据是正面条件（主界面四格），"看不见"=还没回主界面；这里只决定要不要再扫一遍，误判的代价是多花 40 秒而不是点错东西
-            self.press(SETTLE, '结算 / 签到 / 解锁（第二个跳过教学）', timeout=600,
-                       idle=40, stop_after_page=168, stop_after_button=(E_119_1,),
-                       hit_out=hit2)
+            self.guide_press(SETTLE, '结算 / 签到 / 解锁（第二个跳过教学）', timeout=600,
+                             idle=40, stop_after_page=168, stop_after_button=(E_119_1,),
+                             hit_out=hit2)
 
         # ❗兜底：结算阶段一共有**两个**「跳过新手教学」（用户 15:5x：
         #   「旅程里有一个教学。后面还有两个教学，一共三个」），它们都在
@@ -3698,6 +3729,20 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         logger.info('菜单：主界面上没看到四格入口（可能不在主界面）')
         return False
 
+    def close_menu(self, timeout=6):
+        """菜单页浮层还开着时收起它，露出底下的主界面右上入口（邮箱 / 四格）。"""
+        gx = (E_171_1.area[0] + E_171_1.area[2]) // 2
+        gy = (E_171_1.area[1] + E_171_1.area[3]) // 2
+        for _ in self.loop(timeout=timeout):
+            self.device.stuck_record_clear()
+            if self.appear(E_176_2, offset=(10, 10)):
+                self.tap_at(gx, gy, '菜单 → 主界面')
+                self.wait_until_disappear(E_176_2, offset=(10, 10),
+                                          timeout=3, settle=2)
+                continue
+            return self.appear(E_171_1, offset=(10, 10))
+        return False
+
     def claim(self):
         """领奖：邮箱 + 任务。
 
@@ -3706,9 +3751,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         （真机 2026-11-06 21:25 撞过 `GameTooManyClickError`）。
         """
         logger.hr('邮箱', level=2)
-        # ❗先截一帧：`appear()` 是直接读 `device.image` 的，它自己**不截图**，
-        #   刚进来的话 device 还没 image 属性（真机 21:30 撞 `AttributeError:
-        #   'Device' object has no attribute 'image'`）。
+        # 确保没被菜单浮层挡住右上信封，同时取到最新截图。
+        self.close_menu()
         self.device.screenshot()
         if self.appear(E_171_2, offset=(10, 10)):
             self.click_button(E_171_2, '打开邮箱')

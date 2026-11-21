@@ -95,7 +95,7 @@ SUMMON_FREE_TRIES = 3
 SUMMON_LEAVE_TIMEOUT = 30
 # Animation + result screen + the way back. The result screen waits for a
 # press, so this only bounds the animation itself.
-SUMMON_RESULT_TIMEOUT = 120
+SUMMON_RESULT_TIMEOUT = 180
 # Seconds between two presses on the result screen's back arrow.
 SUMMON_RESULT_CLICK = 3
 # Pressing a tab is only verified by its label turning white, so the press is
@@ -368,11 +368,14 @@ class BrowndustSummon(BrowndustUI):
 
         tap = Timer(SUMMON_RESULT_CLICK).start()
         for _ in self.loop(timeout=SUMMON_RESULT_TIMEOUT):
+            self.device.stuck_record_clear()
             if self.appear(SUMMON_BANNER, offset=(20, 20)):
+                self.device.click_record_clear()
                 return True
             if tap.reached():
                 tap.reset()
                 logger.info('Result screen, press the back arrow')
+                self.device.click_record_clear()
                 self.device.click(SUMMON_RESULT_BACK)  # alas-lint: allow - only sent while the banner page is gone, which is the guard
                 continue
 

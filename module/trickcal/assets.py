@@ -5,6 +5,9 @@ from module.base.template import Template
 # Don't modify it manually.
 
 BACK = Button(area={'trickcal': (24, 17, 66, 63)}, color={'trickcal': (147, 199, 105)}, button={'trickcal': (24, 17, 66, 63)}, file={'trickcal': './assets/trickcal/trickcal/BACK.png'})
+DOWNLOAD_CONFIRM = Button(area={'trickcal': (545, 526, 735, 580)}, color={'trickcal': (237, 208, 112)}, button={'trickcal': (545, 526, 735, 580)}, file={'trickcal': './assets/trickcal/trickcal/DOWNLOAD_CONFIRM.png'})
+DOWNLOAD_DEPART = Button(area={'trickcal': (1102, 650, 1234, 686)}, color={'trickcal': (143, 139, 116)}, button={'trickcal': (1102, 650, 1234, 686)}, file={'trickcal': './assets/trickcal/trickcal/DOWNLOAD_DEPART.png'})
+DOWNLOAD_TITLE = Button(area={'trickcal': (580, 132, 700, 170)}, color={'trickcal': (116, 197, 103)}, button={'trickcal': (580, 132, 700, 170)}, file={'trickcal': './assets/trickcal/trickcal/DOWNLOAD_TITLE.png'})
 E_1_1 = Button(area={'trickcal': (468, 645, 789, 695)}, color={'trickcal': (199, 153, 158)}, button={'trickcal': (468, 645, 789, 695)}, file={'trickcal': './assets/trickcal/trickcal/E_1_1.png'})
 E_2_1 = Button(area={'trickcal': (87, 24, 237, 59)}, color={'trickcal': (175, 172, 161)}, button={'trickcal': (87, 24, 237, 59)}, file={'trickcal': './assets/trickcal/trickcal/E_2_1.png'})
 E_2_2 = Button(area={'trickcal': (22, 18, 61, 56)}, color={'trickcal': (143, 193, 103)}, button={'trickcal': (22, 18, 61, 56)}, file={'trickcal': './assets/trickcal/trickcal/E_2_2.png'})

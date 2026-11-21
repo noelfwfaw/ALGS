@@ -51,9 +51,9 @@ from module.base.timer import Timer
 from module.config.server import to_package
 from module.exception import GameStuckError
 from module.logger import logger
-from module.trickcal.assets import (E_1_1, E_2_1, E_2_2, E_3_1, E_5_1,
-                                    E_5_2, E_6_1, E_6_2, SHOP_BUY_CANCEL,
-                                    SHOP_BUY_CONFIRM)
+from module.trickcal.assets import (DOWNLOAD_CONFIRM, DOWNLOAD_DEPART, DOWNLOAD_TITLE, E_1_1, E_2_1,
+                                    E_2_2, E_3_1, E_5_1, E_5_2, E_6_1, E_6_2,
+                                    SHOP_BUY_CANCEL, SHOP_BUY_CONFIRM)
 from module.trickcal.page import (page_friend, page_mail, page_main,
                                   page_normal_shop, page_pass, page_shop,
                                   page_task, page_task_weekly)
@@ -211,8 +211,9 @@ class TrickcalUI(RewardPopup, UI):
             bool: If a screen was handled this frame.
         """
         for handler in (self.handle_return_event, self.handle_reward_popup,
-                        self.handle_announcement, self.handle_title_start,
-                        self.handle_sign_in, self.handle_signed_in_page):
+                        self.handle_resource_download, self.handle_announcement,
+                        self.handle_title_start, self.handle_sign_in,
+                        self.handle_signed_in_page):
             if handler():
                 idle.reset()
                 return True
@@ -318,6 +319,8 @@ class TrickcalUI(RewardPopup, UI):
         """
         if self.handle_reward_popup():
             return True
+        if self.handle_resource_download():
+            return True
         if self.handle_buy_popup():
             return True
         if self.handle_return_event():
@@ -395,5 +398,28 @@ class TrickcalUI(RewardPopup, UI):
                 and self.appear(E_6_2, offset=OFFSET, interval=2):
             logger.info('Announcement popup, press its X')
             self.device.click(E_6_2)
+            return True
+        return False
+
+    def handle_resource_download(self):
+        """
+        Confirm the resource-download dialog and press 「立刻出发！」 once done.
+
+        Both the 「资源下载」 header and the 「开始下载」 button are required so a
+        yellow button on another screen is never pressed by this handler.
+
+        Returns:
+            bool: If a download prompt or depart button was pressed.
+        """
+        if self.appear(DOWNLOAD_TITLE, offset=OFFSET) \
+                and self.appear(DOWNLOAD_CONFIRM, offset=OFFSET, interval=2):
+            logger.info('Resource download popup, press 开始下载')
+            self.device.click_record_clear()
+            self.device.click(DOWNLOAD_CONFIRM)
+            return True
+        if self.appear(DOWNLOAD_DEPART, offset=OFFSET, interval=2):
+            logger.info('Resource download finished, press 立刻出发')
+            self.device.click_record_clear()
+            self.device.click(DOWNLOAD_DEPART)
             return True
         return False
