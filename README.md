@@ -27,6 +27,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - [配置](#config)
 - [注意事项](#notes)
 - [许可](#license)
+- [引用数据与额外依赖](#credits)
 
 <a name="games"></a>
 
@@ -346,5 +347,22 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 GNU General Public License v3.0，见 [`LICENSE`](LICENSE)。
 
 框架层来自 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)，版权归其作者所有。本仓库是在 GPL-3.0 下移除碧蓝航线业务、改造成多游戏调度器的衍生作品。
+
+<a name="credits"></a>
+
+## 📚 引用数据与额外依赖
+
+以下仅列出本仓库在原 AzurLaneAutoScript 已有说明之外额外引用的第三方数据、模型与依赖库：
+
+### 第三方数据来源
+
+- **E7BOT Wiki（[wiki.e7bot.top](https://wiki.e7bot.top/)）**：卡厄思梦境「卡厄思肉鸽」使用的离线知识库与图鉴资源由 [`dev_tools/gen_chaoszero_rogue_db.py`](dev_tools/gen_chaoszero_rogue_db.py)、[`dev_tools/gen_chaoszero_rogue_cards.py`](dev_tools/gen_chaoszero_rogue_cards.py) 与 [`dev_tools/gen_chaoszero_rogue_relics.py`](dev_tools/gen_chaoszero_rogue_relics.py) 从 E7BOT Wiki 接口离线抓取并打包至仓库（运行期间只读本地文件），包括事件数据库（`module/chaoszero/rogue_events.json.gz`、`dev_tools/rogue_events/events.json`）、卡牌与灵光一闪形态库（`module/chaoszero/rogue_cards.json.gz`）、装备与角色索引及对应图标（`module/chaoszero/rogue_relics.json.gz`、`rogue_equipment_icons.npz`、`rogue_equipment_faces.npz`）。部分实机名差异与命运卡标题字模（`rogue_fate_titles.npz`）由实机截图校准补充。
+- **GameKee（[www.gamekee.com](https://www.gamekee.com/)）**：各游戏的兑换码任务（失落之剑、棕色尘埃2、卡厄思梦境、交错战线）通过 [`module/coupon/gamekee.py`](module/coupon/gamekee.py) 请求 GameKee 兑换码公开接口拉取当前未过期的兑换码列表。
+
+### 新增开源模型与依赖库
+
+- **[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)（`chinese_cht_PP-OCRv3` 繁体识别模型，Apache-2.0）**：卡厄思肉鸽的繁体单行识别（[`module/chaoszero/rogue_ocr.py`](module/chaoszero/rogue_ocr.py)）使用预置的 `bin/ocr_models/chinese_cht_PP-OCRv3_rec_infer.onnx` 模型与 `bin/ocr_models/ppocr_keys_v1.txt` 字典，补充原 `cnocr` 繁体模型在游戏卡牌白字上的识别不足。
+- **[ONNX Runtime](https://github.com/microsoft/onnxruntime)（`onnxruntime==1.14.1`，MIT）**：在 [`requirements-in.txt`](requirements-in.txt) 新增的运行时推理依赖，用于在无 PaddlePaddle 依赖的情况下直接执行上述 `PP-OCRv3` ONNX 识别模型。
+- 其它基础运行依赖（`cnocr`、`mxnet`、`opencv-python`、`Pillow`、`adbutils`、`uiautomator2`、`pywebio`、`onepush`、`pycryptodome` 等）与安卓投屏/触控组件（`MaaTouch`、`DroidCast_raw`、`scrcpy`、`ascreencap`、`Hermit`）均沿用自原 AzurLaneAutoScript 仓库（其中已有的 `pycryptodome` 亦用于在开发期脚本中解密 E7BOT Wiki 离线数据接口）。
 
 维护者：SHIZUKU_nanoda ([@noelfwfaw](https://github.com/noelfwfaw))
