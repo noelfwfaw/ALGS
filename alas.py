@@ -474,6 +474,35 @@ class GameScheduler:
         self.device.app_stop_adb(package)
         return True
 
+    def stop_games(self, packages):
+        """Force-stop any running package in `packages` in a single adb shell call."""
+        if not self.config.Error_HandleError:
+            logger.warning('No app stop, because HandleError disabled')
+            return False
+        targets = []
+        for pkg in packages:
+            if pkg and pkg not in targets:
+                targets.append(pkg)
+        if not targets:
+            return False
+        joined = ' '.join(targets)
+        cmd = f'for p in {joined}; do pidof $p >/dev/null 2>&1 && am force-stop $p && echo $p; done'
+        try:
+            out = self.device.adb_shell(cmd)
+        except Exception as e:
+            logger.info(f'Batch stop_games fallback ({e})')
+            stopped = False
+            for pkg in targets:
+                stopped = self.stop_game(pkg) or stopped
+            return stopped
+        stopped = False
+        for line in out.splitlines():
+            pkg = line.strip()
+            if pkg in targets:
+                logger.info(f'Stop game: {pkg}')
+                stopped = True
+        return stopped
+
     def switch_game(self, game, boot=True):
         """
         Put the given game in front and make its namespace the active one.
@@ -527,11 +556,12 @@ class GameScheduler:
             # is never stopped: if it is running in the background, `start()`
             # brings that process to the front instead of a cold boot.
             old_package = self.device.package
-            self.stop_game(old_package)
+            to_stop = [old_package] if old_package and old_package != package else []
             for name in self.games:
                 other = to_package(name)
-                if other and other not in (old_package, package):
-                    self.stop_game(other)
+                if other and other != package and other not in to_stop:
+                    to_stop.append(other)
+            self.stop_games(to_stop)
             # `app_start` / `app_stop` / `app_is_running` are all relative to it.
             self.device.package = package
             set_server(game)

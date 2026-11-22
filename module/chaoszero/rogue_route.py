@@ -315,6 +315,32 @@ def has_shop(image, x, y):
     return False
 
 
+def _trim_top_right_badge(labels, index, stats_row, x1, y1):
+    """Strip a top-right purple enhancement badge if it merges with a diamond component."""
+    lx, ty, width, height, area = [int(v) for v in stats_row[:5]]
+    if not (NODE_WIDTH[0] <= width <= 115 and area >= NODE_AREA[0]):
+        return area, width, height, None, None
+    sub = (labels[ty:ty + height, lx:lx + width] == index)
+    left_ys = np.where(sub[:, :width // 2].any(axis=1))[0]
+    if not len(left_ys) or int(left_ys[0]) <= 5:
+        return area, width, height, None, None
+    y_top, y_bot = int(left_ys[0]), int(left_ys[-1])
+    true_h = y_bot - y_top + 1
+    cleaned = sub.copy()
+    cleaned[:y_top, :] = False
+    cleaned[y_top:y_top + int(true_h * 0.45), int(width * 0.62):] = False
+    ys, xs = np.where(cleaned)
+    if not len(xs):
+        return area, width, height, None, None
+    return (
+        int(len(xs)),
+        int(xs.max() - xs.min() + 1),
+        int(ys.max() - ys.min() + 1),
+        float(lx + xs.mean() + x1),
+        float(ty + ys.mean() + y1),
+    )
+
+
 def read_nodes(image):
     """从 2D 预览的截图里读出所有节点，按填充顺序返回 RouteNode 列表。
 
@@ -340,11 +366,11 @@ def read_nodes(image):
         if kind == KIND_EVENT:
             # The cyan current-column highlight can join an event diamond to the background.
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ROUTE_GLOW_OPENING)
-        count, _, stats, cents = cv2.connectedComponentsWithStats(mask, 8)
+        count, labels, stats, cents = cv2.connectedComponentsWithStats(mask, 8)
         for index in range(1, count):
-            area = int(stats[index][4])
-            width = int(stats[index][2])
-            height = int(stats[index][3])
+            area, width, height, cx, cy = _trim_top_right_badge(
+                labels, index, stats[index], x1, y1
+            )
             if not NODE_AREA[0] <= area <= NODE_AREA[1]:
                 continue
             if not NODE_WIDTH[0] <= width <= NODE_WIDTH[1]:
@@ -353,7 +379,10 @@ def read_nodes(image):
                 continue
             if not NODE_RATIO[0] <= width / float(height) <= NODE_RATIO[1]:
                 continue
-            raw.append((area, cents[index][0] + x1, cents[index][1] + y1, kind))
+            if cx is None:
+                cx = cents[index][0] + x1
+                cy = cents[index][1] + y1
+            raw.append((area, cx, cy, kind))
 
     # 同一颗菱形会被好几个色相段各抓到一个块（紫精英的边缘能同时落进橙色和
     # 青色段），位置重合但类型不同 —— 按块面积从大到小只留最大的一块，

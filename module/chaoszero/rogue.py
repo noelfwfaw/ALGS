@@ -63,17 +63,20 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                     ROGUE_DECK, ROGUE_DETAIL,
                                      ROGUE_DICE, ROGUE_DICE_FAIL, ROGUE_DICE_TAP, ROGUE_DREAM_NOTICE,
                                      ROGUE_DREAM_OFF, ROGUE_DREAM_OK,
-                                     ROGUE_DREAM_ON, ROGUE_EQUIP, ROGUE_EXPLORE_RESULT, ROGUE_FATE,
-                                     ROGUE_FLASH,
+                                     ROGUE_DREAM_ON, ROGUE_DISTORTION_LABEL, ROGUE_ENGRAVE_TITLE, ROGUE_EQUIP,
+                                     ROGUE_EXPLORE_RESULT, ROGUE_FATE,
+                                     ROGUE_FLASH, ROGUE_GET_BUFF_POPUP, ROGUE_GET_CARD_POPUP,
                                      ROGUE_GOD, ROGUE_HERALD, ROGUE_INFO_MENU,
                                      ROGUE_ITEM,
                                      ROGUE_MAP_BTN, ROGUE_MEDITATE, ROGUE_MEDITATE_OFF,
-                                     ROGUE_MEMBER, ROGUE_MENU,
+                                     ROGUE_MEMBER, ROGUE_MEMORY_CHOOSE, ROGUE_MEMORY_END, ROGUE_MENU,
                                      ROGUE_MODE_ENTRY, ROGUE_MODAL,
                                      ROGUE_PANEL,
-                                     ROGUE_PROMPT, ROGUE_PREVIEW, ROGUE_REST, ROGUE_REST_SHOP,
+                                     ROGUE_PROMPT, ROGUE_PREVIEW, ROGUE_PURE_WHITE_MEMORY, ROGUE_REST, ROGUE_REST_SHOP,
                                      ROGUE_REMOVE, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP, ROGUE_RESUME,
-                                    ROGUE_TRANSFORM,
+                                     ROGUE_SCULPT_ENTRY, ROGUE_SCULPT_SUCCESS, ROGUE_SCULPT_TITLE,
+                                     ROGUE_SEASON_HUB, ROGUE_SEASON_REROLL, ROGUE_SEASON_TITLE,
+                                     ROGUE_TRANSFORM,
                                      ROGUE_RETREAT,
                                      ROGUE_RETREAT_TITLE, ROGUE_REWARD_LEVEL, ROGUE_SAVE_TITLE, ROGUE_STORY,
                                      ROGUE_SHOP_REMOVE,
@@ -484,6 +487,76 @@ MODE_CARD = (330, 420)
 # 次高 0.562；`开` 在旧素材里 0 命中（最高 0.658），等实机拨一遍确认。
 DREAM_POINT = (1010, 35)
 DREAM_TRIES = 4
+SEASON_WORLDS = ('賽季卡厄思', '赛季卡厄思')
+LOBBY_SEASON = (1100, 665)
+SEASON_HUB_CHAOS = (391, 408)
+SEASON_DIFF_ENTER = (1180, 660)
+SEASON_REROLL_POINT = (1065, 587)
+SEASON_SAVE_PT_AREA = (885, 274, 1200, 310)
+SEASON_SAVE_PT_SCAN_YS = (235, 255, 274, 295, 315, 335)
+SEASON_RIGHT_CARD_AREA = (875, 120, 1255, 550)
+SEASON_WHEEL_AREA = (50, 135, 126, 570)
+SEASON_WHEEL_X = 88
+SEASON_SCROLL_TOP = ((88, 180), (88, 560))
+SEASON_SCROLL_BOT = ((88, 560), (88, 180))
+SEASON_SCROLL_MID = ((88, 450), (88, 250))
+SEASON_SCROLL_TIMES = 3
+SEASON_LOCKED_AREA = (200, 260, 860, 460)
+SEASON_LOCKED_WHITE = 0.75
+SEASON_LOCKED_CLOSE = (640, 660)
+SEASON_TIER_Y = {
+    1: 167,
+    2: 253,
+    3: 339,
+    4: 425,
+    5: 511,
+    6: 410,
+    7: 197,
+    8: 284,
+    9: 369,
+    10: 455,
+    11: 541,
+}
+SEASON_GLOW_TOLERANCE = 25
+SEASON_DIFF_MAX = 11
+SEASON_DIFF_TRIES = 4
+DISTORTION_SWITCH_AREA = (718, 45, 810, 78)
+DISTORTION_POINT = (764, 61)
+DISTORTION_ORANGE_MIN = 400
+DISTORTION_TRIES = 4
+SEASON_DREAM_POINT = (1189, 35)
+SEASON_POPUP_CLOSE = (640, 668)
+ENGRAVE_CARD_POINT = (640, 610)
+ENGRAVE_CONFIRM_POINT = (640, 688)
+ENGRAVE_CHECK_AREA = (620, 670, 660, 706)
+ENGRAVE_CHECK_WHITE = 40
+MEMORY_CARD_COLS = ((175, 465), (495, 785), (815, 1105))
+MEMORY_CARD_POINTS = ((320, 365), (640, 365), (960, 365))
+MEMORY_REROLL_POINTS = ((320, 596), (640, 596), (960, 596))
+MEMORY_REROLL_WHITE_MIN = 15
+SEASON_MEMORY_RULES = (
+    ('記憶：壓抑', ('壓', '压', '抑'), ('打擊次數', '觸發2次時')),
+    ('記憶：渴望', ('渴', '望'), ('韌性',)),
+    ('記憶：王國', ('王', '國', '国'), ('原始費用',)),
+    ('記憶：金光', ('金', '光'), ('總和', '8以上')),
+    ('記憶：怨懟', ('怨', '懟', '怼'), ('丟棄', '3張')),
+    ('記憶：女子', ('女', '子'), ('快速攻擊',)),
+    ('記憶：貪婪', ('貪', '贪', '婪', '焚'), ('全體攻擊',)),
+    ('記憶：萬花筒', ('萬', '万', '花', '筒'), ('持續傷害',)),
+    ('記憶：喪失', ('喪', '丧', '失'), ('技能卡牌', '疊加', '正義')),
+)
+SCULPT_CARD_POINT = (472, 610)
+SCULPT_CONFIRM_POINT = (472, 688)
+SCULPT_CHECK_AREA = (447, 668, 497, 706)
+SCULPT_EXIT_CARD_POINT = (808, 610)
+SCULPT_EXIT_CONFIRM_POINT = (808, 688)
+SCULPT_BTN_AREA = (920, 540, 1260, 605)
+SCULPT_BTN_ORANGE_MIN = 4000
+SCULPT_BTN_POINT = (1090, 572)
+SCULPT_LEAVE_POINT = (1158, 669)
+SCULPT_SHARD_AREA = (740, 24, 795, 56)
+SCULPT_MAX_STALL = 4
+MEMORY_END_POINT = (1138, 659)
 
 # 开局「传令兵」的**三选一**（凯尔肯帐篷前那页，三张卡横排在底部 y 510-690）。
 # 用户 2026-11-14 说明：默认选左边第一张 —— 它给「3 场一般战斗怪物 HP 变 1」的
@@ -567,6 +640,11 @@ RESUME_CONTINUE_POINT = (815, 508)
 # 2026-11-15 实测：以 (472,677) 下沿为基准，y-125~y-95 读得出 `搜索尿體`/`攝取`，
 # y-133~y-103 就只剩半个字了。
 EVENT_TITLE = (-150, -125, 150, -95)
+EVENT_BODY_LINES = (
+    (-150, -96, 150, -68),
+    (-150, -68, 150, -40),
+    (-150, -40, 150, -12),
+)
 EVENT_CONFIRM_ATTEMPTS = 3
 # Same-title numbers in the selector's fixed routes, by confirmed visit.
 EVENT_GUIDED_VARIANTS = {
@@ -703,6 +781,9 @@ MEDITATE_RETRY = 2
 #   ❗冥想格子真正能被点的位置是图标 (1120,428)；旧的 (1085,435) 落在两个格子的
 #     缝里，点了毫无反应（2026-11-15 09:2x 实测四次都没弹说明框）。
 MEDITATE_POINT = (1120, 428)
+MEDITATE_ICON_AREA = (1085, 390, 1175, 470)
+FLASH_CARD_LIGHTS = (90, 110, 130, 150)
+MEDITATE_ICON_WHITE = 100
 MEDITATE_CONFIRM_POINT = (845, 483)
 MEDITATE_COLUMNS = (360, 567, 775)
 MEDITATE_ROWS = (85, 385)
@@ -846,6 +927,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 同一页右侧的紫色 `下一步`
         if kind == 'purple':
             return int(np.count_nonzero((b > 190) & (g < 150) & (r > 110)))
+        if kind == 'orange':
+            return int(np.count_nonzero((r > 200) & (g > 110) & (g < 200) & (b < 90)))
         raise ValueError(kind)
 
     # ---------------------------------------------------------------- 页面判据
@@ -914,6 +997,234 @@ class ChaoszeroRogue(ChaoszeroUI):
         （全是这一页），其余最高 0.5349。
         """
         return self.appear(ROGUE_ITEM, offset=(20, 20), similarity=0.85)
+
+    def rogue_season_popup_appear(self):
+        """Whether a Season Chaos dismissible popup (`獲得【純白記憶】` / `獲得卡牌` / `獲得持續效果` / `雕琢成功`) is up."""
+        return (self.appear(ROGUE_PURE_WHITE_MEMORY, offset=(20, 20), similarity=0.85)
+                or self.appear(ROGUE_GET_CARD_POPUP, offset=(20, 20), similarity=0.85)
+                or self.appear(ROGUE_GET_BUFF_POPUP, offset=(20, 20), similarity=0.85)
+                or self.appear(ROGUE_SCULPT_SUCCESS, offset=(20, 20), similarity=0.85))
+
+    def rogue_memory_end_appear(self):
+        """Whether the Season Chaos Floor-2 end screen (`▷ 為記憶的盡頭`) is up."""
+        return self.appear(ROGUE_MEMORY_END, offset=(20, 20), similarity=0.85)
+
+    def rogue_sculpt_entry_stage(self):
+        """Return 1 to expand `雕琢記憶`, 2 to press its confirmation arrow, or 0."""
+        if self.appear(ROGUE_SCULPT_ENTRY, offset=(-12, -54, 12, -34), similarity=0.85):
+            return 2 if self.rogue_count(SCULPT_CHECK_AREA, 'white', threshold=200) >= ENGRAVE_CHECK_WHITE else 0
+        if self.appear(ROGUE_SCULPT_ENTRY, offset=(12, 10), similarity=0.85):
+            return 1
+        return 0
+
+    def rogue_sculpt_workshop_appear(self):
+        """Whether the Season Chaos `記憶雕琢` workshop screen is up."""
+        return self.appear(ROGUE_SCULPT_TITLE, offset=(16, 12), similarity=0.85)
+
+    def rogue_memory_shard_count(self):
+        """Read the top-bar `記憶殘片` shard count (`int`), or None if unreadable."""
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        text = self.card_reader.read_name(self.device.image, SCULPT_SHARD_AREA, scale=2, raw=True) or ''
+        trans = str.maketrans('０１２３４５６７８９Oo', '012345678900')
+        digits = ''.join(ch for ch in text.translate(trans) if ch.isdigit())
+        return int(digits) if digits else None
+
+    def rogue_sculpt_available(self):
+        """Whether the right-side `記憶雕琢` action can be triggered (`記憶殘片` > 0 and orange)."""
+        if self.rogue_count(SCULPT_BTN_AREA, 'orange') < SCULPT_BTN_ORANGE_MIN:
+            return False
+        return self.rogue_memory_shard_count() != 0
+
+    def handle_rogue_sculpt_workshop(self, press):
+        """Spend `記憶殘片` on the right-side `記憶雕琢` button until exhausted, then click `離開`."""
+        if not self.rogue_sculpt_workshop_appear():
+            return False
+        if not press.reached():
+            return True
+        press.reset()
+        self.card_tries = 0
+        shards = self.rogue_memory_shard_count()
+        if shards is not None and shards != getattr(self, 'sculpt_last_shards', None):
+            self.sculpt_last_shards = shards
+            self.sculpt_stall_tries = 0
+            self.device.click_record_clear()
+        stall = getattr(self, 'sculpt_stall_tries', 0)
+        if self.rogue_sculpt_available() and stall < SCULPT_MAX_STALL:
+            self.sculpt_stall_tries = stall + 1
+            logger.info('Sculpt memory card on workshop page (shards=%s, try=%s/%s) at %s'
+                        % (shards, self.sculpt_stall_tries, SCULPT_MAX_STALL, SCULPT_BTN_POINT))
+            self.tap_point(*SCULPT_BTN_POINT, name='ROGUE_SCULPT_ACTION')
+            return True
+        self.sculpt_done = True
+        self.sculpt_stall_tries = 0
+        leave = self.rogue_secondary_point() or SCULPT_LEAVE_POINT
+        logger.info('Leave 記憶雕琢 workshop (shards=%s, stall=%s) at %s' % (shards, stall, leave))
+        self.tap_point(*leave, name='ROGUE_SCULPT_LEAVE')
+        return True
+
+    def handle_rogue_sculpt_entry(self, press):
+        """Enter `雕琢記憶` (or pick `離開` after sculpting is done / out of shards)."""
+        stage = self.rogue_sculpt_entry_stage()
+        if not stage:
+            self.sculpt_entry_tries = 0
+            return False
+        if not press.reached():
+            return True
+        press.reset()
+        self.card_tries = 0
+        if getattr(self, 'sculpt_done', False) or self.rogue_memory_shard_count() == 0:
+            check = self.rogue_option_check_point(SCULPT_EXIT_CARD_POINT[0])
+            point = check or SCULPT_EXIT_CARD_POINT
+            logger.info('Memory sculpting done, choose 離開 at %s' % (point,))
+            self.tap_point(*point, name='ROGUE_SCULPT_EXIT')
+            return True
+        tries = getattr(self, 'sculpt_entry_tries', 0)
+        if tries < BEACON_TRIES:
+            self.sculpt_entry_tries = tries + 1
+            point = SCULPT_CARD_POINT if stage == 1 else SCULPT_CONFIRM_POINT
+            logger.info('Season memory sculpt entry stage %s, press %s (%s/%s)'
+                        % (stage, point, self.sculpt_entry_tries, BEACON_TRIES))
+            self.tap_point(*point, name='ROGUE_SCULPT_ENTRY')
+        else:
+            logger.warning('Memory sculpt entry does not respond after %s taps, stop' % tries)
+        return True
+
+    def rogue_engrave_stage(self):
+        """Return 1 to expand the Floor-2 `銘刻記憶` card, 2 to press its confirmation arrow, or 0."""
+        if self.appear(ROGUE_ENGRAVE_TITLE, offset=(12, 10), similarity=0.85):
+            return 2 if self.rogue_count(ENGRAVE_CHECK_AREA, 'white', threshold=200) >= ENGRAVE_CHECK_WHITE else 0
+        if self.appear(ROGUE_ENGRAVE_TITLE, offset=(-12, 34, 12, 54), similarity=0.85):
+            return 1
+        return 0
+
+    def rogue_memory_choose_appear(self):
+        """Whether the Season Chaos `選擇刻印的記憶` card chooser is up."""
+        return self.appear(ROGUE_MEMORY_CHOOSE, offset=(16, 12), similarity=0.85)
+
+    def rogue_memory_identify_card(self, col):
+        """Identify one memory card slot (`1..3`) on `選擇刻印的記憶` via title and body OCR."""
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        image = self.device.image
+        x1, x2 = MEMORY_CARD_COLS[col - 1]
+        title = self.card_reader.read_name(image, (x1 + 68, 154, x2 - 55, 188), scale=2, raw=True) or ''
+        for name, t_keys, _ in SEASON_MEMORY_RULES:
+            if any(key in title for key in t_keys):
+                return name
+        b1 = self.card_reader.read_name(image, (x1 + 20, 415, x2 - 20, 448), scale=2, raw=True) or ''
+        b2 = self.card_reader.read_name(image, (x1 + 20, 445, x2 - 20, 478), scale=2, raw=True) or ''
+        body = b1 + b2
+        for name, _, b_keys in SEASON_MEMORY_RULES:
+            if any(key in body for key in b_keys):
+                return name
+        return None
+
+    def rogue_memory_can_reroll(self, col):
+        """Whether the `重新搜索 N/4` button under column `col` (`1..3`) still has charges left."""
+        cx = MEMORY_REROLL_POINTS[col - 1][0]
+        return self.rogue_count((cx - 125, 582, cx - 15, 610), 'white', threshold=220) >= MEMORY_REROLL_WHITE_MIN
+
+    def rogue_memory_target_card(self):
+        """Return the normalized canonical name configured in `RogueSeasonMemoryCard`."""
+        raw = str(getattr(self.config, 'ChaoszeroRogue_RogueSeasonMemoryCard', '') or '').strip()
+        for name, t_keys, _ in SEASON_MEMORY_RULES:
+            if raw == name or any(key in raw for key in t_keys):
+                return name
+        return SEASON_MEMORY_RULES[0][0]
+
+    def rogue_memory_member_slot(self, matched=None):
+        """Return target combatant slot (`1..3`) for memory card assignment."""
+        if matched is None:
+            matched = getattr(self, 'memory_card_matched', True)
+        attr = ('ChaoszeroRogue_RogueSeasonMemoryMember'
+                if matched else 'ChaoszeroRogue_RogueSeasonMemoryFallbackMember')
+        try:
+            slot = int(getattr(self.config, attr, 1))
+        except (TypeError, ValueError):
+            return 1
+        return slot if 1 <= slot <= 3 else 1
+
+    def handle_rogue_memory_choose(self, press):
+        """Handle `選擇刻印的記憶`: match target, reroll remaining columns, or fallback when 0/4."""
+        if not self.rogue_memory_choose_appear():
+            self.memory_selected_col = None
+            return False
+        if not getattr(self, 'core_started', False):
+            self.rogue_reset_for_core_map('Season Chaos memory chooser')
+        if not press.reached():
+            return True
+        press.reset()
+        self.card_tries = 0
+        cards = [self.rogue_memory_identify_card(col) for col in (1, 2, 3)]
+        target = self.rogue_memory_target_card()
+        primary = self.rogue_primary_point()
+        if target in cards:
+            col = cards.index(target) + 1
+            self.memory_card_matched = True
+            if primary and getattr(self, 'memory_selected_col', None) == col:
+                logger.info('Confirm target memory card %s (col %s) at (%s, %s)' % (target, col, *primary))
+                self.tap_point(*primary, name='ROGUE_MEMORY_OK')
+            else:
+                self.memory_selected_col = col
+                logger.info('Select target memory card %s at col %s %s' % (target, col, MEMORY_CARD_POINTS[col - 1]))
+                self.tap_point(*MEMORY_CARD_POINTS[col - 1], name='ROGUE_MEMORY_CARD')
+            return True
+        reroll_cols = [col for col in (1, 2, 3) if self.rogue_memory_can_reroll(col)]
+        if reroll_cols:
+            col = reroll_cols[0]
+            self.memory_selected_col = None
+            logger.info('Target %s not in %s, reroll col %s at %s' % (target, cards, col, MEMORY_REROLL_POINTS[col - 1]))
+            self.tap_point(*MEMORY_REROLL_POINTS[col - 1], name='ROGUE_MEMORY_REROLL')
+            return True
+        self.memory_card_matched = False
+        if primary and getattr(self, 'memory_selected_col', None) is not None:
+            logger.info('All rerolls exhausted, confirm fallback memory card at (%s, %s)' % primary)
+            self.tap_point(*primary, name='ROGUE_MEMORY_OK')
+        else:
+            col = next((i + 1 for i, name in enumerate(cards) if name is not None), 1)
+            self.memory_selected_col = col
+            logger.info('All rerolls exhausted for %s (cards=%s), select fallback col %s' % (target, cards, col))
+            self.tap_point(*MEMORY_CARD_POINTS[col - 1], name='ROGUE_MEMORY_CARD')
+        return True
+
+    def handle_rogue_card_reward(self, press):
+        """Handle `卡牌獎勵`: skip optional cards, or assign mandatory Season Chaos memory cards."""
+        if not self.rogue_card_reward_appear():
+            self.memory_assign_picked = False
+            self.memory_assign_tries = 0
+            return False
+        self.rogue_card_page_record('reward')
+        secondary = self.rogue_secondary_point()
+        if secondary:
+            if press.reached():
+                press.reset()
+                self.card_tries = 0
+                logger.info('Card reward page, press 跳過 at (%s, %s)' % secondary)
+                self.tap_point(*secondary, name='ROGUE_SECONDARY')
+            return True
+        if not press.reached():
+            return True
+        press.reset()
+        self.card_tries = 0
+        primary = self.rogue_primary_point()
+        if primary and getattr(self, 'memory_assign_picked', False):
+            self.memory_assign_picked = False
+            logger.info('Confirm mandatory memory card assignment at (%s, %s)' % primary)
+            self.tap_point(*primary, name='ROGUE_MEMORY_ASSIGN_OK')
+            return True
+        if primary and getattr(self.config, 'ChaoszeroRogue_RogueWorld', '') not in SEASON_WORLDS:
+            return True
+        slot = self.rogue_memory_member_slot()
+        order = [slot] + [i for i in (1, 2, 3) if i != slot]
+        tries = getattr(self, 'memory_assign_tries', 0)
+        pick_slot = order[min(tries // 2, len(order) - 1)]
+        self.memory_assign_tries = tries + 1
+        self.memory_assign_picked = True
+        logger.info('Assign mandatory memory card to combatant slot %s (matched=%s)'
+                    % (pick_slot, getattr(self, 'memory_card_matched', True)))
+        self.tap_point(*TEAM_POINTS[pick_slot - 1], name='ROGUE_MEMORY_ASSIGN_MEMBER')
+        return True
 
     def rogue_modal_appear(self):
         """
@@ -1554,6 +1865,25 @@ class ChaoszeroRogue(ChaoszeroUI):
         if manual is not None:
             self.event_unknown = False
             return manual
+
+        bodies = self.rogue_event_body_texts(points)
+        fallback = self.event_library.fallback_pick(texts, packs, body_texts=bodies)
+        if fallback is not None:
+            if self.rogue_event_capture():
+                self.rogue_dump_unknown()
+            if self.event_missing_pick:
+                event_id, name = self.event_missing_pick
+                logger.warning('Event %s (%s) has no configured rule; fallback to priority keyword pick'
+                               % (event_id, name))
+            self.event_missing_pick = None
+            self.event_unknown = False
+            self.event_last_enc = fallback.get('id')
+            self.event_choice = fallback
+            logger.warning('Event fallback pick -> card %s `%s` by priority [%s] (id=%s, body=`%s`)'
+                           % (fallback['position'], fallback['target'], fallback['tier_name'],
+                              fallback.get('id'), fallback.get('body', '').replace('\n', ' | ')))
+            return fallback['position']
+
         if self.event_missing_pick:
             return None
 
@@ -1571,6 +1901,27 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.event_unknown = True
         logger.warning('Event has candidates but no matching configured option; stop for review')
         return None
+
+    def rogue_event_body_texts(self, points):
+        """Read normalized multi-line body/effect descriptions for each option card."""
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        image = self.device.image
+        bodies = []
+        for x, y in points:
+            lines = []
+            for dx1, dy1, dx2, dy2 in EVENT_BODY_LINES:
+                area = (max(0, x + dx1), max(0, y + dy1),
+                        min(1280, x + dx2), min(720, y + dy2))
+                try:
+                    raw = self.card_reader.read_name(image, area)
+                except (StopIteration, Exception):
+                    raw = ''
+                text = rogue_cards.normalize(raw or '')
+                if text:
+                    lines.append(text)
+            bodies.append('\n'.join(lines))
+        return bodies
 
     def rogue_event_picks(self):
         """
@@ -1641,11 +1992,47 @@ class ChaoszeroRogue(ChaoszeroUI):
                 options = self.event_library.records[candidate[1]]['options']
                 required = {rogue_cards.normalize(option.get('flavor')) for option in options
                             if option.get('select_type') == 'DEFAULT' and not option.get('appear_conditions')}
+                cond_pairs = {}
+                for option in options:
+                    conds = option.get('appear_conditions') or []
+                    if option.get('select_type') == 'DEFAULT' and len(conds) == 1:
+                        title = rogue_cards.normalize(option.get('flavor'))
+                        pos, neg = cond_pairs.setdefault(title, (set(), set()))
+                        (neg if conds[0].startswith('!') else pos).add(conds[0].lstrip('!'))
+                required.update(title for title, (pos, neg) in cond_pairs.items() if pos & neg)
                 if all(any(rogue_events.ratio(text, title) >= rogue_events.ENCOUNTER_MATCH for text in texts)
                        for title in required if title):
                     compatible.append(candidate)
             strongest = compatible
         return strongest
+
+    def _rogue_event_reachable(self, enc_id, picks, _seen=None):
+        """Return whether `enc_id` is a root, configured directly, or reachable under parent rules."""
+        if enc_id in self.event_followups:
+            return True
+        if any(key in picks for key in self.event_library.shared_choice_ids(enc_id)):
+            return True
+        edges = getattr(self.event_library, 'parent_edges', {}).get(enc_id)
+        if not edges:
+            return True
+        seen = set() if _seen is None else set(_seen)
+        if enc_id in seen:
+            return False
+        seen.add(enc_id)
+        for pid, opt in edges:
+            if not self._rogue_event_reachable(pid, picks, seen):
+                continue
+            parent_rules = [picks[key] for key in self.event_library.shared_choice_ids(pid) if key in picks]
+            if not parent_rules:
+                return True
+            rule = parent_rules[0]
+            if opt.get('order') == 9999 or 'ATTACK' in (opt.get('select_type'), opt.get('option_type')):
+                return True
+            keys = rule['priority'] if isinstance(rule, dict) else (rule if isinstance(rule, (list, tuple)) else [rule])
+            title = rogue_cards.normalize(opt.get('flavor') or '')
+            if opt.get('order') in keys or (title and title in keys):
+                return True
+        return False
 
     def rogue_event_identity(self, texts, packs):
         """Resolve the event from the page and confirmed continuation."""
@@ -1735,6 +2122,10 @@ class ChaoszeroRogue(ChaoszeroUI):
         if not strongest:
             return None
         picks = self.rogue_event_picks()
+        if len(strongest) > 1:
+            reachable = [candidate for candidate in strongest if self._rogue_event_reachable(candidate[1], picks)]
+            if reachable:
+                strongest = reachable
         score0, event_id0, name0, _ = strongest[0]
         shared = self.event_library.shared_choice_ids(event_id0)
         if len(strongest) == 1 or all(candidate[1] in shared for candidate in strongest):
@@ -2089,7 +2480,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.spark_pending = self.spark_selected
 
     def rogue_spark_confirm(self):
-        if self.spark_pending:
+        if getattr(self, 'spark_pending', None):
             self.spark_obtained.add(self.spark_pending)
             logger.info('Obtained target flash for %s' % self.spark_pending)
             self.spark_pending = None
@@ -2597,13 +2988,13 @@ class ChaoszeroRogue(ChaoszeroUI):
         Returns:
             bool: If this frame is a rest point.
         """
-        return self.appear(ROGUE_REST, offset=(20, 10), similarity=0.9)
+        return self.appear(ROGUE_REST, offset=(30, 16), similarity=0.82)
 
     def rogue_visit_rest_shop(self, press):
         if (not self.shop_cooldown.reached() or self.shop_retry >= SHOP_RETRY
                 or not (self.rogue_shop_remove_needed() or self.equipment.shop_target_slots())):
             return False
-        if self.appear(ROGUE_REST_SHOP, offset=(20, 10), similarity=0.88):
+        if self.appear(ROGUE_REST_SHOP, offset=(30, 16), similarity=0.85):
             if press.reached():
                 press.reset()
                 self.shop_retry += 1
@@ -2648,7 +3039,9 @@ class ChaoszeroRogue(ChaoszeroUI):
             return False
         if self.rogue_confirm_point(REST_CONFIRM_AREA):
             return False
-        if self.appear(ROGUE_MEDITATE_OFF, offset=(20, 10), similarity=0.9):
+        if self.rogue_count(MEDITATE_ICON_AREA, 'white', threshold=190) < MEDITATE_ICON_WHITE:
+            return False
+        if self.appear(ROGUE_MEDITATE_OFF, offset=(25, 12), similarity=0.75):
             return False
         return True
 
@@ -2709,6 +3102,16 @@ class ChaoszeroRogue(ChaoszeroUI):
                 return card
         return None
 
+    def _flash_points_merged(self):
+        """Card boxes from plain (`opening=0`) and separated (`opening=11`) scans, de-duplicated."""
+        # Prefer uneroded `opening=0` boxes so `top` keeps the card title row intact.
+        points = self.rogue_flash_card_points()
+        for item in self.rogue_flash_card_points(opening=11):
+            if all(abs(item[0] - old[0]) > 60 or abs(item[1] - old[1]) > 60 for old in points):
+                points.append(item)
+        points.sort(key=lambda item: (item[2] // 150, item[0]))
+        return points
+
     def rogue_meditate_card(self):
         """
         Find the configured target card on the 冥想 grid.
@@ -2744,16 +3147,26 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 第 4 列根本读不到，前三列也全错位，于是永远 `No card to reroll`。
         # 灵光选卡页的检测器（中部亮色矩形）正好是同一套布局，直接复用。
         for page in range(4):
-            points = self.rogue_flash_card_points(opening=11)
+            points = self._flash_points_merged()
             scored = []
             for x, y, top, left, width, height in points:
                 # 旧带下沿到 +40 会吃进卡框和描述首行，OCR 变乱码（0.29）；
                 # 卡名只有 ~20px，放大 2 倍再读（同删卡网格）。
+                # ❗读到一半（0.3~0.6）时再换个裁法读一遍，避开左上费用数字：
+                # `3 一縷光芒` 读成 `士縷光桂五`（0.47 < 0.60 → 滚三屏找不到、没选卡就取消，
+                # 2026-11-22 23:18 实测）。第一遍就读对或完全读不对的不会多读。
                 area = (left + 10, top + 6, left + width - 10, top + 34)
                 text = self.card_reader.read_name(self.device.image, area, scale=2)
                 if text:
                     for name in names:
-                        scored.append((rogue_cards.name_score(text, name), name, x, y, text))
+                        score = rogue_cards.name_score(text, name)
+                        if 0.3 <= score < MEDITATE_MATCH:
+                            retry = self.card_reader.read_name(
+                                self.device.image,
+                                (left + 40, top + 8, left + width - 8, top + 32), scale=2)
+                            if retry and rogue_cards.name_score(retry, name) > score:
+                                text, score = retry, rogue_cards.name_score(retry, name)
+                        scored.append((score, name, x, y, text))
             scored.sort(reverse=True)
             if scored:
                 best = scored[0]
@@ -2762,6 +3175,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                             % (best[1], best[0], second, best[4][:12]))
                 if best[0] >= MEDITATE_MATCH:
                     if best[0] - second < MEDITATE_MARGIN:
+                        # 两个角色都有同名卡时分数打平：宁可不冥想也不猜（用户 2026-11-17）。
                         return None
                     return (best[2], best[3]), best[1], best[0]
             if page == 3:
@@ -2856,7 +3270,10 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     def rogue_state_path(self):
         # The legacy rogue_state.json has no profile identity and cannot be assigned safely.
-        profile = os.path.normcase(os.path.normpath(filepath_config(self.config.config_name)))
+        name = getattr(self.config, 'config_name', None)
+        if not name:
+            return None
+        profile = os.path.normcase(os.path.normpath(filepath_config(name)))
         key = hashlib.sha256(profile.encode('utf-8')).hexdigest()
         return os.path.join(ROGUE_STATE_DIR, f'{key}.json')
 
@@ -2877,6 +3294,8 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     def rogue_state_load(self, key, default=None):
         path = self.rogue_state_path()
+        if not path:
+            return default
         try:
             payload = self.rogue_state_read(path)
         except OSError as error:
@@ -2888,6 +3307,8 @@ class ChaoszeroRogue(ChaoszeroUI):
 
     def rogue_state_save(self, **kwargs):
         path = self.rogue_state_path()
+        if not path:
+            return
         try:
             os.makedirs(ROGUE_STATE_DIR, exist_ok=True)
             with FileLock(f'{path}.lock', timeout=2):
@@ -2927,6 +3348,29 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.stuck_recent.clear()
         return True
 
+    def rogue_reset_for_core_map(self, reason):
+        """Clear Floor 1 route progress so the core map plans a fresh route."""
+        self.rogue_spark_confirm()
+        self.spark_boss_pending = bool(getattr(self, 'spark_targets', None))
+        self.core_started = True
+        self.rogue_state_save(core_started=True)
+        logger.info('%s, the core map comes next, the route will be read again' % reason)
+        self.route_plan = None
+        self.route_nodes = []
+        self.route_step = 0
+        self.meditate_step = -1
+        self.plan_index = 0
+        self.route_reads = 0
+        self.route_retry = 0
+        self.route_mismatch = None
+        self.route_edges = []
+        self.event_page = None
+        self.event_index = None
+        self.event_visit = {}
+        self.event_followups = set()
+        self.event_root = None
+        self.event_last_enc = None
+
     def handle_rogue_fate(self, press):
         if not self.rogue_fate_appear():
             self.fate_tries = 0
@@ -2947,6 +3391,11 @@ class ChaoszeroRogue(ChaoszeroUI):
                 return True
 
             phase = rogue_fate.phase(titles, self.core_started)
+            if phase == 'core' and (
+                not self.core_started or self.route_step > 0
+                or self.route_plan is not None or self.route_reads > 0
+            ):
+                self.rogue_reset_for_core_map('Core fate chooser')
             settings = self.config.data.get('ChaoszeroRogue', {}).get('ChaoszeroRogue', {})
             field = 'RogueFateCoreFilter' if phase == 'core' else 'RogueFateMainFilter'
             priorities = settings.get(field, getattr(self.config, 'ChaoszeroRogue_' + field))
@@ -3235,7 +3684,24 @@ class ChaoszeroRogue(ChaoszeroUI):
         if not patch.size:
             return []
         hsv = cv2.cvtColor(patch, cv2.COLOR_RGB2HSV)
-        mask = (hsv[:, :, 2] > 90).astype('uint8')
+        # ❗赛季版选卡页是「每个战斗员一行」的灰色背景（V≈76~96），卡缝 ≤10px，
+        # 阈值 90 会把整页连成一个 920x519 的大块 → 一张卡都找不到，日志刷屏
+        # `no card detected yet`（2026-11-22 23:27 实测）。90 找不到时再逐级提高阈值，
+        # 并把各级结果按中心去重合并。
+        points = self._flash_card_blobs(hsv, FLASH_CARD_LIGHTS[0], opening)
+        if not points:
+            for light in FLASH_CARD_LIGHTS[1:]:
+                for item in self._flash_card_blobs(hsv, light, opening):
+                    if all(abs(item[0] - old[0]) > 60 or abs(item[1] - old[1]) > 60
+                           for old in points):
+                        points.append(item)
+        points.sort(key=lambda item: (item[2] // 150, item[0]))
+        return points
+
+    @staticmethod
+    def _flash_card_blobs(hsv, light, opening):
+        """Bright card-sized rectangles of one brightness threshold, as absolute tuples."""
+        mask = (hsv[:, :, 2] > light).astype('uint8')
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
         if opening:
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,
@@ -3256,7 +3722,6 @@ class ChaoszeroRogue(ChaoszeroUI):
                            int(stats[index][1]) + 60,
                            int(stats[index][0]) + 280,
                            width, height))
-        points.sort(key=lambda item: (item[2] // 150, item[0]))
         return points
 
     def rogue_copy_card_pick(self):
@@ -3812,7 +4277,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             return True
         return self._rogue_remove_suffix_appear()
 
-    def rogue_member_index(self, preferred=None):
+    def rogue_member_index(self, preferred=None, dim_check=True):
         """
         Which of the three portraits to pick.
 
@@ -3823,6 +4288,10 @@ class ChaoszeroRogue(ChaoszeroUI):
         先按指定号位（默认 `RogueMember`）；如果那一张的牌面对比度明显
         低于最花的那张，就改选对比度最高的（灰掉的牌面几乎是单色，std 差一倍以上）。
 
+        `dim_check=False`（复制卡牌选人页）：**严格按配置号位**，不做对比度改选。
+        2026-11-22 23:25 实测 1 号位 std 54 vs 77（只低 30%，并不是灰掉）被改选成 2 号位，
+        复制到了别人的牌。点不动的立绘由调用方的「等 3 秒没变橙就换下一张」兜底。
+
         Returns:
             int: 1-based index of the portrait to try first.
         """
@@ -3832,7 +4301,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         except (TypeError, ValueError):
             index = 1
         index = min(max(index, 1), len(MEMBER_POINTS))
-
+        if not dim_check:
+            return index
         contrasts = []
         for x, y in MEMBER_POINTS:
             patch = self.image_crop((x - 60, y - 90, x + 60, y + 90)).astype(int)
@@ -4193,6 +4663,20 @@ class ChaoszeroRogue(ChaoszeroUI):
         logger.warning('Never got into the world %s' % world)
         return False
 
+    def rogue_season_team_appear(self):
+        """Whether the Season Chaos 配置隊伍 screen (with 扭曲適應) is up."""
+        return (self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9)
+                and self.appear(ROGUE_DISTORTION_LABEL, offset=(20, 20), similarity=0.88))
+
+    def rogue_season_hub_appear(self):
+        """Whether the Season Chaos hub (< 銀河系災害) is on screen."""
+        return self.appear(ROGUE_SEASON_HUB, offset=(20, 20), similarity=0.88)
+
+    def rogue_season_diff_appear(self):
+        """Whether the Season Chaos difficulty/observation screen (< 卡厄思 賽季資訊) is up."""
+        return (self.appear(ROGUE_SEASON_REROLL, offset=(20, 20), similarity=0.88)
+                or self.appear(ROGUE_SEASON_TITLE, offset=(20, 20), similarity=0.88))
+
     def rogue_dream_state(self):
         """
         Read the 梦境模式 switch on the 「配置隊伍」 page.
@@ -4202,15 +4686,20 @@ class ChaoszeroRogue(ChaoszeroUI):
                 None when the switch is not on screen (page still painting, or
                 the mode is not unlocked yet).
         """
-        if self.appear(ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9):
+        offset = (200, 20) if self.rogue_season_team_appear() else (20, 20)
+        if self.appear(ROGUE_DREAM_ON, offset=offset, similarity=0.9):
             return True
-        if self.appear(ROGUE_DREAM_OFF, offset=(20, 20), similarity=0.9):
+        if self.appear(ROGUE_DREAM_OFF, offset=offset, similarity=0.9):
             return False
         return None
 
     def rogue_dream_set(self, want, tries=DREAM_TRIES):
         """
         Turn 梦境模式 on or off and wait for the switch to show that state.
+
+        Pages:
+            in:  配置隊伍
+            out: 配置隊伍
 
         Args:
             want (bool): True to enable, False to disable.
@@ -4249,54 +4738,363 @@ class ChaoszeroRogue(ChaoszeroUI):
             if tries <= 0:
                 break
             logger.info('Turn dream mode %s' % ('on' if want else 'off'))
-            self.tap_point(*DREAM_POINT, name='ROGUE_DREAM')
+            point = SEASON_DREAM_POINT if self.rogue_season_team_appear() else DREAM_POINT
+            self.tap_point(*point, name='ROGUE_DREAM')
 
         logger.warning('Dream mode is still %s, continue anyway'
                        % ('off' if want else 'on'))
         return False
 
-    def rogue_enter_team(self, timeout=180, reselect_world=True):
+    def rogue_distortion_state(self):
         """
-        Walk from the lobby to the 「配置隊伍」 page of 卡厄思顯現 and stop there.
-
-        入口是**五页**（2026-11-14 实机逐页量过）：大厅 → 卡厄思（两卡）→
-        卡厄思顯現（世界列表）→ 世界详情 → 配置隊伍。每页一个模板判据，认出一页
-        点一下就等它翻页；认不出就等（黑屏加载约 8 秒）。
-
-        Args:
-            timeout (int): Seconds to spend walking the chain.
-            reselect_world (bool): Back out to the world list and pick
-                `RogueWorld` again. False on the next run of a continuous
-                session: the game already remembers the world just finished.
+        Read the 扭曲適應 switch on the Season Chaos 「配置隊伍」 page.
 
         Returns:
-            bool: If the team page is on screen.
+            bool | None: True when on, False when off, None when not on Season Chaos team page.
         """
-        logger.hr('Walk to 卡厄思顯現 team', level=2)
+        if not self.rogue_season_team_appear():
+            return None
+        roi = self.image_crop(DISTORTION_SWITCH_AREA).astype(int)
+        r, g, b = roi[:, :, 0], roi[:, :, 1], roi[:, :, 2]
+        orange = int(np.count_nonzero((r > 200) & (g > 140) & (b < 90)))
+        return orange >= DISTORTION_ORANGE_MIN
 
-        # 同一页 2 秒内只点一次：双击会把队伍页的 `進入` 在弹窗起来之后再点一次。
+    def rogue_distortion_set(self, want, tries=DISTORTION_TRIES):
+        """
+        Turn 扭曲適應 on or off on the Season Chaos 「配置隊伍」 page.
+
+        Pages:
+            in:  Season Chaos 配置隊伍
+            out: Season Chaos 配置隊伍
+        """
+        press = Timer(2, count=2)
+        for _ in self.loop(timeout=Timer(20, count=1)):
+            self.device.stuck_record_clear()
+            state = self.rogue_distortion_state()
+            if state is None:
+                continue
+            if state == want:
+                logger.info('Distortion adaptation is %s' % ('on' if want else 'off'))
+                return True
+            if not press.reached():
+                continue
+            press.reset()
+            tries -= 1
+            if tries <= 0:
+                break
+            logger.info('Turn distortion adaptation %s' % ('on' if want else 'off'))
+            self.tap_point(*DISTORTION_POINT, name='ROGUE_DISTORTION')
+
+        logger.warning('Distortion adaptation is still %s, continue anyway'
+                       % ('off' if want else 'on'))
+        return False
+
+    def _season_locked_popup_appear(self):
+        """Whether the Season Chaos `內容鎖定` overlay is currently displayed."""
+        band = self.image_crop(SEASON_LOCKED_AREA)
+        if not band.size:
+            return False
+        white = int(np.count_nonzero(band.min(axis=2) > 225))
+        return float(white) / float(band.shape[0] * band.shape[1]) >= SEASON_LOCKED_WHITE
+
+    def _season_glow_y(self):
+        """Y center of the glowing pink selection ring on the Season difficulty list."""
+        roi = self.image_crop(SEASON_WHEEL_AREA).astype(int)
+        if not roi.size:
+            return None
+        r, b = roi[:, :, 0], roi[:, :, 2]
+        glow = ((r > 200) & (b > 200)).sum(axis=1)
+        ys = np.where(glow > 18)[0] + SEASON_WHEEL_AREA[1]
+        return int(ys.mean()) if len(ys) >= 8 else None
+
+    def _season_scroll_wheel(self, region):
+        """
+        Scroll the Season Chaos difficulty list to `'top'`, `'mid'`, or `'bot'`.
+
+        Pages:
+            in:  Season Chaos difficulty page
+            out: Season Chaos difficulty page
+        """
+        drag_pair = SEASON_SCROLL_BOT if region == 'bot' else SEASON_SCROLL_TOP
+        for _ in range(SEASON_SCROLL_TIMES):
+            self.device.click_record_clear()
+            self.device.drag(drag_pair[0], drag_pair[1],
+                             point_random=(0, 0, 0, 0), hold_duration=0.2,
+                             name='ROGUE_SEASON_DIFF_SCROLL')
+            self.wait_until_still(SEASON_WHEEL_AREA, timeout=1.0, skip_first_screenshot=False)
+        if region == 'mid':
+            self.device.click_record_clear()
+            self.device.drag(SEASON_SCROLL_MID[0], SEASON_SCROLL_MID[1],
+                             point_random=(0, 0, 0, 0), hold_duration=0.3,
+                             name='ROGUE_SEASON_DIFF_SCROLL')
+            self.wait_until_still(SEASON_WHEEL_AREA, timeout=1.0, skip_first_screenshot=False)
+
+    def _season_dismiss_locked(self):
+        """
+        Close the `內容鎖定` overlay by tapping its bottom prompt.
+
+        Pages:
+            in:  內容鎖定 overlay
+            out: Season Chaos difficulty page
+        """
+        press = Timer(1.2, count=1)
+        for _ in self.loop(timeout=Timer(6, count=3)):
+            self.device.stuck_record_clear()
+            if not self._season_locked_popup_appear():
+                return True
+            if press.reached():
+                press.reset()
+                self.tap_point(*SEASON_LOCKED_CLOSE, name='ROGUE_SEASON_LOCKED_CLOSE')
+        return False
+
+    def rogue_season_difficulty_set(self, target):
+        """
+        Select tier `target` (1..11) on the Season Chaos difficulty list.
+
+        Pages:
+            in:  Season Chaos difficulty page
+            out: Season Chaos difficulty page
+        """
+        try:
+            target = int(target)
+        except (TypeError, ValueError):
+            raise RequestHumanTakeover('Invalid Season Chaos difficulty: %r' % (target,))
+        if not 1 <= target <= SEASON_DIFF_MAX:
+            raise RequestHumanTakeover('Invalid Season Chaos difficulty: %s' % target)
+        logger.hr('Set Season Chaos difficulty %s' % target, level=2)
+        region = 'top' if target <= 5 else ('mid' if target == 6 else 'bot')
+        self._season_scroll_wheel(region)
+
+        target_y = SEASON_TIER_Y[target]
+        press = Timer(1.2, count=1)
+        tries = SEASON_DIFF_TRIES
+        for _ in self.loop(timeout=Timer(15, count=3)):
+            self.device.stuck_record_clear()
+            if self._season_locked_popup_appear():
+                self._season_dismiss_locked()
+                raise RequestHumanTakeover('Season Chaos difficulty %s is not unlocked' % target)
+            if not self.rogue_season_diff_appear():
+                continue
+            gy = self._season_glow_y()
+            if gy is not None and abs(gy - target_y) <= SEASON_GLOW_TOLERANCE:
+                logger.info('Season Chaos difficulty %s selected (y=%s)' % (target, gy))
+                return True
+            if not press.reached():
+                continue
+            if tries <= 0:
+                break
+            press.reset()
+            tries -= 1
+            logger.info('Tap Season Chaos difficulty %s at (%s, %s)' % (target, SEASON_WHEEL_X, target_y))
+            self.tap_point(SEASON_WHEEL_X, target_y, name='ROGUE_SEASON_DIFF')
+
+        raise RequestHumanTakeover('Failed to select Season Chaos difficulty %s' % target)
+
+    def rogue_season_parse_target_pt(self):
+        """Return configured Season Chaos save data cap target in pt, or 0 if disabled."""
+        raw = str(getattr(self.config, 'ChaoszeroRogue_RogueSeasonSavePt', '') or '').strip()
+        if not raw or raw in ('關閉', '关闭', '0', 'off', 'false', 'Disabled'):
+            return 0
+        match = re.search(r'(\d+)', raw)
+        return int(match.group(1)) if match else 0
+
+    @staticmethod
+    def _parse_save_pt_text(text):
+        """Extract the save data cap integer from an OCR line of `存檔資料儲存上限 XXXpt`."""
+        if not text:
+            return None
+        if '%' in text and '上限' not in text and '存檔' not in text and '存档' not in text:
+            return None
+        match = (
+            re.search(r'(?:上限|儲存上?限|存[檔档][^\dOolI]{0,6})\D{0,3}([0-9OolI]{2,3})', text)
+            or re.search(r'([0-9OolI]{2,3})\s*[pP][tT]', text)
+        )
+        if not match:
+            return None
+        digits = match.group(1).translate(str.maketrans({'O': '0', 'o': '0', 'I': '1', 'l': '1'}))
+        if not digits.isdigit():
+            return None
+        val = int(digits)
+        return val if 50 <= val <= 300 else None
+
+    def rogue_season_read_save_pt(self):
+        """Read `存檔資料儲存上限` (pt) from the right card on the Season Chaos page."""
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        image = self.device.image
+        text = self.card_reader.read_name(image, SEASON_SAVE_PT_AREA, scale=2, raw=True)
+        pt = self._parse_save_pt_text(text)
+        if pt is not None:
+            return pt
+        for y in SEASON_SAVE_PT_SCAN_YS:
+            line = self.card_reader.read_name(image, (885, y, 1200, y + 36), scale=2, raw=True)
+            pt = self._parse_save_pt_text(line)
+            if pt is not None:
+                return pt
+        return None
+
+    def rogue_season_reroll_pt(self, target_pt, timeout=300):
+        """
+        Click `再次觀測` until `存檔資料儲存上限 >= target_pt`.
+
+        Pages:
+            in:  Season Chaos difficulty page
+            out: Season Chaos difficulty page
+        """
+        if target_pt <= 0:
+            return True
+        logger.hr('Observe Season Chaos save data cap >= %spt' % target_pt, level=2)
+        press = Timer(1.2, count=1)
+        read_wait = Timer(10, count=3).start()
+        miss_wait = Timer(8, count=3).start()
+        last_pt = None
+        last_card = None
+        unchanged = 0
+
+        for _ in self.loop(timeout=Timer(timeout, count=20)):
+            self.device.stuck_record_clear()
+            self.device.click_record_clear()
+            dialog = self.rogue_dialog_point()
+            if dialog:
+                if press.reached():
+                    press.reset()
+                    logger.info('Confirm Season Chaos reroll dialog at (%s, %s)' % dialog)
+                    self.tap_point(dialog[0], dialog[1], name='ROGUE_SEASON_REROLL_OK')
+                continue
+            if not self.rogue_season_diff_appear():
+                if miss_wait.reached():
+                    return False
+                continue
+            miss_wait.reset()
+            pt = self.rogue_season_read_save_pt()
+            if pt is None:
+                if read_wait.reached():
+                    self.rogue_dump_unknown()
+                    raise RequestHumanTakeover('Cannot read Season Chaos save data cap')
+                continue
+            read_wait.reset()
+            if pt != last_pt:
+                last_pt = pt
+                logger.info('Season Chaos save data cap: %spt (target >= %spt)' % (pt, target_pt))
+            if pt >= target_pt:
+                return True
+            if not press.reached():
+                continue
+            card_now = self.image_crop((885, 270, 1245, 540)).copy()
+            if last_card is not None and int(np.count_nonzero(
+                    np.abs(card_now.astype(int) - last_card.astype(int)).max(axis=2) > 35)) < 80:
+                unchanged += 1
+                if unchanged >= 6:
+                    self.rogue_dump_unknown()
+                    raise RequestHumanTakeover(
+                        'Season Chaos reroll did not change card after 6 clicks')
+            else:
+                unchanged = 0
+            last_card = card_now
+            press.reset()
+            logger.info('Reroll Season Chaos (%spt < %spt)' % (pt, target_pt))
+            self.tap_point(*SEASON_REROLL_POINT, name='ROGUE_SEASON_REROLL')
+
+        raise RequestHumanTakeover('Timed out waiting for Season Chaos >= %spt' % target_pt)
+
+    def _rogue_apply_team_settings(self, is_season):
+        """Apply Dream Mode and (for Season Chaos) Distortion Adaptation on 配置隊伍."""
+        mode = self.config.ChaoszeroRogue_RogueDreamMode
+        if mode == '開啟':
+            self.rogue_dream_set(True)
+        elif mode == '關閉':
+            self.rogue_dream_set(False)
+        if is_season and self.rogue_season_team_appear():
+            want = bool(getattr(self.config, 'ChaoszeroRogue_RogueDistortionAdapt', True))
+            self.rogue_distortion_set(want)
+
+    def _rogue_detect_entry_page(self):
+        """Identify the current page on the Rogue / Season Chaos entry chain."""
+        if self.rogue_team_appear():
+            return 'team'
+        if self.ui_page_appear(page_main):
+            return 'lobby'
+        if self.rogue_season_hub_appear():
+            return 'season-hub'
+        if self.rogue_season_diff_appear():
+            return 'season-diff'
+        if self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
+            return 'mode'
+        if self.appear(ROGUE_WORLD_LIST, offset=(20, 20), similarity=0.92):
+            return 'world-list'
+        if self.appear(ROGUE_WORLD_ENTER, offset=(10, 10), similarity=0.92):
+            return 'world'
+        return None
+
+    def _rogue_act_entry_season(self, page, state):
+        """Handle one recognised entry page when RogueWorld is Season Chaos."""
+        if page == 'lobby':
+            self.tap_point(*LOBBY_SEASON, name='ROGUE_SEASON_MENU')
+        elif page == 'season-hub':
+            self.tap_point(*SEASON_HUB_CHAOS, name='ROGUE_SEASON_CHAOS')
+        elif page == 'season-diff':
+            if not state['diff_checked']:
+                diff = getattr(self.config, 'ChaoszeroRogue_RogueSeasonDifficulty', 9)
+                self.rogue_season_difficulty_set(diff)
+                state['diff_checked'] = True
+            if not state['pt_checked']:
+                self.rogue_season_reroll_pt(state['target_pt'])
+                state['pt_checked'] = True
+            self.tap_point(*SEASON_DIFF_ENTER, name='ROGUE_SEASON_ENTER')
+        elif page in ('team', 'mode', 'world-list', 'world'):
+            logger.info('Back from the %s page to enter 賽季卡厄思' % page)
+            self.tap_point(*WORLD_BACK_POINT, name='ROGUE_WORLD_BACK')
+
+    def _rogue_act_entry_normal(self, page, world, state):
+        """Handle one recognised entry page for standard Chaos worlds."""
+        if page == 'lobby':
+            self.tap_point(*LOBBY_ROGUE, name='ROGUE_MENU')
+        elif page == 'mode':
+            self.tap_point(*MODE_CARD, name='ROGUE_MODE')
+        elif page == 'world-list':
+            if state['world_checked']:
+                self.tap_point(*WORLD_CARD, name='ROGUE_WORLD')
+            elif self.rogue_world_select(world):
+                state['world_checked'] = True
+        elif page == 'world' and (state['world_checked'] or not state['reselect_world']):
+            self.device.click(ROGUE_WORLD_ENTER)  # alas-lint: allow - guarded by the appear() that chose this branch
+        elif page in ('team', 'world', 'season-hub', 'season-diff'):
+            logger.info('Back from the %s page to pick %s' % (page, world))
+            self.tap_point(*WORLD_BACK_POINT, name='ROGUE_WORLD_BACK')
+
+    def rogue_enter_team(self, timeout=180, reselect_world=True):
+        """
+        Walk from the lobby to the 「配置隊伍」 page of 卡厄思顯現 or 賽季卡厄思 and stop there.
+
+        Pages:
+            in:  lobby / 卡厄思 / 銀河系災害 / 賽季資訊 / 配置隊伍
+            out: 配置隊伍
+        """
+        world = self.config.ChaoszeroRogue_RogueWorld
+        is_season = world in SEASON_WORLDS
+        logger.hr('Walk to %s team' % ('賽季卡厄思' if is_season else '卡厄思顯現'), level=2)
+
         last = None
         press = Timer(2, count=2)
         idle = Timer(5, count=2)
-        # 配置指定了世界就必须自己选一遍：游戏会记住上次那个世界，进模式页可能直接
-        # 落在上次的详情页或队伍页，先退到列表，选完再进来（`world_checked`）。
-        # 例外（用户 2026-11-19）：刚打完一局的下一轮记住的就是刚刷的世界，队伍页/
-        # 详情页直接沿用、不再退两次；只有真到了世界列表才仍然重选，防止刷错地图。
-        world = self.config.ChaoszeroRogue_RogueWorld
-        world_checked = world not in WORLD_LABELS
+        target_pt = self.rogue_season_parse_target_pt() if is_season else 0
+        state = {
+            'reselect_world': reselect_world,
+            'world_checked': world not in WORLD_LABELS,
+            'diff_checked': not reselect_world,
+            'pt_checked': target_pt <= 0,
+            'target_pt': target_pt,
+        }
         wakes = 0
 
         for _ in self.loop(timeout=Timer(timeout, count=1)):
             self.device.stuck_record_clear()
-
             if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
                 if press.reached():
                     press.reset()
                     logger.info('Close the dream mode notice')
                     self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
                 continue
-
-            # 客户端断线恢复弹窗：重开后第一屏就是它，点 `繼續進行` 保住这一局。
             if self.rogue_resume_appear():
                 if press.reached():
                     press.reset()
@@ -4305,26 +5103,17 @@ class ChaoszeroRogue(ChaoszeroUI):
                                    name='ROGUE_RESUME')
                 continue
 
-            page = None
-            if self.rogue_team_appear():
-                if world_checked or not reselect_world:
+            page = self._rogue_detect_entry_page()
+            if page == 'team':
+                ready = (
+                    (self.rogue_season_team_appear() and state['diff_checked'] and state['pt_checked'])
+                    if is_season
+                    else (not self.rogue_season_team_appear() and (state['world_checked'] or not reselect_world))
+                )
+                if ready:
                     logger.info('Team page is up')
-                    # 队伍页右上角就是梦境模式开关：开 = 整页变紫、上限 110pt，刷档要开。
-                    mode = self.config.ChaoszeroRogue_RogueDreamMode
-                    if mode == '開啟':
-                        self.rogue_dream_set(True)
-                    elif mode == '關閉':
-                        self.rogue_dream_set(False)
+                    self._rogue_apply_team_settings(is_season)
                     return True
-                page = 'team'
-            elif self.ui_page_appear(page_main):
-                page = 'lobby'
-            elif self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
-                page = 'mode'
-            elif self.appear(ROGUE_WORLD_LIST, offset=(20, 20), similarity=0.92):
-                page = 'world-list'
-            elif self.appear(ROGUE_WORLD_ENTER, offset=(10, 10), similarity=0.92):
-                page = 'world'
 
             if page != last:
                 last = page
@@ -4333,10 +5122,6 @@ class ChaoszeroRogue(ChaoszeroUI):
                 if page:
                     logger.info('Entry page: %s' % page)
             if page is None:
-                # 黑屏加载 / 待机立绘：待机立绘上没有任何页面模板，点一下就能回大厅。
-                # ❗这里不能连点：点完要等立绘淡出（约 1 秒），否则会点在空处。
-                # ❗也不能一直点：认不出页面说明根本不在入口链上（局内 / 活动 / 弹窗），
-                # 唤醒是没用的 —— 12 次同名点击会触发看门狗重启客户端（14:01 踩过）。
                 if idle.reached():
                     idle.reset()
                     wakes += 1
@@ -4350,22 +5135,10 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
             press.reset()
 
-            if page == 'lobby':
-                self.tap_point(*LOBBY_ROGUE, name='ROGUE_MENU')
-            elif page == 'mode':
-                # ❗点大卡片本体（左卡 = 卡厄思顯現），不点文字标签：标签在
-                # (300,550)-(500,600)，模板匹配的落点会飘到标签上边缘 (344,540)。
-                self.tap_point(*MODE_CARD, name='ROGUE_MODE')
-            elif page == 'world-list':
-                if world_checked:
-                    self.tap_point(*WORLD_CARD, name='ROGUE_WORLD')
-                elif self.rogue_world_select(world):
-                    world_checked = True
-            elif page == 'world' and (world_checked or not reselect_world):
-                self.device.click(ROGUE_WORLD_ENTER)  # alas-lint: allow - guarded by the appear() that chose this branch
-            elif page in ('team', 'world'):
-                logger.info('Back from the %s page to pick %s' % (page, world))
-                self.tap_point(*WORLD_BACK_POINT, name='ROGUE_WORLD_BACK')
+            if is_season:
+                self._rogue_act_entry_season(page, state)
+            else:
+                self._rogue_act_entry_normal(page, world, state)
 
         logger.warning('Never got to the team page, the entry chain moved')
         return False
@@ -4418,6 +5191,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                     or self.rogue_equip_appear() or self.rogue_rest_appear()
                     or self.rogue_copy_appear()
                     or self.rogue_remove_appear()
+                    or self.rogue_season_popup_appear()
                     or self.rogue_map_appear()):
                 logger.info('Run started')
                 return True
@@ -4684,7 +5458,8 @@ class ChaoszeroRogue(ChaoszeroUI):
     def rogue_outside_appear(self):
         """Recognize the lobby and Rogue entry pages where no run is active."""
         return (self.ui_page_appear(page_main) or self.rogue_team_appear()
-                or self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92))
+                or self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92)
+                or self.rogue_season_hub_appear() or self.rogue_season_diff_appear())
 
     def rogue_quit(self, timeout=120, *, discard_saves=False):
         """
@@ -5027,6 +5802,15 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.stuck_recent = collections.deque(maxlen=STUCK_SAMPLES)
         # 航点页已经点了几下（防止在"点不动"的页面上空点到撤退）
         self.beacon_tries = 0
+        self.engrave_tries = 0
+        self.sculpt_done = False
+        self.sculpt_entry_tries = 0
+        self.sculpt_stall_tries = 0
+        self.sculpt_last_shards = None
+        self.memory_card_matched = True
+        self.memory_selected_col = None
+        self.memory_assign_picked = False
+        self.memory_assign_tries = 0
         # 灵光选卡页：0 = 还没选卡，1 = 已选卡、等着点「靈光一閃」
         self.flash_card_stage = 0
         self.flash_card_wait = Timer(1, count=1).start()
@@ -5291,6 +6075,17 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.tap_point(*CUTSCENE_POINT, name='ROGUE_ITEM')
                 continue
 
+            # 0.046 Season Chaos popups (獲得【純白記憶】 / 獲得卡牌 / 獲得持續效果 / 雕琢成功): tap bottom prompt or 確認 to dismiss.
+            if self.rogue_season_popup_appear():
+                if press.reached():
+                    press.reset()
+                    self.card_tries = 0
+                    self.sculpt_stall_tries = 0
+                    self.device.click_record_clear()
+                    logger.info('Close the Season Chaos popup, tap (%s, %s)' % SEASON_POPUP_CLOSE)
+                    self.tap_point(*SEASON_POPUP_CLOSE, name='ROGUE_SEASON_POPUP')
+                continue
+
             # 0.06 整页说明弹窗（`精神異常` 等，提示「點擊畫面可關閉視窗」）：
             #      它是覆盖层，血量条/主按钮/卡片框全被压暗，判据会全灭 —— 必须在
             #      其它分支之前关掉。2026-11-14 14:41 就在这个弹窗上干等了 13 分钟。
@@ -5415,62 +6210,50 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.rogue_choose_flash()
                 continue
 
-            # 「卡牌獎勵」页也有橙色「確認」，必须在通用主按钮之前处理。
-            if self.rogue_card_reward_appear():
-                self.rogue_card_page_record('reward')
-                point = self.rogue_secondary_point()
-                if point and press.reached():
-                    press.reset()
-                    self.card_tries = 0
-                    logger.info('Card reward page, press 跳過 at (%s, %s)' % point)
-                    self.tap_point(*point, name='ROGUE_SECONDARY')
+            # 賽季「選擇刻印的記憶」：識別 8 種記憶卡牌並重搜（每張最多 4 次）或確認。
+            if self.handle_rogue_memory_choose(press):
+                continue
+
+            # 「卡牌獎勵」頁（含可跳過的一般獎勵與強制領取的賽季記憶卡牌分配）。
+            if self.handle_rogue_card_reward(press):
                 continue
 
             # 这一帧是不是「複製卡牌」的选人页：主按钮分支和 4.15 都要用，只算一次。
             copy_page = self.rogue_copy_appear()
+            point = self.rogue_primary_point()
 
             # 2.0 BOSS 战利品页 = 第一面结束的信号（用户 2026-11-15）：
             #     这页之后进「核心」，那是**第二张完整地图**，路线必须重读。
             #     ❗只标记、不改动作：点「獲得」还是交给下面的通用主按钮分支。
-            # ❗**必须带步数门槛**：光靠紫色面积会在开局误判 —— 2026-11-16 02:28
-            # 实测 `BOSS loot page after 0 step(s)`，刚进本（还在开局剧情/选角）就把
-            # `core_started` 置成 True，整张第一面都按「优先事件」走。
-            # 一面 16 步、BOSS 在末尾，所以走满 8 步之后遇到的战利品页才算面末。
-            # "中途接管"不用担心：`core_started` 已经落盘，重启会读回来。
-            if (not self.core_started and self.rogue_loot_appear()
+            # ❗**必须同时要求右下角主按钮存在**：战斗中的紫色技能/演出帧也能在
+            # `LOOT_AREA` 凑够 5000 紫色像素，2026-11-22 19:22:18 在第一面 step 8 精英战
+            # 途中误触发 `BOSS loot page after 8 step(s)`，导致提前清零并在一面后半段耗光
+            # 读图次数，进核心后反而不再规划新路线。
+            if (not self.core_started and point and not copy_page
+                    and self.rogue_loot_appear()
                     and self.route_step >= LOOT_MIN_STEP):
-                self.rogue_spark_confirm()
-                self.spark_boss_pending = bool(self.spark_targets)
-                self.core_started = True
-                self.rogue_state_save(core_started=True)
-                logger.info('BOSS loot page after %s step(s), the core map comes next, '
-                            'the route will be read again' % self.route_step)
-                # 第一面的路线作废：进核心后重新读一次
-                self.route_plan = None
-                self.route_nodes = []
-                self.route_step = 0
-                self.meditate_step = -1
-                self.plan_index = 0
-                self.route_reads = 0
-                self.route_edges = []
-                self.event_page = None
-                self.event_index = None
-                self.event_visit = {}
-                self.event_followups = set()
-                self.event_root = None
-                self.event_last_enc = None
+                self.rogue_reset_for_core_map('BOSS loot page after %s step(s)' % self.route_step)
 
             # 2. 橙色主按钮：確認 / 繼續進行 / 獲得 / 進入。
             # ❗必须排除「複製卡牌」的选人页：那一页的 `確認` **没选人也是橙的**
             # （2026-11-15 15:00 实机帧 cp_choose.png：bbox 1019,592-1244,658，w225 h66，
             # 正好落进主按钮判据），排在 `# 4.15` 前面就会先把「確認」按掉 ——
             # 人一个没选就确认，这次复制直接白给（用户报的「点了角色就直接跳过」）。
-            point = self.rogue_primary_point()
             if point and not copy_page:
                 if press.reached():
                     press.reset()
                     self.card_tries = 0   # 按到主按钮说明上一页已经过了
                     self.tap_point(point[0], point[1], name='ROGUE_PRIMARY')
+                continue
+
+            # 2.008 賽季第二層通關過場「為記憶的盡頭」：重置第三層路線並進入第三層。
+            if self.rogue_memory_end_appear():
+                if press.reached():
+                    press.reset()
+                    self.card_tries = 0
+                    self.rogue_reset_for_core_map('Season Chaos Floor 3 (為記憶的盡頭)')
+                    logger.info('Season Chaos Floor-2 end, press 為記憶的盡頭 at (%s, %s)' % MEMORY_END_POINT)
+                    self.tap_point(*MEMORY_END_POINT, name='ROGUE_MEMORY_END')
                 continue
 
             # 2.01 探索結果：紫色按钮也用于同一面的阶段结算。
@@ -5799,7 +6582,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                             self.tap_point(MEMBER_OK_POINT[0], MEMBER_OK_POINT[1],
                                            name='ROGUE_COPY_OK')
                             continue
-                        first = self.rogue_member_index(self.config.ChaoszeroRogue_RogueCopyMember or None)
+                        first = self.rogue_member_index(self.config.ChaoszeroRogue_RogueCopyMember or None,
+                                                        dim_check=False)
                         self.copy_order = [first] + [i for i in (1, 2, 3) if i != first]
                         self.copy_stage = 1
                         logger.info('Pick combatant %s to copy cards from' % first)
@@ -5926,7 +6710,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 分支不能停 —— 那个一停就卡死在压暗的页面上。
                 if self._pause_for_similar_page('营地/休息（回血 · 冥想 · 商店）'):
                     continue
-                if self.rest_tries < REST_TRIES and self.rest_wait.reached():
+                if self.rest_stage != 2 and self.rest_tries < REST_TRIES and self.rest_wait.reached():
                     if press.reached():
                         press.reset()
                         # ❗`rest_stage == 3` = 上一次点了冥想但冥想页没开：
@@ -5976,16 +6760,24 @@ class ChaoszeroRogue(ChaoszeroUI):
                         #   返回 True，确认框那一步会立刻判定「没弹出来」把 stage 推到 2
                         #   （2026-11-15 12:01 实测：点完休息 0.2 秒就放弃，确认框一直挂着）。
                         self.rest_wait = Timer(REST_WAIT, count=1).reset()
+                if self.rest_stage == 2:
+                    if not self.rogue_primary_point():
+                        skip = self.rogue_secondary_point()
+                        if skip and press.reached():
+                            press.reset()
+                            logger.info('Safe area finished, press 跳過 at (%s, %s)' % skip)
+                            self.tap_point(skip[0], skip[1], name='ROGUE_REST_SKIP')
+                        continue
                 # 只有 **stage 2**（休息/冥想已经用掉）才往下交给橙色主按钮按「離開」。
                 # 其余状态都要停在这一页：
                 #   0 = 还没动、1 = 点了休息等确认框、3 = 点了冥想等冥想页。
                 if self.rest_stage != 2:
                     continue
             else:
-                # 判据不再命中时，如果橙色确认框还挂着（比如进程重启后 stage 丢了），
-                # 先把框按掉，别把整页干等成 GameStuckError。
+                # 判据不再命中时，如果橙色确认框还挂着（比如进程重启后 stage 丢了，
+                # 或兩次使用安全區按跳過後彈出確認），先把框按掉，別把整頁干等成 GameStuckError。
                 point = self.rogue_confirm_point(REST_CONFIRM_AREA)
-                if point and self.rest_stage == 0:
+                if point:
                     logger.info('The safe area confirm box is still open, press it')
                     self.rest_stage = 2
                     self.tap_point(point[0], point[1], name='ROGUE_REST_OK')
@@ -6014,6 +6806,7 @@ class ChaoszeroRogue(ChaoszeroUI):
 
             # 5. 地图：核对 2D 计划分支与 3D 立卡后，点对应平台。
             if self.rogue_map_appear():
+                self.sculpt_done = False
                 self.rogue_spark_confirm()
                 if self.rogue_spark_restart_on_core_map():
                     return
@@ -6138,6 +6931,34 @@ class ChaoszeroRogue(ChaoszeroUI):
                     logger.info('Waypoint page in transition (loot icon), wait')
                 continue
             self.beacon_tries = 0
+
+            # 5.95 賽季第二層入口「銘刻記憶」提示卡：點卡片展開，再點底部白 ✔ 進入記憶選卡。
+            engrave_stage = self.rogue_engrave_stage()
+            if engrave_stage:
+                if not self.core_started:
+                    self.rogue_reset_for_core_map('Season Chaos engrave memory card')
+                if self.engrave_tries < BEACON_TRIES and press.reached():
+                    press.reset()
+                    self.engrave_tries += 1
+                    self.card_tries = 0
+                    point = ENGRAVE_CARD_POINT if engrave_stage == 1 else ENGRAVE_CONFIRM_POINT
+                    logger.info('Season memory engrave stage %s, press %s (%s/%s)'
+                                % (engrave_stage, point, self.engrave_tries, BEACON_TRIES))
+                    self.tap_point(*point, name='ROGUE_ENGRAVE')
+                elif self.engrave_tries >= BEACON_TRIES and press.reached():
+                    press.reset()
+                    logger.warning('Memory engrave page does not respond after %s taps, stop'
+                                   % self.engrave_tries)
+                continue
+            self.engrave_tries = 0
+
+            # 5.96 賽季「記憶雕琢」工坊：消耗記憶殘片強化記憶卡牌，用完後點「離開」。
+            if self.handle_rogue_sculpt_workshop(press):
+                continue
+
+            # 5.97 賽季「雕琢記憶」入口二選一卡頁（必須排在通用事件頁之前）。
+            if self.handle_rogue_sculpt_entry(press):
+                continue
 
             # 6. 掷骰页：**整页只点一下骰子**（用户 2026-11-15：点一下骰子就行）。
             #    掷完出 `成功`/`失敗` 和 `重新擲骰`/`下一步` 两颗按钮；`重新擲骰`

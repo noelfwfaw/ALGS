@@ -161,6 +161,8 @@ PANEL_BOSS = (700, 78, 866, 114)
 # 只框前面四个字：后面的天数每天都在变，模板和 OCR 都稳不住。
 # 实测 `距离开始还剩4天` 读成 `o距离开始`（多一个圈，少的都是后面的字）。
 PANEL_COUNTDOWN = (945, 20, 1055, 48)
+# 魔兽未开启时底部「编辑队伍」「去战斗」呈灰暗状态：未开实测 mean 约 80.5，开启后约 197.0
+WB_BUTTON_ACTIVE_MEAN = 130
 
 # 点「去战斗」之后等魔兽页消失（进战斗会重载整个游戏，BROWN DUST II 的跑马灯）。
 BATTLE_ENTER_TIMEOUT = 30
@@ -262,23 +264,28 @@ class EventWorldBoss:
         这一页照样进得来、难度条照样读得出第几档，只有底部「编辑队伍 / 去战斗」
         是灰的 —— 按下去毫无反应。
 
-        判据是右上角那枚倒计时胶囊：「距离开始还剩N天」= 还没开。只框前四个字，
-        天数和「结束」都在框外（见 `PANEL_COUNTDOWN`）。cnocr 在这套字体上会丢字，
-        实测同一帧读成 `离开始还4`、`o距离开始`，所以不要求整句：只要「开始」二字
-        在、且没有「结束」，就认定没开。真的开了 OCR 读到的是「距离结束还剩N天」。
-
-        读不到（空串）按"开了"处理：真开了就照常往下跑；真没开也只是白等两次
-        20 秒，比反过来把一场真能打的仗漏掉强。
+        判据有两条（任意一条成立即判定未开）：
+        1. 右上角倒计时胶囊：「距离开始还剩N天」= 还没开（cnocr 常把「开始」读成
+           `o距离开始`、`离并始还3`，所以认 `'开始' / '开' / '始'` 且不含 `'结束' / '结' / '束'`）。
+        2. 底部「编辑队伍」胶囊亮度：未开启时整体压暗变灰（均值约 80.5），开启后
+           呈米白色（均值约 197.0）。
 
         Returns:
             bool: 开了没有。
         """
+        self.wait_until_still(WB_EDIT_TEAM.area, timeout=3)
+        self.device.screenshot()
         ocr = Ocr(PANEL_COUNTDOWN, lang='cnocr', letter=(255, 255, 255),
                   threshold=RESULT_DAMAGE_THRESHOLD, name='WB_COUNTDOWN')
-        self.device.screenshot()
         text = str(ocr.ocr(self.device.image))
-        if '开始' in text or ('开' in text and '结' not in text):
+        if (any(word in text for word in ('开始', '开', '始'))
+                and not any(word in text for word in ('结束', '结', '束'))):
             logger.info(f'[World boss] this season has not started: {text!r}')
+            return False
+        btn_mean = float(self.image_crop(WB_EDIT_TEAM.area, copy=False).mean())
+        if btn_mean < WB_BUTTON_ACTIVE_MEAN:
+            logger.info(f'[World boss] 编辑队伍 is greyed out (mean={btn_mean:.1f}, countdown={text!r}), '
+                        'season has not started')
             return False
         return True
 

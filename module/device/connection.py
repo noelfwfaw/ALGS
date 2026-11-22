@@ -780,6 +780,10 @@ class Connection(ConnectionAttr):
             return True
 
         # Try to connect
+        for device in devices:
+            if device.serial == self.serial and device.status == 'device':
+                logger.info(f'already connected to {self.serial}')
+                return True
         for _ in range(3):
             msg = self.adb_client.connect(self.serial)
             logger.info(msg)

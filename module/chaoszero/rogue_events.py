@@ -78,6 +78,166 @@ OPTION_MARGIN = 0.0
 # 失败分支按这个权重计入（掷骰事件失败会扣东西，但成功收益通常更值）
 FAIL_WEIGHT = 0.4
 
+PRIORITY_TIER_NAMES = {
+    1: '指定复制',
+    2: '随机复制',
+    3: '指定神闪',
+    4: '随机神闪',
+    5: '指定灵闪',
+    6: '随机灵闪',
+    7: '卡牌删除',
+    8: '获得装备',
+    9: '提高HP上限',
+    10: '获得信用点',
+    11: '降低压力',
+    12: '恢复HP',
+    13: '卡牌转换',
+}
+NO_PRIORITY_TIER = 99
+GOD_SPARK_WORDS = ('神之', '賦予', '賦子', '赋予', '戴奧斯', '維托', '尼希隆', '賽克瑞德', '凱爾肯')
+RANDOM_WORDS = ('隨機', '随机')
+_REWARD_TYPE_TIER = {
+    'CARD_COPY_HAVE_SELECT': 1,
+    'CARD_COPY_HAVE_SELECT_TABOO': 1,
+    'CARD_COPY_SELECT_3_1': 2,
+    'CARD_COPY_CHAR_SELECT_3_1': 2,
+    'ADD_R_SPARK_GOD_SELECT': 3,
+    'ADD_R_SPARK_GOD_RANDOM': 4,
+    'R_SPARK_SELECT': 5,
+    'COMBATANT_SPARK_SELECT': 5,
+    'R_SPARK_RANDOM': 6,
+    'COMBATANT_SPARK_RANDOM': 6,
+    'CARD_REMOVE_HAVE_SELECT': 7,
+    'CARD_REMOVE_HAVE_RANDOM': 7,
+    'EQUIPMENT_ID': 8,
+    'EQUIPMENT_RANDOM': 8,
+    'EQUIPMENT_PRE_RANDOM': 8,
+    'REINFORCE_EQUIPMENT_ID': 8,
+    'REINFORCE_EQUIPMENT_PRE_RANDOM': 8,
+    'REINFORCE_EQUIPMENT_HAVE_SELECT': 8,
+    'CARD_TRANSFORM_HAVE_SELECT_ID': 13,
+    'CARD_TRANSFORM_HAVE_PRE_SELECT': 13,
+    'CARD_TRANSFORM_HAVE_SELECT': 13,
+}
+_COPY_WORDS = ('複製', '复制')
+_SPARK_WORDS = ('靈光', '一閃', '灵光', '一闪')
+_REMOVE_WORDS = ('移除', '刪除', '删除')
+_EQUIP_WORDS = ('裝備', '装备')
+_CREDIT_WORDS = ('信用點', '信用点')
+_STRESS_WORDS = ('壓力', '压力')
+_HEAL_WORDS = ('恢復', '恢复')
+_TRANSFORM_WORDS = ('轉換', '转换')
+
+
+def _is_equip_removal(text):
+    """Return whether normalized `text` describes removing an equipment rather than a card."""
+    for word in _REMOVE_WORDS:
+        start = 0
+        while True:
+            idx = text.find(word, start)
+            if idx < 0:
+                break
+            window = text[idx:idx + 8]
+            if any(eq in window for eq in _EQUIP_WORDS) and '卡牌' not in window:
+                return True
+            start = idx + len(word)
+    return False
+
+
+def _single_keyword_priority_tier(text):
+    """Classify one normalized text block into priority tiers 1..13, or NO_PRIORITY_TIER."""
+    text = normalize(text or '')
+    if not text:
+        return NO_PRIORITY_TIER
+    best = NO_PRIORITY_TIER
+    if any(word in text for word in _COPY_WORDS):
+        best = min(best, 2 if any(word in text for word in ('隨機', '随机', '其中')) else 1)
+    if any(word in text for word in _SPARK_WORDS):
+        is_god = any(word in text for word in GOD_SPARK_WORDS)
+        is_rand = any(word in text for word in RANDOM_WORDS)
+        if is_god and is_rand:
+            best = min(best, 4)
+        elif is_god:
+            best = min(best, 3)
+        elif is_rand:
+            best = min(best, 6)
+        else:
+            best = min(best, 5)
+    has_remove = any(word in text for word in _REMOVE_WORDS)
+    has_equip = any(word in text for word in _EQUIP_WORDS)
+    equip_removal = has_remove and has_equip and _is_equip_removal(text)
+    if has_remove and '危險因子' not in text and not equip_removal:
+        if not (has_equip and '卡牌' not in text and '獲得' not in text and '获得' not in text):
+            best = min(best, 7)
+    if has_equip and not equip_removal:
+        if not (has_remove and '獲得' not in text and '获得' not in text and '強化' not in text and '强化' not in text):
+            best = min(best, 8)
+    if '最大' in text:
+        after = text[text.find('最大'):]
+        if ('增加' in after or '提高' in after) and not any(
+                bad in after for bad in ('最大減少', '最大店減少', '最大减少')):
+            best = min(best, 9)
+    for word in _CREDIT_WORDS:
+        idx = text.find(word)
+        if idx >= 0:
+            after = text[idx:idx + 12]
+            before = text[max(0, idx - 6):idx]
+            if (('增加' in after or '獲得' in before or '获得' in before)
+                    and not any(bad in after for bad in ('減少', '减少'))
+                    and not any(bad in before for bad in ('消耗', '失去'))):
+                best = min(best, 10)
+            break
+    for word in _STRESS_WORDS:
+        idx = text.find(word)
+        if idx >= 0:
+            after = text[idx:idx + 10]
+            if any(good in after for good in ('減少', '减少', '降低')):
+                best = min(best, 11)
+            break
+    if any(word in text for word in _HEAL_WORDS):
+        best = min(best, 12)
+    if any(word in text for word in _TRANSFORM_WORDS):
+        best = min(best, 13)
+    return best
+
+
+def keyword_priority_tier(text):
+    """
+    Classify Chinese effect/body text into the 13-tier priority table.
+
+    Multi-line OCR text may separate multiple effects by newline, so both individual
+    lines and the joined normalized string are evaluated and the best tier is returned.
+    """
+    if not text:
+        return NO_PRIORITY_TIER
+    if not isinstance(text, str):
+        return NO_PRIORITY_TIER
+    best = _single_keyword_priority_tier(text)
+    if '\n' in text:
+        for line in text.splitlines():
+            best = min(best, _single_keyword_priority_tier(line))
+    return best
+
+
+def reward_priority_tier(reward):
+    """Classify one structured DB reward entry into priority tiers 1..13, or NO_PRIORITY_TIER."""
+    if not isinstance(reward, dict):
+        return NO_PRIORITY_TIER
+    name = reward.get('type')
+    if name in _REWARD_TYPE_TIER:
+        return _REWARD_TYPE_TIER[name]
+    amount = reward.get('amount') or (None, None)
+    value = amount[1] if len(amount) > 1 and amount[1] is not None else (amount[0] if amount else None)
+    if name == 'MAX_HP_PCT':
+        return 9 if value is not None and value > 0 else NO_PRIORITY_TIER
+    if name == 'CREDIT_VALUE':
+        return 10 if value is not None and value > 0 else NO_PRIORITY_TIER
+    if name == 'STRESS_VALUE':
+        return 11 if value is not None and value < 0 else NO_PRIORITY_TIER
+    if name == 'HP_PCT':
+        return 12 if value is not None and value > 0 else NO_PRIORITY_TIER
+    return keyword_priority_tier(reward.get('desc') or '')
+
 # 每张图都会出现的共通事件包：神秘(3) + 事件區域(1) + 四位神的传令兵(1+5+1+1) = 12 个事件，
 # 就是网站事件页里「其他 (12)」那一栏（用户 2026-11-15 确认）。
 COMMON_PACKS = (
@@ -104,6 +264,8 @@ PACK_WORLD = {
     '虛像劇場': ('uk_402_s01',),
     '萬花筒孵化場': ('uk_403_s01',),
     '天上防護牆': ('uk_404_s01',),
+    '賽季卡厄思': ('uk_404_s01',),
+    '赛季卡厄思': ('uk_404_s01',),
 }
 
 
@@ -388,6 +550,7 @@ class EventLibrary:
     def __init__(self, file=DATA_FILE):
         self.file = file
         self.records = {}
+        self.parent_edges = {}
         self._load()
 
     def _load(self):
@@ -399,6 +562,14 @@ class EventLibrary:
             return
         with gzip.open(self.file, 'rt', encoding='utf-8') as file:
             self.records = json.load(file)
+        self.parent_edges = {}
+        for parent_id, record in self.records.items():
+            for option in record.get('options', []):
+                raw = option.get('raw') or {}
+                for field in ('success_link_encounter_option_eff', 'fail_link_encounter_option_eff'):
+                    nxt = (raw.get(field) or {}).get('next_encounter')
+                    if isinstance(nxt, str) and nxt != parent_id and nxt in self.records:
+                        self.parent_edges.setdefault(nxt, []).append((parent_id, option))
         logger.info('Event library loaded, %s encounters' % len(self.records))
 
     def shared_choice_ids(self, event_id):
@@ -411,28 +582,31 @@ class EventLibrary:
         return (event_id,)
 
     @staticmethod
-    def _encounter_match_score(texts, options):
-        """Return max mean similarity assigning each screen card to a distinct option, or 0.0."""
+    def _assign_options_with_score(texts, options):
+        """Return `(mean_ratio, assignment)` mapping each card to `(opt_idx, ratio)`."""
         if len(options) < len(texts) or not texts:
-            return 0.0
+            return 0.0, ()
         norm_options = [normalize(option.get('flavor') or '') for option in options]
         rows = []
         for text in texts:
             matches = [(idx, ratio(text, title)) for idx, title in enumerate(norm_options)]
             matches = [(idx, sc) for idx, sc in matches if sc >= ENCOUNTER_MATCH]
             if not matches:
-                return 0.0
+                return 0.0, ()
             matches.sort(key=lambda item: -item[1])
             rows.append(matches)
         best = 0.0
+        best_assign = ()
         used = set()
+        current = [None] * len(rows)
 
         def search(pos, total):
-            nonlocal best
+            nonlocal best, best_assign
             if pos == len(rows):
                 mean = total / len(rows)
                 if mean > best:
                     best = mean
+                    best_assign = tuple(current)
                 return
             rem_max = sum(rows[k][0][1] for k in range(pos, len(rows)))
             if (total + rem_max) / len(rows) <= best:
@@ -440,11 +614,145 @@ class EventLibrary:
             for idx, sc in rows[pos]:
                 if idx not in used:
                     used.add(idx)
+                    current[pos] = (idx, sc)
                     search(pos + 1, total + sc)
                     used.remove(idx)
 
         search(0, 0.0)
+        return best, best_assign
+
+    @staticmethod
+    def _encounter_match_score(texts, options):
+        """Return max mean similarity assigning each screen card to a distinct option, or 0.0."""
+        mean, _ = EventLibrary._assign_options_with_score(texts, options)
+        return mean
+
+    def assign_options(self, texts, options):
+        """Assign each visible card title in `texts` to a matching option dict or None."""
+        if not texts or not options:
+            return [None] * len(texts or ())
+        _, assignment = self._assign_options_with_score(texts, options)
+        if assignment:
+            return [options[idx] for idx, _ in assignment]
+        norm_options = [normalize(option.get('flavor') or '') for option in options]
+        used = set()
+        result = []
+        for text in texts:
+            best = None
+            best_sc = 0.0
+            for idx, (option, title) in enumerate(zip(options, norm_options)):
+                sc = ratio(text, title)
+                if sc >= ENCOUNTER_MATCH and (sc > best_sc or (sc == best_sc and best in used and idx not in used)):
+                    if idx not in used or best is None:
+                        best = idx
+                        best_sc = sc
+            if best is None:
+                result.append(None)
+            else:
+                used.add(best)
+                result.append(options[best])
+        return result
+
+    def option_priority_tier(self, option, depth=0, seen=None):
+        """Return best priority tier 1..13 for `option` from rewards and linked followups."""
+        if not option or option.get('order') == 9999 or 'ATTACK' in (
+                option.get('select_type'), option.get('option_type')):
+            return NO_PRIORITY_TIER
+        best = NO_PRIORITY_TIER
+        for reward in option.get('success') or ():
+            best = min(best, reward_priority_tier(reward))
+        if depth < 2:
+            raw = option.get('raw') or {}
+            nxt_id = (raw.get('success_link_encounter_option_eff') or {}).get('next_encounter')
+            visited = set() if seen is None else seen
+            if isinstance(nxt_id, str) and nxt_id not in visited and nxt_id in self.records:
+                next_seen = visited | {nxt_id}
+                for child in self.records[nxt_id].get('options') or ():
+                    best = min(best, self.option_priority_tier(child, depth=depth + 1, seen=next_seen))
         return best
+
+    def fallback_pick(self, texts, packs=None, body_texts=None):
+        """
+        Choose an option card by the 13-tier keyword/reward priority when rules fail.
+
+        Combines per-card OCR body text (`body_texts`) with matched DB option rewards
+        and linked followups. Returns a decision dict or None when no card matches
+        any of the 13 priority tiers.
+        """
+        if not texts:
+            return None
+        ranked = self.candidates(texts, packs, limit=None) if self.records else []
+        if not ranked and packs and self.records:
+            ranked = self.candidates(texts, None, limit=None)
+        top_candidates = []
+        if ranked:
+            top_mean = ranked[0][0]
+            top_candidates = [item for item in ranked if item[0] >= top_mean - 0.05][:3]
+        assignments = [
+            (enc_id, name, self.assign_options(texts, self.records[enc_id].get('options') or ()))
+            for _, enc_id, name, _ in top_candidates
+        ]
+
+        picks = []
+        for index, text in enumerate(texts):
+            body = body_texts[index] if body_texts and index < len(body_texts) else ''
+            ocr_tier = keyword_priority_tier(body)
+            db_tier = NO_PRIORITY_TIER
+            best_opt = None
+            best_enc = None
+            best_name = None
+            best_score = float('-inf')
+
+            matched_any_candidate = False
+            for enc_id, name, opts in assignments:
+                opt = opts[index]
+                if opt is None:
+                    continue
+                matched_any_candidate = True
+                tier = self.option_priority_tier(opt)
+                sc = self.score(opt)
+                if (tier, -sc) < (db_tier, -best_score):
+                    db_tier = tier
+                    best_opt = opt
+                    best_enc = enc_id
+                    best_name = name
+                    best_score = sc
+
+            if not matched_any_candidate and self.records:
+                opt, sc = self.match(text, None, packs)
+                if opt and sc >= 0.70:
+                    tier = self.option_priority_tier(opt)
+                    if tier < NO_PRIORITY_TIER:
+                        db_tier = tier
+                        best_opt = opt
+                        best_score = self.score(opt)
+
+            tier = min(ocr_tier, db_tier)
+            if tier < NO_PRIORITY_TIER:
+                if best_score == float('-inf'):
+                    best_score = 0.0
+                picks.append((
+                    tier, -best_score, index, best_enc, best_name, best_opt, text, body
+                ))
+
+        if not picks:
+            return None
+        picks.sort(key=lambda item: (item[0], item[1], item[2]))
+        tier, _, index, enc_id, name, opt, text, body = picks[0]
+        target = normalize(opt.get('flavor') or '') if opt else (text or normalize(body.replace('\n', '')))
+        return {
+            'source': 'keyword_fallback',
+            'id': enc_id,
+            'name': name,
+            'round': 1,
+            'order': opt.get('order') if opt else None,
+            'target': target,
+            'position': index + 1,
+            'text': text,
+            'tier': tier,
+            'tier_name': PRIORITY_TIER_NAMES[tier],
+            'body': body,
+        }
 
     def identify(self, texts, packs=None):
         """

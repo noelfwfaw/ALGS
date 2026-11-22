@@ -110,6 +110,10 @@
       "name": "Lost Sword: Guild",
       "help": "Donate gold and spirit coins, sign in, and take both guild investments; skipped when the guild entry has no red dot"
     },
+    "LostswordAvalon": {
+      "name": "Task.LostswordAvalon.name",
+      "help": "Task.LostswordAvalon.help"
+    },
     "LostswordBoss": {
       "name": "Lost Sword: Boss raid",
       "help": "Fight once a day, then sweep the rest of the free tries"
@@ -350,7 +354,8 @@
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
-      "com.bilibili.trickcalcn": "TRICKCAL"
+      "com.bilibili.trickcalcn": "TRICKCAL",
+      "com.hermes.goda.bilibili": "RESONANCE"
     },
     "ServerName": {
       "name": "Server in Game Client",
@@ -362,7 +367,8 @@
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
-      "trickcal-0": "[TRICKCAL] default"
+      "trickcal-0": "[TRICKCAL] default",
+      "resonance-0": "[RESONANCE] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",
@@ -821,6 +827,52 @@
       "help": "When off nothing is drawn, but the task keeps its own schedule"
     }
   },
+  "LostswordShop": {
+    "_info": {
+      "name": "LostswordShop._info.name",
+      "help": "LostswordShop._info.help"
+    },
+    "ExchangeEnable": {
+      "name": "LostswordShop.ExchangeEnable.name",
+      "help": "LostswordShop.ExchangeEnable.help"
+    },
+    "ConsumableFilter": {
+      "name": "LostswordShop.ConsumableFilter.name",
+      "help": "LostswordShop.ConsumableFilter.help"
+    },
+    "RaidFilter": {
+      "name": "LostswordShop.RaidFilter.name",
+      "help": "LostswordShop.RaidFilter.help"
+    },
+    "GuildFilter": {
+      "name": "LostswordShop.GuildFilter.name",
+      "help": "LostswordShop.GuildFilter.help"
+    },
+    "ArenaFilter": {
+      "name": "LostswordShop.ArenaFilter.name",
+      "help": "LostswordShop.ArenaFilter.help"
+    },
+    "EventFilter": {
+      "name": "LostswordShop.EventFilter.name",
+      "help": "LostswordShop.EventFilter.help"
+    }
+  },
+  "LostswordAvalon": {
+    "_info": {
+      "name": "LostswordAvalon._info.name",
+      "help": "LostswordAvalon._info.help"
+    },
+    "City": {
+      "name": "LostswordAvalon.City.name",
+      "help": "LostswordAvalon.City.help",
+      "埃塞尔城": "埃塞尔城",
+      "爱尔亚城": "爱尔亚城",
+      "埃尔达利亚城": "埃尔达利亚城",
+      "卡美洛城": "卡美洛城",
+      "廷塔哲城": "廷塔哲城",
+      "默西亚城": "默西亚城"
+    }
+  },
   "BrowndustSummon": {
     "_info": {
       "name": "Daily free gacha settings",
@@ -954,7 +1006,34 @@
       "雙星之影": "雙星之影",
       "審判之沼": "審判之沼",
       "藍壺": "藍壺",
-      "降臨的混沌": "降臨的混沌"
+      "降臨的混沌": "降臨的混沌",
+      "賽季卡厄思": "Season Chaos"
+    },
+    "RogueSeasonDifficulty": {
+      "name": "Season Chaos difficulty",
+      "help": "Used only when RogueWorld is Season Chaos (tiers 1 to 11).",
+      "1": "Tier 1",
+      "2": "Tier 2",
+      "3": "Tier 3",
+      "4": "Tier 4",
+      "5": "Tier 5",
+      "6": "Tier 6",
+      "7": "Tier 7",
+      "8": "Tier 8",
+      "9": "Tier 9",
+      "10": "Tier 10",
+      "11": "Tier 11"
+    },
+    "RogueSeasonSavePt": {
+      "name": "Season save cap reroll",
+      "help": "Used only when RogueWorld is Season Chaos. Checks only the save data cap threshold (no downward fallback) and clicks reroll until reached, or disable to enter directly.",
+      "關閉": "Disabled",
+      "170pt": "170pt",
+      "160pt": "160pt",
+      "150pt": "150pt",
+      "140pt": "140pt",
+      "130pt": "130pt",
+      "120pt": "120pt"
     },
     "RogueDreamMode": {
       "name": "Dream mode",
@@ -962,6 +1041,10 @@
       "開啟": "On",
       "關閉": "Off",
       "保持不變": "Keep current state"
+    },
+    "RogueDistortionAdapt": {
+      "name": "Distortion Adaptation",
+      "help": "Used only on the Season Chaos team page, enabled by default."
     },
     "RoguePick": {
       "name": "Default card position",
@@ -1049,6 +1132,27 @@
     "RogueCopyCard": {
       "name": "Card to copy",
       "help": "Enter the card name shown in the game. If the target cannot be confirmed after retries, the first card in the list is copied."
+    },
+    "RogueSeasonMemoryCard": {
+      "name": "Season floor-2 engraved memory card",
+      "help": "Target memory card to look for on entering Core. Each of the 3 slots rerolls up to 4 times (12 total) until found or exhausted.",
+      "記憶：壓抑": "Memory: Suppression",
+      "記憶：渴望": "Memory: Craving",
+      "記憶：王國": "Memory: Kingdom",
+      "記憶：金光": "Memory: Golden Light",
+      "記憶：怨懟": "Memory: Resentment",
+      "記憶：女子": "Memory: Maiden",
+      "記憶：貪婪": "Memory: Greed",
+      "記憶：萬花筒": "Memory: Kaleidoscope",
+      "記憶：喪失": "Memory: Loss"
+    },
+    "RogueSeasonMemoryMember": {
+      "name": "Memory card combatant slot",
+      "help": "Party slot to assign when the target memory card is obtained."
+    },
+    "RogueSeasonMemoryFallbackMember": {
+      "name": "Memory card fallback combatant slot",
+      "help": "Party slot to assign the fallback memory card when all 12 rerolls miss the target."
     },
     "RogueEquipFilter": {
       "name": "Equipment assignment and priority",
@@ -1774,7 +1878,12 @@
       "PriorityTag": "Priority",
       "CardKindBasic": "Basic · {count} copy(s)",
       "CardKindSpark": "Sparkable · {count} copy(s)",
-      "CardKindUnique": "Character · {count} copy(s)"
+      "CardKindUnique": "Character · {count} copy(s)",
+      "EventRecorderTitle": "Event Recorder (Debug)",
+      "EventRecorderHelp": "Records unique event types confirmed without screenshots. Repeated encounters do not increment the count. Recorded: {seen} / {total}",
+      "EventRecorderRefresh": "Refresh",
+      "EventRecorderClear": "Clear",
+      "EventRecorderCleared": "Event records cleared"
     }
   }
 }

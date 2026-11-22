@@ -11,7 +11,7 @@ from module.logger import logger
 
 class AppControl(Adb, WSA, Uiautomator2):
     hierarchy: etree._Element
-    _app_u2_family = ['uiautomator2', 'minitouch', 'scrcpy', 'MaaTouch', 'nemu_ipc']
+    _app_u2_family = ['uiautomator2', 'scrcpy']
     _hierarchy_interval = Timer(0.1)
 
     def app_current(self) -> str:

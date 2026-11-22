@@ -58,7 +58,7 @@ class FateTest(unittest.TestCase):
         task.handle_rogue_fate(Mock())
         task.tap_point.assert_called_once_with(*TAROT_POINTS[2], name='ROGUE_CARD')
         task.rogue_fate_record.assert_called_once_with(['熱情', '專注', '嫉妒'], 'core')
-        self.assertFalse(task.core_started)
+        self.assertTrue(task.core_started)
 
     def test_custom_order_accepts_simplified_titles_and_first_pool_hint(self):
         task = make_task('core', RogueFateCoreFilter='拥有\n共情')

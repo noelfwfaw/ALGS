@@ -565,27 +565,25 @@ class NemuIpc(Platform):
         return True
 
     def check_mumu_app_keep_alive(self):
-        if not self.is_mumu_over_version_400:
-            return super().check_mumu_app_keep_alive()
-
-        # Try existing settings first
-        if self.config.EmulatorInfo_path:
-            index = NemuIpcImpl.serial_to_id(self.serial)
-            if index is not None:
-                file = os.path.abspath(os.path.join(
-                    self.config.EmulatorInfo_path, f'../../vms/MuMuPlayer-12.0-{index}/configs/customer_config.json'))
+        if IS_WINDOWS and self.is_mumu12_family:
+            # Read local customer_config.json first to avoid a slow adb getprop on MuMu 12 >= 4.0.
+            if self.config.EmulatorInfo_path:
+                index = NemuIpcImpl.serial_to_id(self.serial)
+                if index is not None:
+                    file = os.path.abspath(os.path.join(
+                        self.config.EmulatorInfo_path,
+                        f'../../vms/MuMuPlayer-12.0-{index}/configs/customer_config.json'))
+                    if self.check_mumu_app_keep_alive_400(file):
+                        return True
+            if self.emulator_instance is not None:
+                file = self.emulator_instance.mumu_vms_config('customer_config.json')
                 if self.check_mumu_app_keep_alive_400(file):
                     return True
+            else:
+                logger.warning('Failed to check check_mumu_app_keep_alive as emulator_instance is None')
 
-        # Search emulator instance
-        if self.emulator_instance is None:
-            logger.warning('Failed to check check_mumu_app_keep_alive as emulator_instance is None')
-            return False
-        name = self.emulator_instance.name
-        file = self.emulator_instance.mumu_vms_config('customer_config.json')
-        if self.check_mumu_app_keep_alive_400(file):
-            return True
-
+        if not self.is_mumu_over_version_400:
+            return super().check_mumu_app_keep_alive()
         return False
 
     def nemu_ipc_release(self):

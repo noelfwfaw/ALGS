@@ -110,6 +110,10 @@
       "name": "失落公會",
       "help": "捐獻金幣與精靈王的信物、簽到、領取兩項公會投資獎勵；公會入口沒有紅點就跳過"
     },
+    "LostswordAvalon": {
+      "name": "Task.LostswordAvalon.name",
+      "help": "Task.LostswordAvalon.help"
+    },
     "LostswordBoss": {
       "name": "失落領主突襲",
       "help": "每天挑戰一次，再把剩餘的免費次數掃蕩掉"
@@ -350,7 +354,8 @@
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
-      "com.bilibili.trickcalcn": "TRICKCAL"
+      "com.bilibili.trickcalcn": "TRICKCAL",
+      "com.hermes.goda.bilibili": "RESONANCE"
     },
     "ServerName": {
       "name": "遊戲內伺服器",
@@ -362,7 +367,8 @@
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
-      "trickcal-0": "[TRICKCAL] default"
+      "trickcal-0": "[TRICKCAL] default",
+      "resonance-0": "[RESONANCE] default"
     },
     "ScreenshotMethod": {
       "name": "模擬器截圖方案",
@@ -821,6 +827,52 @@
       "help": "關閉後不抽卡，任務仍然排期"
     }
   },
+  "LostswordShop": {
+    "_info": {
+      "name": "LostswordShop._info.name",
+      "help": "LostswordShop._info.help"
+    },
+    "ExchangeEnable": {
+      "name": "LostswordShop.ExchangeEnable.name",
+      "help": "LostswordShop.ExchangeEnable.help"
+    },
+    "ConsumableFilter": {
+      "name": "LostswordShop.ConsumableFilter.name",
+      "help": "LostswordShop.ConsumableFilter.help"
+    },
+    "RaidFilter": {
+      "name": "LostswordShop.RaidFilter.name",
+      "help": "LostswordShop.RaidFilter.help"
+    },
+    "GuildFilter": {
+      "name": "LostswordShop.GuildFilter.name",
+      "help": "LostswordShop.GuildFilter.help"
+    },
+    "ArenaFilter": {
+      "name": "LostswordShop.ArenaFilter.name",
+      "help": "LostswordShop.ArenaFilter.help"
+    },
+    "EventFilter": {
+      "name": "LostswordShop.EventFilter.name",
+      "help": "LostswordShop.EventFilter.help"
+    }
+  },
+  "LostswordAvalon": {
+    "_info": {
+      "name": "LostswordAvalon._info.name",
+      "help": "LostswordAvalon._info.help"
+    },
+    "City": {
+      "name": "LostswordAvalon.City.name",
+      "help": "LostswordAvalon.City.help",
+      "埃塞尔城": "埃塞尔城",
+      "爱尔亚城": "爱尔亚城",
+      "埃尔达利亚城": "埃尔达利亚城",
+      "卡美洛城": "卡美洛城",
+      "廷塔哲城": "廷塔哲城",
+      "默西亚城": "默西亚城"
+    }
+  },
   "BrowndustSummon": {
     "_info": {
       "name": "免費抽抽樂設定",
@@ -954,7 +1006,34 @@
       "雙星之影": "雙星之影",
       "審判之沼": "審判之沼",
       "藍壺": "藍壺",
-      "降臨的混沌": "降臨的混沌"
+      "降臨的混沌": "降臨的混沌",
+      "賽季卡厄思": "賽季卡厄思"
+    },
+    "RogueSeasonDifficulty": {
+      "name": "賽季卡厄思難度",
+      "help": "僅在選擇「賽季卡厄思」時生效，共 1~11 檔。",
+      "1": "難度 1",
+      "2": "難度 2",
+      "3": "難度 3",
+      "4": "難度 4",
+      "5": "難度 5",
+      "6": "難度 6",
+      "7": "難度 7",
+      "8": "難度 8",
+      "9": "難度 9",
+      "10": "難度 10",
+      "11": "難度 11"
+    },
+    "RogueSeasonSavePt": {
+      "name": "賽季存檔上限再次觀測",
+      "help": "僅在選擇「賽季卡厄思」時生效。只看存檔資料儲存上限（不看具體詞條，不做向下兼容）：低於設定值時自動點擊「再次觀測」，達到或超過後直接進入；關閉則不觀測直接進入。",
+      "關閉": "關閉",
+      "170pt": "170pt",
+      "160pt": "160pt",
+      "150pt": "150pt",
+      "140pt": "140pt",
+      "130pt": "130pt",
+      "120pt": "120pt"
     },
     "RogueDreamMode": {
       "name": "夢境模式",
@@ -962,6 +1041,10 @@
       "開啟": "開啟",
       "關閉": "關閉",
       "保持不變": "維持目前狀態"
+    },
+    "RogueDistortionAdapt": {
+      "name": "扭曲適應",
+      "help": "僅在選擇「賽季卡厄思」時於隊伍頁面生效，預設開啟。"
     },
     "RoguePick": {
       "name": "預設選卡位置",
@@ -1049,6 +1132,27 @@
     "RogueCopyCard": {
       "name": "複製目標卡牌",
       "help": "填寫遊戲中顯示的卡名，例如「劍之雨」。重試後仍無法確認目標時，會複製清單中的第一張。"
+    },
+    "RogueSeasonMemoryCard": {
+      "name": "賽季第二層刻印記憶卡牌",
+      "help": "選擇進入核心層時要刷出的目標刻印記憶卡牌。三張卡各有 4 次重新搜索（共 12 次），直到找到目標或次數耗盡。",
+      "記憶：壓抑": "記憶：壓抑（打擊次數≥3 攻擊）",
+      "記憶：渴望": "記憶：渴望（韌性傷害增加攻擊）",
+      "記憶：王國": "記憶：王國（原始費用≥3 攻擊）",
+      "記憶：金光": "記憶：金光（費用總和≥8 攻擊）",
+      "記憶：怨懟": "記憶：怨懟（丟棄 3 張攻擊）",
+      "記憶：女子": "記憶：女子（3 次快速攻擊）",
+      "記憶：貪婪": "記憶：貪婪（3 次全體攻擊）",
+      "記憶：萬花筒": "記憶：萬花筒（3 次持續傷害）",
+      "記憶：喪失": "記憶：喪失（技能卡牌疊加）"
+    },
+    "RogueSeasonMemoryMember": {
+      "name": "記憶卡牌優先分配位",
+      "help": "成功刷出目標記憶卡牌時，優先領取該卡牌的隊伍位次。"
+    },
+    "RogueSeasonMemoryFallbackMember": {
+      "name": "記憶卡牌未命中時分配位",
+      "help": "12 次重新搜索均未出現目標卡牌時，用於兜底領取任意一張記憶卡牌的隊伍位次。"
     },
     "RogueEquipFilter": {
       "name": "裝備分配與優先順序",
@@ -1774,7 +1878,12 @@
       "PriorityTag": "優先",
       "CardKindBasic": "基礎卡 · 初始 {count} 張",
       "CardKindSpark": "可靈閃卡 · 初始 {count} 張",
-      "CardKindUnique": "角色卡 · 初始 {count} 張"
+      "CardKindUnique": "角色卡 · 初始 {count} 張",
+      "EventRecorderTitle": "事件記錄器（除錯）",
+      "EventRecorderHelp": "僅記錄已成功確認選擇過的事件種類（不截圖），重複遇到不會重複計數。目前記錄：{seen} / {total}",
+      "EventRecorderRefresh": "重新整理",
+      "EventRecorderClear": "清空記錄",
+      "EventRecorderCleared": "已清空事件記錄"
     }
   }
 }

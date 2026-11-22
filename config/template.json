@@ -260,7 +260,7 @@
       "Command": "LostswordTreasure",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "LostswordTreasure": {
       "Claim": true,
@@ -277,7 +277,7 @@
       "Command": "LostswordSummon",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "LostswordSummon": {
       "Draw": true
@@ -293,7 +293,15 @@
       "Command": "LostswordShop",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
+    },
+    "LostswordShop": {
+      "ExchangeEnable": true,
+      "ConsumableFilter": "稀有灵魂 > 女王宝石箱 > 时间卷轴 > 领主召唤券：巨石阵 > 褪色的宝石箱10个 > 黄金指南针：巨石阵 > 金币券 > 紫色门票 > 初级经验书",
+      "RaidFilter": "灿烂的除夕钟声 > 精灵王的信物10个 > 村庄建筑材料箱 > 词条转换券 > 梅林的特制药水 > 领主召唤券：巨石阵 > 精炼石",
+      "GuildFilter": "10个角色召唤券 > 10个宠物召唤券 > 单人突袭门票 > 灵魂 > 神秘石 > 技能页面10个",
+      "ArenaFilter": "竞技场补给箱 > 稀有灵魂 > 除夕之钟 > 词条转换券 > 稀有级礼物盒 > 技能页面10个",
+      "EventFilter": "!初级经验书10个 > 全部"
     },
     "Storage": {
       "Storage": {}
@@ -306,7 +314,7 @@
       "Command": "LostswordMail",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -319,7 +327,23 @@
       "Command": "LostswordGuild",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "LostswordAvalon": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "LostswordAvalon",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "23:00"
+    },
+    "LostswordAvalon": {
+      "City": "埃塞尔城"
     },
     "Storage": {
       "Storage": {}
@@ -332,7 +356,7 @@
       "Command": "LostswordBoss",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "LostswordBoss": {
       "Sweep": true
@@ -348,7 +372,7 @@
       "Command": "LostswordDungeon",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -361,7 +385,7 @@
       "Command": "LostswordCopy",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -374,7 +398,7 @@
       "Command": "LostswordEvent",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -387,7 +411,7 @@
       "Command": "LostswordStar",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -400,7 +424,7 @@
       "Command": "LostswordArena",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -413,7 +437,7 @@
       "Command": "LostswordMaze",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -426,7 +450,7 @@
       "Command": "LostswordMain",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -439,7 +463,7 @@
       "Command": "LostswordRound",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -452,7 +476,7 @@
       "Command": "LostswordAffection",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "LostswordAffection": {
       "Name1": null,
@@ -473,7 +497,7 @@
       "Command": "LostswordTask",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "LostswordTask": {
       "Claim": true
@@ -489,7 +513,7 @@
       "Command": "LostswordPass",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Storage": {
       "Storage": {}
@@ -502,7 +526,7 @@
       "Command": "LostswordRedeem",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "00:00"
+      "ServerUpdate": "23:00"
     },
     "Coupon": {
       "ClearRecord": false
@@ -748,7 +772,10 @@
     },
     "ChaoszeroRogue": {
       "RogueWorld": "霧之城市",
+      "RogueSeasonDifficulty": 9,
+      "RogueSeasonSavePt": "關閉",
       "RogueDreamMode": "開啟",
+      "RogueDistortionAdapt": true,
       "RoguePick": 1,
       "RogueFateMainFilter": "回想 > 靈感 > 虐待 > 友情 > 感應",
       "RogueFateCoreFilter": "開朗 > 共情 > 擁有 > 嫉妒",
@@ -770,6 +797,9 @@
       "RogueSparkCheckCard": "",
       "RogueCopyMember": 0,
       "RogueCopyCard": "劍之雨",
+      "RogueSeasonMemoryCard": "記憶：壓抑",
+      "RogueSeasonMemoryMember": 1,
+      "RogueSeasonMemoryFallbackMember": 1,
       "RogueEquipFilter": null,
       "RogueEventPick": true,
       "RogueEventCapture": false,

@@ -571,10 +571,11 @@ class Minitouch(Connection):
         # No need, minitouch already started by uiautomator2
         # self.adb_shell([self.config.MINITOUCH_FILEPATH_REMOTE])
 
-        retry_timeout = Timer(2).start()
+        retry_timeout = Timer(5).start()
+        atx_restarted = False
         while 1:
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client.settimeout(1)
+            client.settimeout(5)
             client.connect(('127.0.0.1', self._minitouch_port))
             self._minitouch_client = client
 
@@ -601,6 +602,12 @@ class Minitouch(Connection):
                 break
             except ValueError:
                 client.close()
+                if not atx_restarted:
+                    atx_restarted = True
+                    self.restart_atx()
+                    retry_timeout.reset()
+                    self.sleep(1)
+                    continue
                 if retry_timeout.reached():
                     raise MinitouchNotInstalledError(
                         'Received empty data from minitouch, '
@@ -751,22 +758,17 @@ class Minitouch(Connection):
         points = insert_swipe(p0=p1, p3=p2, speed=20)
         builder = self.minitouch_builder
 
+        # Queue down -> moves -> terminal hold -> up in one batch so
+        # there is no gap between touch-down and first movement.
         builder.down(*points[0]).commit().wait(10)
-        builder.send()
-
         for point in points[1:]:
             builder.move(*point).commit().wait(10)
-        builder.send()
 
         builder.move(*p2).commit().wait(140)
-        builder.move(*p2).commit().wait(140)
-        builder.send()
-
-        hold_duration = ensure_time(hold_duration) - 0.28
+        hold_duration = ensure_time(hold_duration) - 0.14
         hold_ms = int(max(0.0, hold_duration) * 1000)
         if hold_ms > 0:
             builder.move(*p2).commit().wait(hold_ms)
-            builder.send()
 
         builder.up().commit()
         builder.send()

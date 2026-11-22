@@ -110,6 +110,10 @@
       "name": "ロスト：ギルド",
       "help": "金貨と精霊王の信物を寄付し、チェックインと2件のギルド投資を受け取る。ギルドに赤い通知がない日は何もしない"
     },
+    "LostswordAvalon": {
+      "name": "Task.LostswordAvalon.name",
+      "help": "Task.LostswordAvalon.help"
+    },
     "LostswordBoss": {
       "name": "ロスト：ボスレイド",
       "help": "1日1回挑戦し、残りの無料回数を掃討する"
@@ -350,7 +354,8 @@
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
-      "com.bilibili.trickcalcn": "TRICKCAL"
+      "com.bilibili.trickcalcn": "TRICKCAL",
+      "com.hermes.goda.bilibili": "RESONANCE"
     },
     "ServerName": {
       "name": "ゲーム内サーバー",
@@ -362,7 +367,8 @@
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
-      "trickcal-0": "[TRICKCAL] default"
+      "trickcal-0": "[TRICKCAL] default",
+      "resonance-0": "[RESONANCE] default"
     },
     "ScreenshotMethod": {
       "name": "スクリーンショット方式",
@@ -821,6 +827,52 @@
       "help": "オフにすると引かず、任務自体のスケジュールは残ります"
     }
   },
+  "LostswordShop": {
+    "_info": {
+      "name": "LostswordShop._info.name",
+      "help": "LostswordShop._info.help"
+    },
+    "ExchangeEnable": {
+      "name": "LostswordShop.ExchangeEnable.name",
+      "help": "LostswordShop.ExchangeEnable.help"
+    },
+    "ConsumableFilter": {
+      "name": "LostswordShop.ConsumableFilter.name",
+      "help": "LostswordShop.ConsumableFilter.help"
+    },
+    "RaidFilter": {
+      "name": "LostswordShop.RaidFilter.name",
+      "help": "LostswordShop.RaidFilter.help"
+    },
+    "GuildFilter": {
+      "name": "LostswordShop.GuildFilter.name",
+      "help": "LostswordShop.GuildFilter.help"
+    },
+    "ArenaFilter": {
+      "name": "LostswordShop.ArenaFilter.name",
+      "help": "LostswordShop.ArenaFilter.help"
+    },
+    "EventFilter": {
+      "name": "LostswordShop.EventFilter.name",
+      "help": "LostswordShop.EventFilter.help"
+    }
+  },
+  "LostswordAvalon": {
+    "_info": {
+      "name": "LostswordAvalon._info.name",
+      "help": "LostswordAvalon._info.help"
+    },
+    "City": {
+      "name": "LostswordAvalon.City.name",
+      "help": "LostswordAvalon.City.help",
+      "埃塞尔城": "埃塞尔城",
+      "爱尔亚城": "爱尔亚城",
+      "埃尔达利亚城": "埃尔达利亚城",
+      "卡美洛城": "卡美洛城",
+      "廷塔哲城": "廷塔哲城",
+      "默西亚城": "默西亚城"
+    }
+  },
   "BrowndustSummon": {
     "_info": {
       "name": "毎日の無料ガチャ設定",
@@ -954,7 +1006,34 @@
       "雙星之影": "雙星之影",
       "審判之沼": "審判之沼",
       "藍壺": "藍壺",
-      "降臨的混沌": "降臨的混沌"
+      "降臨的混沌": "降臨的混沌",
+      "賽季卡厄思": "シーズンカオス"
+    },
+    "RogueSeasonDifficulty": {
+      "name": "シーズンカオス難易度",
+      "help": "「シーズンカオス」選択時のみ有効（1〜11段階）。",
+      "1": "難易度 1",
+      "2": "難易度 2",
+      "3": "難易度 3",
+      "4": "難易度 4",
+      "5": "難易度 5",
+      "6": "難易度 6",
+      "7": "難易度 7",
+      "8": "難易度 8",
+      "9": "難易度 9",
+      "10": "難易度 10",
+      "11": "難易度 11"
+    },
+    "RogueSeasonSavePt": {
+      "name": "セーブ上限再観測",
+      "help": "「シーズンカオス」選択時のみ有効。セーブデータ上限値のみを見て、目標未満なら再観測を繰り返し、到達したら突入します。無効でそのまま突入。",
+      "關閉": "無効",
+      "170pt": "170pt",
+      "160pt": "160pt",
+      "150pt": "150pt",
+      "140pt": "140pt",
+      "130pt": "130pt",
+      "120pt": "120pt"
     },
     "RogueDreamMode": {
       "name": "夢境モード",
@@ -962,6 +1041,10 @@
       "開啟": "有効",
       "關閉": "無効",
       "保持不變": "現在の状態を維持"
+    },
+    "RogueDistortionAdapt": {
+      "name": "歪曲適応",
+      "help": "シーズンカオスの編成画面でのみ有効、デフォルトはオン。"
     },
     "RoguePick": {
       "name": "既定のカード位置",
@@ -1049,6 +1132,27 @@
     "RogueCopyCard": {
       "name": "コピーするカード",
       "help": "ゲーム内のカード名を入力してください。再試行後も対象を確認できない場合は、一覧の先頭カードをコピーします。"
+    },
+    "RogueSeasonMemoryCard": {
+      "name": "シーズン第2層 刻印記憶カード",
+      "help": "核心突入時に狙う刻印記憶カード。3枠それぞれ最大4回（計12回）再検索し、目標が出たら選択します。",
+      "記憶：壓抑": "記憶：抑圧",
+      "記憶：渴望": "記憶：渇望",
+      "記憶：王國": "記憶：王国",
+      "記憶：金光": "記憶：金光",
+      "記憶：怨懟": "記憶：怨嗟",
+      "記憶：女子": "記憶：少女",
+      "記憶：貪婪": "記憶：強欲",
+      "記憶：萬花筒": "記憶：万華鏡",
+      "記憶：喪失": "記憶：喪失"
+    },
+    "RogueSeasonMemoryMember": {
+      "name": "記憶カード優先付与枠",
+      "help": "目標の記憶カードを獲得した際に優先して付与する編成枠。"
+    },
+    "RogueSeasonMemoryFallbackMember": {
+      "name": "目標未出現時の付与枠",
+      "help": "12回の再検索すべてで目標が出なかった場合に代わりの記憶カードを付与する編成枠。"
     },
     "RogueEquipFilter": {
       "name": "装備の割り当てと優先順位",
@@ -1774,7 +1878,12 @@
       "PriorityTag": "優先",
       "CardKindBasic": "基本カード · 初期 {count} 枚",
       "CardKindSpark": "閃き対象 · 初期 {count} 枚",
-      "CardKindUnique": "固有カード · 初期 {count} 枚"
+      "CardKindUnique": "固有カード · 初期 {count} 枚",
+      "EventRecorderTitle": "イベント記録（デバッグ）",
+      "EventRecorderHelp": "スクリーンショットなしで選択確定済みのイベント種類のみを記録します。重複時は加算されません。記録済み：{seen} / {total}",
+      "EventRecorderRefresh": "更新",
+      "EventRecorderClear": "記録をクリア",
+      "EventRecorderCleared": "イベント記録をクリアしました"
     }
   }
 }

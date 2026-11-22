@@ -73,10 +73,14 @@ Lostsword:
       - LostswordSummon
     LostswordShop:
       - Scheduler
+      - LostswordShop
     LostswordMail:
       - Scheduler
     LostswordGuild:
       - Scheduler
+    LostswordAvalon:
+      - Scheduler
+      - LostswordAvalon
     LostswordBoss:
       - Scheduler
       - LostswordBoss

@@ -31,6 +31,7 @@ class AlGS(GameScheduler):
         'crosscore': ('module.crosscore.crosscore_ui', 'CrosscoreUI'),
         'starsavior': ('module.starsavior.starsavior_ui', 'StarsaviorUI'),
         'trickcal': ('module.trickcal.trickcal_ui', 'TrickcalUI'),
+        'resonance': ('module.resonance.resonance_ui', 'ResonanceUI'),
     }
 
     @property
@@ -111,6 +112,10 @@ class AlGS(GameScheduler):
     def lostsword_guild(self):
         from module.lostsword.guild import LostswordGuild
         LostswordGuild(config=self.config, device=self.device).run()
+
+    def lostsword_avalon(self):
+        from module.lostsword.avalon import LostswordAvalon
+        LostswordAvalon(config=self.config, device=self.device).run()
 
     def lostsword_main(self):
         from module.lostsword.main_story import LostswordMain
@@ -385,6 +390,8 @@ class AlGS(GameScheduler):
     def trickcal_pass(self):
         from module.trickcal.pass_task import TrickcalPass
         TrickcalPass(config=self.config, device=self.device).run()
+
+    # ==================== Resonance (雷索纳斯) ====================
 
 
 if __name__ == '__main__':

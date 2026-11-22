@@ -101,7 +101,16 @@ fix_py37_subprocess_communicate()
 task_handler = TaskHandler()
 
 ROGUE_SECTIONS = {
-    "Route": ("RogueWorld", "RogueDreamMode", "RogueRoute", "RogueAvoidElite", "RogueHerald"),
+    "Route": (
+        "RogueWorld",
+        "RogueSeasonDifficulty",
+        "RogueSeasonSavePt",
+        "RogueDreamMode",
+        "RogueDistortionAdapt",
+        "RogueRoute",
+        "RogueAvoidElite",
+        "RogueHerald",
+    ),
     "Build": (
         "RogueMember",
         "RogueSlot1Member",
@@ -116,6 +125,9 @@ ROGUE_SECTIONS = {
         "RogueMeditate",
         "RogueCopyMember",
         "RogueCopyCard",
+        "RogueSeasonMemoryCard",
+        "RogueSeasonMemoryMember",
+        "RogueSeasonMemoryFallbackMember",
         "RogueEquipFilter",
         "RoguePick",
     ),
@@ -144,6 +156,8 @@ ROGUE_POSITION_LABELS = {
     "RogueMember": ROGUE_PARTY_SLOTS,
     "RogueRemoveMember": ROGUE_PARTY_SLOTS,
     "RogueCopyMember": {0: "FollowSparkMember", **ROGUE_PARTY_SLOTS},
+    "RogueSeasonMemoryMember": ROGUE_PARTY_SLOTS,
+    "RogueSeasonMemoryFallbackMember": ROGUE_PARTY_SLOTS,
     "RogueSaveKeep": {0: "DecomposeAll", **ROGUE_PARTY_SLOTS},
 }
 ROGUE_SELECTOR_ROUTE = "/rogue-events"

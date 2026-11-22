@@ -38,7 +38,9 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
     # `GameTooManyClickError`). The 冒险区域 title is the specific one.
     pages = (page_treasure_quick, page_boss_dialog, page_boss_ticket,
              page_mail, page_treasure, page_task, page_shop_dialog, page_shop,
-             page_dungeon_dialog, page_dungeon, page_star, page_copy_stage,
+             page_dungeon_dialog, page_dungeon,
+             page_avalon_sortie, page_avalon_status, page_avalon,
+             page_star, page_copy_stage,
              page_boss,
              page_arena_season,
              page_arena_preview, page_arena,

@@ -19,66 +19,69 @@ Restart:
 
 # ==================== Lost Sword (失落之剑) ====================
 
-# The game day turns over at 00:00, so every daily task of this game runs on a
-# 00:00 clock instead of the framework default of 05:00. Hazeworld keeps the
-# default: the hour belongs to the game, not to the script.
+# The game day turns over at 23:00 (user-confirmed), so every daily task of
+# this game runs on a 23:00 clock instead of the framework default of 05:00.
+# Quoted on purpose: bare `23:00` is read by YAML 1.1 as sexagesimal 1380.
 LostswordMain:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordBoss:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordDungeon:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordEvent:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 # 星辰轮回 is a weekly mode: it schedules itself onto the Monday 00:00 reset, so
-# this hour is only a fallback for a failure retry. It stays on 00:00 to match
-# the game's own day.
+# this hour is only a fallback for a failure retry. It stays on 23:00 to match
+# the game's own daily reset.
 LostswordStar:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
+LostswordAvalon:
+  Scheduler:
+    ServerUpdate: '23:00'
 LostswordCopy:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordMaze:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordArena:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordRound:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordAffection:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordMail:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordGuild:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordShop:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordTreasure:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordTask:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 LostswordSummon:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 # 通行证 was added later than the tasks above and was left out of this file, so
 # it kept the framework default 05:00 and every config_update (WebUI save,
 # `python -m module.config.config_updater`) wrote 05:00 back over the value.
 LostswordPass:
   Scheduler:
-    ServerUpdate: 00:00
+    ServerUpdate: '23:00'
 # 兑换码 follows the game day like every other task of this game (user,
 # 2026-11-04: align it with the daily reset). The code list only ever returns
 # codes that have not expired yet, so the hour only decides how soon a new code
@@ -87,7 +90,7 @@ LostswordRedeem:
   Scheduler:
     # Quoted on purpose: a bare `10:00` is read as the sexagesimal number 600,
     # and the generator then refuses it as "not a string".
-    ServerUpdate: '00:00'
+    ServerUpdate: '23:00'
 
 # ==================== Brown Dust II (棕色尘埃2) ====================
 

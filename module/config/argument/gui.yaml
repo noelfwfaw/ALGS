@@ -149,3 +149,8 @@ Rogue:
   CardKindBasic:
   CardKindSpark:
   CardKindUnique:
+  EventRecorderTitle:
+  EventRecorderHelp:
+  EventRecorderRefresh:
+  EventRecorderClear:
+  EventRecorderCleared:

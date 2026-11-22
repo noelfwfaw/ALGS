@@ -51,9 +51,9 @@ from module.base.timer import Timer
 from module.config.server import to_package
 from module.exception import GameStuckError
 from module.logger import logger
-from module.trickcal.assets import (DOWNLOAD_CONFIRM, DOWNLOAD_DEPART, DOWNLOAD_TITLE, E_1_1, E_2_1,
-                                    E_2_2, E_3_1, E_5_1, E_5_2, E_6_1, E_6_2,
-                                    SHOP_BUY_CANCEL, SHOP_BUY_CONFIRM)
+from module.trickcal.assets import (COUNTDOWN_POPUP, DOWNLOAD_CONFIRM, DOWNLOAD_DEPART, DOWNLOAD_TITLE,
+                                    E_1_1, E_2_1, E_2_2, E_3_1, E_5_1, E_5_2,
+                                    E_6_1, E_6_2, SHOP_BUY_CANCEL, SHOP_BUY_CONFIRM)
 from module.trickcal.page import (page_friend, page_mail, page_main,
                                   page_normal_shop, page_pass, page_shop,
                                   page_task, page_task_weekly)
@@ -212,8 +212,8 @@ class TrickcalUI(RewardPopup, UI):
         """
         for handler in (self.handle_return_event, self.handle_reward_popup,
                         self.handle_resource_download, self.handle_announcement,
-                        self.handle_title_start, self.handle_sign_in,
-                        self.handle_signed_in_page):
+                        self.handle_countdown_popup, self.handle_title_start,
+                        self.handle_sign_in, self.handle_signed_in_page):
             if handler():
                 idle.reset()
                 return True
@@ -327,6 +327,8 @@ class TrickcalUI(RewardPopup, UI):
             return True
         if self.handle_announcement():
             return True
+        if self.handle_countdown_popup():
+            return True
         return False
 
     def buy_popup_appear(self):
@@ -421,5 +423,18 @@ class TrickcalUI(RewardPopup, UI):
             logger.info('Resource download finished, press 立刻出发')
             self.device.click_record_clear()
             self.device.click(DOWNLOAD_DEPART)
+            return True
+        return False
+
+    def handle_countdown_popup(self):
+        """
+        Dismiss the full-screen event countdown overlay ("请点击屏幕继续") on the lobby.
+
+        Returns:
+            bool: If the countdown overlay was dismissed.
+        """
+        if self.appear(COUNTDOWN_POPUP, offset=OFFSET, interval=2):
+            logger.info('Event countdown popup, tap to continue')
+            self.device.click(COUNTDOWN_POPUP)
             return True
         return False

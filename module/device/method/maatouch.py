@@ -374,22 +374,17 @@ class MaaTouch(Connection):
         points = insert_swipe(p0=p1, p3=p2, speed=20)
         builder = self.maatouch_builder
 
+        # Queue down -> moves -> terminal hold -> up in one sync batch so
+        # there is no socket/sleep gap between touch-down and first movement.
         builder.down(*points[0]).commit().wait(10)
-        builder.send_sync()
-
         for point in points[1:]:
             builder.move(*point).commit().wait(10)
-        builder.send_sync()
 
         builder.move(*p2).commit().wait(140)
-        builder.move(*p2).commit().wait(140)
-        builder.send_sync()
-
-        hold_duration = ensure_time(hold_duration) - 0.28
+        hold_duration = ensure_time(hold_duration) - 0.14
         hold_ms = int(max(0.0, hold_duration) * 1000)
         if hold_ms > 0:
             builder.move(*p2).commit().wait(hold_ms)
-            builder.send_sync()
 
         builder.up().commit()
         builder.send_sync()

@@ -100,7 +100,7 @@
     },
     "LostswordShop": {
       "name": "失落商店",
-      "help": "领取每日、每周、每月的免费礼包"
+      "help": "领取每日/每周/每月免费礼包，并按过滤器扫货交易所各分类"
     },
     "LostswordMail": {
       "name": "失落邮箱",
@@ -109,6 +109,10 @@
     "LostswordGuild": {
       "name": "失落公会",
       "help": "捐献金币与精灵王的信物、签到、领取两项公会投资奖励；公会入口没有红点就跳过"
+    },
+    "LostswordAvalon": {
+      "name": "失落公会战",
+      "help": "进「战斗 → 公会 → 阿瓦隆」，按所选城市把 6 次挑战机会打完；打完或处于休整期无法进入时自动推迟到下周"
     },
     "LostswordBoss": {
       "name": "失落领主突袭",
@@ -350,7 +354,8 @@
       "com.smilegate.chaoszero.stove.google": "CHAOSZERO",
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
-      "com.bilibili.trickcalcn": "TRICKCAL"
+      "com.bilibili.trickcalcn": "TRICKCAL",
+      "com.hermes.goda.bilibili": "RESONANCE"
     },
     "ServerName": {
       "name": "游戏内服务器",
@@ -362,7 +367,8 @@
       "chaoszero-0": "[CHAOSZERO] default",
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
-      "trickcal-0": "[TRICKCAL] default"
+      "trickcal-0": "[TRICKCAL] default",
+      "resonance-0": "[RESONANCE] default"
     },
     "ScreenshotMethod": {
       "name": "模拟器截图方案",
@@ -821,6 +827,52 @@
       "help": "关闭后不抽卡，任务仍然排期"
     }
   },
+  "LostswordShop": {
+    "_info": {
+      "name": "商店与交易所设置",
+      "help": "每个交易所过滤器用 > 或换行分隔优先级，! 开头表示排除，写 全部 可购买非钻石非排除道具，留空或写 不买 则跳过该分类。自动跳过需消耗钻石的道具。"
+    },
+    "ExchangeEnable": {
+      "name": "开启交易所扫货",
+      "help": "领完免费礼包后进入「交易所」，依次扫货消耗品、突袭、公会、竞技场与活动币页签"
+    },
+    "ConsumableFilter": {
+      "name": "消耗品过滤器",
+      "help": "交易所-消耗品购买清单（越靠前越优先），自动跳过所有消耗钻石的商品"
+    },
+    "RaidFilter": {
+      "name": "突袭过滤器",
+      "help": "交易所-突袭购买清单（越靠前越优先）"
+    },
+    "GuildFilter": {
+      "name": "公会过滤器",
+      "help": "交易所-公会购买清单（越靠前越优先）"
+    },
+    "ArenaFilter": {
+      "name": "竞技场过滤器",
+      "help": "交易所-竞技场购买清单（越靠前越优先）"
+    },
+    "EventFilter": {
+      "name": "活动币过滤器",
+      "help": "交易所最下方带截止日期的限时活动币商店；无活动页签时自动跳过，默认排除初级经验书10个后全部购买"
+    }
+  },
+  "LostswordAvalon": {
+    "_info": {
+      "name": "公会战设置",
+      "help": ""
+    },
+    "City": {
+      "name": "进攻城市",
+      "help": "选择阿瓦隆地图上要挑战的城堡（共 6 次挑战机会，累计总伤害）",
+      "埃塞尔城": "埃塞尔城",
+      "爱尔亚城": "爱尔亚城",
+      "埃尔达利亚城": "埃尔达利亚城",
+      "卡美洛城": "卡美洛城",
+      "廷塔哲城": "廷塔哲城",
+      "默西亚城": "默西亚城"
+    }
+  },
   "BrowndustSummon": {
     "_info": {
       "name": "免费抽抽乐设置",
@@ -954,7 +1006,34 @@
       "雙星之影": "雙星之影",
       "審判之沼": "審判之沼",
       "藍壺": "藍壺",
-      "降臨的混沌": "降臨的混沌"
+      "降臨的混沌": "降臨的混沌",
+      "賽季卡厄思": "赛季卡厄思"
+    },
+    "RogueSeasonDifficulty": {
+      "name": "赛季卡厄思难度",
+      "help": "仅在选择「赛季卡厄思」时生效，共 1~11 档。",
+      "1": "难度 1",
+      "2": "难度 2",
+      "3": "难度 3",
+      "4": "难度 4",
+      "5": "难度 5",
+      "6": "难度 6",
+      "7": "难度 7",
+      "8": "难度 8",
+      "9": "难度 9",
+      "10": "难度 10",
+      "11": "难度 11"
+    },
+    "RogueSeasonSavePt": {
+      "name": "赛季存档上限再次观测",
+      "help": "仅在选择「赛季卡厄思」时生效。只看存档资料储存上限（不看具体词条，不做向下兼容）：低于设定值时自动点击「再次观测」，达到或超过设定值后直接进入；关闭则不观测直接进入。",
+      "關閉": "关闭",
+      "170pt": "170pt",
+      "160pt": "160pt",
+      "150pt": "150pt",
+      "140pt": "140pt",
+      "130pt": "130pt",
+      "120pt": "120pt"
     },
     "RogueDreamMode": {
       "name": "梦境模式",
@@ -962,6 +1041,10 @@
       "開啟": "开启",
       "關閉": "关闭",
       "保持不變": "保持当前状态"
+    },
+    "RogueDistortionAdapt": {
+      "name": "扭曲适应",
+      "help": "仅在选择「赛季卡厄思」时于队伍页面生效，默认开启。"
     },
     "RoguePick": {
       "name": "默认选卡位置",
@@ -1049,6 +1132,27 @@
     "RogueCopyCard": {
       "name": "复制目标卡牌",
       "help": "填写游戏中显示的卡名，例如「劍之雨」。重试后仍无法确认目标时，会复制列表中的第一张。"
+    },
+    "RogueSeasonMemoryCard": {
+      "name": "赛季第二层刻印记忆卡牌",
+      "help": "选择进入核心层时要刷出的目标刻印记忆卡牌。三张卡各有 4 次重新搜索（共 12 次），直到找到目标或次数耗尽。",
+      "記憶：壓抑": "记忆：压抑（打击次数≥3 攻击）",
+      "記憶：渴望": "记忆：渴望（韧性伤害增加攻击）",
+      "記憶：王國": "记忆：王国（原始费用≥3 攻击）",
+      "記憶：金光": "记忆：金光（费用总和≥8 攻击）",
+      "記憶：怨懟": "记忆：怨怼（丢弃 3 张攻击）",
+      "記憶：女子": "记忆：女子（3 次快速攻击）",
+      "記憶：貪婪": "记忆：贪婪（3 次全体攻击）",
+      "記憶：萬花筒": "记忆：万花筒（3 次持续伤害）",
+      "記憶：喪失": "记忆：丧失（技能卡牌叠加）"
+    },
+    "RogueSeasonMemoryMember": {
+      "name": "记忆卡牌优先分配位",
+      "help": "成功刷出目标记忆卡牌时，优先领取该卡牌的队伍位次。"
+    },
+    "RogueSeasonMemoryFallbackMember": {
+      "name": "记忆卡牌未命中时分配位",
+      "help": "12 次重新搜索均未出现目标卡牌时，用于兜底领取任意一张记忆卡牌的队伍位次。"
     },
     "RogueEquipFilter": {
       "name": "装备分配与优先级",
@@ -1774,7 +1878,12 @@
       "PriorityTag": "优先",
       "CardKindBasic": "基础卡 · 初始 {count} 张",
       "CardKindSpark": "可灵闪卡 · 初始 {count} 张",
-      "CardKindUnique": "角色卡 · 初始 {count} 张"
+      "CardKindUnique": "角色卡 · 初始 {count} 张",
+      "EventRecorderTitle": "事件记录器（调试）",
+      "EventRecorderHelp": "仅记录已成功确认选择过的事件种类（不截图），重复遇到不会重复计数。当前已记录：{seen} / {total}",
+      "EventRecorderRefresh": "刷新",
+      "EventRecorderClear": "清空记录",
+      "EventRecorderCleared": "已清空事件记录"
     }
   }
 }

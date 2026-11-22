@@ -34,12 +34,17 @@ translucent overlay, the lobby stays visible around it, and both `MAIL_ENTRY`
 (0.997) and `MAIL_CLAIM_ALL` (0.925, see `RewardPopup`) keep matching through
 the panel. The X is unique to this screen: 1.000 here, <=0.61 everywhere else.
 
-The two task tabs are checked with **the same box in its two states**, the
-weekly pill (63,206)-(174,256): unselected on the daily tab, purple on the
-weekly one. That is the same geometry as the button that switches between them,
-so a stale frame can never point a click at the wrong widget, and both states
-are positive checks - a tab switch is never verified with "the old tab is
-gone". Measured 1.000 in its own state and below 0.85 in the other.
+The two task tabs are checked symmetrically by the **inactive** pill of the
+other tab: `page_task` uses `TASK_WEEKLY_TAB` (inactive weekly pill,
+(63,206)-(174,256)), and `page_task_weekly` uses `TASK_DAILY_TAB` (inactive
+daily pill, (48,114)-(148,160)). Each check doubles as the click target to
+switch to that other tab, and both tabs are linked bidirectionally so
+`ui_ensure(page_task)` works even when clicking `TASK_ENTRY` lands directly on
+the weekly tab (when daily tasks are finished and only weekly rewards wait).
+The active weekly pill (`TASK_WEEKLY_TAB_ACTIVE`) contains a decorative white
+sparkle and green clothespin tip whose crop drifted (`0.799` on real weekly
+frames), whereas `TASK_DAILY_TAB` scores `1.000` on real weekly frames and `<=
+0.395` everywhere else.
 
 `page_shop` is checked with `SHOP_TITLE`, the 「尊享商店」 header at the top
 left. The four tabs are one page and their icons look the same whether they are
@@ -64,16 +69,17 @@ otherwise `ui_get_current_page()` never sees it (hard rule 61).
 from module.trickcal.assets import (BACK, E_7_1, FRIEND_ENTRY, FRIEND_TITLE,
                                    MAIL_CLOSE, MAIL_ENTRY, NORMAL_SHOP_ENTRY,
                                    NORMAL_SHOP_TITLE, PASS_ENTRY, PASS_TITLE,
-                                   SHOP_ENTRY, SHOP_TITLE, TASK_ENTRY,
-                                   TASK_WEEKLY_TAB, TASK_WEEKLY_TAB_ACTIVE)
+                                   SHOP_ENTRY, SHOP_TITLE, TASK_DAILY_TAB,
+                                   TASK_ENTRY, TASK_WEEKLY_TAB)
 from module.ui.page import Page
 
 page_main = Page(E_7_1)
 page_mail = Page(MAIL_CLOSE)
 page_friend = Page(FRIEND_TITLE)
-# 进任务页默认停在每日任务，所以「周任务 tab 还没选中」就是每日任务的判据。
+# 任务两个页签相互用「对面未选中状态的按钮」判页：停在每日时「一周」未选中
+# (`TASK_WEEKLY_TAB`)，停在每周时「一天」未选中 (`TASK_DAILY_TAB`)，同时就是切页按钮。
 page_task = Page(TASK_WEEKLY_TAB)
-page_task_weekly = Page(TASK_WEEKLY_TAB_ACTIVE)
+page_task_weekly = Page(TASK_DAILY_TAB)
 # 商店的四个 tab 是同一个页面：左侧那排 tab 图标选没选中长得一样（三个 tab 帧上
 # 都能命中），所以页面判据只能用左上角「尊享商店」标题，tab 靠卡片区分。
 page_shop = Page(SHOP_TITLE)
@@ -94,6 +100,7 @@ page_main.link(button=FRIEND_ENTRY, destination=page_friend)
 page_friend.link(button=BACK, destination=page_main)
 page_main.link(button=TASK_ENTRY, destination=page_task)
 page_task.link(button=TASK_WEEKLY_TAB, destination=page_task_weekly)
+page_task_weekly.link(button=TASK_DAILY_TAB, destination=page_task)
 page_task.link(button=BACK, destination=page_main)
 page_task_weekly.link(button=BACK, destination=page_main)
 page_main.link(button=SHOP_ENTRY, destination=page_shop)

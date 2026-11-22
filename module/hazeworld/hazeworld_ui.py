@@ -10,18 +10,6 @@ from module.ui.ui import UI
 from module.hazeworld.page import *  # noqa: F401,F403 - re-exported for the tasks
 
 
-# The mission page and the battle pass do not only refresh at the daily reset:
-# they hand out new missions while the player is in game, and a finished mission
-# stays on the list until it is claimed. Checking once at the server update
-# would leave a whole day of missions unclaimed, so both tasks go in on these
-# four openings instead of on the daily one.
-#
-# The format is the one `Scheduler.ServerUpdate` uses, which makes
-# `task_delay(server_update=CLAIM_TIMES)` pick the nearest of the four, roll
-# over to the next day on its own and apply the server timezone.
-CLAIM_TIMES = ['05:00', '12:00', '18:00', '23:00']
-
-
 # The 「LOADING......」 line the game draws over the bottom bar while a page is
 # coming up. It is plain white text on whatever the page behind it is, so the
 # only stable thing about it is the glyphs themselves - a colour or mean-luma
@@ -105,11 +93,11 @@ class HazeworldUI(Claim, Boot, UI):
         first would park the whole session behind them.
 
         A panel whose task is enabled in the scheduler is skipped here: the
-        scheduled `HazeworldTask` / `HazeworldPass` run covers it on their own
-        cadence (the four CLAIM_TIMES), and claiming it again at the end of
-        every session would re-walk the same panels right after the scheduler
-        just did. The hook only backs the panels up when the user has their
-        tasks turned off - then there is nothing else that would claim them.
+        scheduled `HazeworldTask` / `HazeworldPass` run covers it (at the daily
+        reset, plus any pull from `HazeworldRoom`), and claiming it again at the
+        end of every session would re-walk the same panels right after the
+        scheduler just did. The hook only backs the panels up when the user has
+        their tasks turned off - then there is nothing else that would claim them.
 
         A failure here is logged and swallowed: both panels are entered from the
         lobby again next session.

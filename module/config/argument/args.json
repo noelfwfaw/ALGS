@@ -17,7 +17,8 @@
           "com.smilegate.chaoszero.stove.google",
           "com.megagame.crosscore",
           "com.studiobside.starMain",
-          "com.bilibili.trickcalcn"
+          "com.bilibili.trickcalcn",
+          "com.hermes.goda.bilibili"
         ]
       },
       "ServerName": {
@@ -31,7 +32,8 @@
           "chaoszero-0",
           "crosscore-0",
           "starsavior-0",
-          "trickcal-0"
+          "trickcal-0",
+          "resonance-0"
         ]
       },
       "ScreenshotMethod": {
@@ -1012,7 +1014,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1067,7 +1069,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1118,8 +1120,34 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
+      }
+    },
+    "LostswordShop": {
+      "ExchangeEnable": {
+        "type": "checkbox",
+        "value": true
+      },
+      "ConsumableFilter": {
+        "type": "textarea",
+        "value": "稀有灵魂 > 女王宝石箱 > 时间卷轴 > 领主召唤券：巨石阵 > 褪色的宝石箱10个 > 黄金指南针：巨石阵 > 金币券 > 紫色门票 > 初级经验书"
+      },
+      "RaidFilter": {
+        "type": "textarea",
+        "value": "灿烂的除夕钟声 > 精灵王的信物10个 > 村庄建筑材料箱 > 词条转换券 > 梅林的特制药水 > 领主召唤券：巨石阵 > 精炼石"
+      },
+      "GuildFilter": {
+        "type": "textarea",
+        "value": "10个角色召唤券 > 10个宠物召唤券 > 单人突袭门票 > 灵魂 > 神秘石 > 技能页面10个"
+      },
+      "ArenaFilter": {
+        "type": "textarea",
+        "value": "竞技场补给箱 > 稀有灵魂 > 除夕之钟 > 词条转换券 > 稀有级礼物盒 > 技能页面10个"
+      },
+      "EventFilter": {
+        "type": "textarea",
+        "value": "!初级经验书10个 > 全部"
       }
     },
     "Storage": {
@@ -1163,7 +1191,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1208,8 +1236,67 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "LostswordAvalon": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "LostswordAvalon",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "23:00",
+        "display": "hide"
+      }
+    },
+    "LostswordAvalon": {
+      "City": {
+        "type": "select",
+        "value": "埃塞尔城",
+        "option": [
+          "埃塞尔城",
+          "爱尔亚城",
+          "埃尔达利亚城",
+          "卡美洛城",
+          "廷塔哲城",
+          "默西亚城"
+        ]
       }
     },
     "Storage": {
@@ -1253,7 +1340,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1304,7 +1391,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1349,7 +1436,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1394,7 +1481,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1439,7 +1526,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1484,7 +1571,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1529,7 +1616,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1574,7 +1661,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1619,7 +1706,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1664,7 +1751,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1735,7 +1822,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1786,7 +1873,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -1831,7 +1918,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "00:00",
+        "value": "23:00",
         "display": "hide"
       }
     },
@@ -2678,7 +2765,38 @@
           "雙星之影",
           "審判之沼",
           "藍壺",
-          "降臨的混沌"
+          "降臨的混沌",
+          "賽季卡厄思"
+        ]
+      },
+      "RogueSeasonDifficulty": {
+        "type": "select",
+        "value": 9,
+        "option": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ]
+      },
+      "RogueSeasonSavePt": {
+        "type": "select",
+        "value": "關閉",
+        "option": [
+          "關閉",
+          "170pt",
+          "160pt",
+          "150pt",
+          "140pt",
+          "130pt",
+          "120pt"
         ]
       },
       "RogueDreamMode": {
@@ -2689,6 +2807,10 @@
           "關閉",
           "保持不變"
         ]
+      },
+      "RogueDistortionAdapt": {
+        "type": "checkbox",
+        "value": true
       },
       "RoguePick": {
         "type": "input",
@@ -2786,6 +2908,29 @@
         "type": "input",
         "value": "劍之雨",
         "valuetype": "str"
+      },
+      "RogueSeasonMemoryCard": {
+        "type": "select",
+        "value": "記憶：壓抑",
+        "option": [
+          "記憶：壓抑",
+          "記憶：渴望",
+          "記憶：王國",
+          "記憶：金光",
+          "記憶：怨懟",
+          "記憶：女子",
+          "記憶：貪婪",
+          "記憶：萬花筒",
+          "記憶：喪失"
+        ]
+      },
+      "RogueSeasonMemoryMember": {
+        "type": "input",
+        "value": 1
+      },
+      "RogueSeasonMemoryFallbackMember": {
+        "type": "input",
+        "value": 1
       },
       "RogueEquipFilter": {
         "type": "textarea",

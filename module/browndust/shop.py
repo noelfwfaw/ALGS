@@ -161,22 +161,22 @@ SHOP_CONFIRM = Button(area=(837, 496, 1005, 524), color=(0, 0, 0),  # alas-lint:
 SHOP_DONE_OK = Button(area=(576, 385, 703, 421), color=(0, 0, 0),  # alas-lint: allow - a one-button alert, SHOP_BUY_DONE already proved it is up
                       button=(640, 403, 640, 403), name='SHOP_DONE_OK')
 
-# 滚一格的落点（一次大约滚 300 像素，列表只有 3~4 排）。
-# ❗两个点都压在可点击的商品格子里：`swipe()` 的 down/up 太短促会被游戏判成
-# 点击、弹出某个道具的购买弹窗（2026-11-10 12:57 真机）。改用 `device.drag()`
-# 慢拖（分段移动 + 终点两次 140ms 停留），不会被判成 tap。坐标本身是实测过的，
-# **别挪到网格外的空白** —— 列表的滚动热区不一定覆盖那些地方。
-SHOP_SWIPE_FROM = (640, 300)
+# 滚一屏的起落点（列表只有 3 排：第 1/2 排 y 92/322，第 3 排到底时 y 417，最大
+# 总位移仅 135 像素，单次 380~400 像素的连续拖动即可一拖到位）。
+# `drag_maatouch`/`drag_minitouch` 已将 down→move→up 合并为单次连续注入，按下与
+# 移动之间没有断层，所以起落点都在商品格子里也不会误触弹出购买弹窗。
+SHOP_SWIPE_TOP_FROM = (640, 220)
 SHOP_SWIPE_TO_TOP = (640, 620)
-SHOP_SWIPE_TO_BOTTOM = (640, 180)
+SHOP_SWIPE_BOTTOM_FROM = (640, 520)
+SHOP_SWIPE_TO_BOTTOM = (640, 140)
 # 关残留购买弹窗：点 X 之后等它真的消失。
 SHOP_DIALOG_CLOSE_TIMEOUT = 5
 
 # 一轮最多买几种。列表是 7 列 × 3 排（最后一格空着），一天买不到 10 种，给 30
 # 是防死循环。
 SHOP_BUY_ROUNDS = 30
-# 等列表画稳。买完之后整张列表会重排（买掉的那一格沉底，后面的往前顶）。
-SHOP_SETTLE_TIMEOUT = 5
+# 等列表惯性停稳（最多 0.6s，避免被背景透出动画拖住）。
+SHOP_SETTLE_TIMEOUT = 0.6
 
 # ---- 优先级 ----------------------------------------------------------------
 #
@@ -428,28 +428,33 @@ class EventShop:
             return False
         return True
 
+    def shop_scroll(self, p1, p2, area):
+        """
+        执行一次连续拖动并等待列表停稳。
+
+        Args:
+            p1 (tuple[int, int]):
+            p2 (tuple[int, int]):
+            area (tuple[int, int, int, int]):
+
+        Returns:
+            bool: 残留弹窗关不掉时返回 False。
+        """
+        if not self.shop_dismiss_dialog():
+            return False
+        self.device.drag(p1, p2, name='SHOP_SCROLL')
+        self.wait_until_still(area, timeout=SHOP_SETTLE_TIMEOUT, threshold=2.0, skip_first_screenshot=False)
+        return True
+
     def shop_scroll_top(self):
         """
         把列表滚到最上面。
-
-        进页面时的位置不一定是顶（上次退出时停在哪、重排之后又落在哪），所以每轮
-        下手之前都先归位。连拖两次是因为一次大约只滚 300 像素，而列表最长
-        有 4 排（多滚几下到底之后就不再动了，不会出事）。
-
-        ❗用 `drag()` 而不是 `swipe()`：起落点都在可点击的商品格子上，短促的
-        swipe 会被判成点击、弹出道具弹窗。两次之间还要等列表静止 —— 第二下的
-        down 落在还在惯性滚动的列表上，同样容易变成点击。
 
         Returns:
             bool: 有没有滚成（残留弹窗关不掉时放弃，别在弹窗上乱拖）。
         """
         area = (SHOP_COLS[0], 92, SHOP_COLS[-1] + SHOP_CELL_WIDTH, 543)
-        if not self.shop_dismiss_dialog():
-            return False
-        for _ in range(2):
-            self.device.drag(SHOP_SWIPE_FROM, SHOP_SWIPE_TO_TOP)
-            self.wait_until_still(area, timeout=SHOP_SETTLE_TIMEOUT)
-        return True
+        return self.shop_scroll(SHOP_SWIPE_TOP_FROM, SHOP_SWIPE_TO_TOP, area)
 
     def shop_scroll_bottom(self):
         """
@@ -459,12 +464,7 @@ class EventShop:
             bool: 有没有滚成。
         """
         area = (SHOP_COLS[0], 417, SHOP_COLS[-1] + SHOP_CELL_WIDTH, 638)
-        if not self.shop_dismiss_dialog():
-            return False
-        for _ in range(2):
-            self.device.drag(SHOP_SWIPE_FROM, SHOP_SWIPE_TO_BOTTOM)
-            self.wait_until_still(area, timeout=SHOP_SETTLE_TIMEOUT)
-        return True
+        return self.shop_scroll(SHOP_SWIPE_BOTTOM_FROM, SHOP_SWIPE_TO_BOTTOM, area)
 
     # ---- 扫描 --------------------------------------------------------------
 
@@ -690,6 +690,9 @@ class EventShop:
         按优先级把能买的都买一遍。
 
         每一轮都重新扫：买掉的那一格会沉底，后面的往前顶，位置全变了。
+        刚进商店默认处于 `top`；买完 `top` 商品后列表仍停在 `top`，不重复上拖。
+        仅在当前最高优先级规则不在首屏时滚到底扫第三排，并在全屏扫完后剔除已售罄
+        的高优先级规则，避免后续每轮白滚。
 
         Pages:
             in: page_shop
@@ -698,38 +701,44 @@ class EventShop:
         Returns:
             int: 买了几次。
         """
-        rules = shop_filter_parse(self.config.BrowndustEvent_ShopFilter)
-        logger.attr('Shop priority', ' > '.join(rules))
+        active_rules = shop_filter_parse(self.config.BrowndustEvent_ShopFilter)
+        logger.attr('Shop priority', ' > '.join(active_rules))
         buy_max = str(self.config.BrowndustEvent_BuyAmount).lower() == 'max'
 
         bought = 0
         # 是被"买不动"停下来的，还是真的没有可买的了。收尾那句日志要分开说。
         broke = False
+        # shop_enter() 打开商店默认停在顶部。
+        current_page = 'top'
 
         for _ in range(SHOP_BUY_ROUNDS):
             # 一场 OCR 要一两秒，这期间一个点击都没有 —— 明说"我在盯着屏幕"，
             # 免得框架的卡死计时器把这当成卡住（硬约束 13）。
             self.device.stuck_record_clear()
-            # 一轮要滚六次（`drag()` 也会记进点击历史），两轮就把框架的
-            # "同一个按钮点了 12 次"告警踩出来了。每一轮都是看了新截图重新决定
-            # 的，上一轮的历史不该算在这一轮头上。
             self.device.click_record_clear()
 
-            goods, page = self.shop_collect()
-            target = self.shop_pick(goods, rules)
+            goods, page = self.shop_collect(rules=active_rules, current_page=current_page)
+            current_page = page
+            # 全屏（顶+底，或已在顶屏碰到售罄分界线）扫完后，把无货规则从激活清单剔除。
+            scan_complete = (page == 'bottom') or bool(goods and goods[-1].sold_out)
+            if scan_complete and goods:
+                active_rules = [
+                    rule for rule in active_rules
+                    if any(not item.sold_out and self.shop_match(item, rule) for item in goods)
+                ]
+
+            target = self.shop_pick(goods, active_rules)
             if target is None:
                 break
             # 扫描量到的坐标只在那一趟的滚动位置成立，先滚回去再点。
-            if target.page != page:
-                self.shop_goto(target.page)
+            if target.page != current_page:
+                if not self.shop_goto(target.page):
+                    continue
+                current_page = target.page
             if not self.shop_buy(target, buy_max=buy_max):
-                # 买不动了。**这里不降级去买后面的档**：清单是按价值排的，越靠后越
-                # 不值，活动币每天涨、限购不会跑，今天买不起的那一档明天接着买。
-                #
-                # 但"买不动"有两种，得分开：这一档其实**已经买满**（只是刚才没识别
-                # 出「购买成功」）要接着下一档；**有货但币不够**才是真的收工。
-                # 判据就是"再看一眼这一格现在写的是什么"。
-                self.shop_goto(target.page)
+                if current_page != target.page and not self.shop_goto(target.page):
+                    continue
+                current_page = target.page
                 self.device.screenshot()
                 if self.shop_sold_out(self.device.image, target):
                     logger.info('[Shop] it turns out that one is sold out, go on with the next')
@@ -739,28 +748,29 @@ class EventShop:
                 broke = True
                 break
             bought += 1
-            # 买完之后游戏自己会滚回顶部，但别指望它 —— 下一轮从顶开始扫。
-            self.shop_scroll_top()
+            # 买完游戏会自动重置或留在顶部；从 `top` 发起的购买完成后必在 `top`。
+            current_page = 'top' if target.page == 'top' else None
 
         if not bought and not broke:
             logger.info('[Shop] nothing to buy today')
         return bought
 
-    def shop_collect(self):
+    def shop_collect(self, rules=None, current_page=None):
         """
         把整张列表上还买得到的东西都扫出来。
 
-        先滚到顶扫前两排。**只有顶上没扫到「购买成功」才去滚到底看第三排** ——
-        已购的沉在最后，扫到它就说明后面全是已购的，这一趟白跑。
+        若当前已在 `top` 则不重复上拖；若第一屏已命中当前最高优先级规则或已扫到
+        「购买成功」分界线，则跳过底部第三排以省去来回拖动。
 
-        两屏的结果放在同一个列表里交给 `shop_pick()`，优先级才是按整张列表排的：
-        第三排的抽抽乐券该排在第二排的精髓前面。
+        Args:
+            rules (list[str], None): 当前激活的优先级规则；提供时开启首屏命中提前返回。
+            current_page (str, None): 已知的滚动位置（`top` / `bottom` / None）。
 
         Returns:
             tuple[list[ShopGoods], str]: 格子（按屏幕顺序）和扫完时停在哪（`top` /
                 `bottom`）。格子上的坐标只在那个位置成立。
         """
-        if not self.shop_scroll_top():
+        if current_page != 'top' and not self.shop_scroll_top():
             # 残留弹窗关不掉时别在遮罩上扫：那会把弹窗里的字当成商品名，
             # 拿着错的坐标去买东西。下一轮会再试一次。
             logger.warning('[Shop] cannot align the list to the top, skip this round')
@@ -768,6 +778,9 @@ class EventShop:
         goods = self.shop_scan(SHOP_ROWS_TOP, page='top')
         if goods and goods[-1].sold_out:
             logger.info('[Shop] the sold-out boundary is on the first screen, skip the third row')
+            return goods, 'top'
+        if rules and self.shop_pick(goods, rules[:1]) is not None:
+            logger.info(f'[Shop] top-priority rule {rules[0]} is on the first screen, skip scrolling')
             return goods, 'top'
 
         if not self.shop_scroll_bottom():

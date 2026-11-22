@@ -222,6 +222,28 @@ LostswordTask:
   Claim: true
 LostswordSummon:
   Draw: true
+LostswordShop:
+  ExchangeEnable: true
+  ConsumableFilter:
+    type: textarea
+    value: '稀有灵魂 > 女王宝石箱 > 时间卷轴 > 领主召唤券：巨石阵 > 褪色的宝石箱10个 > 黄金指南针：巨石阵 > 金币券 > 紫色门票 > 初级经验书'
+  RaidFilter:
+    type: textarea
+    value: '灿烂的除夕钟声 > 精灵王的信物10个 > 村庄建筑材料箱 > 词条转换券 > 梅林的特制药水 > 领主召唤券：巨石阵 > 精炼石'
+  GuildFilter:
+    type: textarea
+    value: '10个角色召唤券 > 10个宠物召唤券 > 单人突袭门票 > 灵魂 > 神秘石 > 技能页面10个'
+  ArenaFilter:
+    type: textarea
+    value: '竞技场补给箱 > 稀有灵魂 > 除夕之钟 > 词条转换券 > 稀有级礼物盒 > 技能页面10个'
+  EventFilter:
+    type: textarea
+    value: '!初级经验书10个 > 全部'
+LostswordAvalon:
+  City:
+    type: select
+    value: 埃塞尔城
+    option: [ 埃塞尔城, 爱尔亚城, 埃尔达利亚城, 卡美洛城, 廷塔哲城, 默西亚城 ]
 BrowndustSummon:
   Draw: true
 # 活动。一期的五件事全在这一个任务里，按「剧情 → 活动战斗 → 魔兽追踪者 →
@@ -289,12 +311,19 @@ ChaoszeroRogue:
   # 脚本会把列表拖回最左再一屏一屏往右找（按名字标签认，位置是游戏记住的）。
   RogueWorld:
     value: 霧之城市
-    option: [ 霧之城市, 雙星之影, 審判之沼, 藍壺, 降臨的混沌 ]
+    option: [ 霧之城市, 雙星之影, 審判之沼, 藍壺, 降臨的混沌, 賽季卡厄思 ]
+  RogueSeasonDifficulty:
+    value: 9
+    option: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ]
+  RogueSeasonSavePt:
+    value: 關閉
+    option: [ 關閉, 170pt, 160pt, 150pt, 140pt, 130pt, 120pt ]
   # 梦境模式开关，在「配置隊伍」页右上角。开启后整页变紫、存檔上限 100pt→110pt，
   # 战利品更好 —— 刷档要开。开启/關閉 = 强制拨到那一档；保持不變 = 不碰它。
   RogueDreamMode:
     value: 開啟
     option: [ 開啟, 關閉, 保持不變 ]
+  RogueDistortionAdapt: true
   # 按位置选卡的页面，以及未匹配到指定形态的灵光。1 = 最左。
   RoguePick: 1
   # 普通卡厄思各世界共用，两面分别按「>」从左到右匹配优先级；无匹配或填「-」时随机。
@@ -362,6 +391,11 @@ ChaoszeroRogue:
   RogueCopyCard:
     valuetype: str
     value: 劍之雨
+  RogueSeasonMemoryCard:
+    value: 記憶：壓抑
+    option: [ 記憶：壓抑, 記憶：渴望, 記憶：王國, 記憶：金光, 記憶：怨懟, 記憶：女子, 記憶：貪婪, 記憶：萬花筒, 記憶：喪失 ]
+  RogueSeasonMemoryMember: 1
+  RogueSeasonMemoryFallbackMember: 1
   RogueEquipFilter:
     type: textarea
     value: ''

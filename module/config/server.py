@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior', 'trickcal']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior', 'trickcal', 'resonance']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -41,6 +41,8 @@ VALID_PACKAGE = {
     # 嘟嘟脸恶作剧 (Trickcal). 包名 `com.bilibili.trickcalcn`
     # 由 `adb shell pm list packages` 读出，不是从商店页面猜的。
     'com.bilibili.trickcalcn': 'trickcal',
+    # 雷索纳斯 (Resonance Solstice)
+    'com.hermes.goda.bilibili': 'resonance',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -55,6 +57,7 @@ VALID_SERVER_LIST = {
     'crosscore': ['default'],
     'starsavior': ['default'],
     'trickcal': ['default'],
+    'resonance': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

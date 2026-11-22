@@ -131,6 +131,7 @@ E_109_1 = Button(area={'starsavior': (1086, 601, 1237, 646)}, color={'starsavior
 E_10_1 = Button(area={'starsavior': (974, 147, 1181, 174)}, color={'starsavior': (213, 213, 213)}, button={'starsavior': (966, 139, 1189, 182)}, file={'starsavior': './assets/starsavior/starsavior/E_10_1.png'})
 E_110_1 = Button(area={'starsavior': (973, 135, 1253, 184)}, color={'starsavior': (219, 219, 219)}, button={'starsavior': (965, 127, 1261, 192)}, file={'starsavior': './assets/starsavior/starsavior/E_110_1.png'})
 E_111_1 = Button(area={'starsavior': (1123, 149, 1162, 191)}, color={'starsavior': (168, 173, 178)}, button={'starsavior': (1115, 141, 1170, 199)}, file={'starsavior': './assets/starsavior/starsavior/E_111_1.png'})
+E_111_2 = Button(area={'starsavior': (1123, 149, 1162, 191)}, color={'starsavior': (106, 111, 115)}, button={'starsavior': (1115, 141, 1170, 199)}, file={'starsavior': './assets/starsavior/starsavior/E_111_2.png'})
 E_112_1 = Button(area={'starsavior': (974, 133, 1252, 192)}, color={'starsavior': (223, 223, 223)}, button={'starsavior': (966, 125, 1260, 200)}, file={'starsavior': './assets/starsavior/starsavior/E_112_1.png'})
 E_113_1 = Button(area={'starsavior': (974, 141, 1163, 178)}, color={'starsavior': (221, 221, 221)}, button={'starsavior': (966, 133, 1171, 186)}, file={'starsavior': './assets/starsavior/starsavior/E_113_1.png'})
 E_114_1 = Button(area={'starsavior': (957, 645, 1235, 692)}, color={'starsavior': (77, 138, 202)}, button={'starsavior': (949, 637, 1243, 700)}, file={'starsavior': './assets/starsavior/starsavior/E_114_1.png'})

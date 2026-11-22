@@ -4,7 +4,7 @@ from module.hazeworld.assets import (PASS_CLAIM_ALL, PASS_CLAIM_ALL_DISABLED,
                                     PASS_TAB_DAILY, PASS_TAB_PERIOD,
                                     PASS_TAB_WEEKLY, PASS_VIEW_REWARD,
                                     PASS_VIEW_TASK)
-from module.hazeworld.hazeworld_ui import CLAIM_TIMES, HazeworldUI, page_pass
+from module.hazeworld.hazeworld_ui import HazeworldUI, page_pass
 from module.logger import logger
 
 # The pass page holds two views behind one button at the bottom centre: the
@@ -72,10 +72,8 @@ class HazeworldPass(HazeworldUI):
         """
         logger.hr('Battle pass claim', level=1)
         self.pass_claim()
-        # A pass task is only counted after it is claimed, and experience of a
-        # claimed task is what levels the pass up, so this one follows the same
-        # four openings as the mission page instead of the daily reset.
-        self.config.task_delay(server_update=CLAIM_TIMES)
+        # Only schedule at the daily reset; room runs also pull this task when needed.
+        self.config.task_delay(server_update=True)
 
     def pass_claim(self):
         """

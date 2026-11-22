@@ -42,7 +42,7 @@ from module.notify import load_onepush_conf
 from module.starsavior.assets import (
     E_4_2,    E_100_1, E_101_1, E_102_1, E_103_1, E_104_1,
     E_105_1, E_106_1, E_107_1, E_108_1, E_109_1,
-    E_10_1, E_110_1, E_111_1, E_112_1, E_113_1,
+    E_10_1, E_110_1, E_111_1, E_111_2, E_112_1, E_113_1,
     E_114_1, E_115_1, E_116_1, E_117_1, E_119_1,
     E_11_1, E_120_1, E_121_1, E_122_1, E_123_1,
     E_124_1, E_125_1, E_126_1, E_127_1, E_128_1,
@@ -298,7 +298,7 @@ GUIDE_B = (
     E_92_1, E_93_1, E_94_1, E_95_1, E_96_1, E_97_1,
     E_98_1, E_99_1, E_100_1, E_101_1, E_102_1, E_103_1,
     E_104_1, E_105_1, E_106_1, E_107_1, E_108_1, E_109_1,
-    E_110_1, E_111_1, E_112_1, E_113_1, E_114_1,
+    E_110_1, E_111_1, E_111_2, E_112_1, E_113_1, E_114_1,
 )
 
 # 旅程：倍速 -> 训练 -> 评鉴战（20 个）
@@ -442,6 +442,7 @@ GACHA_TAP_CONFIRM = (540, 678)   # 结果页「确认」（area (507,654,549,677
 RESULT_CONFIRM = (639, 660)
 GACHA_TAP_DRAW = (1142, 672)     # 抽卡界面「观测10次」
 GACHA_TAP_DIALOG = (728, 492)    # 确认框「确认」
+GACHA_TAP_BACK = (120, 46)       # 观测界面左上角首页/返回按钮
 GACHA_RESULT_BOX = (665, 654, 838, 679)   # 结果页底部的「观测10次」
 GACHA_DRAW_BOX = (1052, 660, 1232, 685)   # 抽卡界面右下角的「观测10次」
 GACHA_BLUE_ON = 0.25
@@ -933,12 +934,14 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         if self.at_prep_screen():
             return RESUME_PREP
         if self.at_main_screen():
+            if any(self.appear(button, offset=CHAIN_OFFSET) for button in GUIDE_B):
+                return RESUME_GUIDE
             # 四格在：菜单能开才是真大厅，开不了就是教学解锁段（同 2026-11-14 14:25）。
             return RESUME_HALL if self.resumed_at_hall() else RESUME_TUTORIAL_HALL
         if self.appear(E_211_1, offset=CHAIN_OFFSET):
             return RESUME_STORY
-        if self.appear(E_180_1, offset=CHAIN_OFFSET):
-            # 观测页（抽卡中断最常见的落点）
+        if self._at_gacha_draw(offset=CHAIN_OFFSET) or self.appear(E_183_2, offset=CHAIN_OFFSET):
+            # 观测页 / 观测结果页（抽卡中断最常见的落点）
             return RESUME_INNER
         if self.appear(E_176_2, offset=CHAIN_OFFSET):
             # 大厅四格菜单开着
@@ -1062,6 +1065,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 if self.appear(E_176_2, offset=CHAIN_OFFSET):
                     self.click_button(E_171_1, '落点：关菜单')
                     self.wait_until_disappear(E_176_2, timeout=3, settle=2)
+                elif self.appear(E_183_2, offset=CHAIN_OFFSET):
+                    self.tap_at(GACHA_TAP_CONFIRM[0], GACHA_TAP_CONFIRM[1], '落点：抽卡结果页 → 确认')
+                    self.wait_seconds(2)
+                elif self._at_gacha_draw(offset=CHAIN_OFFSET):
+                    self.tap_at(GACHA_TAP_BACK[0], GACHA_TAP_BACK[1], '落点：观测界面 → 返回')
+                    self.wait_seconds(2)
                 elif self.appear(E_193_1, offset=CHAIN_OFFSET):
                     self.click_button(E_193_1, '落点：返回上一级')
                 else:
@@ -3123,7 +3132,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     continue
                 # 热更新（下载数据 / 编译着色器）期间画面里没有登录也没有游戏内判据，
                 # 不能当成登录失败，按帧续期继续等（2026-11-16 03:19 就是等在这里）
-                if self.in_hot_update():
+                if self.hot_update_watch():
                     deadline = max(deadline, time.time() + 90)
                     continue
                 # 第一下 Touch 可能被读条吃掉（点了没反应、标题页还在）：隔 8 秒补点一次。
@@ -3346,37 +3355,41 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   ❗不把 NICK 并进这一段：这段是 `dialogue=True`，SKIP 失效时会点画面
         #     中央，而「昵称之后不许点中间」（用户 2026-11-06 20:17）。看到昵称框
         #     就立刻收工，交给下面那个 `dialogue=False` 的「昵称」段去输入。
-        self.guide_press(GUIDE_A, '开场引导', start_pending=True,
-                         dialogue=True, frames=True, idle=40,
-                         stop_on=(E_60_2,))
-        if stop_at_nickname:
-            # ❗节点1：**只走到昵称框、不打字**。
-            #   昵称弹窗可能还没出来（教学战本身要 20~40 秒），所以没看见就继续
-            #   往下点，一露头就 `stop_on` 收工 —— 不会点到 E_61_1 的「确认」。
-            #   打字也关掉了（`input_enabled=False`），用户要的就是"空着"的状态。
-            if not self.appear(E_60_2, offset=CHAIN_OFFSET):  # alas-lint: allow - 判据是正面条件（昵称输入框），"看不见"= 弹窗还没出来（教学战/转场），这里只决定要不要再扫一遍；误判的代价是多点一段引导，不会点错
-                # 上面那段 press 是 `dialogue=True`，走不完教学战就会静默收工，
-                # 所以没看到昵称框就再扫一遍（`stop_on` 一露头就停，不会去点「确认」）。
-                self.guide_press(GUIDE_A + NICK + GUIDE_B, '引导（走到昵称前）',
-                                 timeout=420, frames=True, dialogue=True,
-                                 stop_on=(E_60_2,))
-            if self.appear(E_60_2, offset=CHAIN_OFFSET):
-                logger.hr('引导：已停在昵称输入框（节点1，没有输入昵称）', level=2)
-            else:
-                logger.warning('引导：没等到昵称输入框，按节点1 直接停')
-            return False
-        # ❗昵称之后**既不许点画面中央、也不许找高亮框** ——
-        #    用户 2026-11-06 20:17：「昵称之后的引导都不要点中间」。
-        #    那边的引导全是"点这个按钮"，表里都有；而几何找框在普通 UI 上会误判
-        #    （20:20 在抽卡页连点 7 次假框），开了就是乱点。
-        #    视频仍然照跳（那是 SKIP，不是点画面）。
-        # ❗`idle=6`（默认 12）：昵称只有 2 页，打完字确认键一出现就点掉了；
-        #   真机 2026-11-07 17:01 遇到一次截图超时，输入框 3 秒没消失，
-        #   后面又干等满 12 秒才收工（用户：「昵称输入会卡一下」）。
-        #   这里提前收工也不亏：下一段「引导（进旅程之前）」扫的是
-        #   `GUIDE_A + NICK + GUIDE_B` 合表，`E_60_2` / `E_61_1` 都在里面，
-        #   真没点完下一段会接手。
-        self.guide_press(NICK, '昵称', timeout=90, idle=6)
+        self.device.screenshot()
+        on_guide_b = (not stop_at_nickname
+                      and any(self.appear(button, offset=CHAIN_OFFSET) for button in GUIDE_B))
+        if not on_guide_b:
+            self.guide_press(GUIDE_A, '开场引导', start_pending=True,
+                             dialogue=True, frames=True, idle=40,
+                             stop_on=(E_60_2, E_62_1))
+            if stop_at_nickname:
+                # ❗节点1：**只走到昵称框、不打字**。
+                #   昵称弹窗可能还没出来（教学战本身要 20~40 秒），所以没看见就继续
+                #   往下点，一露头就 `stop_on` 收工 —— 不会点到 E_61_1 的「确认」。
+                #   打字也关掉了（`input_enabled=False`），用户要的就是"空着"的状态。
+                if not self.appear(E_60_2, offset=CHAIN_OFFSET):  # alas-lint: allow - 判据是正面条件（昵称输入框），"看不见"= 弹窗还没出来（教学战/转场），这里只决定要不要再扫一遍；误判的代价是多点一段引导，不会点错
+                    # 上面那段 press 是 `dialogue=True`，走不完教学战就会静默收工，
+                    # 所以没看到昵称框就再扫一遍（`stop_on` 一露头就停，不会去点「确认」）。
+                    self.guide_press(GUIDE_A + NICK + GUIDE_B, '引导（走到昵称前）',
+                                     timeout=420, frames=True, dialogue=True,
+                                     stop_on=(E_60_2,))
+                if self.appear(E_60_2, offset=CHAIN_OFFSET):
+                    logger.hr('引导：已停在昵称输入框（节点1，没有输入昵称）', level=2)
+                else:
+                    logger.warning('引导：没等到昵称输入框，按节点1 直接停')
+                return False
+            # ❗昵称之后**既不许点画面中央、也不许找高亮框** ——
+            #    用户 2026-11-06 20:17：「昵称之后的引导都不要点中间」。
+            #    那边的引导全是"点这个按钮"，表里都有；而几何找框在普通 UI 上会误判
+            #    （20:20 在抽卡页连点 7 次假框），开了就是乱点。
+            #    视频仍然照跳（那是 SKIP，不是点画面）。
+            # ❗`idle=6`（默认 12）：昵称只有 2 页，打完字确认键一出现就点掉了；
+            #   真机 2026-11-07 17:01 遇到一次截图超时，输入框 3 秒没消失，
+            #   后面又干等满 12 秒才收工（用户：「昵称输入会卡一下」）。
+            #   这里提前收工也不亏：下一段「引导（进旅程之前）」扫的是
+            #   `GUIDE_A + NICK + GUIDE_B` 合表，`E_60_2` / `E_61_1` 都在里面，
+            #   真没点完下一段会接手。
+            self.guide_press(NICK, '昵称', timeout=90, idle=6, stop_on=(E_62_1,))
         # ❗`frames=True`：教学战里有"怪物的亮圆框"，那是引导要求点的目标，
         #   表里没有对应素材，只能靠几何找框。用户 2026-11-06 22:54 确认「加」。
         #   只开 `frames`、**不开 `dialogue`** —— 仍然是"点框"不"点中央"，
@@ -3897,8 +3910,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   「观测」格子能直接进（2026-11-13 08:58 真机实测）。所以先走
         #   `E_171_1` → `E_210_1` → `E_180_1`，菜单格子认不到再退回侧栏。
         entered = False
-        if self.appear(E_180_1, offset=(20, 20)):
-            # 已经在观测页（手动进来 / 上一轮没退出去）就别再点入口。
+        if self._at_gacha_draw() or self.appear(E_183_2, offset=(20, 20)):
+            # 已经在观测页/结果页（手动进来 / 上一轮没退出去）就别再点入口。
             # 观测页右上角有铃铛，`E_171_1` 在真机上会误匹配，点下去只会
             # 打开通知（2026-11-13 09:48 实测）。
             entered = True
@@ -3930,12 +3943,13 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         #   只会在下面空转到 900 秒（真机 00:36 上游 claim_task 没回主界面就
         #   撞过一次）。上游已经补了返回步骤，这里再挡一道。
         if not (self.appear(E_171_1, offset=(10, 10))
-                or self.appear(E_180_1, offset=(20, 20))
-                or self.appear(E_184_2, offset=(20, 20))
+                or self._at_gacha_draw()
                 or self.appear(E_183_2, offset=(20, 20))):
             logger.warning('抽卡：既不在主界面也不在观测页，退出')
             return False
 
+        pull_in_flight = False
+        pull_started_at = 0.0
         for _ in self.loop(timeout=900):
             # 抽卡动画 / 结果页光效期间几十秒没有可点元素，别让看门狗把
             # 正常等待判成 Game died（硬约束 152，上限交给本循环 timeout）。
@@ -3953,57 +3967,80 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 self.tap_at(GACHA_TAP_DIALOG[0], GACHA_TAP_DIALOG[1], '确认抽卡')
                 self.wait_until_disappear(E_181_1, offset=(20, 20), timeout=5, settle=2)
                 self.device.click_record_clear()
+                pull_in_flight = True
+                pull_started_at = time.time()
+                # 点完确认框后会有短暂过渡帧（`E_180_1` / `E_184_1` / 旧 `E_183_2` 还在、
+                # 但按钮已变暗），等画面切到抽卡动画（`E_69_1`）或离开起手屏再继续判别。
+                for _ in self.loop(timeout=4):
+                    self.device.stuck_record_clear()
+                    if self.appear(E_69_1, offset=(20, 20)):
+                        break
+                    if not (self._at_gacha_draw() or self.appear(E_183_2, offset=(20, 20))):
+                        break
                 continue
 
-            # ---- ② 抽卡结果页（底部有白色「确认」）----
+            # ---- ② 抽卡动画：右上角 SKIP（`E_69_1`）----
+            if self.appear(E_69_1, offset=(20, 20)):
+                self.click_button(E_69_1, '抽卡动画 → 跳过')
+                self.wait_until_disappear(E_69_1, offset=(20, 20), timeout=3, settle=2)
+                pull_in_flight = False
+                continue
+
+            # ---- ③ 抽卡结果页（底部有白色「确认」）----
             if self.appear(E_183_2, offset=(20, 20)):
-                if self.box_is_blue(GACHA_RESULT_BOX):
-                    for _ in range(3):
-                        self.tap_at(GACHA_TAP_RESULT[0], GACHA_TAP_RESULT[1], '再次观测')
-                        if self.wait_until_appear(E_181_1, offset=(20, 20), timeout=2.5):
-                            break
-                        self.wait_until_still(GACHA_FULL_AREA, timeout=2, threshold=3.0)
-                    self.device.click_record_clear()
-                else:
+                pull_in_flight = False
+                if self.box_is_blue(GACHA_RESULT_BOX) or self.appear(E_182_1, offset=(20, 20)):
+                    self._tap_gacha_pull(GACHA_TAP_RESULT, '再次观测')
+                elif self.appear(E_183_1, offset=(20, 20)):
                     logger.info('抽卡：结果页的观测已经灰了，点确认退出')
                     self.tap_at(GACHA_TAP_CONFIRM[0], GACHA_TAP_CONFIRM[1], '结果页 → 确认')
                     self.wait_area_changed(GACHA_FULL_AREA, before, timeout=4)
                 continue
 
-            # ---- ③ 抽卡界面（左上角有返回 `E_184_2`）----
-            if self.appear(E_184_2, offset=(20, 20)):
-                if self.box_is_blue(GACHA_DRAW_BOX):
-                    for _ in range(3):
-                        self.tap_at(GACHA_TAP_DRAW[0], GACHA_TAP_DRAW[1], '观测10次')
-                        if self.wait_until_appear(E_181_1, offset=(20, 20), timeout=2.5):
-                            break
-                        self.wait_until_still(GACHA_FULL_AREA, timeout=2, threshold=3.0)
-                    self.device.click_record_clear()
-                else:
+            # ---- ④ 抽卡界面（底部「观测10次」`E_180_1` 亮 / `E_184_1` 灰）----
+            # 不单独拿 `E_184_2` 当判据：全黑/低方差转场帧会零方差误命中（硬约束 163）。
+            if self._at_gacha_draw():
+                if pull_in_flight and time.time() - pull_started_at < 15:
+                    continue
+                pull_in_flight = False
+                if self.box_is_blue(GACHA_DRAW_BOX) or self.appear(E_180_1, offset=(20, 20)):
+                    self._tap_gacha_pull(GACHA_TAP_DRAW, '观测10次')
+                elif self.appear(E_184_1, offset=(20, 20)):
                     logger.info('抽卡：观测10次已经灰了（没资源），返回主界面')
-                    self.tap_at(120, 46, '观测界面 → 返回')
                     # ❗「返回主界面」这一下**常常正好弹好评弹窗**，整屏盖住主界面：
                     #   `E_171_3` 等不到，紧接着 `open_menu()` 也判「打不开菜单页」，
                     #   验号于是在错误画面上空读（真机 2026-11-07 13:23 实测：
                     #   `wait_until_appear(E_171_3) timeout` → 「一个 SSR 都没读到」）。
                     #   这里一边等主界面一边按掉它，按掉之后主界面就露出来了。
+                    last_back = 0.0
                     for _ in self.loop(timeout=20):
                         self.device.stuck_record_clear()
-                        if self.appear(E_171_3, offset=(10, 10)):
+                        if self.at_main_screen() or self.appear(E_171_3, offset=(10, 10)):
                             break
                         self.close_review()
+                        if (last_back == 0.0 or time.time() - last_back >= 4) \
+                                and self._at_gacha_draw():
+                            self.tap_at(GACHA_TAP_BACK[0], GACHA_TAP_BACK[1], '观测界面 → 返回')
+                            last_back = time.time()
                     logger.info('抽卡：回到主界面，抽卡结束')
                     return True
                 continue
 
-            # ---- ④ 抽卡动画：右上角 SKIP（`E_69_1`）----
-            if self.appear(E_69_1, offset=(20, 20)):
-                self.click_button(E_69_1, '抽卡动画 → 跳过')
-                self.wait_until_disappear(E_69_1, offset=(20, 20), timeout=3, settle=2)
-                continue
-
         logger.warning('抽卡：900 秒还没抽完')
         return False
+
+    def _at_gacha_draw(self, offset=(20, 20)):
+        """Whether the 观测界面 10-pull button (`E_180_1` lit / `E_184_1` grey) is on screen."""
+        return self.appear(E_180_1, offset=offset) or self.appear(E_184_1, offset=offset)
+
+    def _tap_gacha_pull(self, pos, label):
+        """Tap a gacha 10-pull button until the confirm dialog (`E_181_1`) appears."""
+        for _ in range(3):
+            self.tap_at(pos[0], pos[1], label)
+            if self.wait_until_appear(E_181_1, offset=(20, 20), timeout=2.5):
+                break
+            self.wait_until_still(GACHA_FULL_AREA, timeout=2, threshold=3.0)
+        self.device.click_record_clear()
 
     def box_is_blue(self, box):
         """这一块是不是蓝色按钮（能点的状态）。见 `gacha` 里的说明。"""

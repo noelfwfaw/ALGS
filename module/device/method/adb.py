@@ -214,9 +214,28 @@ class Adb(Connection):
         #   r'mFocusedApp=.*ActivityRecord{\w+ \w+ (?P<package>.*)/(?P<activity>.*) .*'
         #   r'mCurrentFocus=Window{\w+ \w+ (?P<package>.*)/(?P<activity>.*)\}')
         _focusedRE = re.compile(
-            r'mCurrentFocus=Window{.*\s+(?P<package>[^\s]+)/(?P<activity>[^\s]+)\}'
+            r'mCurrentFocus=Window\{[^\}]*\s+(?P<package>[^\s/]+)/(?P<activity>[^\s\}]+)'
         )
-        m = _focusedRE.search(self.adb_shell(['dumpsys', 'window', 'windows']))
+        _focusedAppRE = re.compile(
+            r'mFocusedApp=.*ActivityRecord\{[^\}]*\s+(?P<package>[^\s/]+)/(?P<activity>[^\s\}]+)'
+        )
+        _resumedRE = re.compile(
+            r'(?:mResumedActivity|topResumedActivity|ResumedActivity|mFocusedApp)[:=]\s*'
+            r'ActivityRecord\{[^\}]*\s+(?P<package>[^\s/]+)/(?P<activity>[^\s\}]+)'
+        )
+        window_output = self.adb_shell("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'")
+        if not window_output.strip():
+            window_output = (
+                self.adb_shell(['dumpsys', 'window', 'displays'])
+                + '\n'
+                + self.adb_shell(['dumpsys', 'window', 'windows'])
+            )
+        m = _focusedRE.search(window_output) or _focusedAppRE.search(window_output)
+        if m:
+            return m.group('package')
+
+        activities_output = self.adb_shell("dumpsys activity activities | grep -E 'ResumedActivity|mFocusedApp'")
+        m = _resumedRE.search(activities_output)
         if m:
             return m.group('package')
 

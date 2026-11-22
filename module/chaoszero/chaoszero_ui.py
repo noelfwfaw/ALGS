@@ -40,8 +40,9 @@ from module.base.timer import Timer
 from module.chaoszero.assets import (ANNOUNCE_CLOSE, ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
                                      BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
                                      PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, REWARD_HINT,
-                                     ROGUE_DREAM_ON, ROGUE_MODE_ENTRY, ROGUE_TEAM_MODE,
-                                     ROGUE_TEAM_MODE_DARK,
+                                     ROGUE_DREAM_ON, ROGUE_DISTORTION_LABEL, ROGUE_MODE_ENTRY,
+                                     ROGUE_SEASON_HUB, ROGUE_SEASON_REROLL, ROGUE_SEASON_TITLE,
+                                     ROGUE_TEAM_MODE, ROGUE_TEAM_MODE_DARK,
                                      SIM_PAGE, TEAM_TITLE, TRAINING_TABS, TRAINING_TITLE)
 from module.chaoszero.maintenance import Maintenance
 from module.chaoszero.page import page_main
@@ -202,11 +203,12 @@ class ChaoszeroUI(Maintenance, UI):
         return float(np.count_nonzero(delta > threshold)) / delta.size
 
     def rogue_team_appear(self):
-        # 模擬也用「配置隊伍」；卡厄思的深色队伍页有时不显示梦境开关。
+        # 模擬也用「配置隊伍」；卡厄思的深色队伍页有时不显示梦境开关；赛季卡厄思带「扭曲適應」且梦境开关右移。
         return self.appear(TEAM_TITLE, offset=(20, 20), similarity=0.9) and (
             self.appear(ROGUE_TEAM_MODE, offset=(20, 20), similarity=0.9)
             or self.appear(ROGUE_TEAM_MODE_DARK, offset=(20, 20), similarity=0.9)
-            or self.appear(ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9))
+            or self.appear(ROGUE_DREAM_ON, offset=(20, 20), similarity=0.9)
+            or self.appear(ROGUE_DISTORTION_LABEL, offset=(20, 20), similarity=0.88))
 
     def app_start(self):
         """
@@ -222,8 +224,9 @@ class ChaoszeroUI(Maintenance, UI):
             out: page_main, or a recognized entry page for ChaoszeroRogue
         """
         if self.device.app_is_running():
-            logger.info('Game is already running, bring it to the front')
-        self.device.app_start()
+            logger.info('Game is already in the foreground')
+        else:
+            self.device.app_start()
         task = getattr(self.config, 'task', None)
         self.handle_app_boot(allow_rogue_entry=getattr(task, 'command', None) == 'ChaoszeroRogue')
 
@@ -311,13 +314,16 @@ class ChaoszeroUI(Maintenance, UI):
                 logger.info('Already at the 卡厄思 team page')
                 return True
 
-            if self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92):
+            if (self.appear(ROGUE_MODE_ENTRY, offset=(20, 20), similarity=0.92)
+                    or self.appear(ROGUE_SEASON_HUB, offset=(20, 20), similarity=0.88)
+                    or self.appear(ROGUE_SEASON_TITLE, offset=(20, 20), similarity=0.88)
+                    or self.appear(ROGUE_SEASON_REROLL, offset=(20, 20), similarity=0.88)):
                 if allow_rogue_entry:
-                    logger.info('Already at the 卡厄思 mode page')
+                    logger.info('Already at the 卡厄思 entry page')
                     return True
                 if back.reached():
                     back.reset()
-                    logger.info('At the 卡厄思 mode page, tap the back arrow')
+                    logger.info('At the 卡厄思 entry page, tap the back arrow')
                     self.device.click(CHAOSZERO_BACK)
                 continue
 

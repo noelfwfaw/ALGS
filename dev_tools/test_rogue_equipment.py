@@ -727,11 +727,12 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.shop_retry, 0)
 
         x1, y1, x2, y2 = ROGUE_REST_SHOP.area
+        bx1, by1, bx2, by2 = ROGUE_REST_SHOP._button
         asset = np.array(Image.open(ROGUE_REST_SHOP.file).convert('RGB'))
         task.device.image[y1:y2, x1 + 7:x2 + 7] = asset[y1:y2, x1:x2]
         self.assertTrue(task.rogue_visit_rest_shop(press))
         task.device.click.assert_called_once_with(ROGUE_REST_SHOP)
-        self.assertEqual(ROGUE_REST_SHOP.button, (x1 + 7, y1, x2 + 7, y2))
+        self.assertEqual(ROGUE_REST_SHOP.button, (bx1 + 7, by1, bx2 + 7, by2))
         self.assertEqual(task.shop_retry, 1)
 
         task.device.image = frame('store')

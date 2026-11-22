@@ -7,6 +7,7 @@ from module.lostsword.assets import (REWARD_POPUP_TITLE, SHOP_BTN_CLAIM_FREE,
                                      SHOP_GIFT_WEEKLY, SHOP_TAB_DAILY,
                                      SHOP_TAB_GOODS, SHOP_TAB_MONTHLY,
                                      SHOP_TAB_WEEKLY)
+from module.lostsword.exchange import LostswordExchange
 from module.lostsword.lostsword_ui import LostswordUI, page_shop
 
 """
@@ -74,7 +75,7 @@ SHOP_CLAIM_TRIES = 3
 SHOP_CLAIM_WAIT = 3
 
 
-class LostswordShop(LostswordUI):
+class LostswordShop(LostswordUI, LostswordExchange):
     """
     Claim the daily / weekly / monthly free gift of the shop.
 
@@ -103,6 +104,8 @@ class LostswordShop(LostswordUI):
                 # a different list whose first row sits exactly where 每日 sits.
                 # Going on would click the first card of 促销, a paid one.
                 logger.warning('Goods tab is unavailable, nothing claimed')
+                if self.config.LostswordShop_ExchangeEnable:
+                    self.exchange_run()
                 self.ui_goto_main()
                 self.config.task_delay(server_update=True)
                 return
@@ -122,8 +125,10 @@ class LostswordShop(LostswordUI):
             claimed += self.shop_claim_card(card)
 
         logger.info(f'Free gifts claimed: {claimed}')
+        if self.config.LostswordShop_ExchangeEnable:
+            self.exchange_run()
         self.ui_goto_main()
-        # The game day turns over at 00:00 and `Scheduler.ServerUpdate` of this
+        # The game day turns over at 23:00 and `Scheduler.ServerUpdate` of this
         # task is pinned to it (see argument/override.yaml), so one pass a day is
         # enough: the weekly and monthly gift are caught by the same pass on the
         # morning they refresh.

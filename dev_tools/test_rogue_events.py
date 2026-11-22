@@ -17,7 +17,16 @@ set_server('chaoszero')
 
 from module.base.timer import Timer
 from module.chaoszero.rogue import ChaoszeroRogue
-from module.chaoszero.rogue_events import EventLibrary, SHARED_CHOICE_GROUPS, packs_for_world, summarize_seen_events
+from module.chaoszero.rogue_events import (
+    EventLibrary,
+    NO_PRIORITY_TIER,
+    PRIORITY_TIER_NAMES,
+    SHARED_CHOICE_GROUPS,
+    keyword_priority_tier,
+    packs_for_world,
+    reward_priority_tier,
+    summarize_seen_events,
+)
 from module.config.config_generated import GeneratedConfig
 from module.exception import RequestHumanTakeover, TaskFailed
 from module.webui.app import ROGUE_SECTIONS
@@ -182,11 +191,13 @@ class EventSelectionTest(unittest.TestCase):
         self.task.event_library.records = {raw['id']: parse_encounter(raw)}
         self.task.event_picks = {raw['id']: [1]}
         self.feed(['檢查痛游', '承諾會擊殺怪物', '安慰'])
-        with self.assertRaises(TaskFailed):
-            self.step()
-        self.task.tap_point.assert_not_called()
-        self.task.rogue_pick_index.assert_not_called()
-        self.task.rogue_dump_unknown.assert_not_called()
+        self.assertIsNone(self.task.rogue_event_manual_index(
+            ['檢查痛游', '承諾會擊殺怪物', '安慰'], packs_for_world('霧之城市')))
+        self.assertTrue(self.step())
+        self.task.rogue_event_record.assert_called_once()
+        choice = self.task.event_pending_choice
+        self.assertEqual((choice['source'], choice['id'], choice['order'], choice['position'], choice['tier_name']),
+                         ('keyword_fallback', raw['id'], 4, 3, '随机灵闪'))
 
     def test_residue_priority_uses_first_verified_choice_on_each_page(self):
         event_id = 'uk_904_s01_06b'
@@ -195,15 +206,15 @@ class EventSelectionTest(unittest.TestCase):
         flower = defaults + ['取出亡魂之花']
         comfort = defaults + ['安慰']
         cases = [
-            ([1, 4, 2], flower, 1, 3),
-            ([1, 4, 2], comfort, 4, 3),
-            ([1, 2], comfort, 2, 1),
-            ([1], comfort, None, None),
+            ([1, 4, 2], flower, 1, 3, 'configured'),
+            ([1, 4, 2], comfort, 4, 3, 'configured'),
+            ([1, 2], comfort, 2, 1, 'configured'),
+            ([1], comfort, 4, 3, 'keyword_fallback'),
         ]
         with TemporaryDirectory() as directory:
             path = Path(directory) / 'rogue_event_picks.json'
-            for priority, texts, order, position in cases:
-                with self.subTest(priority=priority, order=order):
+            for priority, texts, order, position, source in cases:
+                with self.subTest(priority=priority, order=order, source=source):
                     self.task = make_task()
                     self.task.event_library = library
                     self.task.event_visit[event_id] = 3
@@ -213,17 +224,10 @@ class EventSelectionTest(unittest.TestCase):
                     }}), encoding='utf-8')
                     self.feed(texts)
                     with patch('module.chaoszero.rogue.EVENT_PICKS_FILE', str(path)):
-                        if order is None:
-                            with self.assertRaises(TaskFailed):
-                                self.step()
-                            self.task.tap_point.assert_not_called()
-                            self.task.rogue_dump_unknown.assert_not_called()
-                            self.assertIsNone(self.task.event_pending_choice)
-                        else:
-                            self.assertTrue(self.step())
-                            choice = self.task.event_pending_choice
-                            self.assertEqual((choice['id'], choice['order'], choice['position']),
-                                             (event_id, order, position))
+                        self.assertTrue(self.step())
+                        choice = self.task.event_pending_choice
+                        self.assertEqual((choice['source'], choice['id'], choice['order'], choice['position']),
+                                         (source, event_id, order, position))
                     self.assertEqual(self.task.event_visit[event_id], 3)
 
     def test_same_title_priority_accepts_visible_variant_without_guessing_its_order(self):
@@ -231,14 +235,14 @@ class EventSelectionTest(unittest.TestCase):
         library = EventLibrary()
         first, second = '詢問有關他的事', '表示要寫下結局'
         cases = [
-            ([first, second], [second, first], first, 2),
-            ([first, second], [second], second, 1),
-            ([first], [second], None, None),
-            ([first], [first, first], None, None),
+            ([first, second], [second, first], first, 2, 'configured'),
+            ([first, second], [second], second, 1, 'configured'),
+            ([first], [second], second, 1, 'keyword_fallback'),
+            ([first], [first, first], None, None, None),
         ]
         with TemporaryDirectory() as directory:
             path = Path(directory) / 'rogue_event_picks.json'
-            for priority, texts, title, position in cases:
+            for priority, texts, title, position, source in cases:
                 with self.subTest(priority=priority, texts=texts):
                     self.task = make_task()
                     self.task.config.ChaoszeroRogue_RogueWorld = '虛像劇場'
@@ -257,8 +261,13 @@ class EventSelectionTest(unittest.TestCase):
                         else:
                             self.assertTrue(self.step())
                             choice = self.task.event_pending_choice
-                            self.assertEqual((choice['id'], choice['order'], choice['target'], choice['position']),
-                                             (event_id, None, title, position))
+                            self.assertEqual(choice['source'], source)
+                            if source == 'configured':
+                                self.assertEqual((choice['id'], choice['order'], choice['target'], choice['position']),
+                                                 (event_id, None, title, position))
+                            else:
+                                self.assertEqual((choice['id'], choice['target'], choice['position'], choice['tier_name']),
+                                                 (event_id, title, position, '降低压力'))
 
     def test_cave_continuation_breaks_ties_from_the_confirmed_branch(self):
         root = 'uk_904_s01_09a'
@@ -318,8 +327,9 @@ class EventSelectionTest(unittest.TestCase):
                             self.feed(titles)
                             position = self.task.rogue_event_index(self.task.rogue_option_points())
                             if expected is None:
-                                self.assertIsNone(position)
-                                self.assertIsNone(self.task.event_choice)
+                                self.assertIsNone(self.task.rogue_event_manual_index(titles, packs_for_world('藍壺')))
+                                self.assertEqual(position, 2)
+                                self.assertEqual(self.task.event_library.fallback_pick(titles, packs_for_world('藍壺'))['tier_name'], '卡牌删除')
                             else:
                                 self.assertEqual(position, (2, 3, 1)[expected - 1])
                                 self.assertEqual(self.task.event_choice['id'], next(iter(followups), main))
@@ -448,7 +458,20 @@ class EventSelectionTest(unittest.TestCase):
         child = 'uk_300_s02_15b-1'
         self.task.event_picks = {child: {'priority': ['打開左邊的箱子']}}
         self.feed(['查看食尿鬼飼養場', '忽路'])
-        with self.assertRaisesRegex(RequestHumanTakeover, '藍壺「食屍鬼飼養場」\\(uk_300_s02_15b\\)'):
+        self.assertTrue(self.step())
+        self.task.rogue_event_record.assert_called_once()
+        self.task.rogue_dump_unknown.assert_not_called()
+        choice = self.task.event_pending_choice
+        self.assertEqual((choice['source'], choice['id'], choice['position'], choice['tier_name']),
+                         ('keyword_fallback', 'uk_300_s02_15b', 1, '获得装备'))
+
+        # Known event without user rule and without any tier 1..13 reward still requests human takeover.
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueWorld = '第0研究所'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {}
+        self.feed(['偷聽對話', '離開次元'])
+        with self.assertRaisesRegex(RequestHumanTakeover, '第0研究所「舉杯慶祝的紀錄」\\(uk_e01_s01_08a\\)'):
             self.step()
         self.task.tap_point.assert_not_called()
         self.task.rogue_dump_unknown.assert_not_called()
@@ -478,6 +501,16 @@ class EventSelectionTest(unittest.TestCase):
         self.task.event_library = EventLibrary()
         self.task.event_picks = {}
         self.feed(['查看食尿鬼飼養場', '忽路'])
+        self.assertTrue(self.step())
+        self.task.rogue_dump_unknown.assert_called_once()
+        self.assertEqual(self.task.event_pending_choice['source'], 'keyword_fallback')
+
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueWorld = '第0研究所'
+        self.task.config.ChaoszeroRogue_RogueEventCapture = True
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {}
+        self.feed(['偷聽對話', '離開次元'])
         with self.assertRaises(RequestHumanTakeover):
             self.step()
         self.task.rogue_dump_unknown.assert_called_once()
@@ -705,7 +738,7 @@ class EventSelectionTest(unittest.TestCase):
         self.confirm()
         self.task.rogue_event_record_seen.assert_called_with('uk_302_s02_05a', '糧倉倉庫')
 
-        # Missing one candidate or disagreeing on which card to pick still stops.
+        # Missing one candidate or disagreeing on which card to pick yields None manually, then uses keyword fallback.
         for picks in (
             {'uk_302_s02_05a': [3]},
             {'uk_302_s02_05a': [3], 'uk_302_s02_05a-1': [1]},
@@ -715,10 +748,13 @@ class EventSelectionTest(unittest.TestCase):
                 self.task.config.ChaoszeroRogue_RogueWorld = '雙星之影'
                 self.task.event_library = EventLibrary()
                 self.task.event_picks = picks
+                self.assertIsNone(self.task.rogue_event_manual_index(
+                    texts, packs_for_world('雙星之影')))
                 self.feed(texts)
-                with self.assertRaises(TaskFailed):
-                    self.step()
-                self.task.tap_point.assert_not_called()
+                self.assertTrue(self.step())
+                choice = self.task.event_pending_choice
+                self.assertEqual((choice['source'], choice['position'], choice['target'], choice['tier_name']),
+                                 ('keyword_fallback', 3, '調查屍體', '获得装备'))
 
         # Ambiguous sibling variants propagate followups from all agreeing candidates (08a/08b/08c).
         self.task = make_task()
@@ -734,6 +770,28 @@ class EventSelectionTest(unittest.TestCase):
             self.task.event_followups,
             {'uk_302_s02_08a-1', 'uk_302_s02_08b-1', 'uk_302_s02_08c-1'},
         )
+
+        # Unselected child branch (uk_900_s02_06c -> 2 skips 06c-1) must not block root uk_900_s02_01c.
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueWorld = '降臨的混沌'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {'uk_900_s02_01c': [1], 'uk_900_s02_06c': [2]}
+        self.feed(['威應聖物', '取得聖物'])
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_pending_choice['id'], 'uk_900_s02_01c')
+        self.assertEqual(self.task.event_pending_choice['position'], 1)
+        self.confirm()
+        self.task.rogue_event_record_seen.assert_called_with('uk_900_s02_01c', '歌唱聖物')
+
+        # Complementary single-condition DEFAULT option ('贖罪' on 16a) filters out 16a on 2-card 16b page.
+        self.task = make_task()
+        self.task.config.ChaoszeroRogue_RogueWorld = '降臨的混沌'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {'uk_900_s02_16b': [1]}
+        self.feed(['懺悔罪刑', '接受罪行'])
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_pending_choice['id'], 'uk_900_s02_16b')
+        self.assertEqual(self.task.event_pending_choice['position'], 1)
 
     def test_glowing_gold_frame_dice_event_is_detected(self):
         import cv2
@@ -824,6 +882,107 @@ class EventSelectionTest(unittest.TestCase):
         summary = {item['world']: item for item in summarize_seen_events({'uk_000_s01_05'})}
         self.assertEqual(summary['其他']['seen'], 1)
         self.assertEqual(summary['其他']['total'], 13)
+
+    def test_priority_tier_order_and_classifiers(self):
+        expected_names = [
+            (1, '指定复制'),
+            (2, '随机复制'),
+            (3, '指定神闪'),
+            (4, '随机神闪'),
+            (5, '指定灵闪'),
+            (6, '随机灵闪'),
+            (7, '卡牌删除'),
+            (8, '获得装备'),
+            (9, '提高HP上限'),
+            (10, '获得信用点'),
+            (11, '降低压力'),
+            (12, '恢复HP'),
+            (13, '卡牌转换'),
+        ]
+        self.assertEqual(list(PRIORITY_TIER_NAMES.items()), expected_names)
+
+        reward_cases = [
+            ({'type': 'CARD_COPY_HAVE_SELECT'}, 1),
+            ({'type': 'CARD_COPY_SELECT_3_1'}, 2),
+            ({'type': 'ADD_R_SPARK_GOD_SELECT'}, 3),
+            ({'type': 'ADD_R_SPARK_GOD_RANDOM'}, 4),
+            ({'type': 'R_SPARK_SELECT'}, 5),
+            ({'type': 'R_SPARK_RANDOM'}, 6),
+            ({'type': 'CARD_REMOVE_HAVE_SELECT'}, 7),
+            ({'type': 'EQUIPMENT_PRE_RANDOM'}, 8),
+            ({'type': 'MAX_HP_PCT', 'amount': [10, 10]}, 9),
+            ({'type': 'CREDIT_VALUE', 'amount': [80, 120]}, 10),
+            ({'type': 'STRESS_VALUE', 'amount': [-5, -5]}, 11),
+            ({'type': 'HP_PCT', 'amount': [30, 30]}, 12),
+            ({'type': 'CARD_TRANSFORM_HAVE_SELECT'}, 13),
+            ({'type': 'MAX_HP_PCT', 'amount': [-10, -10]}, NO_PRIORITY_TIER),
+            ({'type': 'CREDIT_VALUE', 'amount': [-30, -30]}, NO_PRIORITY_TIER),
+            ({'type': 'STRESS_VALUE', 'amount': [5, 5]}, NO_PRIORITY_TIER),
+            ({'type': 'HP_PCT', 'amount': [-10, -10]}, NO_PRIORITY_TIER),
+        ]
+        for reward, expected in reward_cases:
+            with self.subTest(reward=reward):
+                self.assertEqual(reward_priority_tier(reward), expected)
+
+        keyword_cases = [
+            ('選擇1張卡牌進行複製', 1),
+            ('隨機複製1張卡牌', 2),
+            ('賦予所選1張卡牌[戴奧斯]靈光一閃', 3),
+            ('賦予隨機1張卡牌[戴奧斯]靈光一閃', 4),
+            ('選擇張卡牌觸發靈光一閃', 5),
+            ('隨機戰鬥員靈光一閃次', 6),
+            ('選擇1張卡牌移除', 7),
+            ('所有戰鬥員壓力增加獲得裝\n備複蝕核心', 8),
+            ('最大HP 10% 增加', 9),
+            ('信用點數 100 增加', 10),
+            ('壓力減少 5', 11),
+            ('恢復 30% HP', 12),
+            ('選擇1張卡牌轉換', 13),
+            ('最大HP 10% 減少', NO_PRIORITY_TIER),
+            ('信用點數減少', NO_PRIORITY_TIER),
+            ('所有戰鬥員壓力增加', NO_PRIORITY_TIER),
+            ('移除 1 個隨機裝備', NO_PRIORITY_TIER),
+        ]
+        for text, expected in keyword_cases:
+            with self.subTest(text=text):
+                self.assertEqual(keyword_priority_tier(text), expected)
+
+    def test_user_reported_ocr_miss_uk_900_s02_05b_uses_keyword_fallback(self):
+        self.task.config.ChaoszeroRogue_RogueWorld = '降臨的混沌'
+        self.task.event_library = EventLibrary()
+        self.task.event_picks = {'uk_900_s02_05b': [4]}
+        titles = ['口才察覺情緒', '挑戰', '全都逃走了']
+        bodies = [
+            '擲股\n茂功時無法預測結果',
+            '淮入情怒的魔像自動機戰鬥\n選擇張卡牌觸發靈光一閃\n信用點數增加',
+            '事件結束',
+        ]
+        side_effects = titles + [line for body in bodies for line in body.split('\n') + [''] * (3 - len(body.split('\n')))]
+        self.feed(titles)
+        self.task.card_reader.read_name = Mock(side_effect=side_effects)
+        self.assertIsNone(self.task.rogue_event_manual_index(titles, packs_for_world('降臨的混沌')))
+        self.assertTrue(self.step())
+        self.task.rogue_event_record.assert_called_once()
+        choice = self.task.event_pending_choice
+        self.assertEqual((choice['source'], choice['id'], choice['order'], choice['position'], choice['tier'], choice['tier_name']),
+                         ('keyword_fallback', 'uk_900_s02_05b', 4, 2, 5, '指定灵闪'))
+
+    def test_body_ocr_keyword_fallback_picks_highest_priority_on_unknown_titles(self):
+        self.task.event_library = EventLibrary.__new__(EventLibrary)
+        self.task.event_library.records = {}
+        titles = ['未知選項甲', '未知選項乙', '未知選項丙']
+        body_calls = [
+            '獲得隨機裝備', '', '',
+            '賦予所選張卡牌戴奧斯靈光一閃', '', '',
+            '壓力減少', '', '',
+        ]
+        self.feed(titles)
+        self.task.card_reader.read_name = Mock(side_effect=titles + body_calls)
+        self.assertTrue(self.step())
+        self.task.rogue_event_record.assert_called_once()
+        choice = self.task.event_pending_choice
+        self.assertEqual((choice['source'], choice['position'], choice['tier'], choice['tier_name']),
+                         ('keyword_fallback', 2, 3, '指定神闪'))
 
 
 if __name__ == '__main__':

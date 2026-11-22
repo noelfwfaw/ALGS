@@ -65,6 +65,9 @@ class RogueCopyTest(unittest.TestCase):
         task.image_crop.side_effect = [np.array([0, 255]), np.array([0, 255]), np.zeros(2)]
         self.assertEqual(task.rogue_member_index(3), 1)
 
+        # Copy page: strict configured slot, never overridden by the contrast heuristic
+        task.image_crop.side_effect = [np.array([0, 255]), np.array([0, 255]), np.zeros(2)]
+        self.assertEqual(task.rogue_member_index(3, dim_check=False), 3)
 
 if __name__ == '__main__':
     unittest.main()

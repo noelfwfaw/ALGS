@@ -19,8 +19,8 @@ class GeneratedConfig:
 
     # Group `Emulator`
     Emulator_Serial = 'auto'
-    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl, com.neowizgames.game.browndust2, com.smilegate.chaoszero.stove.google, com.megagame.crosscore, com.studiobside.starMain, com.bilibili.trickcalcn
-    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0, browndust-0, chaoszero-0, crosscore-0, starsavior-0, trickcal-0
+    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl, com.neowizgames.game.browndust2, com.smilegate.chaoszero.stove.google, com.megagame.crosscore, com.studiobside.starMain, com.bilibili.trickcalcn, com.hermes.goda.bilibili
+    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0, browndust-0, chaoszero-0, crosscore-0, starsavior-0, trickcal-0, resonance-0
     Emulator_ScreenshotMethod = 'auto'  # auto, ADB, ADB_nc, uiautomator2, aScreenCap, aScreenCap_nc, DroidCast, DroidCast_raw, nemu_ipc, ldopengl
     Emulator_ControlMethod = 'MaaTouch'  # ADB, uiautomator2, minitouch, Hermit, MaaTouch
     Emulator_ScreenshotDedithering = False
@@ -121,6 +121,17 @@ class GeneratedConfig:
     # Group `LostswordSummon`
     LostswordSummon_Draw = True
 
+    # Group `LostswordShop`
+    LostswordShop_ExchangeEnable = True
+    LostswordShop_ConsumableFilter = '稀有灵魂 > 女王宝石箱 > 时间卷轴 > 领主召唤券：巨石阵 > 褪色的宝石箱10个 > 黄金指南针：巨石阵 > 金币券 > 紫色门票 > 初级经验书'
+    LostswordShop_RaidFilter = '灿烂的除夕钟声 > 精灵王的信物10个 > 村庄建筑材料箱 > 词条转换券 > 梅林的特制药水 > 领主召唤券：巨石阵 > 精炼石'
+    LostswordShop_GuildFilter = '10个角色召唤券 > 10个宠物召唤券 > 单人突袭门票 > 灵魂 > 神秘石 > 技能页面10个'
+    LostswordShop_ArenaFilter = '竞技场补给箱 > 稀有灵魂 > 除夕之钟 > 词条转换券 > 稀有级礼物盒 > 技能页面10个'
+    LostswordShop_EventFilter = '!初级经验书10个 > 全部'
+
+    # Group `LostswordAvalon`
+    LostswordAvalon_City = '埃塞尔城'  # 埃塞尔城, 爱尔亚城, 埃尔达利亚城, 卡美洛城, 廷塔哲城, 默西亚城
+
     # Group `BrowndustSummon`
     BrowndustSummon_Draw = True
 
@@ -153,8 +164,11 @@ class GeneratedConfig:
     ChaoszeroSimulation_TrainingTimes = 0
 
     # Group `ChaoszeroRogue`
-    ChaoszeroRogue_RogueWorld = '霧之城市'  # 霧之城市, 雙星之影, 審判之沼, 藍壺, 降臨的混沌
+    ChaoszeroRogue_RogueWorld = '霧之城市'  # 霧之城市, 雙星之影, 審判之沼, 藍壺, 降臨的混沌, 賽季卡厄思
+    ChaoszeroRogue_RogueSeasonDifficulty = 9  # 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+    ChaoszeroRogue_RogueSeasonSavePt = '關閉'  # 關閉, 170pt, 160pt, 150pt, 140pt, 130pt, 120pt
     ChaoszeroRogue_RogueDreamMode = '開啟'  # 開啟, 關閉, 保持不變
+    ChaoszeroRogue_RogueDistortionAdapt = True
     ChaoszeroRogue_RoguePick = 1
     ChaoszeroRogue_RogueFateMainFilter = '回想 > 靈感 > 虐待 > 友情 > 感應'
     ChaoszeroRogue_RogueFateCoreFilter = '開朗 > 共情 > 擁有 > 嫉妒'
@@ -176,6 +190,9 @@ class GeneratedConfig:
     ChaoszeroRogue_RogueSparkCheckCard = ''
     ChaoszeroRogue_RogueCopyMember = 0
     ChaoszeroRogue_RogueCopyCard = '劍之雨'
+    ChaoszeroRogue_RogueSeasonMemoryCard = '記憶：壓抑'  # 記憶：壓抑, 記憶：渴望, 記憶：王國, 記憶：金光, 記憶：怨懟, 記憶：女子, 記憶：貪婪, 記憶：萬花筒, 記憶：喪失
+    ChaoszeroRogue_RogueSeasonMemoryMember = 1
+    ChaoszeroRogue_RogueSeasonMemoryFallbackMember = 1
     ChaoszeroRogue_RogueEquipFilter = None
     ChaoszeroRogue_RogueEventPick = True
     ChaoszeroRogue_RogueEventCapture = False

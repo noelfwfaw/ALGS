@@ -152,6 +152,9 @@ LEVEL_FIGHT = Button(area=(970, 630, 1040, 670), color=(0, 0, 0),  # alas-lint: 
                      button=(1010, 650, 1010, 650), name='LEVEL_FIGHT')
 
 # 次数面板。位置都在面板自己的固定位置上。
+AUTO_MAX = Button(area=(755, 280, 860, 315), color=(0, 0, 0),  # alas-lint: allow - a plain text segment in the amount bar, EVENT_AUTO_TITLE proved the dialog is up
+                  button=(806, 296, 806, 296), name='AUTO_MAX')
+AUTO_SLIDER_MIN_THUMB = (455, 335, 485, 362)
 AUTO_SLIDER_X = (466, 806)
 AUTO_SLIDER_Y = 348
 AUTO_START = Button(area=(600, 560, 810, 610), color=(0, 0, 0),  # alas-lint: allow - the label carries the count 「战斗 N」, which is read with OCR right before the tap
@@ -325,9 +328,8 @@ class EventBattle:
         pages = self.battle_pages()
         if not pages:
             return
-        # 只开一个模式的时候把今天的次数全给它；两个都开就各按 `Times` 分，
-        # 否则先打的那个会把 AP 吃光，后一个一场都打不了。
-        budget = int(self.config.BrowndustEvent_Times) if len(pages) > 1 else 5
+        # 开荒直接拉满当天的 5 次共享 AP；普通全通关后若开了 Both 会自动把剩余 AP 留给挑战。
+        budget = 5
         defeat_index = None
         for index, (tab, name) in enumerate(pages):
             logger.hr(name, level=2)
@@ -538,30 +540,36 @@ class EventBattle:
 
     def battle_set_times(self, times, ap_left):
         """
-        把滑块拖到想要的次数，读回「战斗 N」确认。
+        点面板上的 `MAX` 把连打次数直接拉满，再读回「战斗 N」确认。
 
-        面板里只有 `MIN / -10 / +10 / MAX` 和一根滑块，没有数字输入，所以次数
-        只能拖出来再读回来。
+        直接点 `MAX`（(806, 296)）能一次连打完当天全部可用免费 AP，
+        不用拖滑块（滑块在模拟器上常被吞或只拖到 1~2 次），也不用每场打完退回列表重进。
 
         Args:
             times (int): 想设几场。
-            ap_left (int): 当前可用次数，滑块最右端就是它。
+            ap_left (int): 当前可用次数。
 
         Returns:
             int: 实际设成几场（读不回来时按面板默认的 1 算）。
         """
-        if times <= 1 or ap_left <= 1:
-            # 面板打开时就是 1 场，不碰滑块。
+        if ap_left <= 1:
             return self.battle_read_times()
 
-        left, right = AUTO_SLIDER_X
-        x = left + (right - left) * (times - 1) / (ap_left - 1)
-        logger.attr('Event AP', f'{ap_left} left, want {times}')
-        self.device.swipe((left, AUTO_SLIDER_Y), (x, AUTO_SLIDER_Y), duration=0.4)
-        got = self.battle_read_times()
-        if got != times:
-            logger.warning(f'Slider gave {got} instead of {times}, take what it gave')
-        return got
+        logger.attr('Event AP', f'{ap_left} left, press MAX')
+        self.wait_until_still(AUTO_MAX.area, timeout=2)
+        for attempt in range(2):
+            self.device.click(AUTO_MAX)  # alas-lint: allow - EVENT_AUTO_TITLE was matched in battle_auto(), slider movement and AUTO_START_LABEL below verify it
+            moved = False
+            for _ in self.loop(timeout=2):
+                if self.image_crop(AUTO_SLIDER_MIN_THUMB, copy=False).mean() < 110:
+                    moved = True
+                    break
+            if moved:
+                break
+            if attempt == 0:
+                logger.info('[Event battle] slider thumb still at MIN after MAX tap, retry once')
+        self.wait_until_still(AUTO_START_LABEL, timeout=2)
+        return self.battle_read_times()
 
     def battle_read_times(self):
         """

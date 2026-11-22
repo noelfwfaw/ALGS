@@ -11,6 +11,11 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      ARENA_CARD,
                                      ARENA_SEASON_FOOTER,
                                      ARENA_TITLE,
+                                     AVALON_BTN_CLOSE,
+                                     AVALON_BTN_ENTER,
+                                     AVALON_CARD,
+                                     AVALON_RANK_REWARD,
+                                     AVALON_TITLE,
                                      BOSS_BTN_CLOSE,
                                      BOSS_BTN_TEAM,
                                      BOSS_CARD,
@@ -152,6 +157,12 @@ page_copy_stage = Page([COPY_BTN_SELECT, COPY_BTN_SWEEP])
 # three adventure areas on the left and the score table on the right. The
 # 「冒险区域」 heading is unique; the plate-style check points are not.
 page_star = Page(STAR_TITLE)
+# 阿瓦隆 (公会战): city map, city status (<城市> 现状), and wall sortie (<城市>城墙).
+# `page_avalon_sortie` shares the `队伍编排` button with `page_boss`, so it must be
+# checked before `page_boss` in `LostswordUI.pages`.
+page_avalon_sortie = Page(AVALON_BTN_ENTER)
+page_avalon_status = Page(AVALON_RANK_REWARD)
+page_avalon = Page(AVALON_TITLE)
 # The squad dungeon detail page (小队副本). Built like the boss raid page - same
 # 「队伍编排」 button, same left column - so it is matched by its boss name instead,
 # and it has to come before `page_boss` because that page's check point matches
@@ -257,6 +268,10 @@ page_battle.link(button=BOSS_CARD, destination=page_boss)
 page_battle.link(button=DUNGEON_CARD, destination=page_dungeon)
 page_battle.link(button=STAR_CARD, destination=page_star)
 page_star.link(button=ARENA_BTN_CLOSE, destination=page_battle)
+page_battle.link(button=AVALON_CARD, destination=page_avalon)
+page_avalon.link(button=AVALON_BTN_CLOSE, destination=page_battle)
+page_avalon_status.link(button=ARENA_BTN_CLOSE, destination=page_avalon)
+page_avalon_sortie.link(button=ARENA_BTN_CLOSE, destination=page_avalon_status)
 page_copy_stage.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_dungeon.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_dungeon_dialog.link(button=DUNGEON_DIALOG_CLOSE, destination=page_dungeon)
@@ -318,6 +333,8 @@ REWARD_POPUP_CLOSE = Button(area=(975, 615, 1025, 655), color=(0, 0, 0),  # alas
 # (mean 193~208), an idle one on the dark panel (mean 60~71).
 BATTLE_TAB_NORMAL = Button(area=(130, 71, 272, 107), color=(0, 0, 0),  # alas-lint: allow - a click point alias used by the page graph
                            button=(130, 71, 272, 107), name='BATTLE_TAB_NORMAL')
+BATTLE_TAB_GUILD = Button(area=(840, 78, 990, 115), color=(0, 0, 0),  # alas-lint: allow - a click point alias used by the page graph
+                          button=(840, 78, 990, 115), name='BATTLE_TAB_GUILD')
 BATTLE_TAB_SELECTED_MEAN = 130
 
 # The boss raid puts its 「扫荡」 button under the spot above, so dismissing the

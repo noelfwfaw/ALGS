@@ -32,7 +32,8 @@ Two things are not what they look like:
 
 from module.exception import TaskFailed
 from module.logger import logger
-from module.trickcal.assets import PASS_CLAIM, PASS_CLAIM_DARK
+from module.trickcal.assets import (PASS_CLAIM, PASS_CLAIM_DARK, PASS_ENTRY,
+                                    PASS_ENTRY_NEW)
 from module.trickcal.page import page_main, page_pass
 from module.trickcal.trickcal_ui import TrickcalUI
 
@@ -83,12 +84,45 @@ class TrickcalPass(TrickcalUI):
             (bool, str): Whether the claim settled, and why it did not.
         """
         logger.hr('Adventure pass', level=2)
-        self.ui_ensure(page_pass)
+        if not self.pass_open():
+            self.ui_goto_main()
+            return False, '大厅未识别到「冒险通行证」入口，未进入通行证页面'
         ok = self.pass_claim_once()
         self.ui_goto_main()
         if ok:
             return True, ''
         return False, '「一键领取」既没点亮、也没变暗，见日志'
+
+    def pass_open(self):
+        """
+        Open the 冒险通行证 page from the lobby by matching its label slot.
+
+        When a costume pass temporarily occupies the original slot, the adventure
+        pass icon shifts right to `PASS_ENTRY_NEW`. Checking both slots lets the
+        task work now and automatically fall back once the costume pass ends.
+
+        Pages:
+            in: page_main
+            out: page_pass
+
+        Returns:
+            bool: True if `page_pass` was reached.
+        """
+        for _ in self.loop(timeout=PASS_TIMEOUT):
+            if self.ui_page_appear(page_pass):
+                logger.info('Page arrive: page_pass')
+                return True
+            if self.ui_additional():
+                continue
+            for entry in (PASS_ENTRY_NEW, PASS_ENTRY):
+                if self.appear(entry, offset=PASS_OFFSET, interval=PASS_INTERVAL):
+                    logger.info(f'Open pass via {entry.name}')
+                    self.device.click(entry)  # alas-lint: allow - 上一条 appear() 就是这一帧的判据
+        if self.ui_page_appear(page_pass):
+            logger.info('Page arrive: page_pass')
+            return True
+        logger.warning('Failed to open 冒险通行证')
+        return False
 
     def pass_claim_once(self):
         """

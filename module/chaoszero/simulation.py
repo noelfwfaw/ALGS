@@ -157,25 +157,21 @@ class ChaoszeroSimulation(ChaoszeroUI):
         """
         Whether the 戰鬥訓練 stage list is on screen.
 
-        Two anchors on purpose: the page title 「戰鬥訓練」 is the obvious one, but
-        the same list was seen with 「模擬」 written in the title bar (2026-10-30),
-        while the six-tab column never changed. Either hit counts.
+        The 4-card hub page (`SIM_PAGE`) also shows `< 戰鬥訓練` in its top-left
+        title bar, so `SIM_PAGE` must be absent for this to count as the
+        6-tab stage list.
 
         Returns:
             bool: If the stage list is there.
         """
-        return self.appear(TRAINING_TITLE, offset=(20, 20)) \
-            or self.appear(TRAINING_TABS, offset=(20, 20))
+        if self.appear(SIM_PAGE, offset=(20, 20)):
+            return False
+        return self.appear(TRAINING_TABS, offset=(20, 20)) \
+            or self.appear(TRAINING_TITLE, offset=(20, 20))
 
     def sim_open(self, timeout=60):
         """
         Walk from the lobby to the 戰鬥訓練 stage list.
-
-        The three screens in between have no stable check point of their own
-        (the 模擬 page is four full-screen cards whose art changes with the
-        season), so this is a state loop with two questions: "am I on the stage
-        list" and "am I on the 模擬 page". Anything else is the lobby, where the
-        menu entry is pressed again on a timer.
 
         Pages:
             in: page_main
@@ -190,34 +186,49 @@ class ChaoszeroSimulation(ChaoszeroUI):
         timeout = Timer(timeout, count=3).start()
         tap = Timer(3)
         attempts = 0
+        card_tapped = False
 
         for _ in self.loop(timeout=timeout):
-            # End
-            if self.sim_training_appear():
-                return True
-
+            # 模擬 hub now also shares the `< 戰鬥訓練` header, so check `SIM_PAGE`
+            # first before declaring arrival at the stage list.
             if self.appear(SIM_PAGE, offset=(20, 20)):
                 # 模擬页：点第一张卡。卡片要滑入，点太早会被吃掉，靠 `tap` 重试。
                 if tap.reached():
                     tap.reset()
+                    card_tapped = True
                     logger.info('模擬 page, open 戰鬥訓練')
                     self.tap_point(*SIM_CARD_TRAINING)
                 continue
 
-            # 还没进模擬：点主界面右侧的入口。
+            # End
+            if self.appear(TRAINING_TABS, offset=(20, 20)) \
+                    or (card_tapped and self.sim_training_appear()):
+                return True
+
+            # Only tap the lobby entry while positively on `page_main`, so a
+            # delayed frame during the page transition can never click card 4 (全力戰).
+            if self.ui_page_appear(page_main):
+                if tap.reached():
+                    tap.reset()
+                    attempts += 1
+                    # 主界面被半透明弹窗盖着时照样"认得出"（模板匹配对压暗不敏感），
+                    # 于是点哪都不动 —— 教程/帮助那种白底弹窗只有返回键肯关。
+                    # 三次点不动就按一次返回，别在这儿把同一个点按满 12 次。
+                    if attempts % 3 == 0:
+                        logger.info('Three taps without an answer, press back in case a dialog is up')
+                        self.device.adb_shell(['input', 'keyevent', '4'])
+                        continue
+                    self.device.click_record_clear()
+                    logger.info('Lobby, open 模擬')
+                    self.tap_point(*SIM_ENTRY)
+                continue
+
             if tap.reached():
                 tap.reset()
                 attempts += 1
-                # 主界面被半透明弹窗盖着时照样"认得出"（模板匹配对压暗不敏感），
-                # 于是点哪都不动 —— 教程/帮助那种白底弹窗只有返回键肯关。
-                # 三次点不动就按一次返回，别在这儿把同一个点按满 12 次。
-                if attempts % 3 == 0:
-                    logger.info('Three taps without an answer, press back in case a dialog is up')
+                if attempts % 2 == 0:
+                    logger.info('Not at lobby or 模擬 page, press back')
                     self.device.adb_shell(['input', 'keyevent', '4'])
-                    continue
-                self.device.click_record_clear()
-                logger.info('Lobby, open 模擬')
-                self.tap_point(*SIM_ENTRY)
         else:
             logger.warning('The stage list did not open')
             return False
