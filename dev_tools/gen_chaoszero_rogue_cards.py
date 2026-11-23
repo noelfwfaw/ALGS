@@ -51,6 +51,11 @@ def plain(text):
     return text.replace('<br>', ' / ').replace('\n', ' ').strip()
 
 
+def talent_ids(card):
+    """Extract non-empty talent IDs from a wiki card record."""
+    return [t['id'] for t in (card.get('talent') or []) if isinstance(t, dict) and t.get('id')]
+
+
 def main():
     body = fetch()
     cards = body['data'] if isinstance(body, dict) else body
@@ -78,12 +83,18 @@ def main():
                 'id': form.get('id'),
                 'name': plain(form.get('name')),
                 'desc': plain(form.get('desc_display')),
+                'cost': form.get('cost'),
+                'category': form.get('card_category') or '',
+                'talent': talent_ids(form),
             })
         record = {
             'id': cid,
             'name': plain(card.get('name')),
+            'base_desc': plain(card.get('desc_display')),
+            'job': base.get('job') or '',
             'cost': card.get('cost'),
-            'category': card.get('card_category'),
+            'category': card.get('card_category') or '',
+            'talent': talent_ids(card),
             'sort': card.get('sort'),
             'rarity': card.get('rarity'),
             'spine': card.get('spine_model'),

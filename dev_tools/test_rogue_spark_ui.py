@@ -177,7 +177,7 @@ class RogueSparkWebUITest(unittest.TestCase):
             self.assertEqual(remove_by_title['增幅治療']['value'], '2')
             self.assertEqual(remove_by_title['增幅治療']['options'], ['0', '1', '2'])
             self.assertEqual(remove_by_title['掃弦']['options'], ['0', '1'])
-            self.assertEqual(mock_watch.call_count, 23)
+            self.assertEqual(mock_watch.call_count, 31)
             for call in mock_watch.call_args_list:
                 self.assertTrue(call[1].get('clear'))
 
@@ -199,6 +199,95 @@ class RogueSparkWebUITest(unittest.TestCase):
         self.assertEqual(q1['value'], saved_spark)
         self.assertEqual(q2['name'], 'ChaoszeroRogue.ChaoszeroRogue.RogueDeleteFilter')
         self.assertEqual(q2['value'], saved_delete)
+
+    def test_god_spark_catalog_and_ordered_filter_helpers(self):
+        _, by_char = rogue_cards.spark_catalog()
+        rain = next(c for c in by_char['30093'] if c['name'] == '劍之雨')
+        opts = rogue_cards.god_spark_options(rain)
+        self.assertEqual(len(opts), 28)
+        self.assertGreater(opts.index('此卡牌費用減少1'), opts.index('獲得AP1'))
+        self.assertGreater(opts.index('常態弱點攻擊'), opts.index('此卡牌費用減少1'))
+        self.assertGreater(opts.index('賦予此卡牌開戰'), opts.index('抽取1'))
+        self.assertNotIn('費用變更為0', opts)
+        self.assertNotIn('賦予目標脆弱3', opts)
+
+        rsp1_entries = rogue_cards.god_spark_option_entries(rain, '1')
+        self.assertEqual(len(rsp1_entries), 21)
+        self.assertEqual(sum(not e['is_sortie'] for e in rsp1_entries), 9)
+        self.assertEqual(sum(e['is_sortie'] for e in rsp1_entries), 12)
+        self.assertEqual(
+            [e['is_sortie'] for e in rsp1_entries],
+            sorted(e['is_sortie'] for e in rsp1_entries),
+        )
+        ap_entry = next(e for e in rsp1_entries if e['desc'] == '獲得AP1')
+        self.assertEqual(ap_entry, {'desc': '獲得AP1', 'is_sortie': False, 'god_name': ''})
+        kai_entry = next(e for e in rsp1_entries if e['desc'] == '賦予此卡牌開戰')
+        self.assertEqual(kai_entry, {'desc': '賦予此卡牌開戰', 'is_sortie': True, 'god_name': '維托'})
+        self.assertIn('常態弱點攻擊', rogue_cards.god_spark_options(rain, '1'))
+        self.assertNotIn('常態弱點攻擊', rogue_cards.god_spark_options(rain, '3'))
+
+        launch = next(c for c in by_char['1033'] if c['name'] == '準備發射')
+        self.assertNotIn('常態弱點攻擊', rogue_cards.god_spark_options(launch))
+
+        parsed = rogue_cards.parse_god_spark_filter(
+            '劍之雨 = 獲得AP1 > 此卡牌費用減少1 > 獲得AP1\n喘氣 = 抽取1, 獲得AP1'
+        )
+        self.assertEqual(parsed, {'劍之雨': ['獲得AP1', '此卡牌費用減少1'], '喘氣': ['抽取1', '獲得AP1']})
+        updated = rogue_cards.update_god_spark_filter('', '劍之雨', ['獲得AP1', '此卡牌費用減少1'])
+        self.assertEqual(updated, '劍之雨 = 獲得AP1 > 此卡牌費用減少1')
+        self.assertEqual(rogue_cards.update_god_spark_filter(updated, '劍之雨', []), '')
+
+    def test_god_spark_webui_multiselect_reorder_and_clear(self):
+        gui = self._make_gui()
+        fake_pin = FakePin({'ChaoszeroRogue_ChaoszeroRogue_RogueSlot1Member': '1003'})
+        btn_groups = []
+        selects = []
+
+        def fake_buttons(buttons=None, **_kwargs):
+            btn_groups.append(buttons)
+
+        def fake_select(kw):
+            selects.append(kw)
+            return MagicMock()
+
+        with patch.object(webui_app, 'pin', fake_pin), \
+                patch.object(webui_app.lang, 'LANG', 'zh-CN'), \
+                patch.object(webui_app, 't', side_effect=lambda k, *_, **__: k), \
+                patch.object(webui_app, 'use_scope'), \
+                patch.object(webui_app, 'put_text'), \
+                patch.object(webui_app, 'put_arg_select', side_effect=fake_select), \
+                patch.object(webui_app, 'put_buttons', side_effect=fake_buttons), \
+                patch.object(webui_app, 'pin_on_change'):
+            gui._on_rogue_god_spark_add('G和弦', '獲得AP1')
+            g_god_select = next(
+                kw for kw in reversed(selects)
+                if kw.get('title') == 'G和弦 · Gui.Rogue.GodSparkTitle'
+            )
+            self.assertIn('賦予此卡牌開戰', g_god_select['options'])
+            kai_idx = g_god_select['options'].index('賦予此卡牌開戰')
+            self.assertEqual(g_god_select['options_label'][kai_idx], '賦予此卡牌開戰 (維托 · 出擊)')
+
+            gui._on_rogue_god_spark_add('G和弦', '此卡牌費用減少1')
+            self.assertEqual(
+                gui._rogue_hidden_values['RogueGodSparkFilter'],
+                'G和弦 = 獲得AP1 > 此卡牌費用減少1',
+            )
+            values = [b['value'] for b in btn_groups[-1]]
+            self.assertEqual(values, ['del:0', 'up:1', 'del:1', 'clear'])
+
+            gui._on_rogue_god_spark_action('G和弦', 'up:1')
+            self.assertEqual(
+                gui._rogue_hidden_values['RogueGodSparkFilter'],
+                'G和弦 = 此卡牌費用減少1 > 獲得AP1',
+            )
+            gui._on_rogue_god_spark_action('G和弦', 'del:0')
+            self.assertEqual(gui._rogue_hidden_values['RogueGodSparkFilter'], 'G和弦 = 獲得AP1')
+            gui._on_rogue_god_spark_action('G和弦', 'clear')
+            self.assertEqual(gui._rogue_hidden_values['RogueGodSparkFilter'], '')
+            last_msg = None
+            while not gui.modified_config_queue.empty():
+                last_msg = gui.modified_config_queue.get_nowait()
+            self.assertEqual(last_msg, {'name': 'ChaoszeroRogue.ChaoszeroRogue.RogueGodSparkFilter', 'value': ''})
 
     def test_spark_check_picker_saves_one_card_and_refreshes_valid_targets(self):
         gui = self._make_gui()
@@ -278,6 +367,43 @@ class RogueSparkWebUITest(unittest.TestCase):
         self.assertIn('Gui.Rogue.Slot2', slot_headers[0])
         self.assertTrue(any(name.startswith('rogue_remove_card_') for name in rendered_names))
         self.assertFalse(any(name.startswith('rogue_spark_card_') for name in rendered_names))
+
+    def test_neutral_spark_option_and_alias(self):
+        gui = self._make_gui()
+        gui._rogue_hidden_values['RogueSparkFilter'] = 'G和弦 = 中立'
+        fake_pin = FakePin({'ChaoszeroRogue_ChaoszeroRogue_RogueSlot1Member': '1003'})
+        rendered = []
+
+        def fake_select(kw):
+            rendered.append(kw)
+            return MagicMock()
+
+        with patch.object(webui_app, 'pin', fake_pin), \
+                patch.object(webui_app.lang, 'LANG', 'zh-CN'), \
+                patch.object(webui_app, 't', side_effect=lambda k, *_, **__: k), \
+                patch.object(webui_app, 'use_scope'), \
+                patch.object(webui_app, 'put_text'), \
+                patch.object(webui_app, 'put_arg_select', side_effect=fake_select), \
+                patch.object(webui_app, 'pin_on_change'):
+            gui._render_rogue_spark_picker()
+            spark_by_title = {
+                item['title']: item
+                for item in rendered if item['name'].startswith('rogue_spark_card_')
+            }
+            self.assertIn('6', spark_by_title['G和弦']['options'])
+            self.assertIn('⑥ Gui.Rogue.SparkFormNeutral', spark_by_title['G和弦']['options_label'])
+            self.assertEqual(spark_by_title['G和弦']['value'], '6')
+            target_picker = next(item for item in rendered if item['name'] == 'rogue_spark_check_card')
+            self.assertIn('G和弦', target_picker['options'])
+
+            rendered.clear()
+            gui._on_rogue_spark_card_change('慢板', '6')
+            self.assertIn('慢板 = 6', gui._rogue_hidden_values['RogueSparkFilter'])
+            spark_by_title = {
+                item['title']: item
+                for item in rendered if item['name'].startswith('rogue_spark_card_')
+            }
+            self.assertEqual(spark_by_title['慢板']['value'], '6')
 
 
 if __name__ == '__main__':

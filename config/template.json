@@ -793,6 +793,8 @@
       "RogueDelete": 3,
       "RogueDeleteFilter": "",
       "RogueSparkFilter": null,
+      "RogueGodSparkFilter": "",
+      "RogueGodSparkFirst": false,
       "RogueSparkCheck": false,
       "RogueSparkCheckCard": "",
       "RogueCopyMember": 0,

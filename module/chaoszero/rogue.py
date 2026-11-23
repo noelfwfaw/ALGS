@@ -48,6 +48,7 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                      ROGUE_CHECKPOINT,
                                      ROGUE_BATTLE_COMPLETE,
                                      ROGUE_CARD_REWARD,
+                                     ROGUE_CARD_REWARD_NEUTRAL,
                                      ROGUE_ACQUIRE,
                                      ROGUE_FLASH_DETAIL,
                                      ROGUE_COPY_TITLE2,
@@ -63,11 +64,12 @@ from module.chaoszero.assets import (DIALOG_ENTER,
                                     ROGUE_DECK, ROGUE_DETAIL,
                                      ROGUE_DICE, ROGUE_DICE_FAIL, ROGUE_DICE_TAP, ROGUE_DREAM_NOTICE,
                                      ROGUE_DREAM_OFF, ROGUE_DREAM_OK,
-                                     ROGUE_DREAM_ON, ROGUE_DISTORTION_LABEL, ROGUE_ENGRAVE_TITLE, ROGUE_EQUIP,
+                                     ROGUE_DREAM_ON, ROGUE_DISTORTION_LABEL, ROGUE_DEFEAT_TIP, ROGUE_ENGRAVE_TITLE, ROGUE_EQUIP,
                                      ROGUE_EXPLORE_RESULT, ROGUE_FATE,
                                      ROGUE_FLASH, ROGUE_GET_BUFF_POPUP, ROGUE_GET_CARD_POPUP,
                                      ROGUE_GOD, ROGUE_HERALD, ROGUE_INFO_MENU,
                                      ROGUE_ITEM,
+                                     ROGUE_MEMORY_EVOLVE,
                                      ROGUE_MAP_BTN, ROGUE_MEDITATE, ROGUE_MEDITATE_OFF,
                                      ROGUE_MEMBER, ROGUE_MEMORY_CHOOSE, ROGUE_MEMORY_END, ROGUE_MENU,
                                      ROGUE_MODE_ENTRY, ROGUE_MODAL,
@@ -92,7 +94,7 @@ from module.config.utils import filepath_config
 from module.exception import RequestHumanTakeover, TaskFailed
 from module.log_retention import prune_diagnostics
 from module.logger import logger
-from module.ocr.ocr import Ocr
+from module.chaoszero.rogue_ocr import ChaoszeroOcr
 
 # ==================== 判据区（1280x720 实机量） ====================
 
@@ -537,13 +539,13 @@ MEMORY_REROLL_WHITE_MIN = 15
 SEASON_MEMORY_RULES = (
     ('記憶：壓抑', ('壓', '压', '抑'), ('打擊次數', '觸發2次時')),
     ('記憶：渴望', ('渴', '望'), ('韌性',)),
-    ('記憶：王國', ('王', '國', '国'), ('原始費用',)),
+    ('記憶：王國', ('王', '國', '国'), ('原始費用', '費用為3以上')),
     ('記憶：金光', ('金', '光'), ('總和', '8以上')),
     ('記憶：怨懟', ('怨', '懟', '怼'), ('丟棄', '3張')),
     ('記憶：女子', ('女', '子'), ('快速攻擊',)),
     ('記憶：貪婪', ('貪', '贪', '婪', '焚'), ('全體攻擊',)),
     ('記憶：萬花筒', ('萬', '万', '花', '筒'), ('持續傷害',)),
-    ('記憶：喪失', ('喪', '丧', '失'), ('技能卡牌', '疊加', '正義')),
+    ('記憶：喪失', ('喪', '丧', '失'), ('技能卡牌', '正義')),
 )
 SCULPT_CARD_POINT = (472, 610)
 SCULPT_CONFIRM_POINT = (472, 688)
@@ -1003,7 +1005,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         return (self.appear(ROGUE_PURE_WHITE_MEMORY, offset=(20, 20), similarity=0.85)
                 or self.appear(ROGUE_GET_CARD_POPUP, offset=(20, 20), similarity=0.85)
                 or self.appear(ROGUE_GET_BUFF_POPUP, offset=(20, 20), similarity=0.85)
-                or self.appear(ROGUE_SCULPT_SUCCESS, offset=(20, 20), similarity=0.85))
+                or self.appear(ROGUE_SCULPT_SUCCESS, offset=(20, 20), similarity=0.85)
+                or self.appear(ROGUE_MEMORY_EVOLVE, offset=(20, 20), similarity=0.85))
 
     def rogue_memory_end_appear(self):
         """Whether the Season Chaos Floor-2 end screen (`▷ 為記憶的盡頭`) is up."""
@@ -1112,9 +1115,10 @@ class ChaoszeroRogue(ChaoszeroUI):
         for name, t_keys, _ in SEASON_MEMORY_RULES:
             if any(key in title for key in t_keys):
                 return name
+        b0 = self.card_reader.read_name(image, (x1 + 20, 388, x2 - 20, 420), scale=2, raw=True) or ''
         b1 = self.card_reader.read_name(image, (x1 + 20, 415, x2 - 20, 448), scale=2, raw=True) or ''
         b2 = self.card_reader.read_name(image, (x1 + 20, 445, x2 - 20, 478), scale=2, raw=True) or ''
-        body = b1 + b2
+        body = b0 + b1 + b2
         for name, _, b_keys in SEASON_MEMORY_RULES:
             if any(key in body for key in b_keys):
                 return name
@@ -1648,6 +1652,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.settlement_title_wait = None
             return 'save'
         if (self.appear(ROGUE_EXPLORE_RESULT, offset=(18, 12), similarity=0.90)
+                or self.appear(ROGUE_DEFEAT_TIP, offset=(18, 12), similarity=0.85)
                 or (self.appear(ROGUE_REWARD_LEVEL, offset=(18, 12), similarity=0.90)
                     and self.appear(RESULT_CONFIRM, offset=(18, 12), similarity=0.90))):
             self.settlement_title_wait = None
@@ -1760,8 +1765,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         ocr = getattr(self, 'god_ocr', None)
         if ocr is None:
-            ocr = Ocr(GOD_TEXT_AREA, lang='cnocr', letter=(255, 255, 255),
-                      threshold=GOD_TEXT_THRESHOLD, name='GOD_TEXT')
+            ocr = ChaoszeroOcr(GOD_TEXT_AREA, lang='cnocr', letter=(255, 255, 255),
+                               threshold=GOD_TEXT_THRESHOLD, name='GOD_TEXT')
             ocr.SHOW_LOG = False
             self.god_ocr = ocr
         return ocr.ocr(self.device.image)
@@ -1819,6 +1824,19 @@ class ChaoszeroRogue(ChaoszeroUI):
                 table[name.strip()] = keywords
         return table
 
+    def rogue_god_spark_filter(self):
+        """Parse `RogueGodSparkFilter`: `{card_name: [preferred_god_spark, ...]}`."""
+        cfg = getattr(self, 'config', None)
+        if cfg is None:
+            return {}
+        try:
+            node = cfg.data.get('ChaoszeroRogue', {}) or {}
+            node = node.get('ChaoszeroRogue') or node
+            text = str(node.get('RogueGodSparkFilter') or '')
+        except Exception:
+            text = str(getattr(cfg, 'ChaoszeroRogue_RogueGodSparkFilter', '') or '')
+        return rogue_cards.parse_god_spark_filter(text)
+
     def rogue_event_index(self, points):
         """
         Match the current event to a configured option; never choose by position.
@@ -1866,6 +1884,20 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.event_unknown = False
             return manual
 
+        ranked = self.event_library.candidates(texts, packs) if self.event_library.records else []
+        if self._is_season_floor3_event(points, texts, ranked):
+            self.event_unknown = False
+            self.event_missing_pick = None
+            target_text = texts[1] if len(texts) > 1 else ''
+            self.event_last_enc = None
+            self.event_choice = {
+                'source': 'season_floor3',
+                'position': 2,
+                'target': target_text,
+            }
+            logger.info('Season Chaos Floor-3 event -> fixed pick card 2 `%s`' % target_text)
+            return 2
+
         bodies = self.rogue_event_body_texts(points)
         fallback = self.event_library.fallback_pick(texts, packs, body_texts=bodies)
         if fallback is not None:
@@ -1901,6 +1933,39 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.event_unknown = True
         logger.warning('Event has candidates but no matching configured option; stop for review')
         return None
+
+    def _is_season_floor3_event(self, points, texts, ranked):
+        """
+        Detect Floor-3 (記憶的盡頭) two-option healing events in Season Chaos.
+
+        Third-floor dialogue/healing descriptions change every run and are absent
+        from the static encounter DB, while the second card restores HP/stress.
+        Identify Floor 3 either from persisted state (`floor3_started`) or from
+        a cold-takeover two-card unknown page whose second border glows purple.
+        """
+        if getattr(self.config, 'ChaoszeroRogue_RogueWorld', '') not in SEASON_WORLDS:
+            return False
+        if len(points) < 2 or ranked:
+            return False
+        if getattr(self, 'floor3_started', False):
+            return True
+        if len(points) != 2 or not hasattr(self, 'device') or self.device.image is None:
+            return False
+        image = self.device.image
+        x1, y1, x2, y2 = OPTION_BAND
+        cx, cy = points[1]
+        el, er = max(x1, cx - 140), min(x2, cx + 140)
+        row_y1 = max(y1, cy + GLOW_BORDER_SHIFT - 1)
+        row_y2 = min(y2, cy + GLOW_BORDER_SHIFT + 4)
+        if row_y1 >= row_y2 or el >= er:
+            return False
+        edge_rgb = image[row_y1:row_y2, el:er].astype(int)
+        mask = edge_rgb.max(axis=2) > GLOW_BORDER_LIGHT
+        if not mask.any():
+            return False
+        warmth = float((edge_rgb[mask, 0] - edge_rgb[mask, 2]).mean())
+        purple = float((edge_rgb[mask, 2] - edge_rgb[mask, 1]).mean())
+        return warmth < GLOW_BORDER_WARMTH and purple >= 25
 
     def rogue_event_body_texts(self, points):
         """Read normalized multi-line body/effect descriptions for each option card."""
@@ -2349,7 +2414,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         except Exception as error:
             logger.warning('Failed to log the event page: %s' % error)
 
-    def rogue_flash_column(self, scale=1.0):
+    def rogue_flash_column(self, scale=1.0, god=False):
         """
         Pick the flash form column that best fits the card.
 
@@ -2359,6 +2424,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                 1.0 → 50.0% / 1.4 → 55.6% / **1.8 → 61.1%** / 2.2 → 55.6%。
                 普通灵光放大没收益（1.0 与 1.8 都是 83.3%，2.2 掉到 75%），
                 所以只有神闪分支传 1.8。
+            god (bool): 为 True 时额外匹配神闪词条作为同形态（或未配置卡）的
+                优先选择依据。
 
         面板三列永远是同一张卡的不同形态，描述是白字多行，所以要切行 OCR
         （框架的 Ocr 只喂单行模型），再用 `rogue_cards` 里的形态库当词典：
@@ -2408,39 +2475,129 @@ class ChaoszeroRogue(ChaoszeroUI):
         #   ② 出现了但没认出来（OCR/匹配失败）
         #   ③ 认出来了却没选它（选择逻辑的问题）
         logger.info('Flash card %s (score %.2f, margin %.2f)', card, score, margin)
-        forms, _raw = self.card_library.forms(card)
+        forms, _raw_forms = self.card_library.forms(card)
+        raw_texts = getattr(self.card_reader, 'last_raw', None)
+        used_analyze = (
+            isinstance(self.card_library, rogue_cards.CardLibrary)
+            and isinstance(raw_texts, list)
+            and len(raw_texts) == len(texts)
+        )
+        col_info = {}
+        god_scores = None
+        if used_analyze:
+            if getattr(self, 'god_spark_library', None) is None:
+                self.god_spark_library = rogue_cards.GodSparkLibrary()
+            god_type = None
+            if god:
+                try:
+                    banner = self.rogue_god_text()
+                except Exception:
+                    banner = None
+                if isinstance(banner, str):
+                    god_type = rogue_cards.parse_god_type(banner)
+                    if god_type:
+                        logger.info('  god banner: %s -> %s' % (banner.strip(), god_type))
+            columns, col_info = self.card_library.analyze_columns(
+                texts, raw_texts, card, self.god_spark_library, god=god, god_type=god_type,
+            )
+            if god:
+                god_table = self.rogue_god_spark_filter()
+                preferred = god_table.get(card)
+                if preferred is None:
+                    card_norm = rogue_cards.normalize(card)
+                    preferred = next(
+                        (v for k, v in god_table.items() if rogue_cards.normalize(k) == card_norm),
+                        None,
+                    )
+                if preferred:
+                    logger.info('  want god spark: %s' % ' > '.join(preferred))
+                scores = [
+                    self.god_spark_library.preference_score(
+                        col_info.get(col, {}).get('god_desc'), preferred,
+                    )
+                    for col in range(len(texts))
+                ]
+                if any(scores):
+                    god_scores = scores
+        else:
+            columns = self.card_library.read_columns(texts, card)
+
         try:
-            for column, ratio, index in self.card_library.read_columns(texts, card):
-                logger.info('  col%s -> rsp%s (%.2f) %s'
-                            % (column + 1, index + 1, ratio,
-                               (forms[index] if index < len(forms) else '')[:34]))
+            for column, ratio, index in columns:
+                if index == rogue_cards.NEUTRAL_FORM_INDEX:
+                    logger.info('  col%s -> neutral (%.2f) %s'
+                                % (column + 1, ratio, col_info.get(column, {}).get('neutral_desc') or ''))
+                else:
+                    logger.info('  col%s -> rsp%s (%.2f) %s'
+                                % (column + 1, index + 1, ratio,
+                                   (forms[index] if index < len(forms) else '')[:34]))
+            for column in sorted(col_info):
+                info = col_info[column]
+                if info.get('neutral_desc'):
+                    logger.info('  col%s neutral spark: %s (%.2f)'
+                                % (column + 1, info['neutral_desc'], info.get('neutral_ratio', 0.0)))
+                if info.get('god_desc'):
+                    score_val = god_scores[column] if god_scores and column < len(god_scores) else info.get('god_prio', 0)
+                    logger.info('  col%s god spark: %s (%.2f, prio %s)'
+                                % (column + 1, info['god_desc'], info.get('god_ratio', 0.0), score_val))
             for column, text in enumerate(texts, 1):
                 logger.info('  col%s OCR: %s' % (column, (text or '')[:38]))
         except Exception as error:
             logger.warning('Failed to dump the flash columns: %s' % error)
 
+        god_first = bool(god and getattr(getattr(self, 'config', None), 'ChaoszeroRogue_RogueGodSparkFirst', False))
+        pick_kwargs = {}
+        if god_scores is not None:
+            pick_kwargs['god_scores'] = god_scores
+        if used_analyze:
+            pick_kwargs['columns'] = columns
+        if god_first:
+            pick_kwargs['god_first'] = True
+        matched_form = False
         if card in table:
-            # ❗配置支持两种写法：
+            # ❗配置支持三种写法：
             #   卡名 = 2            按**编号**指定（游戏卡详情里 ①②③④⑤，对应 rsp1~rsp5）
+            #   卡名 = 6 / 中立     按第 6 种灵闪（中立闪 = 原卡 + 随机中立词条）指定
             #   卡名 = 額外打擊      按**关键词**指定（老写法，向后兼容）
             # 编号优先。指定的形态**没闪出来**时 `pick_column` 返回 None，
             # 走下面的回退（随机/`RoguePick`）—— 这是用户要的「没闪到才随机」。
             rules = table[card]
             form_index = None
-            if rules and rules[0].strip().isdigit():
-                form_index = int(rules[0].strip()) - 1
-                if not 0 <= form_index <= 4:
-                    form_index = None
-                if form_index is not None:
-                    logger.info('  want: rsp%s (from RogueSparkFilter)', form_index + 1)
+            token = rules[0].strip() if rules else ''
+            if token.lower() in rogue_cards.NEUTRAL_FORM_ALIASES:
+                form_index = rogue_cards.NEUTRAL_FORM_INDEX
+            elif token.isdigit():
+                idx = int(token) - 1
+                if 0 <= idx <= 5:
+                    form_index = idx
+            if form_index == rogue_cards.NEUTRAL_FORM_INDEX:
+                logger.info('  want: neutral (from RogueSparkFilter)')
+            elif form_index is not None:
+                logger.info('  want: rsp%s (from RogueSparkFilter)', form_index + 1)
             picked = self.card_library.pick_column(
-                texts, None if form_index is not None else rules, card, form_index)
+                texts, None if form_index is not None else rules, card, form_index, **pick_kwargs)
             if picked:
-                if card in self.meditate_pending:
+                matched_form = True
+                if god_first:
+                    picked_idx = picked[2]
+                    if form_index is not None:
+                        matched_form = (picked_idx == form_index)
+                    else:
+                        base_norm = (
+                            (self.card_library.card_meta(card) or {}).get('base_norm', '')
+                            if hasattr(self.card_library, 'card_meta') else ''
+                        )
+                        form_text = (
+                            base_norm
+                            if picked_idx == rogue_cards.NEUTRAL_FORM_INDEX
+                            else (forms[picked_idx] if picked_idx < len(forms) else '')
+                        )
+                        matched_form = any(word and word in form_text for word in rules)
+                if matched_form and card in self.meditate_pending:
                     self.meditate_pending.remove(card)
                     logger.info('Meditation target satisfied: %s; pending: %s'
                                 % (card, self.meditate_pending))
-            elif len(self.card_library.read_columns(texts, card)) == len(texts):
+            elif len(columns) == len(texts):
                 # 认得清三列，但没有一列是想要的效果 -> 这张卡已经闪歪了，
                 # 只在属于人物灵光优先位选定角色时才加入冥想重掷队列。
                 if self._rogue_meditate_allows(card):
@@ -2455,19 +2612,20 @@ class ChaoszeroRogue(ChaoszeroUI):
                 logger.info('Flash card %s: wanted form is NOT among the three, '
                             'fall back to RoguePick (will reroll it at the next 冥想)' % card)
         else:
-            picked = self.card_library.pick_column(texts, name=card)
+            picked = self.card_library.pick_column(texts, name=card, **pick_kwargs)
         if not picked:
             logger.info('No flash form matches %s, keep RoguePick' % card)
             return None
         column, ratio, index, raw = picked
-        if card in table and table[card] == getattr(self, 'spark_targets', {}).get(card):
+        if matched_form and card in table and table[card] == getattr(self, 'spark_targets', {}).get(card):
             self.spark_selected = card
-        logger.info('Flash card %s, take column %s (library form %s, %.2f) %s'
-                    % (card, column + 1, index + 1, ratio, raw[:24]))
+        form_label = 'neutral' if index == rogue_cards.NEUTRAL_FORM_INDEX else 'library form %s' % (index + 1)
+        logger.info('Flash card %s, take column %s (%s, %.2f) %s'
+                    % (card, column + 1, form_label, ratio, raw[:24]))
         return column + 1
 
     def rogue_choose_flash(self, god=False):
-        column = self.rogue_flash_column(scale=1.8 if god else 1.0)
+        column = self.rogue_flash_column(scale=1.8 if god else 1.0, god=god)
         if self.spark_pending:
             if self.spark_visible_card and self.spark_visible_card != self.spark_pending:
                 self.rogue_spark_confirm()
@@ -2601,10 +2759,11 @@ class ChaoszeroRogue(ChaoszeroUI):
         glow = self.rogue_option_points_glow(image)
         return glow if len(glow) > len(points) else points
 
-    def _scan_option_points_glow(self, image, light):
+    def _scan_option_points_glow(self, image, light, max_channel=False):
         """Scan `OPTION_BAND` row runs at brightness threshold `light`."""
         x1, y1, x2, y2 = OPTION_BAND
-        band = image[y1:y2, x1:x2].min(axis=2) > light
+        channel = image[y1:y2, x1:x2].max(axis=2) if max_channel else image[y1:y2, x1:x2].min(axis=2)
+        band = channel > light
         mask = band[OPTION_BORDER_TOP - y1:]
         found = []  # [centre, first row, rows seen]
         for dy, row in enumerate(mask):
@@ -2643,18 +2802,22 @@ class ChaoszeroRogue(ChaoszeroUI):
             if not edge_mask.any():
                 continue
             warmth = float((edge_rgb[edge_mask, 0] - edge_rgb[edge_mask, 2]).mean())
-            if warmth < GLOW_BORDER_WARMTH:
+            purple = float((edge_rgb[edge_mask, 2] - edge_rgb[edge_mask, 1]).mean())
+            # Keep white/gold frames (warmth >= -5) and purple violet frames (B - G >= 25),
+            # while still rejecting cold cyan battle arcs (B ≈ G, R < B).
+            if warmth < GLOW_BORDER_WARMTH and not (max_channel and purple >= 25):
                 continue
             points.append((centre, y - GLOW_BORDER_SHIFT))
         return sorted(points)
 
     def rogue_option_points_glow(self, image):
         """
-        Locate option cards drawn with a glowing gold frame or bright-sand-merged border.
+        Locate option cards drawn with a glowing gold/purple frame or bright-sand-merged border.
 
         Try `GLOW_BORDER_LIGHT` (180) first so bright sand (~150-175) between two
         adjacent cards does not bridge their borders into a phantom middle run, then
-        fall back to `OPTION_LIGHT` (140) for dimmer frames.
+        fall back to `OPTION_LIGHT` (140) for dimmer frames and max-channel `180`
+        for purple glowing cards whose G channel sits below `OPTION_LIGHT`.
 
         Args:
             image (np.ndarray): RGB screenshot.
@@ -2662,8 +2825,10 @@ class ChaoszeroRogue(ChaoszeroUI):
         Returns:
             list[tuple]: (x, y) like `rogue_option_points()`, y at the usual border row.
         """
-        return (self._scan_option_points_glow(image, GLOW_BORDER_LIGHT)
+        best = (self._scan_option_points_glow(image, GLOW_BORDER_LIGHT)
                 or self._scan_option_points_glow(image, OPTION_LIGHT))
+        max_glow = self._scan_option_points_glow(image, GLOW_BORDER_LIGHT, max_channel=True)
+        return max_glow if len(max_glow) > len(best) else best
 
     def rogue_option_check_point(self, x):
         """
@@ -3157,15 +3322,17 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 2026-11-22 23:18 实测）。第一遍就读对或完全读不对的不会多读。
                 area = (left + 10, top + 6, left + width - 10, top + 34)
                 text = self.card_reader.read_name(self.device.image, area, scale=2)
-                if text:
-                    for name in names:
-                        score = rogue_cards.name_score(text, name)
-                        if 0.3 <= score < MEDITATE_MATCH:
-                            retry = self.card_reader.read_name(
-                                self.device.image,
-                                (left + 40, top + 8, left + width - 8, top + 32), scale=2)
-                            if retry and rogue_cards.name_score(retry, name) > score:
-                                text, score = retry, rogue_cards.name_score(retry, name)
+                for name in names:
+                    score = rogue_cards.name_score(text, name) if text else 0.0
+                    if score < MEDITATE_MATCH:
+                        retry = self.card_reader.read_name(
+                            self.device.image,
+                            (left + 40, top + 8, left + width - 8, top + 32), scale=2)
+                        if retry:
+                            retry_score = rogue_cards.name_score(retry, name)
+                            if retry_score > score or not text:
+                                text, score = retry, retry_score
+                    if text:
                         scored.append((score, name, x, y, text))
             scored.sort(reverse=True)
             if scored:
@@ -3184,6 +3351,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.device.swipe((1220, 550), (1220, 180), duration=0.5,
                               name='ROGUE_MEDITATE_SCROLL')
             if not self.wait_until_still((350, 80, 1250, 630), timeout=3,
+                                         threshold=REMOVE_STILL_THRESHOLD,
                                          skip_first_screenshot=False):
                 break
             if not self.rogue_meditate_appear():
@@ -3473,17 +3641,63 @@ class ChaoszeroRogue(ChaoszeroUI):
                            'Frame saved under ./log/rogue_pages/' % name)
         return True
 
+    @staticmethod
+    def _copy_big_card_slots(image):
+        """
+        Return centered 1/2/3 big-card boxes on 「請選擇欲複製的卡牌」 by crisp border contrast.
+
+        Cards are pasted over a heavily blurred scene background whose mist can reach
+        V≈80~95, bridging adjacent cards or drowning dark-top cards like 「劍之雨」 in
+        pure HSV thresholding. Measuring sharp vertical & horizontal edges along the
+        fixed big-card borders separates 2-card (336/658), 3-card (176/496/818), and
+        1-card (496) layouts reliably.
+        """
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY).astype(np.float32)
+        vx = np.abs(gray[175:588, 1:] - gray[175:588, :-1]).mean(axis=0)
+
+        def edge_score(left, width=286):
+            left_e = vx[left - 3:left + 3].max()
+            right_e = vx[left + width - 3:left + width + 3].max()
+            top_e = np.abs(gray[168:174, left + 10:left + width - 10]
+                           - gray[167:173, left + 10:left + width - 10]).mean(axis=1).max()
+            bot_e = np.abs(gray[590:596, left + 10:left + width - 10]
+                           - gray[589:595, left + 10:left + width - 10]).mean(axis=1).max()
+            return min(left_e, right_e, top_e, bot_e)
+
+        s3 = [edge_score(left) for left in (176, 496, 818)]
+        s2 = [edge_score(left) for left in (336, 658)]
+        if min(s2) > min(s3) and min(s2) >= 25.0:
+            slots = (336, 658)
+        elif min(s3) >= 25.0:
+            slots = (176, 496, 818)
+        elif edge_score(496) >= 25.0:
+            slots = (496,)
+        else:
+            return []
+        return [(left + 143, 382, left, 171, 286, 422) for left in slots]
+
     def rogue_copy_card_points(self):
         """
         Card centres on the 「請選擇欲複製的卡牌」page, left to right.
 
-        这一页摆着 2~3 张**大卡**（实测 285x393），背景很暗，用"中部亮色大矩形"
-        就能稳稳检出（实测两张卡的 area 都是 89k/93k）。
+        这一页摆着 2~3 张**大卡**（286x422）或两行角色卡组（`ROGUE_COPY_TITLE2`）：
+        - `ROGUE_COPY_TITLE2` 为角色按行排布的小卡，沿用灵光选卡的多阈值检出；
+        - `ROGUE_COPY_CARD_TITLE` 为大卡居中选择窗，暗背景卡牌（如「劍之雨」）上部会与
+          背景糊成一片导致 HSV 漏检，优先按卡框四边梯度检出。
 
         Returns:
-            list[tuple]: (x, y) 卡中心，从左到右；空说明没检出。
+            list[tuple]: (x, y, left, top, width, height) 卡框与中心，行优先从左到右。
         """
         image = self.device.image
+        if ROGUE_COPY_TITLE2.match(image, offset=(16, 10), similarity=0.93):
+            small = [(x, y, left, top, width, height)
+                     for x, y, top, left, width, height in self._flash_points_merged()]
+            if small:
+                return small
+        if ROGUE_COPY_CARD_TITLE.match(image, offset=(16, 10), similarity=0.85):
+            slots = self._copy_big_card_slots(image)
+            if slots:
+                return slots
         # ❗上边从 200 改到 **60**：这页有 8 张卡排两行，第一行在 y≈70~300，
         # 从 200 起切会把第一行截成一半、高度不够被过滤掉 ——
         # 实测 8 张只检出 3 张（只有第二行）。左边从 200 改到 280 避开角色栏。
@@ -3531,7 +3745,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         Returns:
             bool: If the card reward picker is on screen.
         """
-        return self.appear(ROGUE_CARD_REWARD, offset=(16, 12), similarity=0.85)
+        return (self.appear(ROGUE_CARD_REWARD, offset=(16, 12), similarity=0.85)
+                or self.appear(ROGUE_CARD_REWARD_NEUTRAL, offset=(16, 12), similarity=0.85))
 
     def rogue_flash_card_appear(self):
         """
@@ -3617,11 +3832,56 @@ class ChaoszeroRogue(ChaoszeroUI):
                 return 2
         return 0
 
-    def rogue_god_card_pick(self, points=None):
-        """Pick a card on the god-flash card picker by flash tier, then `GOD_CARD_NAME`.
+    @staticmethod
+    def _match_rule_card(ocr_name, names):
+        """Return `(matched_name, score)` from `names` with highest similarity >= threshold."""
+        best_name, best_score = '', 0.0
+        for name in names:
+            if not name:
+                continue
+            score = rogue_cards.name_score(ocr_name, name)
+            if score > best_score:
+                best_name, best_score = name, score
+        return (best_name, best_score) if best_score >= GOD_CARD_MATCH else ('', 0.0)
 
-        Priority: no flash (0) > normal flash without god flash (1) > already god-flashed (2).
-        Within the best tier, prefer `GOD_CARD_NAME`, otherwise pick the first card.
+    def _god_card_has_preferred(self, image, box, rule_name, preferred):
+        """Whether a `tier == 2` god-flashed card already carries one of its preferred sparks."""
+        read_block = getattr(self.card_reader, 'read_block', None)
+        if not preferred or not callable(read_block):
+            return False
+        _x, _y, top, left, width, height = box
+        desc_area = (left + 8, top + int(height * 0.50), left + width - 8, top + height - 4)
+        raw_desc = read_block(image, desc_area, scale=2.0, raw=True)
+        if not raw_desc:
+            return False
+        meta = (
+            self.card_library.card_meta(rule_name)
+            if isinstance(self.card_library, rogue_cards.CardLibrary) else None
+        )
+        specs = ([meta] + meta.get('form_specs', [])) if meta else None
+        base_raw = (meta.get('base_desc') or '') if meta else ''
+        g_desc, _gr, _gp = self.god_spark_library.match(raw_desc, base_raw=base_raw, specs=specs)
+        return bool(g_desc and self.god_spark_library.matches_preferred(g_desc, preferred) is not None)
+
+    @staticmethod
+    def _god_card_rank(tier, is_copy, has_pref, already_desired):
+        """Lower rank wins: copy target (tier 0/1) > other tier 0 > other tier 1 > unsatisfied tier 2."""
+        if tier == 0:
+            return 0 if (is_copy and has_pref) else (2 if (has_pref or is_copy) else 3)
+        if tier == 1:
+            return 1 if (is_copy and has_pref) else (4 if (has_pref or is_copy) else 5)
+        if already_desired:
+            return 9
+        return 6 if (is_copy and has_pref) else (7 if has_pref else 8)
+
+    def rogue_god_card_pick(self, points=None):
+        """Pick a card on the god-flash card picker by tier, copy target, and god-spark rules.
+
+        Without `RogueGodSparkFilter`: no flash (0) > normal flash (1) > already god-flashed (2),
+        breaking ties by `RogueCopyCard` (default `GOD_CARD_NAME`).
+        With `RogueGodSparkFilter`: promotes core copy card (`RogueCopyCard`) carrying a god-spark
+        rule ahead of plain cards when not already god-flashed, and demotes `tier == 2` cards
+        that already hold one of their desired god sparks behind ordinary unflashed cards.
 
         Returns:
             tuple | None: (x, y, name, score), or None when no card boxes are detected.
@@ -3633,28 +3893,64 @@ class ChaoszeroRogue(ChaoszeroUI):
         image = self.device.image
         tiers = [self.rogue_card_flash_tier(image, top, left, width, height)
                  for _, _, top, left, width, height in points]
-        best_tier = min(tiers)
-        candidates = [point for point, tier in zip(points, tiers) if tier == best_tier]
-        if len(candidates) > 1:
-            if self.card_reader is None:
-                self.card_reader = rogue_cards.CardReader()
-            best = None
-            for x, y, top, left, width, height in candidates:
-                area = (left + 20, top + 6, left + width - 10, top + 40)
-                text = self.card_reader.read_name(image, area)
-                if not text:
-                    continue
-                score = rogue_cards.name_score(text, GOD_CARD_NAME)
-                if best is None or score > best[3]:
-                    best = (x, y, GOD_CARD_NAME, score, text)
-            if best is not None and best[3] >= GOD_CARD_MATCH:
-                logger.info('God-card picker: tier %s %s at (%s, %s) %.2f OCR=%r'
-                            % (best_tier, best[2], best[0], best[1], best[3], best[4][:12]))
-                return best[0], best[1], best[2], best[3]
-        first = candidates[0]
-        logger.info('God-card picker: tier %s (%s/%s cards) -> (%s, %s)'
-                    % (best_tier, len(candidates), len(points), first[0], first[1]))
-        return first[0], first[1], '', 0.0
+        cfg = getattr(self, 'config', None)
+        copy_card = str(getattr(cfg, 'ChaoszeroRogue_RogueCopyCard', '') or GOD_CARD_NAME).strip()
+        god_rules = self.rogue_god_spark_filter()
+
+        if not god_rules:
+            best_tier = min(tiers)
+            candidates = [point for point, tier in zip(points, tiers) if tier == best_tier]
+            if len(candidates) > 1 and copy_card:
+                if self.card_reader is None:
+                    self.card_reader = rogue_cards.CardReader()
+                best = None
+                for x, y, top, left, width, height in candidates:
+                    area = (left + 20, top + 6, left + width - 10, top + 40)
+                    text = self.card_reader.read_name(image, area)
+                    if not text:
+                        continue
+                    score = rogue_cards.name_score(text, copy_card)
+                    if best is None or score > best[3]:
+                        best = (x, y, copy_card, score, text)
+                if best is not None and best[3] >= GOD_CARD_MATCH:
+                    logger.info('God-card picker: tier %s %s at (%s, %s) %.2f OCR=%r'
+                                % (best_tier, best[2], best[0], best[1], best[3], best[4][:12]))
+                    return best[0], best[1], best[2], best[3]
+            first = candidates[0]
+            logger.info('God-card picker: tier %s (%s/%s cards) -> (%s, %s)'
+                        % (best_tier, len(candidates), len(points), first[0], first[1]))
+            return first[0], first[1], '', 0.0
+
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        if getattr(self, 'god_spark_library', None) is None:
+            self.god_spark_library = rogue_cards.GodSparkLibrary()
+        if self.card_library is None:
+            self.card_library = rogue_cards.CardLibrary()
+
+        best = None
+        for idx, (box, tier) in enumerate(zip(points, tiers)):
+            x, y, top, left, width, height = box
+            area = (left + 20, top + 6, left + width - 10, top + 40)
+            ocr_name = self.card_reader.read_name(image, area, 1.5 if width < 230 else 1.0)
+            rule_name, rule_score = self._match_rule_card(ocr_name, god_rules)
+            preferred = god_rules.get(rule_name) if rule_name else None
+            copy_score = rogue_cards.name_score(ocr_name, copy_card) if copy_card else 0.0
+            is_copy = copy_score >= GOD_CARD_MATCH
+            already_desired = self._god_card_has_preferred(image, box, rule_name, preferred) if tier == 2 and preferred else False
+            rank = self._god_card_rank(tier, is_copy, bool(preferred), already_desired)
+            match_name = rule_name or (copy_card if is_copy else '')
+            match_score = max(rule_score, copy_score if is_copy else 0.0)
+            key = (rank, -match_score, idx)
+            if best is None or key < best[0]:
+                best = (key, x, y, match_name, match_score, tier, is_copy, already_desired, ocr_name)
+
+        _key, x, y, match_name, match_score, tier, is_copy, already_desired, ocr_name = best
+        logger.info(
+            'God-card picker: rank %s tier %s %s (copy=%s, satisfied=%s) at (%s, %s) %.2f OCR=%r'
+            % (_key[0], tier, match_name or '-', is_copy, already_desired, x, y, match_score, (ocr_name or '')[:12])
+        )
+        return x, y, match_name, match_score
 
 
     def rogue_flash_card_points(self, opening=0):
@@ -3685,16 +3981,14 @@ class ChaoszeroRogue(ChaoszeroUI):
             return []
         hsv = cv2.cvtColor(patch, cv2.COLOR_RGB2HSV)
         # ❗赛季版选卡页是「每个战斗员一行」的灰色背景（V≈76~96），卡缝 ≤10px，
-        # 阈值 90 会把整页连成一个 920x519 的大块 → 一张卡都找不到，日志刷屏
-        # `no card detected yet`（2026-11-22 23:27 实测）。90 找不到时再逐级提高阈值，
-        # 并把各级结果按中心去重合并。
-        points = self._flash_card_blobs(hsv, FLASH_CARD_LIGHTS[0], opening)
-        if not points:
-            for light in FLASH_CARD_LIGHTS[1:]:
-                for item in self._flash_card_blobs(hsv, light, opening):
-                    if all(abs(item[0] - old[0]) > 60 or abs(item[1] - old[1]) > 60
-                           for old in points):
-                        points.append(item)
+        # 阈值 90 可能把部分卡连成大块、只检出部分卡或完全漏检（2026-11-23 00:46 004654.png
+        # 在 90 下漏掉 2 张卡），因此逐级合并所有阈值下未重叠的新卡片。
+        points = []
+        for light in FLASH_CARD_LIGHTS:
+            for item in self._flash_card_blobs(hsv, light, opening):
+                if all(abs(item[0] - old[0]) > 60 or abs(item[1] - old[1]) > 60
+                       for old in points):
+                    points.append(item)
         points.sort(key=lambda item: (item[2] // 150, item[0]))
         return points
 
@@ -3738,11 +4032,14 @@ class ChaoszeroRogue(ChaoszeroUI):
         if self.card_reader is None:
             self.card_reader = rogue_cards.CardReader()
         image = self.device.image
-        # 卡名条相对卡框：左右各留 12，纵向从卡顶 +4 到 +46（实测 8 张小卡 280 高、
-        # 3 张大卡 422 高，这个比例都能盖住名字）
+        # 大卡 (286x422) 卡名条在 top+4..46；小卡 (ROGUE_COPY_TITLE2, width<240) 左侧费用标占比大、
+        # 下方緊接「技能/攻擊」副标，需向右避开费用标并收窄高度以免混入副标。
         scored = []
         for x, y, left, top, width, height in points:
-            area = (left + 12, top + 4, left + width - 12, top + 46)
+            if width >= 240:
+                area = (left + 12, top + 4, left + width - 12, top + 46)
+            else:
+                area = (left + 40, top + 6, left + width - 8, top + 32)
             text = self.card_reader.read_name(image, area)
             if not text:
                 continue
@@ -4917,18 +5214,62 @@ class ChaoszeroRogue(ChaoszeroUI):
         val = int(digits)
         return val if 50 <= val <= 300 else None
 
+    @staticmethod
+    def _enhance_save_pt_band(raw_image, buf, area):
+        """
+        Boost light-green `XXXpt` text on white card into crisp black-on-white grayscale.
+
+        Green text (`G≈195` on white `245`) has low luminance contrast in raw RGB,
+        so PP-OCRv3 can confuse `130pt` with `180pt`. Stretching `min(R, B)` turns
+        both dark labels and green digits into high-contrast black on white.
+        """
+        x1, y1, x2, y2 = area
+        crop = raw_image[y1:y2, x1:x2]
+        if not crop.size:
+            return None
+        rb = np.minimum(crop[:, :, 0], crop[:, :, 2])
+        lo = float(np.percentile(rb, 1))
+        hi = float(np.percentile(rb, 90))
+        norm = np.clip((rb.astype(np.float32) - lo) / max(1.0, hi - lo) * 255.0,
+                       0, 255).astype(np.uint8)
+        buf[y1:y2, x1:x2] = np.stack([norm] * 3, axis=2)
+        return crop
+
+    def _read_save_pt_row(self, raw_image, buf, area):
+        """Read and cross-check `XXXpt` from one normalized row."""
+        crop = self._enhance_save_pt_band(raw_image, buf, area)
+        if crop is None:
+            return None
+        line = self.card_reader.read_name(buf, area, scale=2, raw=True)
+        pt_line = self._parse_save_pt_text(line)
+        if pt_line is None:
+            return None
+        gmask = ((crop[:, :, 1].astype(int) - crop[:, :, 0].astype(int) > 25)
+                 & (crop[:, :, 1].astype(int) - crop[:, :, 2].astype(int) > 20))
+        if np.count_nonzero(gmask) >= 15:
+            ys, xs = np.where(gmask)
+            x1, y1, _, _ = area
+            tight_area = (max(0, int(xs.min()) + x1 - 4),
+                          max(0, int(ys.min()) + y1 - 4),
+                          min(1280, int(xs.max()) + x1 + 6),
+                          min(720, int(ys.max()) + y1 + 4))
+            tight = self.card_reader.read_name(buf, tight_area, scale=3, raw=True)
+            pt_tight = self._parse_save_pt_text(tight)
+            if pt_tight is not None:
+                return pt_tight
+        return pt_line
+
     def rogue_season_read_save_pt(self):
         """Read `存檔資料儲存上限` (pt) from the right card on the Season Chaos page."""
         if self.card_reader is None:
             self.card_reader = rogue_cards.CardReader()
         image = self.device.image
-        text = self.card_reader.read_name(image, SEASON_SAVE_PT_AREA, scale=2, raw=True)
-        pt = self._parse_save_pt_text(text)
+        buf = image.copy()
+        pt = self._read_save_pt_row(image, buf, SEASON_SAVE_PT_AREA)
         if pt is not None:
             return pt
         for y in SEASON_SAVE_PT_SCAN_YS:
-            line = self.card_reader.read_name(image, (885, y, 1200, y + 36), scale=2, raw=True)
-            pt = self._parse_save_pt_text(line)
+            pt = self._read_save_pt_row(image, buf, (885, y, 1200, y + 36))
             if pt is not None:
                 return pt
         return None
@@ -5872,6 +6213,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 第一面是否已经打完（BOSS 战利品页出现过）：之后就是「核心」第二面。
         # 「本局已进第二面」跨重启保留：只存内存的话，脚本一重启又按第一面走。
         self.core_started = self.rogue_state_load('core_started', False)
+        self.floor3_started = self.rogue_state_load('floor3_started', False)
         # Only track complete runs started by this invocation.
         self.spark_targets = {}
         if fresh_run and getattr(self.config, 'ChaoszeroRogue_RogueSparkCheck', False):
@@ -6252,6 +6594,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                     press.reset()
                     self.card_tries = 0
                     self.rogue_reset_for_core_map('Season Chaos Floor 3 (為記憶的盡頭)')
+                    self.floor3_started = True
+                    self.rogue_state_save(floor3_started=True)
                     logger.info('Season Chaos Floor-2 end, press 為記憶的盡頭 at (%s, %s)' % MEMORY_END_POINT)
                     self.tap_point(*MEMORY_END_POINT, name='ROGUE_MEMORY_END')
                 continue
@@ -7249,7 +7593,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 只有"接管局内"（上面的 else 分支）才保留它 —— 那种情况可能已经
                 # 在第二面了，重启脚本不该把状态丢掉。
                 # 删卡次数同理：`RogueDelete` 是「一局 3 张」，新局重新计。
-                self.rogue_state_save(core_started=False, remove_done=0, remove_counts={})
+                self.rogue_state_save(core_started=False, floor3_started=False, remove_done=0, remove_counts={})
             else:
                 logger.info('Not on an entry page, take over the run in progress')
 

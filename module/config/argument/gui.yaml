@@ -139,6 +139,12 @@ Rogue:
   SparkPickerTitle:
   SparkPickerEmpty:
   SparkFormAuto:
+  SparkFormNeutral:
+  GodSparkTitle:
+  GodSparkAdd:
+  GodSparkHelpEmpty:
+  GodSparkOrderPrefix:
+  GodSparkClear:
   SparkFormCustom:
   RemovePickerTitle:
   RemovePickerEmpty:

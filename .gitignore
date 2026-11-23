@@ -290,3 +290,5 @@ dev_tools/.tool_last.json
 # Agent tooling data (model_desk MCP runs / opencode config), never part of the project
 .model-desk/
 .opencode/
+.venv_ocr/
+dev_tools/ocr_train/work/

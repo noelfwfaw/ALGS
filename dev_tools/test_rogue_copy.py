@@ -17,9 +17,48 @@ from module.chaoszero.rogue import ChaoszeroRogue
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / 'assets' / 'chaoszero' / 'chaoszero'
+FIXTURES_DIR = Path(__file__).resolve().parent / 'fixtures' / 'chaoszero'
 
 
 class RogueCopyTest(unittest.TestCase):
+    def test_copy_sword_rain_and_layouts_detected(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.config = GeneratedConfig()
+        task.card_reader = None
+
+        img3 = cv2.cvtColor(
+            cv2.imread(str(FIXTURES_DIR / 'rogue_copy_sword_rain.png')),
+            cv2.COLOR_BGR2RGB,
+        )
+        task.device = SimpleNamespace(image=img3)
+        pts3 = task.rogue_copy_card_points()
+        self.assertEqual(len(pts3), 3)
+        self.assertEqual([p[2] for p in pts3], [176, 496, 818])
+        task.config.ChaoszeroRogue_RogueCopyCard = '劍之雨'
+        picked = task.rogue_copy_card_pick()
+        self.assertIsNotNone(picked)
+        self.assertEqual((picked[0], picked[1], picked[2]), (961, 382, '劍之雨'))
+        self.assertGreaterEqual(picked[3], 0.85)
+
+        img2 = cv2.cvtColor(
+            cv2.imread(str(ASSETS_DIR / 'ROGUE_COPY_CARD_TITLE.png')),
+            cv2.COLOR_BGR2RGB,
+        )
+        task.device = SimpleNamespace(image=img2)
+        pts2 = task.rogue_copy_card_points()
+        self.assertEqual([p[2] for p in pts2], [336, 658])
+
+        img8 = cv2.cvtColor(
+            cv2.imread(str(ASSETS_DIR / 'ROGUE_COPY_TITLE2.png')),
+            cv2.COLOR_BGR2RGB,
+        )
+        task.device = SimpleNamespace(image=img8)
+        pts8 = task.rogue_copy_card_points()
+        self.assertEqual(len(pts8), 8)
+        task.config.ChaoszeroRogue_RogueCopyCard = '決心墜飾'
+        picked8 = task.rogue_copy_card_pick()
+        self.assertIsNotNone(picked8)
+        self.assertEqual(picked8[2], '決心墜飾')
     def test_copy_header_does_not_match_transform_or_remove_pages(self):
         task = ChaoszeroRogue.__new__(ChaoszeroRogue)
         for name, expected_copy, expected_transform in (

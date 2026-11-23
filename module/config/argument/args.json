@@ -2891,6 +2891,15 @@
         "type": "textarea",
         "value": ""
       },
+      "RogueGodSparkFilter": {
+        "type": "textarea",
+        "value": "",
+        "valuetype": "str"
+      },
+      "RogueGodSparkFirst": {
+        "type": "checkbox",
+        "value": false
+      },
       "RogueSparkCheck": {
         "type": "checkbox",
         "value": false

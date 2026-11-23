@@ -17,7 +17,7 @@ from module.chaoszero.assets import (ROGUE_EQUIP_ASSAULT_BOOTS, ROGUE_EQUIP_EMPT
                                    ROGUE_SHOP_REFRESH_PAID)
 from module.exception import TaskFailed
 from module.logger import logger
-from module.ocr.ocr import Ocr
+from module.chaoszero.rogue_ocr import ChaoszeroOcr
 
 
 ROOT = os.path.dirname(__file__)
@@ -26,7 +26,10 @@ ROW_Y = (231, 391, 551)
 DETAIL_TITLE = (278, 278, 645, 316)
 DETAIL_ICON_ROI = (80, 270, 250, 440)
 CARD_ICON_SCALES = (108, 120, 124, 132)
-SHOP_FREE_REFRESH_COUNT = Ocr((370, 651, 392, 695), alphabet='0123456789', name='ROGUE_SHOP_FREE_REFRESH_COUNT')
+SHOP_FREE_REFRESH_COUNT = ChaoszeroOcr(
+    (370, 651, 392, 695), lang='azur_lane', alphabet='0123456789',
+    scale=2.0, name='ROGUE_SHOP_FREE_REFRESH_COUNT',
+)
 SHOP_EQUIPMENT_ICONS = ((375, 532, 406, 563), (124, 508, 155, 539), (874, 527, 905, 558))
 
 

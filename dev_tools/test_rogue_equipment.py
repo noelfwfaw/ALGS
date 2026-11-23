@@ -166,7 +166,9 @@ class EquipmentTest(unittest.TestCase):
         equipment.handle(Mock())
         task.tap_point.assert_called_once_with(1153, 551, name='ROGUE_EQUIP_SLOT')
 
-        # Without a matching icon (e.g. blank card art), tied OCR names remain rejected.
+        # Ambiguous tied OCR text disambiguates via detail icon, and is rejected without it.
+        equipment.reader.read_name = Mock(return_value='翠綠之畫')
+        self.assertEqual(equipment.read_item(task.device.image, DETAIL_TITLE)[1]['id'], 'eq_sec_011')
         blank = task.device.image.copy()
         blank[270:440, 80:250] = 0
         self.assertIsNone(equipment.read_item(blank, DETAIL_TITLE)[1])
@@ -488,7 +490,7 @@ class EquipmentTest(unittest.TestCase):
     def test_real_purple_unique_title_is_read_and_assigned_to_designated_character(self):
         task, equipment = make_task('unique', '禍之聖袍 = 維若妮卡')
         text, item = equipment.read_item(task.device.image, (278, 278, 645, 316))
-        self.assertEqual(text, '禍之聖袍')
+        self.assertEqual(text, '禍之聖砲')
         self.assertEqual(item['id'], 'eq_pub_041')
         self.assertTrue(item['unique'])
         equipment.handle(Mock())

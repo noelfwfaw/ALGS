@@ -14,12 +14,18 @@ set_server('chaoszero')
 from module.chaoszero.rogue import ChaoszeroRogue
 
 
-def make_task(image=None):
+def make_task(image=None, copy_card='劍之雨', god_filter=''):
     task = ChaoszeroRogue.__new__(ChaoszeroRogue)
     task.device = SimpleNamespace(
         image=image if image is not None else np.zeros((720, 1280, 3), dtype=np.uint8)
     )
     task.card_reader = None
+    task.card_library = None
+    task.config = SimpleNamespace(
+        ChaoszeroRogue_RogueCopyCard=copy_card,
+        ChaoszeroRogue_RogueGodSparkFilter=god_filter,
+        data={'ChaoszeroRogue': {'ChaoszeroRogue': {'RogueGodSparkFilter': god_filter}}},
+    )
     return task
 
 
@@ -69,3 +75,50 @@ class GodCardPriorityTest(unittest.TestCase):
         task.rogue_card_flash_tier = Mock(side_effect=[0, 1, 0])
         task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['展開極光', '劍之雨']))
         self.assertEqual(task.rogue_god_card_pick(points)[:2], (870, 220))
+
+    def test_copy_card_with_god_rule_tier1_beats_ordinary_tier0(self):
+        points = [
+            (450, 220, 82, 360, 188, 280),
+            (660, 220, 82, 570, 188, 280),
+            (870, 220, 82, 780, 188, 280),
+        ]
+        task = make_task(copy_card='劍之雨', god_filter='劍之雨 = 獲得AP1')
+        task.rogue_card_flash_tier = Mock(side_effect=[0, 1, 0])
+        task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['展開極光', '劍之雨', '致命射擊']))
+        picked = task.rogue_god_card_pick(points)
+        self.assertEqual(picked[:2], (660, 220))
+        self.assertEqual(picked[2], '劍之雨')
+
+        # Non-copy target card at tier 1 does not beat tier 0 ordinary card
+        task_non_copy = make_task(copy_card='劍之雨', god_filter='萬人的英雄 = 獲得AP1')
+        task_non_copy.rogue_card_flash_tier = Mock(side_effect=[0, 1, 0])
+        task_non_copy.card_reader = SimpleNamespace(read_name=Mock(side_effect=['展開極光', '萬人的英雄', '致命射擊']))
+        self.assertEqual(task_non_copy.rogue_god_card_pick(points)[:2], (450, 220))
+
+    def test_real_copy_title2_skips_satisfied_tier2_copy_card_and_falls_back_when_all_tier2(self):
+        img = np.array(Image.open('assets/chaoszero/chaoszero/ROGUE_COPY_TITLE2.png').convert('RGB'))
+        # card1 is tier=2 萬人的英雄 carrying "將棄牌堆中的2張消滅卡牌移動至手牌"
+        task = make_task(
+            img,
+            copy_card='萬人的英雄',
+            god_filter='萬人的英雄 = 將棄牌堆中的2張消滅卡牌移動至手牌',
+        )
+        points = task.rogue_flash_card_points(opening=11)
+        picked = task.rogue_god_card_pick(points)
+        self.assertNotEqual(picked[:2], points[1][:2])
+
+        # When every card is tier=2: unsatisfied copy target beats ordinary tier=2 & satisfied tier=2
+        mock_points = [
+            (450, 220, 82, 360, 188, 280),
+            (660, 220, 82, 570, 188, 280),
+            (870, 220, 82, 780, 188, 280),
+        ]
+        task_all_t2 = make_task(copy_card='萬人的英雄', god_filter='萬人的英雄 = 獲得AP1\n展開極光 = 常態弱點攻擊')
+        task_all_t2.rogue_card_flash_tier = Mock(return_value=2)
+        task_all_t2.card_reader = SimpleNamespace(
+            read_name=Mock(side_effect=['致命射擊', '展開極光', '萬人的英雄']),
+            read_block=Mock(side_effect=['常態弱點攻擊', '士氣1、決心1']),
+        )
+        picked_all_t2 = task_all_t2.rogue_god_card_pick(mock_points)
+        self.assertEqual(picked_all_t2[:2], (870, 220))
+        self.assertEqual(picked_all_t2[2], '萬人的英雄')

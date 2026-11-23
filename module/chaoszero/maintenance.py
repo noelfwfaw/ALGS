@@ -14,8 +14,8 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
+from module.chaoszero.rogue_ocr import ChaoszeroOcr
 from module.logger import logger
-from module.ocr.ocr import Ocr
 
 # 服务器维护页（2026-11-11 09:09 真机截图）。整屏换成 "maintenance" 画面：
 # 中间一条纯白横幅（y≈178~458）写維護說明 / 剩餘時間 / 開始結束時間，横幅下沿
@@ -33,9 +33,9 @@ CHAOSZERO_MAINT_BUFFER = 2
 # 倒计时读不出来时隔多久再来看一眼（分钟）。
 CHAOSZERO_MAINT_RETRY = 10
 
-MAINTENANCE_TIMER = Ocr(CHAOSZERO_MAINT_TIMER, lang='cnocr',
-                        letter=(0, 0, 0), threshold=160,
-                        name='CHAOSZERO_MAINT_TIMER')
+MAINTENANCE_TIMER = ChaoszeroOcr(CHAOSZERO_MAINT_TIMER, lang='cnocr',
+                                 letter=(0, 0, 0), threshold=160,
+                                 name='CHAOSZERO_MAINT_TIMER')
 
 
 class Maintenance:

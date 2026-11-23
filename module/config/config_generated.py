@@ -186,6 +186,8 @@ class GeneratedConfig:
     ChaoszeroRogue_RogueDelete = 3
     ChaoszeroRogue_RogueDeleteFilter = ''
     ChaoszeroRogue_RogueSparkFilter = None
+    ChaoszeroRogue_RogueGodSparkFilter = ''
+    ChaoszeroRogue_RogueGodSparkFirst = False
     ChaoszeroRogue_RogueSparkCheck = False
     ChaoszeroRogue_RogueSparkCheckCard = ''
     ChaoszeroRogue_RogueCopyMember = 0

@@ -92,6 +92,7 @@ ROGUE_CURE_NONE = Button(area={'chaoszero': (612, 476, 882, 540)}, color={'chaos
 ROGUE_BATTLE_COMPLETE = Button(area={'chaoszero': (30, 515, 600, 605)}, color={'chaoszero': (200, 140, 60)}, button={'chaoszero': (30, 515, 600, 605)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_BATTLE_COMPLETE.png'})
 
 ROGUE_CARD_REWARD = Button(area={'chaoszero': (560, 62, 730, 116)}, color={'chaoszero': (40, 40, 44)}, button={'chaoszero': (560, 62, 730, 116)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_CARD_REWARD.png'})
+ROGUE_CARD_REWARD_NEUTRAL = Button(area={'chaoszero': (490, 70, 792, 110)}, color={'chaoszero': (76, 78, 82)}, button={'chaoszero': (490, 70, 792, 110)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_CARD_REWARD_NEUTRAL.png'})
 
 ROGUE_COPY_TITLE2 = Button(area={'chaoszero': (110, 16, 730, 64)}, color={'chaoszero': (40, 60, 80)}, button={'chaoszero': (110, 16, 730, 64)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_COPY_TITLE2.png'})
 
@@ -118,6 +119,7 @@ ROGUE_SHOP_REFRESH_PAID = Button(area={'chaoszero': (160, 650, 199, 695)}, color
 ROGUE_RETREAT_TITLE = Button(area={'chaoszero': (150, 22, 320, 62)}, color={'chaoszero': (84, 83, 82)}, button={'chaoszero': (150, 22, 320, 62)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_RETREAT_TITLE.png'})
 ROGUE_RETREAT = Button(area={'chaoszero': (1031, 643, 1245, 693)}, color={'chaoszero': (240, 126, 51)}, button={'chaoszero': (1031, 643, 1245, 693)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_RETREAT.png'})
 ROGUE_EXPLORE_RESULT = Button(area={'chaoszero': (729, 66, 878, 108)}, color={'chaoszero': (83, 83, 87)}, button={'chaoszero': (729, 66, 878, 108)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_EXPLORE_RESULT.png'})
+ROGUE_DEFEAT_TIP = Button(area={'chaoszero': (595, 90, 685, 200)}, color={'chaoszero': (48, 54, 81)}, button={'chaoszero': (1002, 632, 1254, 688)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_DEFEAT_TIP.png'})
 ROGUE_REWARD_LEVEL = Button(area={'chaoszero': (651, 58, 788, 112)}, color={'chaoszero': (50, 52, 60)}, button={'chaoszero': (651, 58, 788, 112)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_REWARD_LEVEL.png'})
 ROGUE_SAVE_TITLE = Button(area={'chaoszero': (533, 64, 752, 98)}, color={'chaoszero': (99, 100, 134)}, button={'chaoszero': (533, 64, 752, 98)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_SAVE_TITLE.png'})
 ROGUE_HERALD = Button(area={'chaoszero': (300, 60, 800, 140)}, color={'chaoszero': (173, 167, 152)}, button={'chaoszero': (300, 60, 800, 140)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_HERALD.png'})
@@ -160,6 +162,7 @@ ROGUE_ENGRAVE_TITLE = Button(area={'chaoszero': (495, 512, 586, 542)}, color={'c
 ROGUE_GET_BUFF_POPUP = Button(area={'chaoszero': (558, 168, 722, 204)}, color={'chaoszero': (97, 98, 106)}, button={'chaoszero': (535, 645, 745, 685)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_GET_BUFF_POPUP.png'})
 ROGUE_GET_CARD_POPUP = Button(area={'chaoszero': (575, 65, 705, 100)}, color={'chaoszero': (108, 113, 122)}, button={'chaoszero': (535, 645, 745, 685)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_GET_CARD_POPUP.png'})
 ROGUE_MEMORY_CHOOSE = Button(area={'chaoszero': (520, 58, 760, 98)}, color={'chaoszero': (207, 165, 129)}, button={'chaoszero': (520, 58, 760, 98)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_MEMORY_CHOOSE.png'})
+ROGUE_MEMORY_EVOLVE = Button(area={'chaoszero': (545, 78, 735, 122)}, color={'chaoszero': (62, 62, 67)}, button={'chaoszero': (475, 640, 804, 695)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_MEMORY_EVOLVE.png'})
 ROGUE_MEMORY_END = Button(area={'chaoszero': (1020, 632, 1255, 686)}, color={'chaoszero': (124, 88, 208)}, button={'chaoszero': (1035, 640, 1245, 678)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_MEMORY_END.png'})
 ROGUE_PURE_WHITE_MEMORY = Button(area={'chaoszero': (470, 64, 810, 102)}, color={'chaoszero': (79, 80, 82)}, button={'chaoszero': (535, 645, 745, 685)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_PURE_WHITE_MEMORY.png'})
 ROGUE_SCULPT_ENTRY = Button(area={'chaoszero': (330, 562, 412, 588)}, color={'chaoszero': (79, 79, 79)}, button={'chaoszero': (350, 560, 590, 650)}, file={'chaoszero': './assets/chaoszero/chaoszero/ROGUE_SCULPT_ENTRY.png'})

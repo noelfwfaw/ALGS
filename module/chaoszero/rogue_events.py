@@ -125,7 +125,7 @@ _REMOVE_WORDS = ('移除', '刪除', '删除')
 _EQUIP_WORDS = ('裝備', '装备')
 _CREDIT_WORDS = ('信用點', '信用点')
 _STRESS_WORDS = ('壓力', '压力')
-_HEAL_WORDS = ('恢復', '恢复')
+_HEAL_WORDS = ('恢復', '恢複', '恢复')
 _TRANSFORM_WORDS = ('轉換', '转换')
 
 

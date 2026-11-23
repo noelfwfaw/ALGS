@@ -41,6 +41,8 @@
 点完等下一层的判据出现；超时就下一轮再点，最多几轮。
 """
 
+import re
+
 from module.base.timer import Timer
 from module.chaoszero.assets import (REDEEM_ACCOUNT_TAB, REDEEM_CLOSE,
                                      REDEEM_CONFIRM, REDEEM_ENTRY, REDEEM_MENU,
@@ -49,10 +51,10 @@ from module.chaoszero.assets import (REDEEM_ACCOUNT_TAB, REDEEM_CLOSE,
                                      REDEEM_SUBMIT, REDEEM_TITLE)
 from module.chaoszero.chaoszero_ui import ChaoszeroUI
 from module.chaoszero.page import page_main
+from module.chaoszero.rogue_ocr import ChaoszeroOcr
 from module.coupon.codes import (clear_record_if_requested, EXPIRED, FAILED,
                                  INVALID, REDEEMED, USED, CodeBook)
 from module.coupon.gamekee import GameKeeError, fetch_codes
-from module.coupon.text import read_text
 from module.logger import logger
 
 # 账本。放在 `config/state/` 而不是 `config/` 顶层：那里每个 json 都会被
@@ -81,6 +83,8 @@ REDEEM_CLEAR_PRESSES = 40
 # 结果弹窗中间那一行提示。故意框宽一点：文案长短不一，居中位置跟着变。
 # 实测这一条带（不是整块弹窗）OCR 最稳，再宽 cnocr 会被白色留白带偏。
 REDEEM_RESULT_AREA = (420, 275, 900, 330)
+REDEEM_RESULT_OCR = ChaoszeroOcr(REDEEM_RESULT_AREA, lang='cnocr', letter=(0, 0, 0),
+                                 threshold=170, name='REDEEM_RESULT')
 # 兑换页里的空白处（说明文字右侧）。系统键盘挡住「確認」时点一下这里让它收起，
 # 这个点离标题、按钮和说明文字都远，点了不会触发任何链接。
 REDEEM_PAGE_BLANK = (1050, 500)
@@ -508,8 +512,8 @@ class ChaoszeroRedeem(ChaoszeroUI):
                     said = '各角色只能使用1次。'
                     status = USED
                 else:
-                    said = read_text(self.device.image, REDEEM_RESULT_AREA,
-                                     letter=(0, 0, 0), threshold=170)
+                    raw = REDEEM_RESULT_OCR.ocr(self.device.image)
+                    said = re.sub(r'[^\u4e00-\u9fa5]', '', str(raw or ''))
                     status = classify_result(said)
 
                 self.coupon_said = said

@@ -195,6 +195,11 @@ class SeasonChaosTest(unittest.TestCase):
         task = make_task('season_diff')
         self.assertEqual(task.rogue_season_read_save_pt(), 170)
 
+        f130 = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_season_save_130pt.png'
+        task_130 = make_task('season_diff')
+        task_130.device.image = cv2.cvtColor(cv2.imread(str(f130)), cv2.COLOR_BGR2RGB)
+        self.assertEqual(task_130.rogue_season_read_save_pt(), 130)
+
         task_off = make_task('season_diff', ChaoszeroRogue_RogueSeasonSavePt='關閉')
         self.assertEqual(task_off.rogue_season_parse_target_pt(), 0)
         self.assertTrue(task_off.rogue_season_reroll_pt(0))
@@ -615,6 +620,41 @@ class SeasonChaosTest(unittest.TestCase):
             self.assertIsNotNone(picked)
             self.assertEqual(picked[1], '一縷光芒')
             self.assertGreaterEqual(picked[2], 0.60)
+
+    def test_neutral_choose_card_reward_skips(self):
+        from module.base.timer import Timer
+
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_card_reward_choose.png'
+        im = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        task = make_task('season_rest')
+        task.device.image = im
+        task.rogue_card_page_record = Mock()
+        task.tap_point = Mock()
+        press = Timer(0)
+        self.assertTrue(task.rogue_card_reward_appear())
+        self.assertTrue(task.handle_rogue_card_reward(press))
+        task.tap_point.assert_called_once_with(1131, 669, name='ROGUE_SECONDARY')
+
+    def test_memory_evolve_popup_confirmed(self):
+        from module.chaoszero.rogue import ROGUE_MEMORY_EVOLVE, SEASON_POPUP_CLOSE
+
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_memory_evolve.png'
+        im = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        task = make_task('season_rest')
+        task.device.image = im
+        self.assertTrue(task.rogue_season_popup_appear())
+        x1, y1, x2, y2 = ROGUE_MEMORY_EVOLVE.button
+        cx, cy = SEASON_POPUP_CLOSE
+        self.assertTrue(x1 <= cx <= x2 and y1 <= cy <= y2)
+
+    def test_defeat_tip_settlement_page_detected_and_advances(self):
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_defeat_tip.png'
+        im = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        task = make_task('season_rest')
+        task.device.image = im
+        point = task.rogue_purple_point()
+        self.assertIsNotNone(point)
+        self.assertEqual(task.rogue_settlement_page(), 'result')
 
 
 if __name__ == '__main__':

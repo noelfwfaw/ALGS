@@ -38,7 +38,7 @@ from module.chaoszero.assets import (BATTLE_AUTO, BATTLE_EXIT, DIALOG_ENTER,
 from module.chaoszero.chaoszero_ui import ChaoszeroUI, page_main
 from module.exception import GameStuckError
 from module.logger import logger
-from module.ocr.ocr import Ocr
+from module.chaoszero.rogue_ocr import ChaoszeroOcr
 
 # 主界面右侧竖排菜单第三项「模擬」的图标中心。
 SIM_ENTRY = (1218, 260)
@@ -594,8 +594,8 @@ class ChaoszeroSimulation(ChaoszeroUI):
         Returns:
             int: Stamina left, -1 when the counter cannot be read.
         """
-        ocr = Ocr(SIM_STAMINA_AREA, lang='cnocr', letter=(255, 255, 255),
-                  threshold=SIM_STAMINA_THRESHOLD, name='CZ_STAMINA')
+        ocr = ChaoszeroOcr(SIM_STAMINA_AREA, lang='cnocr', letter=(255, 255, 255),
+                           threshold=SIM_STAMINA_THRESHOLD, scale=1.5, name='CZ_STAMINA')
         for _ in self.loop(timeout=SIM_STAMINA_OCR_TIMEOUT):
             text = str(ocr.ocr(self.device.image))
             match = re.search(r'(\d+)', text)

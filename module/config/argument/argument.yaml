@@ -382,6 +382,14 @@ ChaoszeroRogue:
   # OCR 出来，和卡牌形态库里含这些关键词的形态比对，挑最像的那一列。
   # 留空 = 完全按 RoguePick 的固定位置点。
   RogueSparkFilter: ''
+  # 按角色卡牌指定优先神闪词条（由 WebUI 自动维护）：一行一张卡，用 `>` 按优先级排序，
+  # 如 `劍之雨 = 獲得AP1 > 此卡牌費用減少1 > 常態弱點攻擊`。
+  RogueGodSparkFilter:
+    valuetype: str
+    value: ''
+  # 神闪三选一页是否优先按神闪词条选列（关闭：指定灵光 > 指定神闪 > 一般神闪优先级；
+  # 开启：指定神闪 > 一般神闪优先级 > 指定灵光）。普通灵光页不受影响。
+  RogueGodSparkFirst: false
   # 第一层 Boss 奖励结束后，仅检查下方所选卡牌的指定灵光形态。
   RogueSparkCheck: false
   RogueSparkCheckCard:

@@ -117,6 +117,8 @@ ROGUE_SECTIONS = {
         "RogueSlot2Member",
         "RogueSlot3Member",
         "RogueSparkFilter",
+        "RogueGodSparkFilter",
+        "RogueGodSparkFirst",
         "RogueSparkCheck",
         "RogueSparkCheckCard",
         "RogueRemoveMember",
@@ -138,6 +140,7 @@ ROGUE_SECTIONS = {
 ROGUE_SLOT_MEMBER_ARGS = ("RogueSlot1Member", "RogueSlot2Member", "RogueSlot3Member")
 ROGUE_BUILD_PICKERS = {
     "RogueSparkFilter": "rogue_spark_picker",
+    "RogueGodSparkFilter": "rogue_spark_picker",
     "RogueSparkCheckCard": "rogue_spark_check_picker",
     "RogueDeleteFilter": "rogue_remove_picker",
 }
@@ -146,7 +149,7 @@ ROGUE_PICKER_WATCH_ARGS = ROGUE_SLOT_MEMBER_ARGS + ("RogueRemoveMember",)
 ROGUE_SPARK_WATCH_PATHS = {
     f"ChaoszeroRogue.ChaoszeroRogue.{arg}" for arg in ROGUE_PICKER_WATCH_ARGS
 }
-ROGUE_CIRCLED_INDEX = ("①", "②", "③", "④", "⑤")
+ROGUE_CIRCLED_INDEX = ("①", "②", "③", "④", "⑤", "⑥")
 ROGUE_SPARK_CUSTOM_OPTION = "__custom__"
 ROGUE_CARD_POSITIONS = {1: "Left", 2: "Middle", 3: "Right"}
 ROGUE_PARTY_SLOTS = {1: "Slot1", 2: "Slot2", 3: "Slot3"}
@@ -577,8 +580,11 @@ class AlasGUI(Frame):
         with self._get_rogue_picker_lock():
             _, by_char = rogue_cards.spark_catalog()
             spark_text = self._rogue_pin_or_config(config, "RogueSparkFilter", "")
+            god_text = self._rogue_pin_or_config(config, "RogueGodSparkFilter", "")
             rules = rogue_cards.parse_spark_filter(spark_text)
+            god_rules = rogue_cards.parse_god_spark_filter(god_text)
             norm_rules = {rogue_cards.normalize(k): v for k, v in rules.items()}
+            norm_god_rules = {rogue_cards.normalize(k): v for k, v in god_rules.items()}
             selected = [item for item in self._rogue_selected_slots(config) if item[2] in by_char]
             targets = {}
 
@@ -591,14 +597,25 @@ class AlasGUI(Frame):
                     for card in by_char[cid]:
                         card_name = card["name"]
                         raw_val = rules.get(card_name) or norm_rules.get(rogue_cards.normalize(card_name), "")
-                        options = [""] + [str(f["index"]) for f in card["forms"]]
-                        options_label = [t("Gui.Rogue.SparkFormAuto")] + [
-                            f"{ROGUE_CIRCLED_INDEX[f['index'] - 1]} {f['desc']}" for f in card["forms"]
-                        ]
+                        norm_choice = rogue_cards.parse_form_choice(raw_val)
+                        neutral_label = f"{ROGUE_CIRCLED_INDEX[5]} {t('Gui.Rogue.SparkFormNeutral')}"
+                        options = (
+                            [""]
+                            + [str(f["index"]) for f in card["forms"]]
+                            + [rogue_cards.NEUTRAL_FORM_VALUE]
+                        )
+                        options_label = (
+                            [t("Gui.Rogue.SparkFormAuto")]
+                            + [f"{ROGUE_CIRCLED_INDEX[f['index'] - 1]} {f['desc']}" for f in card["forms"]]
+                            + [neutral_label]
+                        )
                         help_text = None
-                        if raw_val in options and raw_val != "":
-                            current = raw_val
-                            form = card["forms"][int(raw_val) - 1]
+                        if norm_choice == rogue_cards.NEUTRAL_FORM_VALUE:
+                            current = rogue_cards.NEUTRAL_FORM_VALUE
+                            help_text = neutral_label
+                        elif norm_choice in options and norm_choice != "":
+                            current = norm_choice
+                            form = card["forms"][int(norm_choice) - 1]
                             help_text = f"{ROGUE_CIRCLED_INDEX[form['index'] - 1]} {form['desc']}"
                         elif raw_val:
                             current = ROGUE_SPARK_CUSTOM_OPTION
@@ -624,6 +641,61 @@ class AlasGUI(Frame):
                             onchange=partial(self._on_rogue_spark_card_change, card_name),
                             clear=True,
                         )
+
+                        selected_gods = list(
+                            god_rules.get(card_name)
+                            or norm_god_rules.get(rogue_cards.normalize(card_name), [])
+                        )
+                        avail_gods = []
+                        avail_god_labels = []
+                        for entry in rogue_cards.god_spark_option_entries(card, current):
+                            desc = entry['desc']
+                            if desc in selected_gods:
+                                continue
+                            tags = [
+                                tag for tag in (
+                                    entry.get('god_name'),
+                                    '出擊' if entry.get('is_sortie') else '',
+                                ) if tag
+                            ]
+                            avail_gods.append(desc)
+                            avail_god_labels.append(
+                                f"{desc} ({' · '.join(tags)})" if tags else desc
+                            )
+                        god_help = (
+                            t("Gui.Rogue.GodSparkOrderPrefix", items=" > ".join(
+                                f"{idx}. {item}" for idx, item in enumerate(selected_gods, 1)
+                            ))
+                            if selected_gods
+                            else t("Gui.Rogue.GodSparkHelpEmpty")
+                        )
+                        god_pin_name = f"rogue_god_spark_add_{card['id']}"
+                        put_arg_select({
+                            "name": god_pin_name,
+                            "title": f"{card_name} · {t('Gui.Rogue.GodSparkTitle')}",
+                            "value": "",
+                            "options": [""] + avail_gods,
+                            "options_label": [t("Gui.Rogue.GodSparkAdd")] + avail_god_labels,
+                            "help": god_help,
+                        }).show()
+                        pin_on_change(
+                            name=god_pin_name,
+                            onchange=partial(self._on_rogue_god_spark_add, card_name),
+                            clear=True,
+                        )
+                        if selected_gods:
+                            buttons = []
+                            for idx, desc in enumerate(selected_gods):
+                                if idx > 0:
+                                    buttons.append({"label": f"↑ {idx + 1}", "value": f"up:{idx}"})
+                                buttons.append({"label": f"× {idx + 1}. {desc}", "value": f"del:{idx}"})
+                            if len(selected_gods) >= 2:
+                                buttons.append({"label": t("Gui.Rogue.GodSparkClear"), "value": "clear", "color": "danger"})
+                            put_buttons(
+                                buttons=buttons,
+                                onclick=partial(self._on_rogue_god_spark_action, card_name),
+                                small=True,
+                            )
 
             with use_scope("rogue_spark_check_picker", clear=True):
                 target = self._rogue_pin_or_config(config, "RogueSparkCheckCard")
@@ -706,6 +778,39 @@ class AlasGUI(Frame):
             return
         with self._get_rogue_picker_lock():
             self._update_rogue_hidden_filter("RogueSparkFilter", rogue_cards.update_spark_filter, card_name, new_value)
+            self._render_rogue_spark_picker()
+
+    def _on_rogue_god_spark_add(self, card_name: str, new_affix: str) -> None:
+        affix = (new_affix or "").strip()
+        if not affix:
+            return
+        with self._get_rogue_picker_lock():
+            god_rules = rogue_cards.parse_god_spark_filter(self._rogue_pin_or_config(None, "RogueGodSparkFilter", ""))
+            norm_rules = {rogue_cards.normalize(k): v for k, v in god_rules.items()}
+            items = list(god_rules.get(card_name) or norm_rules.get(rogue_cards.normalize(card_name), []))
+            if affix not in items:
+                items.append(affix)
+            self._update_rogue_hidden_filter("RogueGodSparkFilter", rogue_cards.update_god_spark_filter, card_name, items)
+            self._render_rogue_spark_picker()
+
+    def _on_rogue_god_spark_action(self, card_name: str, action: str) -> None:
+        with self._get_rogue_picker_lock():
+            god_rules = rogue_cards.parse_god_spark_filter(self._rogue_pin_or_config(None, "RogueGodSparkFilter", ""))
+            norm_rules = {rogue_cards.normalize(k): v for k, v in god_rules.items()}
+            items = list(god_rules.get(card_name) or norm_rules.get(rogue_cards.normalize(card_name), []))
+            if action == "clear":
+                items = []
+            elif isinstance(action, str) and ":" in action:
+                op, raw_idx = action.split(":", 1)
+                try:
+                    idx = int(raw_idx)
+                except ValueError:
+                    return
+                if op == "up" and 1 <= idx < len(items):
+                    items[idx - 1], items[idx] = items[idx], items[idx - 1]
+                elif op == "del" and 0 <= idx < len(items):
+                    items.pop(idx)
+            self._update_rogue_hidden_filter("RogueGodSparkFilter", rogue_cards.update_god_spark_filter, card_name, items)
             self._render_rogue_spark_picker()
 
     def _on_rogue_spark_check_card_change(self, value: str) -> None:

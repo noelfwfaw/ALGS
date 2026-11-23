@@ -1,8 +1,11 @@
 """Pending meditation regressions; no device connection is used."""
 
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
+
+import cv2
 
 from module.config.server import set_server
 
@@ -72,11 +75,11 @@ class MeditationTest(unittest.TestCase):
         task.meditate_pending = ['劍之雨', '展開極光']
         task.rogue_flash_card_points = Mock(return_value=[
             (450, 220, 80, 360, 190, 280), (660, 220, 80, 570, 190, 280)])
-        task.card_reader.read_name.side_effect = ['劍之雨', '展開極光']
+        task.card_reader.read_name.side_effect = ['劍之雨', '展開極光', '展開極光']
         self.assertEqual(task.rogue_meditate_card()[1], '劍之雨')
         task.card_library.pick_column.return_value = (1, 0.9, 1, 'wanted')
         task.rogue_flash_column()
-        task.card_reader.read_name.side_effect = ['劍之雨', '展開極光']
+        task.card_reader.read_name.side_effect = ['劍之雨', '劍之雨', '展開極光']
         self.assertEqual(task.rogue_meditate_card()[1], '展開極光')
 
     def test_four_target_cards_are_all_retained(self):
@@ -167,9 +170,25 @@ class MeditationTest(unittest.TestCase):
         task = make_task()
         task.meditate_pending = ['劍之雨']
         task.rogue_flash_card_points = Mock(return_value=[(450, 220, 80, 360, 190, 280)])
-        task.card_reader.read_name.side_effect = ['一縷光芒', '劍之雨']
+        task.card_reader.read_name.side_effect = ['一縷光芒', '一縷光芒', '劍之雨']
         self.assertEqual(task.rogue_meditate_card(), ((450, 220), '劍之雨', 1.0))
         task.device.swipe.assert_called_once()
+
+    def test_real_beam_card_detected_without_false_scroll_cancel(self):
+        fixture = Path(__file__).resolve().parent / 'fixtures' / 'chaoszero' / 'rogue_meditate_beam.png'
+        im = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        task = make_task()
+        task.device = SimpleNamespace(image=im, swipe=Mock(), sleep=Mock(), screenshot=Mock())
+        task.card_reader = None
+        task.rogue_spark_filter.return_value = {'一縷光芒': ['2']}
+        task.meditate_pending = ['一縷光芒']
+        points = task._flash_points_merged()
+        self.assertEqual(len(points), 5)
+        picked = task.rogue_meditate_card()
+        self.assertIsNotNone(picked)
+        self.assertEqual(picked[1], '一縷光芒')
+        self.assertGreaterEqual(picked[2], 0.90)
+        task.device.swipe.assert_not_called()
 
     def test_missing_target_has_bounded_scrolls(self):
         task = make_task()

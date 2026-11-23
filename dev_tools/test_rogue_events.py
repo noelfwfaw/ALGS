@@ -984,6 +984,39 @@ class EventSelectionTest(unittest.TestCase):
         self.assertEqual((choice['source'], choice['position'], choice['tier'], choice['tier_name']),
                          ('keyword_fallback', 2, 3, '指定神闪'))
 
+    def test_season_floor3_purple_healing_option_is_detected_and_fixed_to_card2(self):
+        import cv2
+
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_event_floor3.png'
+        im = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        self.task.device.image = im
+        self.task.config.ChaoszeroRogue_RogueWorld = '賽季卡厄思'
+        self.task.event_library = EventLibrary()
+
+        points = ChaoszeroRogue.rogue_option_points(self.task)
+        self.assertEqual(points, [(472, 677), (808, 677)])
+        self.task.rogue_option_points = Mock(return_value=points)
+        self.task.card_reader = None
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_index, 2)
+        self.assertEqual(self.task.event_pending_choice['source'], 'season_floor3')
+        self.task.tap_point.assert_called_once_with(808, 590, name='ROGUE_OPTION')
+
+        # Even if card bodies vary completely on Floor 3 once floor3_started is set, always pick option 2.
+        self.task.floor3_started = True
+        self.task.option_pending = None
+        self.task.event_page = None
+        self.task.event_index = None
+        self.task.event_pending_choice = None
+        self.task.tap_point.reset_mock()
+        self.task.card_reader = SimpleNamespace(read_name=Mock(side_effect=['隨機甲', '未知乙']))
+        self.assertTrue(self.step())
+        self.assertEqual(self.task.event_index, 2)
+        self.task.tap_point.assert_called_once_with(808, 590, name='ROGUE_OPTION')
+
+        # Keyword tier also covers OCR '恢複' variant for normal fallback recovery.
+        self.assertEqual(keyword_priority_tier('恢複所有戰鬥員壓力'), 12)
+
 
 if __name__ == '__main__':
     unittest.main()

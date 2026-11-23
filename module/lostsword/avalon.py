@@ -1,5 +1,6 @@
 """Guild War (阿瓦隆) automation for Lost Sword (失落之剑)."""
 
+import datetime
 import re
 
 from module.base.timer import Timer
@@ -8,14 +9,16 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (AVALON_BTN_CHALLENGE,
                                      AVALON_BTN_CONFIRM, AVALON_BTN_ENTER,
-                                     AVALON_CARD, AVALON_RANK_REWARD,
-                                     AVALON_TITLE, BATTLE_TITLE, BOSS_VICTORY,
+                                     AVALON_CARD, AVALON_CITY_CONFIRM,
+                                     AVALON_RANK_REWARD, AVALON_TITLE,
+                                     BATTLE_TITLE, BOSS_VICTORY,
                                      DUNGEON_BTN_CONFIRM, EVENT_BTN_OK,
                                      MAIN_DEFEAT, REWARD_POPUP_TITLE)
 from module.lostsword.lostsword_ui import (BATTLE_TAB_GUILD,
                                            BATTLE_TAB_SELECTED_MEAN,
                                            BOSS_RESULT_TAP, LostswordUI,
                                            MAIN_DEFEAT_BACK, page_battle)
+from module.lostsword.star import STAR_RESET_MARGIN, parse_next_time
 from module.ocr.ocr import Ocr
 
 # Six attackable cities on the Avalon map (1280x720 shield centers).
@@ -47,6 +50,16 @@ AVALON_NOTICE_AREA = (320, 250, 960, 430)
 AVALON_NOTICE_OCR = Ocr(AVALON_NOTICE_AREA, lang='cnocr',
                         letter=(235, 230, 220), threshold=128,
                         name='AVALON_NOTICE_OCR')
+# Occupied/closed city popup (`城主 / 公会简介 / 下次时间`) countdown row `剩余153:33:28`.
+AVALON_NEXT_TIME_AREA = (550, 495, 735, 526)
+AVALON_NEXT_TIME_LETTER = (230, 223, 218)
+AVALON_NEXT_TIME_THRESHOLDS = (80, 100, 128)
+AVALON_NEXT_TIMES = [
+    Ocr(AVALON_NEXT_TIME_AREA, lang='cnocr', letter=AVALON_NEXT_TIME_LETTER,
+        threshold=threshold, alphabet='0123456789:',
+        name=f'AVALON_NEXT_TIME_{threshold}')
+    for threshold in AVALON_NEXT_TIME_THRESHOLDS
+]
 
 
 def parse_avalon_tries(text):
@@ -70,8 +83,26 @@ class LostswordAvalon(LostswordUI):
         out: page_main
     """
 
+    def avalon_read_next_time(self):
+        """Read `下次时间` countdown seconds from the city summary popup, or 0."""
+        readings = [parse_next_time(ocr.ocr(self.device.image))
+                    for ocr in AVALON_NEXT_TIMES]
+        readings = [seconds for seconds in readings if seconds]
+        if len(readings) >= 2 and len(set(readings)) == 1:
+            return readings[0]
+        return 0
+
+    def avalon_schedule(self):
+        """Delay to the parsed city countdown if available, otherwise weekly reset."""
+        target = getattr(self, 'avalon_next_reset', None)
+        if target is not None:
+            logger.attr('Avalon next reset', str(target))
+            self.config.task_delay(target=target)
+            return target
+        return self.delay_next_week(label='Avalon next reset')
+
     def _dismiss_notice(self):
-        """Dismiss a blocking notice dialog if visible; return True if handled."""
+        """Dismiss a blocking notice or city-summary dialog if visible; return True if handled."""
         for btn in (EVENT_BTN_OK, DUNGEON_BTN_CONFIRM):
             if self.appear(btn, offset=30):
                 text = AVALON_NOTICE_OCR.ocr(self.device.image)
@@ -79,6 +110,18 @@ class LostswordAvalon(LostswordUI):
                 self.device.click(btn)
                 self.wait_overlay_gone(btn, timeout=4)
                 return True
+        if self.appear(AVALON_CITY_CONFIRM, offset=30):
+            seconds = self.avalon_read_next_time()
+            if seconds:
+                self.avalon_next_reset = datetime.datetime.now() + datetime.timedelta(
+                    seconds=seconds + STAR_RESET_MARGIN)
+                logger.info(f'[Avalon] City summary popup, next reset in '
+                            f'{datetime.timedelta(seconds=seconds)}')
+            else:
+                logger.info('[Avalon] City summary popup (countdown unreadable)')
+            self.device.click(AVALON_CITY_CONFIRM)
+            self.wait_overlay_gone(AVALON_CITY_CONFIRM, timeout=4)
+            return True
         return False
 
     def battle_goto_guild(self, timeout=10):
@@ -254,7 +297,7 @@ class LostswordAvalon(LostswordUI):
                 report.reset()
                 logger.info(f'[Avalon] Still fighting, {int(timeout.current_time())}s elapsed')
 
-    def run(self):  # alas-lint: allow - scheduled weekly via delay_next_week(), which calls config.task_delay()
+    def run(self):  # alas-lint: allow - scheduled weekly via avalon_schedule()/delay_next_week(), which calls config.task_delay()
         """
         Run Guild War (阿瓦隆) on the configured city, then schedule weekly.
 
@@ -263,6 +306,7 @@ class LostswordAvalon(LostswordUI):
             out: page_main
         """
         logger.hr('Lostsword Avalon', level=1)
+        self.avalon_next_reset = None
         city = getattr(self.config, 'LostswordAvalon_City', AVALON_DEFAULT_CITY)
         if city not in AVALON_CITIES:
             logger.warning(f'[Avalon] Unknown city "{city}", fallback to {AVALON_DEFAULT_CITY}')
@@ -273,7 +317,7 @@ class LostswordAvalon(LostswordUI):
         if not self.battle_goto_guild() or not self.avalon_enter():
             logger.info('[Avalon] Not open or in rest period, delay to next week')
             self.ui_goto_main()
-            self.delay_next_week(label='Avalon next reset')
+            self.avalon_schedule()
             return
 
         for round_num in range(1, AVALON_MAX_BATTLES + 1):
@@ -294,4 +338,4 @@ class LostswordAvalon(LostswordUI):
                 break
 
         self.ui_goto_main()
-        self.delay_next_week(label='Avalon next reset')
+        self.avalon_schedule()

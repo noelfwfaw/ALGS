@@ -1115,7 +1115,15 @@
     },
     "RogueSparkFilter": {
       "name": "指定灵光形态",
-      "help": "每行一张卡。可写「劍之雨 = 2」选择游戏卡牌详情的第 2 种形态，或用繁体效果词匹配。"
+      "help": "每行一张卡。可写「劍之雨 = 2」选择游戏卡牌详情的第 2 种形态，「= 6」或「= 中立」选择第 6 种中立闪，或用繁体效果词匹配。"
+    },
+    "RogueGodSparkFilter": {
+      "name": "指定神闪词条",
+      "help": "每行一张卡，用 > 按优先级排序，例如「劍之雨 = 獲得AP1 > 此卡牌費用減少1」。由上方角色灵光面板自动维护。"
+    },
+    "RogueGodSparkFirst": {
+      "name": "神闪页优先按神闪词条选列",
+      "help": "关闭时（默认）：指定灵光形态 > 指定神闪 > 一般神闪优先级；开启后在神闪三选一页直接按 指定神闪 > 一般神闪优先级 > 指定灵光形态 选列。普通灵光页不受影响。"
     },
     "RogueSparkCheck": {
       "name": "第一层缺目标灵闪时重刷",
@@ -1869,6 +1877,12 @@
       "SparkPickerTitle": "角色可闪卡牌灵光设置",
       "SparkPickerEmpty": "在上方选择 1~3 号位角色后，这里会列出对应角色的可闪卡牌，选择后自动写入下方「指定灵光形态」。",
       "SparkFormAuto": "不指定（默认按数值最大）",
+      "SparkFormNeutral": "中立闪（原卡 + 随机中立词条）",
+      "GodSparkTitle": "优先神闪",
+      "GodSparkAdd": "+ 添加优先神闪...",
+      "GodSparkHelpEmpty": "未指定时按默认顺序：獲得AP1 > 此卡牌費用減少1 > 常態弱點攻擊 > 賦予目標脆弱 > 抽取1",
+      "GodSparkOrderPrefix": "当前顺位：{items}",
+      "GodSparkClear": "清空",
       "SparkFormCustom": "自定义关键词",
       "RemovePickerTitle": "指定要移除的卡牌",
       "RemovePickerEmpty": "在上方选择 1~3 号位角色后，这里会列出对应角色的卡牌以设置每局要删除的张数。",
