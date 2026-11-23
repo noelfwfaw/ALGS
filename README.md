@@ -124,7 +124,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 日常领取 | 领取当日行程奖励与邮箱附件 |
 | 通行证 | 「阿爾基亞農補給」的任务奖励与等级奖励：任务领取直接生效，等级奖励会弹「獲得道具」；按钮橙色圆形箭头＝还有得领，灰白＝领完了 |
 | 兑换码 | 从兑换码站点获取新码并兑换，已处理的码不再尝试 |
-| 卡厄思肉鸽 | 自动刷卡厄思肉鸽：选世界（含赛季卡厄思 1~11 档难度、存档上限再次观测与扭曲适应）、梦境模式与路线规划，托管战斗与倍速/自动战斗校验，灵光一闪/神闪分级选卡、首层灵闪重刷、赛季第二/三层刻印记忆与记忆工坊雕琢、事件查表、指定删卡与冥想重闪、装备分配与商店免费刷新、崩溃治疗及结算存档清理 |
+| 卡厄思肉鸽 | 自动刷卡厄思肉鸽：选世界（含赛季卡厄思 1~11 档难度、存档上限再次观测与扭曲适应）、梦境模式与路线规划，托管战斗与倍速/自动战斗校验，灵光一闪（含第 6 形态中立闪）/指定神闪分级选卡、首层灵闪重刷、赛季第二/三层刻印记忆与记忆工坊雕琢、事件查表、指定删卡与冥想重闪、装备分配与商店免费刷新、崩溃治疗及结算存档清理 |
 
 通行证与卡厄思肉鸽均为**默认关闭**，要在 WebUI 的卡厄思分组里勾选启用。卡厄思肉鸽遇到未知页面或未匹配事件时不会盲点兜底，而是停机等待人工确认。
 
@@ -247,7 +247,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - 领主突袭：开启「扫荡剩余次数」后完成一场实战并扫荡剩余免费次数；关闭后仅执行一场。
 - 宝藏探索：可分别开启领取宝藏与每日免费探查。免费次数用尽后需要消耗钻石，脚本会跳过。
 - 公会：有红点时消耗金币完成捐献与投资，金币不足时不执行。
-- 阿瓦隆：默认关闭，在「进攻城市」中选择目标城堡（埃塞尔城 / 爱尔亚城 / 埃尔达利亚城 / 卡美洛城 / 廷塔哲城 / 默西亚城）；自动领取排行结算弹窗并完成挑战，休赛期或挑战耗尽后延后至下周。
+- 阿瓦隆：默认关闭，在「进攻城市」中选择目标城堡（埃塞尔城 / 爱尔亚城 / 埃尔达利亚城 / 卡美洛城 / 廷塔哲城 / 默西亚城）；自动领取排行结算弹窗并完成挑战，遇到已占领或休赛期的城主弹窗时读取「下次时间」倒计时精准排至下次开放（倒计时不可读时回退延后至下周）。
 - 商店与交易所：领完免费礼包后开启 `ExchangeEnable` 可进入「交易所」，依次扫描消耗品、突袭、公会、竞技场与限时活动币页签，按优先级列表（`>` 分隔、`!` 排除、`全部` 通配）购买非钻石商品并跳过资源不足弹窗。
 - 迷宫：节点优先级固定，未成功进入或确认 BOSS 时推迟 3 小时重试，仅在地图显示完成后排至下周。
 - 兑换码：兑换记录保存在本地，删除对应条目可重新尝试；也可以在任务的「兑换码」设置里勾「清除兑换码记录」，下一次运行会清空记录、把所有码重兑一遍（勾一次只生效一次，之后自动取消）。
@@ -265,7 +265,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 - 兑换码：兑换记录保存在本地，删除对应条目可重新尝试；也可以在任务的「兑换码」设置里勾「清除兑换码记录」，下一次运行会清空记录、把所有码重兑一遍（勾一次只生效一次，之后自动取消）。兑换码站点把国服与全球服的码混在一起发，全球服客户端兑不了国服码（输入法也送不进中文），这类码会在本地记为失败，不再每天重试。
 - 通行证：从主界面右上角菜单进「阿爾基亞農補給」。任务列表是一条**长列表分段**（每日任務 / 每週任務 / 賽季任務），点左侧标题只是滚到那一段，不是页签；脚本在「任務」视图点底部的「全部領取」，再切到「獎勵」视图领等级奖励，弹出的「獲得道具」自动点掉。这两个视图的按钮样式一致：橙色圆形箭头＝还有得领，灰白＝领完了。只领不做，任务本身由战斗训练与方舟都市完成。
 - 卡厄思肉鸽：
-  - 灵光一闪与冥想：WebUI 可按 1~3 号位直接选择角色并展开各自可闪卡牌，支持按游戏内 `①~⑤` 形态编号指定目标（兼容关键词写法）；神之灵光一闪选卡按「无灵闪 > 普通灵闪 > 已神闪」分级，同级优先指定卡牌；没出目标形态时仅针对「人物灵光优先位（`RogueMember`）」所选角色记入待冥想队列，在安全区域优先重闪。
+  - 灵光一闪与冥想：WebUI 可按 1~3 号位直接选择角色并展开各自可闪卡牌，支持按游戏内 `①~⑤` 形态编号或 `⑥` 中立闪指定目标（兼容关键词写法），并为每张卡多选排序指定神闪词条（`RogueGodSparkFilter`，下拉列表按卡牌属性仅展示可触发的 30 种肉鸽神闪，标注神明与出击标签且常规神闪排在前列）；默认按「指定灵闪 > 指定神闪」决策，也可勾选「优先神闪（`RogueGodSparkFirst`）」跳过形态限制直接按神闪词条优先选取，未指定神闪时按内置默认优先级（`獲得AP1 > 此卡牌費用減少1 > 常態弱點攻擊 > 賦予目標脆弱 > 抽取1` 等）选择。神之灵光一闪赋卡按「无灵闪 > 普通灵闪 > 已神闪」分级，优先复制目标卡（`RogueCopyCard`）且自动跳过已获得指定神闪的卡牌；没出目标形态时仅针对「人物灵光优先位（`RogueMember`）」所选角色记入待冥想队列，在安全区域优先重闪。
   - 首层灵闪重刷：支持勾选首层重刷检查并从已配置灵光形态的队伍卡牌中指定一张目标卡；首层 Boss 奖励领完仍未取得目标形态时自动撤退、分解本局存档并按局数设置重开。
   - 删卡与复制：WebUI 按角色展开卡组牌指定每局要移除的卡牌与张数，支持「优先移除卡牌位（`RogueRemoveMember`）」先删指定号位，并兼容单张与多张删卡页；认不出时不盲删非目标卡，达到配额或跳过确认时自动处理弹窗；支持指定复制目标卡牌。
   - 命运选择：第一面（`RogueFateMainFilter`）与第二面核心（`RogueFateCoreFilter`）命运均支持用 `>` 分隔填写优先级（例如 `開朗 > 共情 > 擁有 > 嫉妒`），未命中时随机，填 `-` 为全随机。
@@ -356,13 +356,14 @@ GNU General Public License v3.0，见 [`LICENSE`](LICENSE)。
 
 ### 第三方数据来源
 
-- **E7BOT Wiki（[wiki.e7bot.top](https://wiki.e7bot.top/)）**：卡厄思梦境「卡厄思肉鸽」使用的离线知识库与图鉴资源由 [`dev_tools/gen_chaoszero_rogue_db.py`](dev_tools/gen_chaoszero_rogue_db.py)、[`dev_tools/gen_chaoszero_rogue_cards.py`](dev_tools/gen_chaoszero_rogue_cards.py) 与 [`dev_tools/gen_chaoszero_rogue_relics.py`](dev_tools/gen_chaoszero_rogue_relics.py) 从 E7BOT Wiki 接口离线抓取并打包至仓库（运行期间只读本地文件），包括事件数据库（`module/chaoszero/rogue_events.json.gz`、`dev_tools/rogue_events/events.json`）、卡牌与灵光一闪形态库（`module/chaoszero/rogue_cards.json.gz`）、装备与角色索引及对应图标（`module/chaoszero/rogue_relics.json.gz`、`rogue_equipment_icons.npz`、`rogue_equipment_faces.npz`）。部分实机名差异与命运卡标题字模（`rogue_fate_titles.npz`）由实机截图校准补充。
+- **E7BOT Wiki（[wiki.e7bot.top](https://wiki.e7bot.top/)）**：卡厄思梦境「卡厄思肉鸽」使用的离线知识库与图鉴资源由 [`dev_tools/gen_chaoszero_rogue_db.py`](dev_tools/gen_chaoszero_rogue_db.py)、[`dev_tools/gen_chaoszero_rogue_cards.py`](dev_tools/gen_chaoszero_rogue_cards.py)、[`dev_tools/gen_chaoszero_rogue_sparks.py`](dev_tools/gen_chaoszero_rogue_sparks.py) 与 [`dev_tools/gen_chaoszero_rogue_relics.py`](dev_tools/gen_chaoszero_rogue_relics.py) 从 E7BOT Wiki 接口离线抓取并打包至仓库（运行期间只读本地文件），包括事件数据库（`module/chaoszero/rogue_events.json.gz`、`dev_tools/rogue_events/events.json`）、卡牌与灵光一闪形态库（`module/chaoszero/rogue_cards.json.gz`）、神闪与中立闪词条库（`module/chaoszero/rogue_sparks.json.gz`）、装备与角色索引及对应图标（`module/chaoszero/rogue_relics.json.gz`、`rogue_equipment_icons.npz`、`rogue_equipment_faces.npz`）。部分实机名差异与命运卡标题字模（`rogue_fate_titles.npz`）由实机截图校准补充。
 - **GameKee（[www.gamekee.com](https://www.gamekee.com/)）**：各游戏的兑换码任务（失落之剑、棕色尘埃2、卡厄思梦境、交错战线）通过 [`module/coupon/gamekee.py`](module/coupon/gamekee.py) 请求 GameKee 兑换码公开接口拉取当前未过期的兑换码列表。
 
 ### 新增开源模型与依赖库
 
-- **[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)（`chinese_cht_PP-OCRv3` 繁体识别模型，Apache-2.0）**：卡厄思肉鸽的繁体单行识别（[`module/chaoszero/rogue_ocr.py`](module/chaoszero/rogue_ocr.py)）使用预置的 `bin/ocr_models/chinese_cht_PP-OCRv3_rec_infer.onnx` 模型与 `bin/ocr_models/ppocr_keys_v1.txt` 字典，补充原 `cnocr` 繁体模型在游戏卡牌白字上的识别不足。
-- **[ONNX Runtime](https://github.com/microsoft/onnxruntime)（`onnxruntime==1.14.1`，MIT）**：在 [`requirements-in.txt`](requirements-in.txt) 新增的运行时推理依赖，用于在无 PaddlePaddle 依赖的情况下直接执行上述 `PP-OCRv3` ONNX 识别模型。
+- **卡厄思专用繁体识别模型（基于 [cnocr](https://github.com/breezedeus/cnocr) `densenet_lite_136-gru` 架构，Apache-2.0）**：卡厄思梦境的繁体单行识别（[`module/chaoszero/rogue_ocr.py`](module/chaoszero/rogue_ocr.py)，用于肉鸽卡牌/装备/事件、维护倒计时、兑换码与模拟等场景）优先使用由 [`dev_tools/ocr_train/`](dev_tools/ocr_train/) 自训并导出的 `bin/ocr_models/chaoszero_cht_rec.onnx`（内置字典元数据），模型缺失时自动回退至通用繁体模型。
+- **[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)（`chinese_cht_PP-OCRv3` 繁体识别模型，Apache-2.0）**：预置的 `bin/ocr_models/chinese_cht_PP-OCRv3_rec_infer.onnx` 模型与 `bin/ocr_models/ppocr_keys_v1.txt` 字典，作为卡厄思专用模型缺失时的回退识别模型。
+- **[ONNX Runtime](https://github.com/microsoft/onnxruntime)（`onnxruntime==1.14.1`，MIT）**：在 [`requirements-in.txt`](requirements-in.txt) 新增的运行时推理依赖，用于在无 PyTorch / PaddlePaddle 依赖的情况下直接执行上述 ONNX 识别模型。
 - 其它基础运行依赖（`cnocr`、`mxnet`、`opencv-python`、`Pillow`、`adbutils`、`uiautomator2`、`pywebio`、`onepush`、`pycryptodome` 等）与安卓投屏/触控组件（`MaaTouch`、`DroidCast_raw`、`scrcpy`、`ascreencap`、`Hermit`）均沿用自原 AzurLaneAutoScript 仓库（其中已有的 `pycryptodome` 亦用于在开发期脚本中解密 E7BOT Wiki 离线数据接口）。
 
 维护者：SHIZUKU_nanoda ([@noelfwfaw](https://github.com/noelfwfaw))
