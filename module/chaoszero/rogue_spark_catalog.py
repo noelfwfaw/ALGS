@@ -411,6 +411,20 @@ def update_delete_filter(text, card_name, count):
     return update_spark_filter(text, card_name, str(count) if count > 0 else '')
 
 
+def card_character_map():
+    """Return `(card_to_cid, norm_to_cid)` lookup dicts built from deck catalog."""
+    card_to_cid = {}
+    norm_to_cid = {}
+    for cid, cards in deck_catalog().items():
+        for card in cards:
+            cname = card['name']
+            card_to_cid[cname] = cid
+            nc = normalize(cname)
+            if nc:
+                norm_to_cid.setdefault(nc, cid)
+    return card_to_cid, norm_to_cid
+
+
 def prioritize_delete_rules(rules, slot_cids, preferred_slot=1):
     """Order delete rules so the preferred slot character's cards come first."""
     if not rules or not slot_cids:
@@ -431,15 +445,7 @@ def prioritize_delete_rules(rules, slot_cids, preferred_slot=1):
     if not cid_rank:
         return list(rules)
 
-    card_to_cid = {}
-    norm_to_cid = {}
-    for cid, cards in deck_catalog().items():
-        for card in cards:
-            cname = card['name']
-            card_to_cid[cname] = cid
-            nc = normalize(cname)
-            if nc:
-                norm_to_cid.setdefault(nc, cid)
+    card_to_cid, norm_to_cid = card_character_map()
 
     def _rule_rank(item):
         name = item[0]

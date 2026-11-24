@@ -11,7 +11,7 @@ from module.config.server import set_server
 
 set_server('chaoszero')
 
-from module.chaoszero.rogue import ChaoszeroRogue
+from module.chaoszero.rogue import CUTSCENE_POINT, ChaoszeroRogue, FLASH_BODY_BOXES, FLASH_DETAIL_CLOSE
 
 
 def make_task(image=None, copy_card='劍之雨', god_filter=''):
@@ -122,3 +122,18 @@ class GodCardPriorityTest(unittest.TestCase):
         picked_all_t2 = task_all_t2.rogue_god_card_pick(mock_points)
         self.assertEqual(picked_all_t2[:2], (870, 220))
         self.assertEqual(picked_all_t2[2], '萬人的英雄')
+
+    def test_modal_close_points_avoid_card_columns(self):
+        self.assertLess(CUTSCENE_POINT[0], 175)
+        self.assertGreater(CUTSCENE_POINT[1], 100)
+        self.assertLess(CUTSCENE_POINT[1], 240)
+        self.assertLess(FLASH_DETAIL_CLOSE[0], 175)
+
+    def test_flash_cards_washed_out_detects_white_burst(self):
+        clear = np.array(Image.open('assets/chaoszero/chaoszero/ROGUE_GOD.png').convert('RGB'))
+        self.assertFalse(ChaoszeroRogue._flash_cards_washed_out(clear))
+
+        burst = np.zeros((720, 1280, 3), dtype=np.uint8)
+        for x1, y1, x2, y2 in FLASH_BODY_BOXES:
+            burst[y1:y2, x1:x2] = (252, 245, 255)
+        self.assertTrue(ChaoszeroRogue._flash_cards_washed_out(burst))

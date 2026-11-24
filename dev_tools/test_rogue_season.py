@@ -200,10 +200,37 @@ class SeasonChaosTest(unittest.TestCase):
         task_130.device.image = cv2.cvtColor(cv2.imread(str(f130)), cv2.COLOR_BGR2RGB)
         self.assertEqual(task_130.rogue_season_read_save_pt(), 130)
 
+        # Team page bottom-right save cap OCR
+        self.assertEqual(make_task('team_on').rogue_season_read_team_save_pt(), 110)
+        self.assertEqual(make_task('team_off').rogue_season_read_team_save_pt(), 110)
+
+        # Dissenting tight outlier without cht agreement must return None (not blindly override)
+        stub = Mock()
+        stub._get_cht.return_value = None
+        stub.read_name.side_effect = ['·存檔資料儲存上限130pt', '180pt']
+        task_130.card_reader = stub
+        self.assertIsNone(task_130._read_save_pt_row(
+            task_130.device.image, task_130.device.image.copy(), (885, 274, 1200, 310)))
+
         task_off = make_task('season_diff', ChaoszeroRogue_RogueSeasonSavePt='關閉')
         self.assertEqual(task_off.rogue_season_parse_target_pt(), 0)
         self.assertTrue(task_off.rogue_season_reroll_pt(0))
         self.assertEqual(len(task_off.device.clicks), 0)
+
+        # Single-frame 180pt spike followed by 130pt must NOT return True early
+        spike_seq = iter([180, 130, 170, 170])
+        spike_clicks = {'n': 0}
+        task_spike = make_task('season_diff', ChaoszeroRogue_RogueSeasonSavePt='170pt')
+        task_spike.rogue_season_read_save_pt = lambda: next(spike_seq, 170)
+
+        def on_spike_click(btn):
+            if btn.name == 'ROGUE_SEASON_REROLL':
+                spike_clicks['n'] += 1
+                task_spike.device.image[300:340, 900:1100] ^= 40
+
+        task_spike.device.on_click = on_spike_click
+        self.assertTrue(task_spike.rogue_season_reroll_pt(170))
+        self.assertEqual(spike_clicks['n'], 1)
 
         state = {'pt': 130, 'clicks': 0}
         task_reroll = make_task('season_diff', ChaoszeroRogue_RogueSeasonSavePt='170pt')
@@ -273,6 +300,7 @@ class SeasonChaosTest(unittest.TestCase):
             ChaoszeroRogue_RogueDistortionAdapt=False,
         )
         task.wait_until_still = Mock(return_value=True)
+        task.rogue_season_read_team_save_pt = Mock(return_value=180)
         stage = {'page': 'lobby'}
 
         def sim_click(btn):
@@ -297,6 +325,66 @@ class SeasonChaosTest(unittest.TestCase):
         task.device.on_click = sim_click
         self.assertTrue(task.rogue_enter_team(reselect_world=True))
         self.assertEqual(stage['page'], 'team_off')
+
+    def test_team_page_save_pt_second_check(self):
+        # Dream Mode ON (+10pt): target 160pt requires team_pt >= 170pt;
+        # reading 140pt bounces back to season-diff, rerolls, then passes at 170pt.
+        task = make_task(
+            'season_diff',
+            ChaoszeroRogue_RogueWorld='賽季卡厄思',
+            ChaoszeroRogue_RogueSeasonDifficulty=8,
+            ChaoszeroRogue_RogueSeasonSavePt='160pt',
+            ChaoszeroRogue_RogueDreamMode='開啟',
+            ChaoszeroRogue_RogueDistortionAdapt=False,
+        )
+        task.device.image = paint_glow_at(FRAMES['season_diff'], SEASON_TIER_Y[8])
+        task.wait_until_still = Mock(return_value=True)
+        sim = {'entries': 0, 'backs': 0, 'rerolls': 0}
+        task.rogue_season_read_save_pt = lambda: 170
+        task.rogue_season_read_team_save_pt = lambda: 140 if sim['entries'] == 1 else 170
+
+        def on_click(btn):
+            if btn.name == 'ROGUE_SEASON_ENTER':
+                sim['entries'] += 1
+                task.device.image = FRAMES['team_off'].copy()
+            elif btn.name == 'ROGUE_WORLD_BACK':
+                sim['backs'] += 1
+                task.device.image = paint_glow_at(FRAMES['season_diff'], SEASON_TIER_Y[8])
+            elif btn.name == 'ROGUE_SEASON_REROLL':
+                sim['rerolls'] += 1
+                task.device.image[300:340, 900:1100] ^= 40
+
+        task.device.on_click = on_click
+        self.assertTrue(task.rogue_enter_team(reselect_world=True))
+        self.assertEqual(sim['entries'], 2)
+        self.assertEqual(sim['backs'], 1)
+        self.assertEqual(sim['rerolls'], 1)
+
+        # rogue_dump_unknown must work before rogue_run initializes unknown_frames
+        fresh_task = make_task('team_off')
+        if hasattr(fresh_task, 'unknown_frames'):
+            delattr(fresh_task, 'unknown_frames')
+        fresh_task.rogue_dump_unknown()
+
+        # Dream Mode OFF (+0pt): target 160pt accepts team_pt == 160pt directly
+        task_off = make_task(
+            'season_diff',
+            ChaoszeroRogue_RogueWorld='賽季卡厄思',
+            ChaoszeroRogue_RogueSeasonSavePt='160pt',
+            ChaoszeroRogue_RogueDreamMode='關閉',
+            ChaoszeroRogue_RogueDistortionAdapt=False,
+        )
+        task_off.device.image = paint_glow_at(FRAMES['season_diff'], SEASON_TIER_Y[8])
+        task_off.wait_until_still = Mock(return_value=True)
+        task_off.rogue_season_read_save_pt = lambda: 160
+        task_off.rogue_season_read_team_save_pt = Mock(return_value=160)
+        task_off.rogue_dream_set = Mock(return_value=True)
+        task_off.rogue_dream_state = Mock(return_value=False)
+        task_off.device.on_click = (
+            lambda btn: setattr(task_off.device, 'image', FRAMES['team_off'].copy())
+            if btn.name == 'ROGUE_SEASON_ENTER' else None
+        )
+        self.assertTrue(task_off.rogue_enter_team(reselect_world=False))
 
     def test_season_popups_and_reward_list(self):
         for key in ('pure_white_mem', 'get_card_popup', 'get_buff_popup'):
@@ -655,6 +743,31 @@ class SeasonChaosTest(unittest.TestCase):
         point = task.rogue_purple_point()
         self.assertIsNotNone(point)
         self.assertEqual(task.rogue_settlement_page(), 'result')
+
+    def test_memory_reroll_clears_click_record_only_when_screen_changes(self):
+        press = Mock()
+        press.reached.return_value = True
+        task = make_task('mem_choose_1', ChaoszeroRogue_RogueSeasonMemoryCard='記憶：壓抑')
+        task.core_started = True
+        task.rogue_memory_identify_card = Mock(return_value='記憶：王國')
+        task.rogue_memory_can_reroll = Mock(side_effect=[True, False, False])
+        task.device.click_record_clear = Mock()
+
+        self.assertTrue(task.handle_rogue_memory_choose(press))
+        self.assertEqual(task.device.click_record_clear.call_count, 1)
+
+        # Repeating on an identical frozen frame preserves the record so watchdog still works.
+        task.rogue_memory_can_reroll = Mock(side_effect=[True, False, False])
+        self.assertTrue(task.handle_rogue_memory_choose(press))
+        self.assertEqual(task.device.click_record_clear.call_count, 1)
+
+        # Once the frame updates after a real reroll, history clears again.
+        changed = task.device.image.copy()
+        changed[0, 0] ^= 255
+        task.device.image = changed
+        task.rogue_memory_can_reroll = Mock(side_effect=[False, True, False])
+        self.assertTrue(task.handle_rogue_memory_choose(press))
+        self.assertEqual(task.device.click_record_clear.call_count, 2)
 
 
 if __name__ == '__main__':

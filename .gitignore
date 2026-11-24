@@ -280,8 +280,9 @@ dev_tools/link_*_skills.bat
 # IDE / agent screenshot scratch, never part of the project
 .screenshots/
 
-# IDE 生成的工程说明：每次扫描整个仓库重新生成，内容随会话变，不进版本库
+# IDE / agent 交接与生成说明：不进版本库
 CODEBUDDY.md
+HANDOVER-*.md
 
 # Asset maker export list: handwritten labels, rewritten on every export
 assets/*/*/manifest.json

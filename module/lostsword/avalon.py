@@ -17,7 +17,8 @@ from module.lostsword.assets import (AVALON_BTN_CHALLENGE,
 from module.lostsword.lostsword_ui import (BATTLE_TAB_GUILD,
                                            BATTLE_TAB_SELECTED_MEAN,
                                            BOSS_RESULT_TAP, LostswordUI,
-                                           MAIN_DEFEAT_BACK, page_battle)
+                                           MAIN_DEFEAT_BACK, page_avalon,
+                                           page_battle)
 from module.lostsword.star import STAR_RESET_MARGIN, parse_next_time
 from module.ocr.ocr import Ocr
 
@@ -31,6 +32,8 @@ AVALON_CITIES = {
     '默西亚城': (1030, 373),
 }
 AVALON_DEFAULT_CITY = '埃塞尔城'
+AVALON_DEFAULT_CITY2 = '爱尔亚城'
+AVALON_CITY_MAX_BATTLES = 3
 AVALON_MAX_BATTLES = 6
 AVALON_BATTLE_TIMEOUT = 300
 AVALON_CHALLENGE_ENABLED_MEAN = 140
@@ -76,12 +79,25 @@ def parse_avalon_tries(text):
 
 class LostswordAvalon(LostswordUI):
     """
-    Challenge the selected city up to 6 times in Guild War (阿瓦隆).
+    Challenge up to two selected cities (3 times per city, 6 total) in Guild War (阿瓦隆).
 
     Pages:
         in: page_main
         out: page_main
     """
+
+    def avalon_cities(self):
+        """Return ordered unique target cities `[city1, city2]` with valid fallbacks."""
+        cities = []
+        for key, default in (('LostswordAvalon_City', AVALON_DEFAULT_CITY),
+                             ('LostswordAvalon_City2', AVALON_DEFAULT_CITY2)):
+            city = getattr(self.config, key, default)
+            if city not in AVALON_CITIES:
+                logger.warning(f'[Avalon] Unknown city "{city}", fallback to {default}')
+                city = default
+            if city not in cities:
+                cities.append(city)
+        return cities
 
     def avalon_read_next_time(self):
         """Read `下次时间` countdown seconds from the city summary popup, or 0."""
@@ -299,7 +315,7 @@ class LostswordAvalon(LostswordUI):
 
     def run(self):  # alas-lint: allow - scheduled weekly via avalon_schedule()/delay_next_week(), which calls config.task_delay()
         """
-        Run Guild War (阿瓦隆) on the configured city, then schedule weekly.
+        Run Guild War (阿瓦隆) on the two configured cities, then schedule weekly.
 
         Pages:
             in: page_main
@@ -307,11 +323,8 @@ class LostswordAvalon(LostswordUI):
         """
         logger.hr('Lostsword Avalon', level=1)
         self.avalon_next_reset = None
-        city = getattr(self.config, 'LostswordAvalon_City', AVALON_DEFAULT_CITY)
-        if city not in AVALON_CITIES:
-            logger.warning(f'[Avalon] Unknown city "{city}", fallback to {AVALON_DEFAULT_CITY}')
-            city = AVALON_DEFAULT_CITY
-        logger.attr('City', city)
+        cities = self.avalon_cities()
+        logger.attr('Cities', ', '.join(cities))
 
         self.ui_ensure(page_battle)
         if not self.battle_goto_guild() or not self.avalon_enter():
@@ -320,21 +333,33 @@ class LostswordAvalon(LostswordUI):
             self.avalon_schedule()
             return
 
-        for round_num in range(1, AVALON_MAX_BATTLES + 1):
-            logger.hr(f'Avalon battle {round_num}', level=2)
-            if not self.avalon_open_city(city):
-                break
-            tries = self.avalon_read_tries()
-            logger.info(f'[Avalon] {city} remaining tries: {tries}/6')
-            if tries == 0:
-                logger.info('[Avalon] No tries left')
-                break
-            if not self.avalon_start_sortie():
-                logger.info('[Avalon] Sortie could not start, stop')
-                break
-            self.avalon_wait_battle()
-            if tries == 1:
-                logger.info('[Avalon] Last try completed')
+        total_done = 0
+        out_of_tries = False
+        for city_idx, city in enumerate(cities):
+            if city_idx:
+                self.ui_ensure(page_avalon)
+            for city_round in range(1, AVALON_CITY_MAX_BATTLES + 1):
+                if total_done >= AVALON_MAX_BATTLES:
+                    out_of_tries = True
+                    break
+                logger.hr(f'Avalon {city} ({city_round}/{AVALON_CITY_MAX_BATTLES})', level=2)
+                if not self.avalon_open_city(city):
+                    break
+                tries = self.avalon_read_tries()
+                logger.info(f'[Avalon] {city} remaining tries: {tries}/{AVALON_MAX_BATTLES}')
+                if tries == 0:
+                    logger.info(f'[Avalon] {city} has no tries left')
+                    break
+                if not self.avalon_start_sortie():
+                    logger.info(f'[Avalon] {city} sortie could not start, stop city')
+                    break
+                self.avalon_wait_battle()
+                total_done += 1
+                if tries == 1:
+                    logger.info('[Avalon] Last try completed')
+                    out_of_tries = True
+                    break
+            if out_of_tries or self.avalon_next_reset is not None:
                 break
 
         self.ui_goto_main()

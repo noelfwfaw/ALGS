@@ -343,7 +343,8 @@
       "ServerUpdate": "23:00"
     },
     "LostswordAvalon": {
-      "City": "埃塞尔城"
+      "City": "埃塞尔城",
+      "City2": "爱尔亚城"
     },
     "Storage": {
       "Storage": {}

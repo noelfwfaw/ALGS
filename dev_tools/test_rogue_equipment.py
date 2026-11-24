@@ -627,7 +627,7 @@ class EquipmentTest(unittest.TestCase):
         task.tap_point.assert_not_called()
 
     def test_store_previews_are_free_bounded_and_reset_at_the_next_node(self):
-        task, equipment = make_task('store', '突擊靴 = 米卡')
+        task, equipment = make_task('store', '生存者的兜帽 = 米卡\n心靈術士戰鬥強化服 = 米卡')
         self.assertTrue(equipment.handle_shop(Mock()))
         task.tap_point.assert_called_with(140, 390, name='ROGUE_SHOP_EQUIPMENT')
         self.assertTrue(equipment.handle_shop(Mock()))
@@ -666,7 +666,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_count, 1)
 
     def test_last_free_refresh_is_confirmed_by_paid_state_without_clicking_paid_refresh(self):
-        task, equipment = make_task('store_free_one', '突擊靴 = 海德瑪麗')
+        task, equipment = make_task('store_free_one', '泰坦戰鬥強化服 = 海德瑪麗\n茂盛的海藻盔甲 = 海德瑪麗')
         equipment.shop_context = (task.core_started, task.route_step)
         equipment.shop_seen = {0, 1, 3}
         self.assertTrue(equipment.handle_shop(Mock()))
@@ -680,7 +680,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_count, 3)
 
     def test_restart_refresh_dialog_is_cancelled_before_rechecking_free_status(self):
-        task, equipment = make_task('refresh_confirm', '突擊靴 = 海德瑪麗')
+        task, equipment = make_task('refresh_confirm', '生存者的兜帽 = 海德瑪麗')
         equipment.handle(Mock())
         task.tap_point.assert_called_once_with(435, 454, name='ROGUE_SHOP_REFRESH_RECHECK')
         equipment.handle(Mock())
@@ -755,7 +755,10 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(equipment.shop_equipment_slots(equipment.shop_target_slots()), [])
 
     def test_free_refresh_rechecks_new_stock_and_stops_when_free_label_disappears(self):
-        task, equipment = make_task('store', '突擊靴 = 米卡')
+        task, equipment = make_task(
+            'store',
+            '生存者的兜帽 = 米卡\n心靈術士戰鬥強化服 = 米卡\n泰坦戰鬥強化服 = 米卡\n茂盛的海藻盔甲 = 米卡',
+        )
         equipment.shop_free_refresh_count = Mock(return_value=2)
         equipment.shop_context = (task.core_started, task.route_step)
         equipment.shop_seen = {0, 1}
@@ -849,7 +852,7 @@ class EquipmentTest(unittest.TestCase):
         self.assertEqual(task.tap_point.call_count, 1)
 
     def test_refresh_cooldown_and_next_node_reset(self):
-        task, equipment = make_task('store', '突擊靴 = 米卡')
+        task, equipment = make_task('store', '生存者的兜帽 = 米卡')
         equipment.shop_context = (task.core_started, task.route_step)
         equipment.shop_seen = {0, 1}
         press = Mock()
@@ -875,7 +878,7 @@ class EquipmentTest(unittest.TestCase):
             equipment.handle(Mock())
 
     def test_unknown_shop_preview_is_held_then_stops_without_generic_clicks(self):
-        task, equipment = make_task('store', '突擊靴 = 米卡')
+        task, equipment = make_task('store', '生存者的兜帽 = 米卡')
         equipment.handle_shop(Mock())
         task.tap_point.assert_called_once_with(140, 390, name='ROGUE_SHOP_EQUIPMENT')
         task.device.image[:] = 0
@@ -884,6 +887,61 @@ class EquipmentTest(unittest.TestCase):
         with self.assertRaises(TaskFailed):
             equipment.handle(Mock())
         self.assertEqual(task.tap_point.call_count, 1)
+
+    def test_shop_shelf_prefilter_reads_all_fixture_items(self):
+        expected = {
+            'store': {0: '生存者的兜帽', 1: '心靈術士戰鬥強化服'},
+            'store_free_one': {0: '絕對零度的四面體', 1: '角鬥士頭盔', 3: '多面平行宇宙連接體'},
+            'store_paid': {3: '泰坦戰鬥強化服', 4: '茂盛的海藻盔甲'},
+        }
+        for name, cols in expected.items():
+            task, equipment = make_task(name)
+            entries = {col: (slot, icon_y)
+                       for col, slot, icon_y in equipment.shop_equipment_entries({0, 1, 2})}
+            for col, item_name in cols.items():
+                slot, icon_y = entries[col]
+                text, item = equipment.shop_read_shelf_item(task.device.image, col, slot, icon_y)
+                self.assertIsNotNone(item, f'{name} col {col}: OCR={text!r}')
+                self.assertEqual(item['name'], item_name)
+
+    def test_shop_shelf_prefilter_skips_unwanted_and_opens_targets_or_variants(self):
+        # Neither col 0 (生存者的兜帽) nor col 1 (心靈術士戰鬥強化服) matches 突擊靴 -> skip directly to refresh.
+        task, equipment = make_task('store', '突擊靴 = 米卡')
+        self.assertTrue(equipment.handle_shop(Mock()))
+        task.tap_point.assert_called_once_with(100, 672, name='ROGUE_SHOP_REFRESH_FREE')
+
+        # Rule matches col 1 only -> col 0 skipped cleanly, col 1 clicked.
+        task, equipment = make_task('store', '心靈術士戰鬥強化服 = 米卡')
+        self.assertTrue(equipment.handle_shop(Mock()))
+        task.tap_point.assert_called_once_with(390, 390, name='ROGUE_SHOP_EQUIPMENT')
+
+        # Variant rule (調節：生存者的兜帽) shares base name with col 0 -> open col 0 instead of risking skip.
+        task, equipment = make_task('store', '米卡: 調節：生存者的兜帽')
+        self.assertTrue(equipment.handle_shop(Mock()))
+        task.tap_point.assert_called_once_with(140, 390, name='ROGUE_SHOP_EQUIPMENT')
+
+        # Unreadable title text falls back safely to inspecting the column.
+        task, equipment = make_task('store', '突擊靴 = 米卡')
+        task.device.image[440:500, 30:250] = 0
+        self.assertTrue(equipment.handle_shop(Mock()))
+        task.tap_point.assert_called_once_with(140, 390, name='ROGUE_SHOP_EQUIPMENT')
+
+    def test_shop_shelf_red_price_skipped_without_opening(self):
+        task, equipment = make_task('store', '心靈術士戰鬥強化服 = 米卡')
+        # Paint red price digits on col 1 (心靈術士戰鬥強化服) -> skip straight to free refresh.
+        task.device.image[572:612, 355:495] = 0
+        task.device.image[580:600, 440:490] = (230, 85, 85)
+        self.assertTrue(equipment.handle_shop(Mock()))
+        self.assertIn(1, equipment.shop_seen)
+        task.tap_point.assert_called_once_with(100, 672, name='ROGUE_SHOP_REFRESH_FREE')
+
+    def test_selected_row_ignores_portrait_bleed_into_inner_columns(self):
+        img = np.zeros((720, 1280, 3), dtype=np.uint8)
+        # Bright pale-gold selection border on row 0 outer edge (776:779).
+        img[159:272, 776:779] = (254, 244, 196)
+        # Bright cream portrait pixels bleeding into 779:781 on row 2 must be ignored.
+        img[159 + 320:272 + 320, 779:781] = (230, 222, 200)
+        self.assertEqual(Equipment.selected_row(img), 0)
 
 
 if __name__ == '__main__':

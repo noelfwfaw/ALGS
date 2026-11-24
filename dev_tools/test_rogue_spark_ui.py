@@ -7,18 +7,30 @@ from unittest.mock import MagicMock, patch
 
 from module.chaoszero import rogue_spark_catalog as rogue_cards
 from module.webui import app as webui_app
+from module.webui.fake_pil_module import remove_fake_pil_module
+
+remove_fake_pil_module()
 
 
 class RogueSparkCatalogTest(unittest.TestCase):
-    def test_catalog_covers_all_39_characters_with_four_spark_cards_each(self):
+    def test_catalog_covers_all_40_characters_with_four_spark_cards_each(self):
         chars, by_char = rogue_cards.spark_catalog()
-        self.assertEqual(len(chars), 39)
-        self.assertEqual(len(by_char), 39)
+        self.assertEqual(len(chars), 40)
+        self.assertEqual(len(by_char), 40)
         for entry in chars:
             cards = by_char[entry['id']]
             self.assertEqual(len(cards), 4)
             for card in cards:
                 self.assertEqual([f['index'] for f in card['forms']], [1, 2, 3, 4, 5])
+        blaze = {c['name']: c for c in by_char['custom_blazebel']}
+        self.assertEqual(set(blaze), {'飄散的火花', '火焰之觸', '芙蕾雅的祝福', '共鳴的火花'})
+        self.assertEqual(blaze['飄散的火花']['cost'], 0)
+        self.assertEqual(blaze['飄散的火花']['category'], 'CARD_SKILL')
+        self.assertNotIn('此卡牌費用減少1', rogue_cards.god_spark_options(blaze['飄散的火花']))
+        self.assertIn('獲得AP1', rogue_cards.god_spark_options(blaze['飄散的火花']))
+        self.assertIn('常態弱點攻擊', rogue_cards.god_spark_options(blaze['火焰之觸']))
+        self.assertIn('此卡牌費用減少1', rogue_cards.god_spark_options(blaze['火焰之觸']))
+        self.assertIn('此卡牌費用減少1', rogue_cards.god_spark_options(blaze['共鳴的火花']))
 
     def test_character_name_localization(self):
         entry = {'id': '1003', 'names': {'en': 'Nia', 'zhs': '妮雅简', 'zht': '妮雅繁'}}
@@ -49,7 +61,13 @@ class RogueSparkCatalogTest(unittest.TestCase):
 
     def test_deck_catalog_and_delete_filter_helpers(self):
         deck = rogue_cards.deck_catalog()
-        self.assertEqual(len(deck), 39)
+        self.assertEqual(len(deck), 40)
+        blaze = {c['name']: c for c in deck['custom_blazebel']}
+        self.assertEqual(blaze['紅色火焰']['kind'], 'basic')
+        self.assertEqual(blaze['蔚藍火焰']['count'], 2)
+        self.assertEqual(blaze['蔚藍火焰']['kind'], 'basic')
+        self.assertEqual(blaze['飄散的火花']['kind'], 'spark')
+        self.assertEqual(blaze['火花的殘影']['kind'], 'unique')
         heidi = {c['name']: c for c in deck['30093']}
         self.assertEqual(heidi['劍光']['count'], 2)
         self.assertEqual(heidi['劍光']['kind'], 'basic')
@@ -105,8 +123,9 @@ class RogueSparkWebUITest(unittest.TestCase):
             options, labels = webui_app.AlasGUI._rogue_character_options()
         self.assertEqual(options[0], '')
         self.assertEqual(labels[0], 'Gui.Rogue.Unselected')
-        self.assertEqual(len(options), 40)
-        self.assertEqual(len(labels), 40)
+        self.assertEqual(len(options), 41)
+        self.assertEqual(len(labels), 41)
+        self.assertIn('custom_blazebel', options)
 
     def test_render_empty_slots_shows_empty_hint(self):
         gui = self._make_gui()
@@ -404,6 +423,39 @@ class RogueSparkWebUITest(unittest.TestCase):
                 for item in rendered if item['name'].startswith('rogue_spark_card_')
             }
             self.assertEqual(spark_by_title['慢板']['value'], '6')
+
+    def test_set_group_deduplicates_shared_rogue_spark_picker_scope(self):
+        gui = self._make_gui()
+        gui._rogue_spark_active = False
+        gui._render_rogue_pickers = MagicMock()
+        settings = {
+            'RogueSparkFilter': {'type': 'textarea', 'value': '劍之雨 = 2'},
+            'RogueGodSparkFilter': {'type': 'textarea', 'value': '劍之雨 = 獲得AP1'},
+            'RogueSparkCheckCard': {'type': 'select', 'value': '', 'option': ['']},
+            'RogueDeleteFilter': {'type': 'textarea', 'value': ''},
+        }
+        config = {'ChaoszeroRogue': {'ChaoszeroRogue': {
+            'RogueSparkFilter': '劍之雨 = 3',
+            'RogueGodSparkFilter': '劍之雨 = 此卡牌費用減少1',
+        }}}
+        created_scopes = []
+
+        def fake_put_scope(name, *_, **__):
+            created_scopes.append(name)
+            m = MagicMock()
+            m.spec = {}
+            return m
+
+        with patch.object(webui_app, 'use_scope'), \
+                patch.object(webui_app, 'put_scope', side_effect=fake_put_scope), \
+                patch.object(webui_app, 'put_text'), \
+                patch.object(webui_app, 'put_html'), \
+                patch.object(webui_app, 't', side_effect=lambda k, *_, **__: k):
+            gui.set_group(('ChaoszeroRogue',), settings, config, 'ChaoszeroRogue', section='Build')
+
+        self.assertEqual(created_scopes, ['rogue_spark_picker', 'rogue_spark_check_picker', 'rogue_remove_picker'])
+        self.assertEqual(gui._rogue_hidden_values['RogueSparkFilter'], '劍之雨 = 3')
+        self.assertEqual(gui._rogue_hidden_values['RogueGodSparkFilter'], '劍之雨 = 此卡牌費用減少1')
 
 
 if __name__ == '__main__':

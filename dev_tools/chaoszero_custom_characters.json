@@ -1,0 +1,326 @@
+{
+  "characters": [
+    {
+      "id": "custom_blazebel",
+      "name": "布蕾茲貝爾",
+      "names": {
+        "en": "Blaze Bell",
+        "zhs": "布蕾兹贝尔",
+        "zht": "布蕾茲貝爾"
+      },
+      "job": "controller",
+      "attribute": "justice",
+      "face": "face/character/custom_blazebel",
+      "face_file": "dev_tools/chaoszero_custom_faces/custom_blazebel.png",
+      "cards": [
+        {
+          "base_desc": "造成102%的基於防禦的傷害",
+          "category": "CARD_ATK",
+          "cost": 1,
+          "forms": [],
+          "id": "c_custom_blazebel_srt1",
+          "job": "controller",
+          "name": "紅色火焰",
+          "rarity": "RARITY_COMMON",
+          "sort": "SORT_START",
+          "spine": "",
+          "talent": []
+        },
+        {
+          "base_desc": "獲得66%的治癒此卡牌凝聚疊加時，獲得66%的治癒",
+          "category": "CARD_SKILL",
+          "cost": 1,
+          "forms": [],
+          "id": "c_custom_blazebel_srt2",
+          "job": "controller",
+          "name": "蔚藍火焰",
+          "rarity": "RARITY_COMMON",
+          "sort": "SORT_START",
+          "spine": "",
+          "talent": [
+            "TALENT_RETAIN"
+          ]
+        },
+        {
+          "base_desc": "獲得66%的治癒此卡牌凝聚疊加時，獲得66%的治癒",
+          "category": "CARD_SKILL",
+          "cost": 1,
+          "forms": [],
+          "id": "c_custom_blazebel_srt3",
+          "job": "controller",
+          "name": "蔚藍火焰",
+          "rarity": "RARITY_COMMON",
+          "sort": "SORT_START",
+          "spine": "",
+          "talent": [
+            "TALENT_RETAIN"
+          ]
+        },
+        {
+          "base_desc": "獲得AP1純粹：抽取1",
+          "category": "CARD_SKILL",
+          "cost": 0,
+          "forms": [
+            {
+              "category": "CARD_SKILL",
+              "cost": 0,
+              "desc": "獲得AP1抽取1",
+              "id": "c_custom_blazebel_srt4_rsp1",
+              "name": "飄散的火花",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_RETAIN"
+              ]
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 0,
+              "desc": "獲得AP1持續1回合，友軍的正義卡牌傷害量增加40%",
+              "id": "c_custom_blazebel_srt4_rsp2",
+              "name": "飄散的火花",
+              "talent": []
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 0,
+              "desc": "獲得AP1獲得153%的治癒純粹：抽取1",
+              "id": "c_custom_blazebel_srt4_rsp3",
+              "name": "飄散的火花",
+              "talent": [
+                "TALENT_ORIGIN"
+              ]
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 0,
+              "desc": "獲得AP1持續1回合，下次觸發的卡牌費用減少1",
+              "id": "c_custom_blazebel_srt4_rsp4",
+              "name": "飄散的火花",
+              "talent": []
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 0,
+              "desc": "獲得AP1生成2張蔚藍火焰",
+              "id": "c_custom_blazebel_srt4_rsp5",
+              "name": "飄散的火花",
+              "talent": []
+            }
+          ],
+          "id": "c_custom_blazebel_srt4",
+          "job": "controller",
+          "name": "飄散的火花",
+          "rarity": "RARITY_RARE",
+          "sort": "SORT_UNIQUE",
+          "spine": "",
+          "talent": [
+            "TALENT_EXHAUST"
+          ]
+        },
+        {
+          "base_desc": "融解1造成153%的基於防禦的傷害",
+          "category": "CARD_ATK",
+          "cost": 1,
+          "forms": [
+            {
+              "category": "CARD_ATK",
+              "cost": 1,
+              "desc": "融解1造成255%的基於防禦的傷害",
+              "id": "c_custom_blazebel_uni1_rsp1",
+              "name": "火焰之觸",
+              "talent": []
+            },
+            {
+              "category": "CARD_ATK",
+              "cost": 1,
+              "desc": "所有敵人融解1造成204%的基於防禦的傷害",
+              "id": "c_custom_blazebel_uni1_rsp2",
+              "name": "火焰之觸",
+              "talent": []
+            },
+            {
+              "category": "CARD_ATK",
+              "cost": 1,
+              "desc": "融解1造成153%的基於防禦的傷害生成1張蔚藍火焰",
+              "id": "c_custom_blazebel_uni1_rsp3",
+              "name": "火焰之觸",
+              "talent": []
+            },
+            {
+              "category": "CARD_ATK",
+              "cost": 0,
+              "desc": "融解1造成102%的基於防禦的傷害",
+              "id": "c_custom_blazebel_uni1_rsp4",
+              "name": "火焰之觸",
+              "talent": []
+            },
+            {
+              "category": "CARD_POWER",
+              "cost": 1,
+              "desc": "回合開始時，對HP最高的敵人造成融解1，生成1張蔚藍火焰",
+              "id": "c_custom_blazebel_uni1_rsp5",
+              "name": "火焰之觸",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_INNATE"
+              ]
+            }
+          ],
+          "id": "c_custom_blazebel_uni1",
+          "job": "controller",
+          "name": "火焰之觸",
+          "rarity": "RARITY_RARE",
+          "sort": "SORT_UNIQUE",
+          "spine": "",
+          "talent": []
+        },
+        {
+          "base_desc": "獲得153%的治癒連續：生成2張蔚藍火焰",
+          "category": "CARD_SKILL",
+          "cost": 1,
+          "forms": [
+            {
+              "category": "CARD_SKILL",
+              "cost": 1,
+              "desc": "獲得204%的治癒生成2張蔚藍火焰",
+              "id": "c_custom_blazebel_uni2_rsp1",
+              "name": "芙蕾雅的祝福",
+              "talent": []
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 0,
+              "desc": "獲得153%治癒持續1回合，友軍的凝聚卡牌傷害量、治癒量增加30%",
+              "id": "c_custom_blazebel_uni2_rsp2",
+              "name": "芙蕾雅的祝福",
+              "talent": []
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 1,
+              "desc": "獲得204%的治癒所有敵人融解1",
+              "id": "c_custom_blazebel_uni2_rsp3",
+              "name": "芙蕾雅的祝福",
+              "talent": []
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 1,
+              "desc": "獲得204%的治癒丟棄手牌中任意數量的卡牌抽取1張攻擊卡牌該卡牌持續1回合至觸發前傷害量+100%",
+              "id": "c_custom_blazebel_uni2_rsp4",
+              "name": "芙蕾雅的祝福",
+              "talent": [
+                "TALENT_EXHAUST"
+              ]
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 1,
+              "desc": "獲得102%的治癒生成3張蔚藍火焰友軍壓力減少5",
+              "id": "c_custom_blazebel_uni2_rsp5",
+              "name": "芙蕾雅的祝福",
+              "talent": [
+                "TALENT_ORIGIN"
+              ]
+            }
+          ],
+          "id": "c_custom_blazebel_uni2",
+          "job": "controller",
+          "name": "芙蕾雅的祝福",
+          "rarity": "RARITY_RARE",
+          "sort": "SORT_UNIQUE",
+          "spine": "",
+          "talent": []
+        },
+        {
+          "base_desc": "生成3張蔚藍火焰回合開始時生成1張蔚藍火焰",
+          "category": "CARD_POWER",
+          "cost": 2,
+          "forms": [
+            {
+              "category": "CARD_POWER",
+              "cost": 3,
+              "desc": "生成3張蔚藍火焰其他戰鬥員凝聚疊加時生成1張蔚藍火焰（每回合4次）",
+              "id": "c_custom_blazebel_uni3_rsp1",
+              "name": "共鳴的火花",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_INNATE"
+              ]
+            },
+            {
+              "category": "CARD_SKILL",
+              "cost": 1,
+              "desc": "生成3張蔚藍火焰選擇2張抽取",
+              "id": "c_custom_blazebel_uni3_rsp2",
+              "name": "共鳴的火花",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_EXHAUST"
+              ]
+            },
+            {
+              "category": "CARD_POWER",
+              "cost": 1,
+              "desc": "生成3張蔚藍火焰回合開始時，生成1張蔚藍火焰",
+              "id": "c_custom_blazebel_uni3_rsp3",
+              "name": "共鳴的火花",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_INNATE"
+              ]
+            },
+            {
+              "category": "CARD_POWER",
+              "cost": 1,
+              "desc": "生成3張蔚藍火焰回合開始時持續1回合隨機1張卡牌至觸發前費用減少1",
+              "id": "c_custom_blazebel_uni3_rsp4",
+              "name": "共鳴的火花",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_INNATE"
+              ]
+            },
+            {
+              "category": "CARD_POWER",
+              "cost": 2,
+              "desc": "生成2張蔚藍火焰回合開始時生成2張蔚藍火焰，持續1回合，下一張觸發的凝聚卡牌費用減少1",
+              "id": "c_custom_blazebel_uni3_rsp5",
+              "name": "共鳴的火花",
+              "talent": [
+                "TALENT_ORIGIN",
+                "TALENT_INNATE"
+              ]
+            }
+          ],
+          "id": "c_custom_blazebel_uni3",
+          "job": "controller",
+          "name": "共鳴的火花",
+          "rarity": "RARITY_LEGEND",
+          "sort": "SORT_UNIQUE",
+          "spine": "",
+          "talent": [
+            "TALENT_ORIGIN",
+            "TALENT_INNATE"
+          ]
+        },
+        {
+          "base_desc": "持續1回合，友軍傷害量增加20%，友軍正義卡牌傷害量增加20%",
+          "category": "CARD_SKILL",
+          "cost": 1,
+          "forms": [],
+          "id": "c_custom_blazebel_uni4",
+          "job": "controller",
+          "name": "火花的殘影",
+          "rarity": "RARITY_UNIQUE",
+          "sort": "SORT_UNIQUE",
+          "spine": "",
+          "talent": [
+            "TALENT_ORIGIN",
+            "TALENT_RETAIN"
+          ]
+        }
+      ]
+    }
+  ]
+}

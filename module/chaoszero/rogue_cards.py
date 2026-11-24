@@ -28,6 +28,7 @@ from module.chaoszero.rogue_spark_catalog import (
     NEUTRAL_FORM_ALIASES,
     RELICS_FILE,
     SPARKS_FILE,
+    card_character_map,
     character_name,
     character_spark_cards,
     deck_catalog,

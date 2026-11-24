@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
 import cv2
+import numpy as np
 
 from module.config.server import set_server
 
@@ -337,6 +338,232 @@ class TestRoute(unittest.TestCase):
             ['ROGUE_ROUTE_OPEN', 'ROGUE_ROUTE_CLOSE', 'ROGUE_ROUTE_CLOSE'],
         )
         self.assertEqual(task.wait_until_disappear.call_count, 2)
+
+    def test_empty_map_cards_presses_fallback_without_discarding_single_branch_plan(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.tap_point = Mock()
+        task.node_pending = None
+        task.plan_index = 0
+        # Single-choice planned node (e.g. mid-floor safe area rest): falls back at try 3
+        task.route_plan = [[{'kind': 'rest', 'choices': ['rest']}]]
+        for tries, tapped in ((1, False), (2, False), (3, True)):
+            task.node_tries = tries
+            self.assertEqual(task.rogue_map_fallback(), tapped)
+        task.tap_point.assert_called_once_with(*rogue.NODE_FALLBACK, name='ROGUE_NODE')
+
+        # Multi-branch planned node: waits 3 tries before falling back at try 4
+        task.tap_point.reset_mock()
+        task.route_plan = [[{'kind': 'event', 'choices': ['battle', 'event']}]]
+        for tries, tapped in ((1, False), (2, False), (3, False), (4, True)):
+            task.node_tries = tries
+            self.assertEqual(task.rogue_map_fallback(), tapped)
+        task.tap_point.assert_called_once_with(*rogue.NODE_FALLBACK, name='ROGUE_NODE')
+
+    def test_dream_notice_ticks_hide_box_before_confirm(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.appear = Mock(side_effect=lambda btn, **_: btn is rogue.ROGUE_DREAM_NOTICE)
+        task.tap_point = Mock()
+        task.device = SimpleNamespace(image=np.zeros((720, 1280, 3), dtype=np.uint8), click=Mock())
+        press = Mock()
+        press.reached.return_value = True
+
+        # Unchecked: ticks 一週內不再顯示 before clicking confirm
+        self.assertTrue(task.rogue_handle_dream_notice(press))
+        task.tap_point.assert_called_once_with(*rogue.DREAM_HIDE_POINT, name='ROGUE_DREAM_HIDE')
+        task.device.click.assert_not_called()
+
+        # Checked (orange box): closes with ROGUE_DREAM_OK
+        task.tap_point.reset_mock()
+        x1, y1, x2, y2 = rogue.DREAM_HIDE_BOX
+        task.device.image[y1:y2, x1:x2] = (239, 130, 50)
+        self.assertTrue(task.rogue_handle_dream_notice(press))
+        task.tap_point.assert_not_called()
+        task.device.click.assert_called_once_with(rogue.ROGUE_DREAM_OK)
+
+    def test_dialog_confirm_ticks_hide_checkbox_once_before_confirming(self):
+        for confirm_y in (454, 481, 488):
+            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+            # Orange confirm button + grey 23x24 checkbox 71px above it
+            frame[confirm_y - 25:confirm_y + 25, 680:1010] = (239, 130, 50)
+            frame[confirm_y - 83:confirm_y - 59, 529:552] = (192, 192, 192)
+            task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+            task.device = SimpleNamespace(image=frame)
+            task.tap_point = Mock()
+            pt = task.rogue_dialog_point()
+            self.assertIsNotNone(pt)
+            # First call checks the checkbox without confirming
+            self.assertFalse(task.rogue_confirm_dialog(pt))
+            cx, cy = task.tap_point.call_args[0]
+            self.assertAlmostEqual(cx, 540, delta=2)
+            self.assertAlmostEqual(cy, pt[1] - 71, delta=2)
+            self.assertEqual(task.tap_point.call_args[1]['name'], 'ROGUE_DIALOG_HIDE')
+            # Second call confirms at pt even if checkbox box stays grey (anti-toggle guard)
+            task.tap_point.reset_mock()
+            self.assertTrue(task.rogue_confirm_dialog(pt))
+            task.tap_point.assert_called_once_with(pt[0], pt[1], name='ROGUE_DIALOG')
+
+        # Tall white dialog (e.g. 治療中心「消除記憶」 at y=478..534, center ~504)
+        cure_dlg = np.zeros((720, 1280, 3), dtype=np.uint8)
+        cure_dlg[478:534, 649:1038] = (239, 130, 50)
+        cure_task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        cure_task.device = SimpleNamespace(image=cure_dlg)
+        self.assertEqual(cure_task.rogue_dialog_point(), (843, 505))
+
+        # Fixture dialogs without checkboxes confirm immediately
+        for fixture in (
+            'rogue_equipment_refresh_confirm.png',
+            'rogue_equipment_salvage_confirm.png',
+            'rogue_equipment_spark_limit_confirm.png',
+        ):
+            task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+            task.device = SimpleNamespace(image=capture(fixture))
+            task.tap_point = Mock()
+            pt = task.rogue_dialog_point()
+            self.assertIsNotNone(pt, fixture)
+            self.assertIsNone(task.rogue_dialog_hide_point(pt), fixture)
+            self.assertTrue(task.rogue_confirm_dialog(pt))
+            task.tap_point.assert_called_once_with(pt[0], pt[1], name='ROGUE_DIALOG')
+
+        # Tall white dialog (e.g. 治療中心「消除記憶」 at y=478..534, center ~504)
+        cure_dlg = np.zeros((720, 1280, 3), dtype=np.uint8)
+        cure_dlg[478:534, 649:1038] = (239, 130, 50)
+        cure_task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        cure_task.device = SimpleNamespace(image=cure_dlg)
+        self.assertEqual(cure_task.rogue_dialog_point(), (843, 505))
+
+    def test_route_rejects_dimmed_nodes_plans_small_maps_and_resolves_unique_kind(self):
+        image = capture('rogue_route_glowing_preview.png')
+        # Simulate dimmed unreachable rest (dark orange V<=115) & elite (dark purple V<=115) in col 1.
+        cv2.rectangle(image, (305, 130), (380, 180), (110, 62, 24), -1)
+        cv2.rectangle(image, (305, 240), (380, 290), (85, 42, 112), -1)
+        nodes = route.read_nodes(image)
+        tier0 = [n for n in nodes if n.tier == 0]
+        self.assertEqual(len(tier0), 3)
+
+        # Edge check preserves real diagonal t4(476)->t5(584) and rejects absent diagonal t4(584)->t5(476).
+        opening = capture('rogue_route_opening.png')
+        op_nodes = route.read_nodes(opening)
+        op_edges = set(route.read_edges(opening, op_nodes))
+        t4_mid = min(range(len(op_nodes)), key=lambda i: abs(op_nodes[i].x - 997) + abs(op_nodes[i].y - 476))
+        t4_bot = min(range(len(op_nodes)), key=lambda i: abs(op_nodes[i].x - 997) + abs(op_nodes[i].y - 584))
+        t5_elite = min(range(len(op_nodes)), key=lambda i: abs(op_nodes[i].x - 1161) + abs(op_nodes[i].y - 476))
+        t5_bot = min(range(len(op_nodes)), key=lambda i: abs(op_nodes[i].x - 1161) + abs(op_nodes[i].y - 584))
+        self.assertIn((t4_mid, t5_bot), op_edges)
+        self.assertNotIn((t4_bot, t5_elite), op_edges)
+
+        # Small 2-node (1-edge) and 1-tier (0-edge) Floor 3 maps still produce valid plans.
+        n0 = route.RouteNode(340, 370, route.KIND_EVENT)
+        n1 = route.RouteNode(504, 370, route.KIND_REST)
+        n0.tier, n1.tier = 0, 1
+        two_plan = route.plan([n0, n1], style=route.ROUTE_EVENT, edges=[(0, 1)])
+        self.assertEqual([e[0]['kind'] for e in two_plan], ['event', 'rest'])
+        single_plan = route.plan([n0], style=route.ROUTE_EVENT, edges=[])
+        self.assertEqual([e[0]['kind'] for e in single_plan], ['event'])
+
+        # Unambiguous unique kind resolves when an extra branch differs, while ambiguous copies stay None.
+        rest_card = route.RouteCard(970, 114, route.KIND_REST, 60, 100)
+        ev_card = route.RouteCard(1150, 312, route.KIND_EVENT, 60, 100)
+        entry = {'kind': route.KIND_REST, 'choices': [route.KIND_REST, route.KIND_REST, route.KIND_EVENT],
+                 'choice_index': 0}
+        self.assertIs(route.planned_card([rest_card, ev_card], entry), rest_card)
+
+        # Platform glow bordering an orange rest card (308x247 merged) is opened away cleanly.
+        glow = np.zeros((720, 1280, 3), dtype=np.uint8)
+        glow[255:371, 1129:1175] = (230, 145, 50)
+        glow[340:344, 860:1150] = (230, 145, 50)
+        glow[340:470, 860:864] = (230, 145, 50)
+        glow_cards = route.read_cards(glow)
+        self.assertEqual([(c.kind, c.x, c.y) for c in glow_cards], [('rest', 1152, 312)])
+
+        # Mismatch dump safely saves 2d/3d frames without KeyError on log_retention.
+        with TemporaryDirectory() as folder:
+            dump_task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+            dump_task.device = SimpleNamespace(image=glow)
+            dump_task.route_last_preview = glow
+            with patch.object(rogue, 'prune_diagnostics') as mock_prune:
+                dump_task.rogue_dump_route_mismatch()
+                mock_prune.assert_called_once()
+            # Also call real prune_diagnostics on 'route' directly.
+            rogue.prune_diagnostics(folder, 'route')
+
+    def test_grid_recovers_top_left_event_under_cyan_highlight_strip(self):
+        image = capture('rogue_route_glowing_preview.png')
+        # Add a bright cyan event diamond at top-left (341, 152) merged into a vertical cyan highlight band,
+        # plus a white connector from the pin (178, 473) -> (341, 152), mimicking live 041606/043751/233439.
+        cv2.rectangle(image, (285, 92), (398, 225), (28, 128, 155), -1)
+        diamond = np.array([[341, 130], [385, 152], [341, 174], [297, 152]], dtype=np.int32)
+        cv2.fillConvexPoly(image, diamond, (42, 195, 225))
+        cv2.putText(image, '?', (333, 162), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (245, 245, 245), 3)
+        cv2.line(image, (178 + route.EDGE_TIP_X, 473 + route.EDGE_TIP_Y),
+                 (341 - route.EDGE_TIP_X, 152 + route.EDGE_TIP_Y), (235, 235, 235), 2)
+
+        nodes = route.read_nodes(image)
+        tier0 = sorted((n for n in nodes if n.tier == 0), key=lambda n: n.y)
+        self.assertEqual([(n.x, n.y, n.kind) for n in tier0], [
+            (341, 152, route.KIND_EVENT),
+            (341, 368, route.KIND_EVENT),
+            (341, 476, route.KIND_ELITE),
+            (341, 584, route.KIND_EVENT),
+        ])
+
+    def test_read_cards_distinguishes_beacon_from_rest_and_clipped_top_cards(self):
+        rest_tpl = cv2.cvtColor(cv2.imread(route.ICON_REST_FILE), cv2.COLOR_BGR2RGB)
+        beacon_tpl = cv2.cvtColor(cv2.imread(route.ICON_BEACON_FILE), cv2.COLOR_BGR2RGB)
+        canvas = np.zeros((720, 1280, 3), dtype=np.uint8)
+
+        # Clipped top-slot beacon card (y1=82..159 -> h=77) and full-height rest card at right slot.
+        # Paint only bright icon pixels onto solid orange so the card area stays above CARD_AREA_MIN.
+        canvas[82:159, 948:993] = (220, 125, 45)
+        bmask = beacon_tpl > 165
+        canvas[98:142, 949:993][bmask] = beacon_tpl[bmask]
+        canvas[255:371, 1129:1175] = (220, 125, 45)
+        rmask = rest_tpl > 165
+        canvas[291:335, 1130:1174][rmask] = rest_tpl[rmask]
+
+        cards = route.read_cards(canvas)
+        self.assertEqual(
+            [(c.kind, c.x) for c in sorted(cards, key=lambda c: c.y)],
+            [(route.KIND_BEACON, 970), (route.KIND_REST, 1152)],
+        )
+
+    def test_route_mismatch_rereads_once_per_step_then_falls_back(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.device = SimpleNamespace(image=np.zeros((720, 1280, 3), dtype=np.uint8))
+        task.core_started = False
+        task.route_step = 3
+        task.plan_index = 0
+        task.route_reads = 1
+        task.route_mismatch = None
+        task.route_reread_step = None
+        task.route_plan = [[{'kind': route.KIND_EVENT, 'choices': [route.KIND_EVENT, route.KIND_EVENT],
+                             'choice_index': 0}]]
+        task.rogue_dump_route_mismatch = Mock()
+        task.rogue_route_style = Mock(return_value=route.ROUTE_EVENT)
+        task.rogue_route_state = Mock(return_value={})
+
+        live = [
+            route.RouteCard(971, 115, route.KIND_REST, 46, 116),
+            route.RouteCard(1152, 311, route.KIND_BATTLE, 46, 116),
+        ]
+
+        # First sight records mismatch for 1-frame debounce.
+        self.assertEqual(task.rogue_route_choose_card(live), (None, True))
+        task.rogue_dump_route_mismatch.assert_not_called()
+
+        # Second sight confirms mismatch, triggers ONE re-read for (core_started=False, route_step=3).
+        self.assertEqual(task.rogue_route_choose_card(live), (None, True))
+        task.rogue_dump_route_mismatch.assert_called_once()
+        self.assertIsNone(task.route_plan)
+        self.assertEqual(task.route_reread_step, (False, 3))
+
+        # Suppose re-reading still produced a mismatched plan on the same step with route_reads < ROUTE_READS:
+        # must NOT discard & re-read a second time in place — should fall back to best_card.
+        task.route_plan = [[{'kind': route.KIND_EVENT, 'choices': [route.KIND_EVENT], 'choice_index': 0}]]
+        self.assertEqual(task.rogue_route_choose_card(live), (None, True))  # 1-frame debounce
+        chosen, reread = task.rogue_route_choose_card(live)
+        self.assertFalse(reread)
+        self.assertIs(chosen, live[0])
+        self.assertIsNone(task.route_plan)
 
 
 if __name__ == '__main__':

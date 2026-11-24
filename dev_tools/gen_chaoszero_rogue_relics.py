@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import requests
 
+from dev_tools.gen_chaoszero_rogue_cards import load_custom_characters
 from dev_tools.gen_chaoszero_rogue_db import get
 
 
@@ -52,13 +53,57 @@ def fetch_icon(path):
     return blob
 
 
+def custom_character_records():
+    """Return `(records, face_blobs)` for manually curated characters."""
+    import cv2
+
+    chars = []
+    faces = {}
+    for entry in load_custom_characters():
+        cid = str(entry.get('id') or '')
+        name = entry.get('name') or ''
+        face_file = entry.get('face_file') or ''
+        if not cid or not name or not face_file or not os.path.exists(face_file):
+            continue
+        image = cv2.imread(face_file, cv2.IMREAD_UNCHANGED)
+        assert image is not None, face_file
+        ok, encoded = cv2.imencode('.png', image)
+        assert ok, face_file
+        chars.append({
+            'id': cid,
+            'name': name,
+            'names': dict(entry.get('names') or {}),
+            'face': entry.get('face') or ('face/character/' + cid),
+        })
+        faces[cid] = np.frombuffer(encoded.tobytes(), dtype=np.uint8)
+    return chars, faces
+
+
+def merge_custom_characters(chars):
+    """Append custom characters when neither ID nor display name is already present."""
+    known_ids = {str(c.get('id') or '') for c in chars}
+    known_names = {c.get('name') for c in chars}
+    extra_chars, extra_faces = custom_character_records()
+    added_faces = {}
+    for entry in extra_chars:
+        if entry['id'] in known_ids or entry['name'] in known_names:
+            continue
+        chars.append(entry)
+        added_faces[entry['id']] = extra_faces[entry['id']]
+    return chars, added_faces
+
+
 def main():
     data = records(get('/relics/list')['data'], get('/characters/list')['data'])
+    upstream_chars = list(data['characters'])
     icons = sorted({item['icon'] for item in data['items']})
     with ThreadPoolExecutor(max_workers=6) as pool:
-        faces = dict(zip((c['id'] for c in data['characters']),
-                         pool.map(fetch_icon, (c['face'] for c in data['characters']))))
+        faces = dict(zip((c['id'] for c in upstream_chars),
+                         pool.map(fetch_icon, (c['face'] for c in upstream_chars))))
         art = dict(zip(icons, pool.map(fetch_icon, ('item/relics/' + icon for icon in icons))))
+    merged_chars, custom_faces = merge_custom_characters(upstream_chars)
+    data['characters'] = merged_chars
+    faces.update(custom_faces)
     face_path = ROOT / 'rogue_equipment_faces.npz'
     with open(str(face_path) + '.tmp', 'wb') as stream:
         np.savez_compressed(stream, **faces)

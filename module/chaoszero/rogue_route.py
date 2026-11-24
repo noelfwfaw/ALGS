@@ -50,36 +50,45 @@ HUE_RANGES = {
     KIND_REST: ((10, 30),),
     KIND_ELITE: ((120, 150),),
 }
-# 节点是横放的菱形，实测面积 1200~2600、宽 55~100、高 30~70、宽高比 1.3~2.4
-NODE_AREA = (1200, 2600)
-NODE_WIDTH = (55, 100)
-NODE_HEIGHT = (30, 70)
-NODE_RATIO = (1.3, 2.4)
+# 2D 预览里的节点固定落在以 Pin 为锚点的 6 x 5 菱形网格上：
+# 列 x = pin.x + 163 + 164 * tier（341, 505, 669, 833, 997, 1161），
+# 行 y = 152 + 108 * row（152, 260, 368, 476, 584）。
+# 直接对每格内部菱形核心区采样，避开首列青色高亮竖带和右上角强化徽章的粘连干扰。
+GRID_TIERS = 6
+GRID_ROWS = 5
+GRID_FIRST_DX = 163
+GRID_ROW0_Y = 152
+GRID_HALF_X = 40
+GRID_HALF_Y = 20
+_GRID_DY, _GRID_DX = np.mgrid[-GRID_HALF_Y:GRID_HALF_Y + 1, -GRID_HALF_X:GRID_HALF_X + 1]
+GRID_CORE_MASK = (np.abs(_GRID_DX) / 34.0 + np.abs(_GRID_DY) / 17.0) <= 1.0
+GRID_ICON_MASK = (np.abs(_GRID_DX) / 22.0 + np.abs(_GRID_DY) / 12.0) <= 1.0
+GRID_FILL_MIN = 0.45
 NODE_SATURATION = 90
-# 亮度阈值。试过降到 70 去捞"未点亮的暗列"（实测暗橙 max 97 / 暗紫 113），
-# 确实能从 4 列读到 6 列，但会引入假节点（实测多出一个 x=758 的孤点，
-# 把一整列拆成 tier 3/4）—— 假节点会让规划走错，比少读两列更糟。保持 90。
 NODE_VALUE = 90
+NODE_BRIGHT_P90 = 140
+# 最底行 (row=4) 受底部暗角渐变遮挡，亮度略低于上四行。
+GRID_BOTTOM_BRIGHT_P90 = 115
+# 可选节点的菱形正中必定有白色/浅色图标，用来过滤青色高亮背景、未点亮暗格和最右红 BOSS 格。
+GRID_ICON_MIN_P95 = 130
 ROUTE_GLOW_OPENING = np.ones((9, 4), np.uint8)
 
 # 同一层的 x 允许差这么多像素；不同层之间的 x 间距实测 164。
-# ❗从 40 放到 70：偶发会读出一个**不在网格上**的假节点（实测 mu_route4.png 的
-# `(1056,399)`，真列是 997 和 1161，它卡在中间差 59），40 会让它单独成一层、
-# 把后面的列全挤位。164 的列距远大于 70，放大到 70 不会把相邻两列合并。
 TIER_GAP = 70
 
 # 连线只出现在"相邻行"或"跨一行的斜线"上：实测行距 ≈108，而真实连线的
 # 高度差最大到 109（t1 y=474 → t2 y=583），跨两行的是 216，中间没有。
-# 所以 125 是"上一行的节点能连到下一行哪些节点"的判据（见 link_tiers，兜底用）。
 ROW_GAP = 108
 LINK_DY = 125
 
 # The line lies between the diamond tips, below the colored tile centers.
 EDGE_LIGHT = 185
 EDGE_TIP_X = 53
-EDGE_TIP_Y = 8
+EDGE_TIP_Y = 5
 EDGE_SAMPLES = np.linspace(.12, .88, 17)
-EDGE_Y_OFFSETS = np.arange(-7, 8)
+EDGE_Y_OFFSETS = np.arange(-5, 6)
+EDGE_X_OFFSETS = np.arange(-1, 2)
+EDGE_MIN_HITS = 8
 TIER_DISTANCE = (120, 190)
 # 预览图的列间距实测固定 164 px，扫描时两屏位移只可能是它的整数倍
 TIER_SPACING = 164
@@ -95,7 +104,7 @@ ROUTE_STYLES = (ROUTE_BALANCE, ROUTE_BATTLE, ROUTE_EVENT)
 
 # 3D 视图里立在平台上的图标卡：竖着的一张窄卡
 CARD_AREA = (600, 80, 1280, 660)
-CARD_AREA_MIN = 2500
+CARD_AREA_MIN = 2000
 CARD_WIDTH = (36, 120)
 CARD_HEIGHT = (66, 180)
 CARD_RATIO = (1.2, 3.4)
@@ -212,6 +221,9 @@ def _node_mask(hue, sat, val, ranges):
 # 取分数大的那个就行，不需要绝对阈值。
 ICON_HALF = 22
 ICON_PAD = 6
+CARD_ICON_CROP = (5, 39)
+CARD_ICON_SCALES = (0.85, 1.0, 1.15)
+CARD_BEACON_MIN = 0.35
 ICON_REST_FILE = './assets/chaoszero/chaoszero/ROGUE_ICON_REST.png'
 ICON_BEACON_FILE = './assets/chaoszero/chaoszero/ROGUE_ICON_BEACON.png'
 _ICON_CACHE = {}
@@ -280,6 +292,39 @@ def icon_kind(image, x, y):
     return KIND_REST if score_rest >= score_beacon else KIND_BEACON
 
 
+def card_orange_kind(image, x, y, width, height):
+    """Classify an orange 3D card as campfire rest or pillar beacon."""
+    rest = _icon_template(ICON_REST_FILE)
+    beacon = _icon_template(ICON_BEACON_FILE)
+    if rest is None or beacon is None:
+        return KIND_REST
+    s0, s1 = CARD_ICON_CROP
+    rest_core = rest[s0:s1, s0:s1]
+    beacon_core = beacon[s0:s1, s0:s1]
+    x1 = max(0, int(x - width // 2))
+    x2 = min(image.shape[1], int(x + width // 2))
+    y1 = max(0, int(y - height // 2))
+    y2 = min(image.shape[0], int(y + height // 2))
+    patch = image[y1:y2, x1:x2, :3]
+    if not patch.size:
+        return KIND_REST
+    grey = cv2.cvtColor(patch, cv2.COLOR_RGB2GRAY)
+    best_rest = -1.0
+    best_beacon = -1.0
+    for scale in CARD_ICON_SCALES:
+        tw = int(round(rest_core.shape[1] * scale))
+        th = int(round(rest_core.shape[0] * scale))
+        if grey.shape[0] < th or grey.shape[1] < tw:
+            continue
+        sr = float(cv2.matchTemplate(grey, cv2.resize(rest_core, (tw, th)), cv2.TM_CCOEFF_NORMED).max())
+        sb = float(cv2.matchTemplate(grey, cv2.resize(beacon_core, (tw, th)), cv2.TM_CCOEFF_NORMED).max())
+        best_rest = max(best_rest, sr)
+        best_beacon = max(best_beacon, sb)
+    if best_beacon >= CARD_BEACON_MIN and best_beacon > best_rest:
+        return KIND_BEACON
+    return KIND_REST
+
+
 def has_shop(image, x, y):
     """节点右上角有没有那个白色小商店招牌。
 
@@ -315,30 +360,32 @@ def has_shop(image, x, y):
     return False
 
 
-def _trim_top_right_badge(labels, index, stats_row, x1, y1):
-    """Strip a top-right purple enhancement badge if it merges with a diamond component."""
-    lx, ty, width, height, area = [int(v) for v in stats_row[:5]]
-    if not (NODE_WIDTH[0] <= width <= 115 and area >= NODE_AREA[0]):
-        return area, width, height, None, None
-    sub = (labels[ty:ty + height, lx:lx + width] == index)
-    left_ys = np.where(sub[:, :width // 2].any(axis=1))[0]
-    if not len(left_ys) or int(left_ys[0]) <= 5:
-        return area, width, height, None, None
-    y_top, y_bot = int(left_ys[0]), int(left_ys[-1])
-    true_h = y_bot - y_top + 1
-    cleaned = sub.copy()
-    cleaned[:y_top, :] = False
-    cleaned[y_top:y_top + int(true_h * 0.45), int(width * 0.62):] = False
-    ys, xs = np.where(cleaned)
-    if not len(xs):
-        return area, width, height, None, None
-    return (
-        int(len(xs)),
-        int(xs.max() - xs.min() + 1),
-        int(ys.max() - ys.min() + 1),
-        float(lx + xs.mean() + x1),
-        float(ty + ys.mean() + y1),
-    )
+def _probe_grid_cell(hue_patch, sat_patch, val_patch, min_patch, row):
+    """Classify one 2D grid cell from its diamond interior mask."""
+    hue = hue_patch[GRID_CORE_MASK]
+    sat = sat_patch[GRID_CORE_MASK]
+    val = val_patch[GRID_CORE_MASK]
+    best_kind = None
+    best_cnt = 0
+    best_mask = None
+    for kind, ranges in HUE_RANGES.items():
+        mask = np.zeros(hue.shape, bool)
+        for low, high in ranges:
+            mask |= (hue >= low) & (hue <= high)
+        mask &= (sat >= NODE_SATURATION) & (val >= NODE_VALUE)
+        cnt = int(mask.sum())
+        if cnt > best_cnt:
+            best_cnt = cnt
+            best_kind = kind
+            best_mask = mask
+    if best_kind is None or best_cnt / float(GRID_CORE_MASK.sum()) < GRID_FILL_MIN:
+        return None
+    bright_floor = GRID_BOTTOM_BRIGHT_P90 if row == GRID_ROWS - 1 else NODE_BRIGHT_P90
+    if int(np.percentile(val[best_mask], 90)) < bright_floor:
+        return None
+    if int(np.percentile(min_patch[GRID_ICON_MASK], 95)) < GRID_ICON_MIN_P95:
+        return None
+    return best_kind
 
 
 def read_nodes(image):
@@ -355,64 +402,38 @@ def read_nodes(image):
     LAST_PIN_X = pin.x if pin is not None else None
     if pin is None:
         return []
-    x1, y1, x2, y2 = ROUTE_AREA
-    patch = image[y1:y2, x1:x2, :3]
-    hsv = cv2.cvtColor(patch, cv2.COLOR_RGB2HSV).astype(np.int32)
+    rgb = image[:, :, :3]
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV).astype(np.int32)
     hue, sat, val = hsv[:, :, 0], hsv[:, :, 1], hsv[:, :, 2]
+    rgb_min = rgb.min(axis=2)
+    h_img, w_img = rgb.shape[:2]
 
-    raw = []
-    for kind, ranges in HUE_RANGES.items():
-        mask = _node_mask(hue, sat, val, ranges).astype(np.uint8)
-        if kind == KIND_EVENT:
-            # The cyan current-column highlight can join an event diamond to the background.
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ROUTE_GLOW_OPENING)
-        count, labels, stats, cents = cv2.connectedComponentsWithStats(mask, 8)
-        for index in range(1, count):
-            area, width, height, cx, cy = _trim_top_right_badge(
-                labels, index, stats[index], x1, y1
-            )
-            if not NODE_AREA[0] <= area <= NODE_AREA[1]:
-                continue
-            if not NODE_WIDTH[0] <= width <= NODE_WIDTH[1]:
-                continue
-            if not NODE_HEIGHT[0] <= height <= NODE_HEIGHT[1]:
-                continue
-            if not NODE_RATIO[0] <= width / float(height) <= NODE_RATIO[1]:
-                continue
-            if cx is None:
-                cx = cents[index][0] + x1
-                cy = cents[index][1] + y1
-            raw.append((area, cx, cy, kind))
-
-    # 同一颗菱形会被好几个色相段各抓到一个块（紫精英的边缘能同时落进橙色和
-    # 青色段），位置重合但类型不同 —— 按块面积从大到小只留最大的一块，
-    # 否则一列会被读成 5~6 个节点（2026-11-14 20:2x 读到 62 个，实际只有一半）。
-    raw.sort(key=lambda item: -item[0])
     nodes = []
-    for area, x, y, kind in raw:
-        duplicate = False
-        for other in nodes:
-            if abs(other.x - x) <= NODE_DEDUPE and abs(other.y - y) <= NODE_DEDUPE:
-                duplicate = True
-                break
-        if duplicate:
+    for tier in range(GRID_TIERS):
+        cx = pin.x + GRID_FIRST_DX + TIER_SPACING * tier
+        if cx - GRID_HALF_X < 0 or cx + GRID_HALF_X + 1 > w_img:
             continue
-        node = RouteNode(x, y, kind)
-        if kind == KIND_REST:
-            # 橙色菱形还得分火焰(休息)和指南针(航点)，颜色一样、只能看图标。
-            node.kind = icon_kind(image, x, y)
-            if node.kind == KIND_REST:
-                node.shop = has_shop(image, x, y)
-        nodes.append(node)
+        for row in range(GRID_ROWS):
+            cy = GRID_ROW0_Y + ROW_GAP * row
+            if cy - GRID_HALF_Y < 0 or cy + GRID_HALF_Y + 1 > h_img:
+                continue
+            ys = slice(cy - GRID_HALF_Y, cy + GRID_HALF_Y + 1)
+            xs = slice(cx - GRID_HALF_X, cx + GRID_HALF_X + 1)
+            kind = _probe_grid_cell(hue[ys, xs], sat[ys, xs], val[ys, xs], rgb_min[ys, xs], row)
+            if kind is None:
+                continue
+            node = RouteNode(cx, cy, kind)
+            if kind == KIND_REST:
+                # 橙色菱形还得分火焰(休息)和指南针(航点)，颜色一样、只能看图标。
+                node.kind = icon_kind(image, cx, cy)
+                if node.kind == KIND_REST:
+                    node.shop = has_shop(image, cx, cy)
+            nodes.append(node)
 
-    nodes = [node for node in nodes if node.x > LAST_PIN_X + TIER_GAP]
     nodes.sort(key=lambda node: (node.x, node.y))
     _fill_grid(nodes)
-    # 丢掉不在列网格上的假节点，再重排一次（列号可能变）。
-    nodes = drop_outliers(nodes)
-    _fill_grid(nodes)
     # Start the graph only from diamonds connected to the current pin.
-    white = image[:, :, :3].min(axis=2) > EDGE_LIGHT
+    white = rgb_min > EDGE_LIGHT
     reachable = [node for node in nodes if node.tier == 0 and _along_line(white, pin, node)]
     if not reachable:
         return []
@@ -656,9 +677,8 @@ def read_cards(image):
     raw = []
     for kind, ranges in HUE_RANGES.items():
         mask = _node_mask(hue, sat, val, ranges).astype(np.uint8)
-        if kind == KIND_ELITE:
-            # Separate the purple flag from the nearby enemy and platform glow.
-            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ROUTE_GLOW_OPENING)
+        # Separate standing route cards from the matching-color platform edge glow.
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ROUTE_GLOW_OPENING)
         count, _, stats, cents = cv2.connectedComponentsWithStats(mask, 8)
         for index in range(1, count):
             area = int(stats[index][4])
@@ -685,6 +705,8 @@ def read_cards(image):
                 break
         if duplicate:
             continue
+        if kind == KIND_REST:
+            kind = card_orange_kind(image, x, y, width, height)
         cards.append(RouteCard(x, y, kind, width, height))
 
     # 认不出颜色的卡（航点/补给那种浅白针形图标）也要走，否则地图上一张卡都读不到，
@@ -788,10 +810,13 @@ def best_card(cards, style, state=None, weights=None):
 
 
 def planned_card(cards, entry):
-    """Map the planned branch to 3D only when the visible choices agree."""
+    """Map the planned branch to 3D when choices match or target kind is unambiguous."""
     ordered = sorted(cards, key=lambda card: card.y)
     if [card.kind for card in ordered] == entry['choices']:
         return ordered[entry['choice_index']]
+    matches = [card for card in ordered if card.kind == entry.get('kind')]
+    if len(matches) == 1 and entry.get('kind') in entry.get('choices', ()):
+        return matches[0]
     return None
 
 
@@ -897,8 +922,9 @@ def _along_line(mask, left, right):
         return False
     xs = np.rint(left.x + EDGE_TIP_X + (dx - 2 * EDGE_TIP_X) * EDGE_SAMPLES).astype(int)
     ys = np.rint(left.y + EDGE_TIP_Y + (right.y - left.y) * EDGE_SAMPLES).astype(int)
-    rows = np.clip(ys[:, None] + EDGE_Y_OFFSETS, 0, mask.shape[0] - 1)
-    return np.count_nonzero(mask[rows, xs[:, None]].any(axis=1)) >= 9
+    rows = np.clip(ys[:, None, None] + EDGE_Y_OFFSETS[None, :, None], 0, mask.shape[0] - 1)
+    cols = np.clip(xs[:, None, None] + EDGE_X_OFFSETS[None, None, :], 0, mask.shape[1] - 1)
+    return int(np.count_nonzero(mask[rows, cols].any(axis=(1, 2)))) >= EDGE_MIN_HITS
 
 
 def _nearest(nodes, x, y, tol=40):
@@ -1031,12 +1057,22 @@ def plan(nodes, style=ROUTE_BALANCE, state=None, edges=None):
             {'kind', 'count', 'shop', 'score', 'choices', 'choice_index'}。
     """
     state = state or {}
+    if not nodes:
+        return []
+    tiers = {node.tier for node in nodes}
+    if len(tiers) == 1:
+        ordered = sorted(nodes, key=lambda other: other.y)
+        best = max(ordered, key=lambda other: score(other.kind, style, state, other.shop))
+        return [[{'kind': best.kind, 'count': 1, 'shop': best.shop,
+                  'score': score(best.kind, style, state, best.shop),
+                  'choices': [other.kind for other in ordered],
+                  'choice_index': ordered.index(best)}]]
     # ❗连线读不到（或少得离谱）时**不规划**，返回空表让执行端退回"按单卡分数挑"。
     # 退回 `link_tiers` 的高度差近似是危险的：它会把"上排战斗 → 事件"这种
     # **中间隔着精英、实际没有线**的组合判成连通（2026-11-15 用户截图实测），
     # 规划于是指一条走不通的路，执行时 3D 立卡里根本没有那个节点。
     # 宁可没有前瞻，也不要假路线。
-    if not edges or len(edges) < max(2, len(nodes) // 4):
+    if not edges or len(edges) < max(1, len(nodes) // 4):
         return []
     result = []
     targets = {}

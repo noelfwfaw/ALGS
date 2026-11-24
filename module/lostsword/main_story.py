@@ -14,6 +14,7 @@ team cannot pass, and the difficulty is done.
 """
 
 from module.base.timer import Timer
+from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.utils import read_text
 from module.lostsword.assets import (MAIN_BTN_SELECT, MAIN_BTN_SKIP,
@@ -29,8 +30,9 @@ MAIN_SELECT_POINT = (1046, 654)
 MAIN_START_POINT = (1044, 662)
 # "Stage 39-2" under the enemy panel; it tells whether the push moved on.
 MAIN_STAGE_AREA = (1090, 190, 1240, 220)
-# A stage takes a couple of minutes; the limit is a net for a stuck battle.
-MAIN_FIGHT_TIMEOUT = 900
+# Winning auto-advances through stages until DEFEAT or chapter end, so one
+# wait covers an entire push streak rather than a single stage.
+MAIN_FIGHT_TIMEOUT = 3600
 # How many stages to push per difficulty before giving up.
 MAIN_MAX_STAGES = 30
 # Clearing the last stage of a chapter drops into its story, which has a
@@ -300,10 +302,14 @@ class LostswordMain(LostswordUI):
 
         Returns:
             bool: If the stage was cleared. False means the team lost.
+
+        Raises:
+            GameStuckError: If the battle does not end in time.
         """
         timeout = Timer(timeout).start()
         skip = Timer(2).start()
         start = Timer(5).start()
+        heartbeat = Timer(60).start()
 
         for _ in self.loop():
             # A battle is a live scene that barely changes for minutes, which
@@ -340,8 +346,12 @@ class LostswordMain(LostswordUI):
                     self.tap_point(*MAIN_START_POINT)
                 continue
 
+            if heartbeat.reached_and_reset():
+                logger.info(f'Main story still fighting, {int(timeout.current_time())}s elapsed')
+
             if timeout.reached():
-                return False
+                logger.warning('Main story battle did not end in time')
+                raise GameStuckError('Main story battle did not end in time')
 
     def main_defeat_leave(self, timeout=20):
         """

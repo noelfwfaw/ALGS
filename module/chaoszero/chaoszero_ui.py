@@ -38,7 +38,7 @@ import numpy as np
 from module.base.button import Button
 from module.base.timer import Timer
 from module.chaoszero.assets import (ANNOUNCE_CLOSE, ARK_TITLE, ARK_WAR_AUTO, ARK_WAR_TARGET,
-                                     BOOT_CONNECT_FAILED, BOOT_TOUCH_START, CAFE_TITLE,
+                                     BOOT_CONNECT_FAILED, BOOT_DOWNLOAD_CONFIRM, BOOT_TOUCH_START, CAFE_TITLE,
                                      PANEL_CLOSE, POLICY_TITLE, RESULT_CONFIRM, REWARD_HINT,
                                      ROGUE_DREAM_ON, ROGUE_DISTORTION_LABEL, ROGUE_MODE_ENTRY,
                                      ROGUE_SEASON_HUB, ROGUE_SEASON_REROLL, ROGUE_SEASON_TITLE,
@@ -288,6 +288,9 @@ class ChaoszeroUI(Maintenance, UI):
             if self.handle_maintenance():
                 continue
 
+            if self.handle_download_confirm():
+                continue
+
             # End
             if self.ui_page_appear(page_main):
                 logger.info('Game is at page_main')
@@ -425,6 +428,27 @@ class ChaoszeroUI(Maintenance, UI):
 
         return False
 
+    def handle_download_confirm(self):
+        """
+        Confirm the 「下載內容」 resource download dialog.
+
+        Shown during patch validation (`正在驗證修補版本`) with 「取消」 on the
+        left and an orange 「確認」 button on the right. Pressing 「確認」 starts
+        downloading the patch and lets the client continue into the lobby.
+
+        Returns:
+            bool: If the dialog was on screen (and 確認 was pressed).
+        """
+        if self.appear(BOOT_DOWNLOAD_CONFIRM, offset=(20, 20), interval=3):
+            logger.info('Patch download dialog, press 確認')
+            self.device.click(BOOT_DOWNLOAD_CONFIRM)
+            if not self.wait_until_disappear(BOOT_DOWNLOAD_CONFIRM, offset=(20, 20),
+                                             timeout=5, settle=2):
+                logger.warning('The download dialog is still there')
+            return True
+
+        return False
+
     def handle_announce(self):
         """
         Close the 「公告 / 更新」 announcement popup.
@@ -519,6 +543,9 @@ class ChaoszeroUI(Maintenance, UI):
             bool: If handled.
         """
         if self.handle_maintenance():
+            return True
+
+        if self.handle_download_confirm():
             return True
 
         if self.handle_connect_failed():

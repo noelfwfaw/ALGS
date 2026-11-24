@@ -131,6 +131,7 @@ class GeneratedConfig:
 
     # Group `LostswordAvalon`
     LostswordAvalon_City = '埃塞尔城'  # 埃塞尔城, 爱尔亚城, 埃尔达利亚城, 卡美洛城, 廷塔哲城, 默西亚城
+    LostswordAvalon_City2 = '爱尔亚城'  # 埃塞尔城, 爱尔亚城, 埃尔达利亚城, 卡美洛城, 廷塔哲城, 默西亚城
 
     # Group `BrowndustSummon`
     BrowndustSummon_Draw = True

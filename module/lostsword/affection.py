@@ -94,13 +94,13 @@ class LostswordAffection(AffectionGrid, LostswordUI):
         """
         for attempt in range(tries):
             self.tap_point(x, y)
-            timeout = Timer(timeout).start()
+            wait = Timer(timeout).start()
             while 1:
                 self.device.stuck_record_clear()
                 self.device.screenshot()
                 if self.affection_detail_appear():
                     return True
-                if timeout.reached():
+                if wait.reached():
                     break
             logger.info(f'The card press did nothing, press again ({attempt + 1}/{tries})')
         return False
@@ -139,13 +139,13 @@ class LostswordAffection(AffectionGrid, LostswordUI):
         # page that is still fading in after the card press, and a press that
         # lands then is dropped without any feedback.
         for attempt in range(3):
-            timeout = Timer(timeout).start()
+            wait = Timer(timeout).start()
             while 1:
                 self.device.stuck_record_clear()
                 self.device.screenshot()
                 if self.affection_detail_appear():
                     break
-                if timeout.reached():
+                if wait.reached():
                     logger.warning('The affection entry is not on screen')
                     return False
             self.tap_point(*AFFECTION_ENTRY_POINT)

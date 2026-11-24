@@ -28,8 +28,17 @@ from module.chaoszero.rogue_events import (
     summarize_seen_events,
 )
 from module.config.config_generated import GeneratedConfig
+import sys
+
+import PIL
+import PIL.Image
+
 from module.exception import RequestHumanTakeover, TaskFailed
 from module.webui.app import ROGUE_SECTIONS
+
+# module.webui.app swaps in fake_pil_module at import time, which breaks Pillow plugin loading in tests.
+sys.modules['PIL'] = PIL
+sys.modules['PIL.Image'] = PIL.Image
 
 
 def record(name, options):
@@ -1016,6 +1025,110 @@ class EventSelectionTest(unittest.TestCase):
 
         # Keyword tier also covers OCR '恢複' variant for normal fallback recovery.
         self.assertEqual(keyword_priority_tier('恢複所有戰鬥員壓力'), 12)
+
+    def test_default_bundled_event_picks_used_when_user_override_missing(self):
+        with TemporaryDirectory() as directory:
+            missing_user = Path(directory) / 'missing_user_picks.json'
+            missing_legacy = Path(directory) / 'missing_legacy_picks.json'
+            self.task.event_picks = None
+            with patch('module.chaoszero.rogue.EVENT_PICKS_FILE', str(missing_user)), \
+                    patch('module.chaoszero.rogue.EVENT_PICKS_LEGACY', str(missing_legacy)):
+                picks = self.task.rogue_event_picks()
+            self.assertGreater(len(picks), 400)
+            self.assertIn('uk_sys_s04_01', picks)
+
+            # A user-exported file in EVENT_PICKS_FILE overrides the bundled default.
+            missing_user.write_text(json.dumps({'version': 1, 'picks': {'uk_sys_s04_01': 3}}), encoding='utf-8')
+            self.task.event_picks = None
+            with patch('module.chaoszero.rogue.EVENT_PICKS_FILE', str(missing_user)), \
+                    patch('module.chaoszero.rogue.EVENT_PICKS_LEGACY', str(missing_legacy)):
+                override_picks = self.task.rogue_event_picks()
+            self.assertEqual(override_picks, {'uk_sys_s04_01': [3]})
+
+    def test_event_option_mentioning_flash_is_not_misread_as_god_chooser(self):
+        self.task.appear = Mock(return_value=False)
+        self.task.rogue_option_points = Mock(return_value=[(308, 677), (640, 677), (974, 677)])
+        self.task.rogue_god_text = Mock(return_value='盛光時閃')
+        self.assertFalse(ChaoszeroRogue.rogue_god_appear(self.task))
+
+        capture = Path('log/rogue_card_pages/god/202408.png')
+        if capture.exists():
+            import cv2
+            self.task.device.image = cv2.cvtColor(cv2.imread(str(capture)), cv2.COLOR_BGR2RGB)
+            self.task.rogue_option_points = lambda: ChaoszeroRogue.rogue_option_points(self.task)
+            self.task.rogue_god_text = lambda: ChaoszeroRogue.rogue_god_text(self.task)
+            self.assertFalse(ChaoszeroRogue.rogue_god_appear(self.task))
+
+    def test_season_floor3_overhead_purple_badge_clicked_before_options(self):
+        import cv2
+        from module.base.timer import Timer
+
+        fixture = Path(__file__).parent / 'fixtures' / 'chaoszero' / 'rogue_event_floor3.png'
+        im = cv2.cvtColor(cv2.imread(str(fixture)), cv2.COLOR_BGR2RGB)
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.device = SimpleNamespace(image=im, stuck_record_add=Mock())
+        task.core_started = True
+        task.route_step = 3
+        task.tap_point = Mock()
+        task.rogue_option_points = lambda: ChaoszeroRogue.rogue_option_points(task)
+
+        self.assertTrue(task.rogue_event_badge_appear())
+        self.assertTrue(task.handle_rogue_event_badge(Timer(0)))
+        task.tap_point.assert_called_once_with(685, 263, name='ROGUE_EVENT_BADGE')
+
+        # Bounded retries: after EVENT_BADGE_TRIES attempts without badge disappearing, yield to event options.
+        for _ in range(2):
+            task.event_badge_wait = Timer(0)
+            self.assertTrue(task.handle_rogue_event_badge(Timer(0)))
+        self.assertFalse(task.handle_rogue_event_badge(Timer(0)))
+
+        # Shifted badge position anywhere inside the middle search area is still tracked accurately.
+        shifted = im.copy()
+        badge = shifted[230:296, 652:718].copy()
+        shifted[220:315, 635:735] = 0
+        shifted[190:256, 460:526] = badge
+        task.device.image = shifted
+        task.event_badge_tries = 0
+        task.event_badge_wait = Timer(0)
+        task.tap_point.reset_mock()
+        self.assertTrue(task.handle_rogue_event_badge(Timer(0)))
+        task.tap_point.assert_called_once_with(493, 223, name='ROGUE_EVENT_BADGE')
+
+        # Guard rejects non-event pages even if the badge patch were present.
+        task.rogue_battle_appear = Mock(return_value=True)
+        self.assertIsNone(task.rogue_event_badge_point())
+        task.rogue_battle_appear = Mock(return_value=False)
+
+        # Once the badge is gone after receiving the reward, returns False cleanly.
+        no_badge = im.copy()
+        no_badge[220:315, 635:735] = 0
+        task.device.image = no_badge
+        task.event_badge_tries = 0
+        self.assertFalse(task.rogue_event_badge_appear())
+        self.assertFalse(task.handle_rogue_event_badge(Timer(0)))
+
+    def test_season_floor3_shifted_dim_purple_card_keeps_both_options(self):
+        img = np.zeros((720, 1280, 3), dtype=np.uint8)
+        # Card 1 white border shifted down to y=695..697 (rows=3 at threshold 140, rows=1 at 180)
+        img[695, 156:292] = (170, 170, 170)
+        img[695, 320:456] = (170, 170, 170)
+        img[696, 156:292] = (205, 205, 205)
+        img[696, 320:456] = (205, 205, 205)
+        img[697, 156:292] = (165, 165, 165)
+        img[697, 320:456] = (165, 165, 165)
+        # Card 2 purple glowing border at y=694..697 (only row 696 reaches >180)
+        img[694:698, 490:630] = (120, 75, 165)
+        img[694:698, 650:790] = (120, 75, 165)
+        img[696, 490:630] = (145, 95, 195)
+        img[696, 650:790] = (145, 95, 195)
+
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.device = SimpleNamespace(image=img)
+        task.config = SimpleNamespace(ChaoszeroRogue_RogueWorld='賽季卡厄思')
+        task.floor3_started = False
+        pts = task.rogue_option_points()
+        self.assertEqual([x for x, _ in pts], [306, 640])
+        self.assertTrue(task._is_season_floor3_event(pts, ['站在席格身旁', '站在羅斯薇瑟身旁'], []))
 
 
 if __name__ == '__main__':

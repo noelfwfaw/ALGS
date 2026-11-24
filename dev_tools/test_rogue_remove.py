@@ -14,9 +14,10 @@ set_server('chaoszero')
 
 from module.base.timer import Timer
 from module.chaoszero.assets import ROGUE_FLASH_DETAIL, ROGUE_REMOVE_DONE, ROGUE_REMOVE_SKIP
-from module.chaoszero.rogue import (ChaoszeroRogue, REMOVE_CARD_WIDTH, REMOVE_GRID_COLS,
-                                     REMOVE_MAX_TRIES, REMOVE_SCROLL_TIMES,
-                                     REMOVE_STILL_THRESHOLD)
+from module.chaoszero.rogue import (CUTSCENE_POINT, ChaoszeroRogue,
+                                     FLASH_DETAIL_CLOSE, REMOVE_CARD_WIDTH,
+                                     REMOVE_GRID_COLS, REMOVE_MAX_TRIES,
+                                     REMOVE_SCROLL_TIMES, REMOVE_STILL_THRESHOLD)
 from module.chaoszero.rogue_cards import CardReader
 from module.exception import TaskFailed
 
@@ -194,7 +195,7 @@ class RemovalFlowTest(unittest.TestCase):
         self.task.appear.side_effect = lambda button, **kwargs: button is ROGUE_FLASH_DETAIL
         self.task.rogue_remove_ready.return_value = (1150, 670)
         self.assertTrue(self.step())
-        self.task.tap_point.assert_called_once_with(200, 400, name='ROGUE_REMOVE_DETAIL_CLOSE')
+        self.task.tap_point.assert_called_once_with(*FLASH_DETAIL_CLOSE, name='ROGUE_REMOVE_DETAIL_CLOSE')
         self.assertEqual(self.task.remove_done, 0)
 
     def test_count_only_explicit_completion_and_only_once(self):
@@ -207,7 +208,7 @@ class RemovalFlowTest(unittest.TestCase):
         self.task.rogue_state_save.assert_called_once_with(
             remove_done=1, remove_counts={'劍幕': 1})
         self.assertEqual(self.task.tap_point.call_count, 2)
-        self.task.tap_point.assert_called_with(640, 300, name='ROGUE_REMOVE_DONE')
+        self.task.tap_point.assert_called_with(*CUTSCENE_POINT, name='ROGUE_REMOVE_DONE')
 
     def test_restart_at_completion_closes_it_without_counting_again(self):
         self.task.remove_done = 1
@@ -215,7 +216,7 @@ class RemovalFlowTest(unittest.TestCase):
         self.step()
         self.assertEqual(self.task.remove_done, 1)
         self.task.rogue_state_save.assert_not_called()
-        self.task.tap_point.assert_called_once_with(640, 300, name='ROGUE_REMOVE_DONE')
+        self.task.tap_point.assert_called_once_with(*CUTSCENE_POINT, name='ROGUE_REMOVE_DONE')
 
     def test_unconfirmed_submission_stops_without_counting_or_selecting_again(self):
         self.submit()
@@ -262,11 +263,18 @@ class RemovalFlowTest(unittest.TestCase):
         self.assertFalse(self.step())
         self.task.tap_point.assert_not_called()
 
-    def test_externally_selected_card_is_not_submitted(self):
+    def test_externally_selected_card_switches_to_target_without_cancelling(self):
         self.task.rogue_remove_ready.return_value = (1150, 670)
+        self.task.rogue_remove_pick.return_value = self.target
+        self.step()
+        self.task.tap_point.assert_called_once_with(877, 218, name='ROGUE_REMOVE_CARD')
+        self.assertEqual(self.task.remove_stage, 1)
+
+    def test_externally_selected_card_with_no_target_never_submits(self):
+        self.task.rogue_remove_ready.return_value = (1150, 670)
+        self.task.rogue_remove_pick.return_value = None
         self.step()
         self.task.tap_point.assert_called_once_with(913, 673, name='ROGUE_REMOVE_CANCEL')
-        self.task.rogue_remove_pick.assert_not_called()
 
     def test_quota_reached_cancels_without_selecting(self):
         self.task.remove_done = 3
@@ -536,6 +544,24 @@ class ConfiguredRemovalTest(unittest.TestCase):
                 task.device.image = np.array(Image.open(button.file).convert('RGB'))
                 self.assertEqual(task.rogue_remove_appear(), expected)
 
+    def test_accidental_preselection_switches_in_place_and_multi_pick_cancels_cleanly(self):
+        task = self._configured_task('劍幕 = 10')
+        task.remove_done = 2
+        task.rogue_remove_ready = Mock(return_value=(1150, 670))
+        task.rogue_remove_pick = Mock(return_value=((454, 222), '劍幕', 1.0, '劍幕'))
+        self.assertTrue(task.handle_rogue_remove(Timer(0)))
+        task.tap_point.assert_called_once_with(454, 222, name='ROGUE_REMOVE_CARD')
+        self.assertIsNone(task.remove_skip_node)
+
+        # Multi-card removal with accidental preselection still cancels without blacklisting the node
+        task_multi = self._configured_task('劍幕 = 10')
+        task_multi.remove_done = 2
+        task_multi.rogue_remove_ready = Mock(return_value=(1150, 670))
+        task_multi.rogue_remove_required = Mock(return_value=2)
+        self.assertTrue(task_multi.handle_rogue_remove(Timer(0)))
+        task_multi.tap_point.assert_called_once_with(913, 673, name='ROGUE_REMOVE_CANCEL')
+        self.assertIsNone(task_multi.remove_skip_node)
+
 
 class RemovalTemplateTest(unittest.TestCase):
     def test_template_keeps_full_frame_and_extractable_nonempty_title(self):
@@ -545,6 +571,134 @@ class RemovalTemplateTest(unittest.TestCase):
                 self.assertEqual(template.size, (1280, 720))
                 self.assertEqual(template.getbbox(), button.area)
                 self.assertGreater(float(np.array(template.crop(button.area)).std()), 10)
+
+
+class ShopBudgetAndSaveQualityTest(unittest.TestCase):
+    def _make_task(self):
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.config = SimpleNamespace(data={'ChaoszeroRogue': {'ChaoszeroRogue': {
+            'RogueSlot1Member': '30093',
+            'RogueSlot2Member': '1033',
+            'RogueSlot3Member': '1039',
+            'RogueSaveKeep': 1,
+            'RogueDeleteFilter': '水護盾 = 1\n劍幕 = 1\n劍光 = 2',
+        }}})
+        task.device = SimpleNamespace(image=np.zeros((720, 1280, 3), dtype=np.uint8))
+        task.core_started = False
+        task.route_step = 6
+        task.remove_done = 0
+        task.remove_counts = {}
+        task.remove_tracking = True
+        task.keep_slot_cleared_cards = []
+        task.credits = None
+        task.last_shop_remove_price = None
+        task.remove_skip_node = None
+        task.shop_block_equipment_node = None
+        task.shop_remove_tries = 0
+        task.meditate_pending = []
+        task.rogue_state_save = Mock()
+        task.tap_point = Mock()
+        task.rogue_save_trash_visible = Mock(return_value=True)
+        return task
+
+    def test_rogue_save_keep_prioritizes_slot1_and_detects_ruined_save(self):
+        task = self._make_task()
+        rules = task.rogue_delete_rules()
+        self.assertEqual([name for name, _ in rules], ['劍幕', '劍光', '水護盾'])
+        self.assertEqual(task.rogue_keep_slot_rules(), [('劍幕', 1), ('劍光', 2)])
+
+        # Missing Slot 1 card at settlement -> decomposes all saves (even Slot 1).
+        task.remove_counts = {'劍幕': 1, '劍光': 1, '水護盾': 1}
+        task.rogue_save_handle((1120, 662))
+        task.tap_point.assert_called_once_with(427, 582, name='ROGUE_SAVE_TRASH')
+
+        # All Slot 1 cards removed while Slot 2 card remains -> keeps Slot 1 and trashes Slot 2.
+        task.tap_point.reset_mock()
+        task.remove_counts = {'劍幕': 1, '劍光': 2}
+        task.rogue_save_handle((1120, 662))
+        task.tap_point.assert_called_once_with(837, 582, name='ROGUE_SAVE_TRASH')
+
+        # Deck scan confirmed absent cards also satisfy keep-slot check without discarding.
+        task.tap_point.reset_mock()
+        task.remove_counts = {'劍幕': 1, '劍光': 1}
+        task.keep_slot_cleared_cards = ['劍光']
+        task.rogue_save_handle((1120, 662))
+        task.tap_point.assert_called_once_with(837, 582, name='ROGUE_SAVE_TRASH')
+
+    def test_shop_unaffordable_removal_and_credits_tracking(self):
+        task = self._make_task()
+        paid_frame = np.array(Image.open('dev_tools/fixtures/chaoszero/rogue_equipment_store_paid.png').convert('RGB'))
+        task.device.image = paid_frame
+        self.assertEqual(task.rogue_update_credits(), 565)
+        self.assertEqual(task.rogue_read_shop_remove_price(), 70)
+        self.assertFalse(task.rogue_shop_remove_unaffordable())
+        self.assertEqual(task.rogue_route_state()['credits'], 565)
+        self.assertTrue(task.rogue_route_state()['junk'])
+
+        # Red price on 移除卡牌 marks removal unaffordable even before reading credits.
+        red_frame = paid_frame.copy()
+        red_frame[215:250, 915:985] = 0
+        red_frame[220:245, 920:975] = (230, 90, 90)
+        task.device.image = red_frame
+        self.assertTrue(task.rogue_shop_remove_unaffordable())
+
+        # Credits below removal price blocks equipment too to preserve removal priority.
+        task.device.image = paid_frame
+        task.credits = 60
+        self.assertTrue(task.rogue_shop_remove_unaffordable())
+        self.assertTrue(task.rogue_equipment_budget_blocked((False, 6)))
+
+        # Even if shop removal was sold out, low remaining credits reserves budget when Slot 1 still needs removal.
+        task.credits = 90
+        task.last_shop_remove_price = 70
+        self.assertTrue(task.rogue_equipment_budget_blocked((False, 6)))
+        task.credits = 200
+        self.assertFalse(task.rogue_equipment_budget_blocked((False, 6)))
+
+        if os.path.exists('log/rogue_pages/unknown_220617.png'):
+            task.device.image = np.array(Image.open('log/rogue_pages/unknown_220617.png').convert('RGB'))
+            self.assertEqual(task.rogue_read_credits(), 244)
+
+    def test_remove_submit_resets_wait_after_tap(self):
+        from module.chaoszero.rogue import REMOVE_WAIT
+
+        self.assertGreaterEqual(REMOVE_WAIT, 9)
+        task = make_task()
+        order = []
+        task.tap_point.side_effect = lambda *a, **kw: order.append('tap')
+        task.remove_target = ((454, 222), '立劍', 1.0, '立劍')
+        task.rogue_remove_submit((1150, 669))
+        self.assertEqual(order, ['tap'])
+        self.assertEqual(task.remove_wait.limit, REMOVE_WAIT)
+
+    def test_shop_buy_card_detection_distinguishes_card_preview_from_shop_and_equip(self):
+        task = make_task()
+        task.card_reader = SimpleNamespace(read_name=Mock(return_value='購買卡牌'))
+        task.rogue_equip_appear = Mock(return_value=False)
+
+        # Synthetic 購買卡牌 preview (affordable orange & unaffordable grey buy pill).
+        for buy_color in ((239, 130, 50), (110, 110, 110)):
+            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+            frame[646:694, 310:618] = (238, 238, 238)
+            frame[646:694, 660:970] = buy_color
+            task.device.image = frame
+            self.assertTrue(task.rogue_shop_buy_card_appear())
+
+        # Store shelf returns False without calling OCR.
+        task.card_reader.read_name.reset_mock()
+        task.device.image = np.array(
+            Image.open('dev_tools/fixtures/chaoszero/rogue_equipment_store.png').convert('RGB')
+        )
+        self.assertFalse(task.rogue_shop_buy_card_appear())
+        task.card_reader.read_name.assert_not_called()
+
+        # Real equipment purchase pages return False even with real OCR/equip check.
+        task.card_reader.read_name.return_value = '裝備'
+        for fixture in ('rogue_equipment_shop.png', 'rogue_equipment_shop_disabled.png'):
+            task.device.image = np.array(
+                Image.open(f'dev_tools/fixtures/chaoszero/{fixture}').convert('RGB')
+            )
+            self.assertFalse(task.rogue_shop_buy_card_appear(), fixture)
 
 
 if __name__ == '__main__':

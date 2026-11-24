@@ -258,6 +258,98 @@ class MeditationTest(unittest.TestCase):
         self.assertFalse(task.rogue_meditate_needed())
         self.assertIsNone(task.rogue_meditate_card())
 
+    def test_free_covenant_skip_and_fallback_selection(self):
+        # On Stage 2 Covenant free re-spark (174549.png): god-sparked 劍之雨 &
+        # already-matched 萬人的英雄 (rsp1) are protected, un-sparked 一縷光芒 is
+        # not forced -> returns None; if 萬人的英雄 missed its rule, picks it.
+        p49 = Path('log/rogue_card_pages/meditate/174549.png')
+        if p49.exists():
+            im = cv2.cvtColor(cv2.imread(str(p49)), cv2.COLOR_BGR2RGB)
+            task = make_task()
+            task.device = SimpleNamespace(image=im, swipe=Mock(), sleep=Mock(), screenshot=Mock())
+            task.card_reader = None
+            task.card_library = None
+            task.rogue_spark_filter.return_value = {'劍之雨': ['2'], '萬人的英雄': ['1']}
+            self.assertTrue(task._meditate_is_free_skip())
+            self.assertIsNone(task.rogue_meditate_card())
+
+            # When 萬人的英雄 expects a DIFFERENT form (e.g. '3'), it picks it!
+            task.rogue_spark_filter.return_value = {'劍之雨': ['2'], '萬人的英雄': ['3']}
+            picked = task.rogue_meditate_card()
+            self.assertIsNotNone(picked)
+            self.assertEqual(picked[1], '萬人的英雄')
+
+        p52 = Path('log/rogue_card_pages/meditate/174552.png')
+        if p52.exists():
+            im52 = cv2.cvtColor(cv2.imread(str(p52)), cv2.COLOR_BGR2RGB)
+            task52 = make_task()
+            task52.device = SimpleNamespace(image=im52, swipe=Mock(), sleep=Mock(), screenshot=Mock())
+            self.assertIsNotNone(ChaoszeroRogue.rogue_dialog_point(task52))
+
+    def test_unaffordable_credits_skip_meditation_without_false_fade_positive(self):
+        import numpy as np
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        im = np.zeros((720, 1280, 3), dtype=np.uint8)
+        task.device = SimpleNamespace(image=im)
+        task.core_started = False
+        task.route_step = 5
+        task.rogue_rest_appear = Mock(return_value=True)
+        task.rogue_confirm_point = Mock(return_value=None)
+        task.rogue_count = Mock(return_value=200)
+        task.appear = Mock(return_value=False)
+
+        # Even if sunset / fade-in puts orange-red pixels behind the price area, sufficient credits stay allowed.
+        im[440:458, 1025:1090] = (200, 90, 90)
+        task.credits = 205
+        self.assertTrue(task.rogue_meditate_available())
+
+        task.credits = 75
+        self.assertFalse(task.rogue_meditate_available())
+
+        task.credits = 80
+        self.assertTrue(task.rogue_meditate_available())
+
+    def test_partial_read_still_queues_when_clicked_column_is_known_wrong(self):
+        task = make_task()
+        task.spark_pending = None
+        task.spark_selected = None
+        # col1=rsp3, col2=unmatched, col3=rsp4; want=rsp1 -> rogue_choose_flash picks col1 -> queued!
+        task.card_library.read_columns.return_value = [(0, 0.77, 2), (2, 0.92, 3)]
+        task.rogue_pick = Mock(return_value=True)
+        task.rogue_pick_index = Mock(return_value=1)
+        task.rogue_god_pick = Mock(return_value=1)
+        task.rogue_choose_flash(god=True)
+        self.assertEqual(task.meditate_pending, ['劍之雨'])
+
+        # Clicking the unread col2 instead does NOT blindly queue without confirming its form.
+        task2 = make_task()
+        task2.spark_pending = None
+        task2.spark_selected = None
+        task2.card_library.read_columns.return_value = [(0, 0.77, 2), (2, 0.92, 3)]
+        task2.rogue_pick = Mock(return_value=True)
+        task2.rogue_pick_index = Mock(return_value=2)
+        task2.flash_god_column = None
+        task2.rogue_god_pick = Mock(return_value=None)
+        task2.rogue_choose_flash(god=True)
+        self.assertEqual(task2.meditate_pending, [])
+
+    def test_shop_leave_has_cooldown_to_prevent_double_click_skipping_camp(self):
+        from types import SimpleNamespace
+        from module.base.timer import Timer
+        task = ChaoszeroRogue.__new__(ChaoszeroRogue)
+        task.tap_point = Mock()
+        task.equipment = SimpleNamespace(shop_refresh=(1, Timer(30)), shop_refresh_confirmed=True)
+        press = Timer(0)
+        task._rogue_leave_shop(press, 'leave 1')
+        task.tap_point.assert_called_once_with(1136, 678, name='ROGUE_SHOP_LEAVE')
+        self.assertIsNone(task.equipment.shop_refresh)
+        self.assertFalse(task.equipment.shop_refresh_confirmed)
+        # Subsequent call within 3.5s is suppressed even if press timer is ready.
+        press.reset()
+        press = Timer(0)
+        task._rogue_leave_shop(press, 'leave 2')
+        task.tap_point.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()

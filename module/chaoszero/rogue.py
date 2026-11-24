@@ -131,9 +131,20 @@ SECONDARY_LIGHT = 180
 # (849,454)，尺寸 390x56 —— 不在底部主按钮那条带子上，所以单独找。
 # 用同一个橙色系，g 的下限放宽到 105：这颗按钮实测 RGB (239,120,41)，
 # 主按钮的 g>120 会差一点判空。173 帧里只有对话框那一帧命中，无假阳。
-DIALOG_AREA = (640, 420, 1060, 510)
+DIALOG_AREA = (640, 420, 1060, 560)
 DIALOG_WIDTH = (250, 460)
 DIALOG_HEIGHT = (40, 90)
+# 梦境模式说明页左下 `一週內不再顯示` 勾选框（未勾 0 / 已勾 ~427 橙像素，2026-11-23 实测）。
+DREAM_HIDE_BOX = (771, 646, 800, 675)
+DREAM_HIDE_POINT = (785, 660)
+DREAM_HIDE_ORANGE_MIN = 100
+# 居中确认弹窗里「下次登入前不再顯示 / 本次登入不再出現」灰色方块勾选框
+# （实测 23x24 实心浅灰 [192,192,192]，位于 `確認` 上方约 71px）。
+DIALOG_HIDE_X = (460, 620)
+DIALOG_HIDE_Y_OFFSET = (-95, -30)
+DIALOG_HIDE_SIZE = (18, 32)
+DIALOG_HIDE_FILL = 0.78
+DIALOG_HIDE_LIGHT = 160
 
 # 「跳過 / 下一步」那颗白胶囊：位置在右下，随页面在 x 847~1240 之间浮动，
 # 所以盒子放宽到 (620,600,1270,700)。❗判据必须验"实心 + 够亮"：事件页的三张
@@ -316,8 +327,8 @@ BEACON_TITLE_AREA = (498, 556, 806, 596)
 # 实测日志里未知页分支盲点用的就是这两个位置，这里固化下来（2026-11-16 02:40）。
 # 战后「獲得卡牌」页右下那颗橙色「✓ 獲得」（实测 1280x720 上约 (1138, 670)）。
 ACQUIRE_POINT = (1138, 670)
-# 「靈光一閃」详情弹窗的关闭点：画面左侧暗区，避开卡面和底部按钮。
-FLASH_DETAIL_CLOSE = (200, 400)
+# 「靈光一閃」详情弹窗的关闭点：画面最左侧空白处，避开三张卡牌区与底部按钮。
+FLASH_DETAIL_CLOSE = (100, 360)
 
 FLASH_CARD_POINT = (320, 400)
 FLASH_CONFIRM_POINT = (1153, 666)
@@ -365,8 +376,16 @@ TREASURE_CARD_SIMILARITY = 0.85
 # 商店内部右上那张「移除卡牌」卡（spec page_2 的 box (780,162)-(857,250)），
 # 花 70~106 金删一张。营地页只有「德朗商店」标题、没有这张卡，两者分得开。
 SHOP_REMOVE_AREA = (780, 162, 857, 250)
+SHOP_REMOVE_PRICE_AREA = (915, 215, 985, 250)
 SHOP_REMOVE = (818, 206)
 SHOP_REMOVE_SIMILARITY = 0.85
+SHOP_REMOVE_RETRIES = 2
+CREDITS_COIN_AREA = (790, 20, 845, 60)
+CREDITS_OCR_AREA = (852, 22, 928, 56)
+EVENT_BADGE_SEARCH = (380, 140, 960, 420)
+EVENT_BADGE_TEMPLATE = './assets/chaoszero/chaoszero/ROGUE_EVENT_BADGE.png'
+EVENT_BADGE_SIMILARITY = 0.85
+EVENT_BADGE_TRIES = 3
 
 # 删过卡之后，商店右上那块会变成「售罄」黑面板（spec 里没有，2026-11-15 实机补的）。
 # 实测 cv2 灰度匹配：售罄页 1.000 / 正常商店页 0.092~0.100。
@@ -375,6 +394,11 @@ SHOP_SOLD_SIMILARITY = 0.85
 # 商店右下那颗玫红 `離開`（不是橙色，`rogue_primary_point` 和 `rogue_purple_point`
 # 都认不出：它是 r≈200 / g≈50 / b≈110，purple 判据要 b>195）。
 SHOP_LEAVE = (1136, 678)
+# 商店中立卡购买预览页（誤點貨欄卡牌時彈出）：白色取消鈕 + 右側橙/灰購買鈕 + 頂部 `購買卡牌`。
+SHOP_BUY_CARD_TITLE = (540, 74, 740, 118)
+SHOP_BUY_CARD_CANCEL_AREA = (310, 646, 618, 694)
+SHOP_BUY_CARD_CONFIRM_AREA = (660, 646, 970, 694)
+SHOP_BUY_CARD_CANCEL = (464, 670)
 
 # 一个休息点**只能删一次卡**：删完商店那张「移除卡牌」会变成「售罄」（2026-11-15 实测）。
 # 两次进店之间隔这么久（秒）：营地里待的时间远小于它，下一个营地走过去要一分多钟。
@@ -496,6 +520,8 @@ SEASON_DIFF_ENTER = (1180, 660)
 SEASON_REROLL_POINT = (1065, 587)
 SEASON_SAVE_PT_AREA = (885, 274, 1200, 310)
 SEASON_SAVE_PT_SCAN_YS = (235, 255, 274, 295, 315, 335)
+SEASON_TEAM_SAVE_PT_AREA = (1150, 570, 1224, 604)
+SEASON_TEAM_PT_RETRIES = 3
 SEASON_RIGHT_CARD_AREA = (875, 120, 1255, 550)
 SEASON_WHEEL_AREA = (50, 135, 126, 570)
 SEASON_WHEEL_X = 88
@@ -580,9 +606,11 @@ INFO_MENU_POINT = (1228, 40)
 RETREAT_TRIES = 3
 MENU_TRIES = 4
 
-# 演出帧：剧情文本/▼ 还没出来时整页没有按钮（2026-11-14 14:41 雨夜街道帧干等 13 分钟）。
-# y≈300 是背景美术，没有卡片也没有按钮，点它只为推一句台词。
-CUTSCENE_POINT = (640, 300)
+# 演出帧 / 「點擊畫面可關閉視窗。」覆盖层关闭点：避开三张卡牌中柱 (x 175~1095)
+# 及德朗商店货栏物品区 (y 260~630)，同时低于顶部血条 HUD (y 0~85)。
+CUTSCENE_POINT = (60, 150)
+FLASH_BODY_BOXES = ((210, 260, 440, 480), (525, 260, 755, 480), (840, 260, 1070, 480))
+GOD_FLASH_SETTLE_WAIT = 2.5
 # 剧情页右下那颗空心白 ▼ 的中心（`ROGUE_STORY` 的 area 是 (1188,608)-(1214,638)）。
 # 点它推一句台词 —— 这是**有判据**的动作，不是以前那种"没有判据就点画面中部"的盲点。
 STORY_POINT = (1201, 623)
@@ -738,6 +766,9 @@ LOOT_MIN_STEP = 8
 # 而步数门槛在"中途接管已开的局"时恒为 0，反而永远触发不了。靠 `core_started` 只触发一次。
 # 老位置：曾经放在 config/ 根下，读不到新位置时兜底一次，避免用户白导一遍。
 EVENT_PICKS_LEGACY = './config/rogue_event_picks.json'
+# 仓库内置默认事件配置：用户未在 `config/rogue/` 导出自定义配置时直接生效，
+# 既让新客户开箱可用，又避免用户自定义覆盖时与 git 更新产生冲突。
+DEFAULT_EVENT_PICKS_FILE = os.path.join(os.path.dirname(__file__), 'rogue_event_picks.json')
 # 整局结束时的 `存檔資料收集完成` 页：三个角色的存档卡并排，每张卡右边竖着
 # ☆ / 🔒 / 垃圾桶（x 约 427 / 837 / 1237，y 约 474 / 528 / 582），右下紫色
 # `下一步`(1120,662)。页面标题在 (460,58)-(830,104) —— 这一页和 `探索結果`
@@ -784,6 +815,7 @@ MEDITATE_RETRY = 2
 #     缝里，点了毫无反应（2026-11-15 09:2x 实测四次都没弹说明框）。
 MEDITATE_POINT = (1120, 428)
 MEDITATE_ICON_AREA = (1085, 390, 1175, 470)
+MEDITATE_COST = 80
 FLASH_CARD_LIGHTS = (90, 110, 130, 150)
 MEDITATE_ICON_WHITE = 100
 MEDITATE_CONFIRM_POINT = (845, 483)
@@ -825,7 +857,7 @@ REMOVE_CANCEL_POINT = (913, 673)
 # 点过卡之后给多少秒"仍在删卡页"的宽限：整页会压暗、标题模板和橙色「移除」
 # 同时失效 1~2 秒，判据全灭。没有这个窗口，`remove_stage` 会被打回 0、
 # 反复点同一张卡，结果一张都删不成（2026-11-16 01:10 实测）。
-REMOVE_WAIT = 6
+REMOVE_WAIT = 9
 # 一页里最多动几次：点卡(1) + 没选中重试(2) + 最终按「移除」(1)。
 # 原来是 2，刚够"点卡 + 按移除"，没选中时连重试的机会都没有。
 REMOVE_MAX_TRIES = 4
@@ -1153,6 +1185,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         """Handle `選擇刻印的記憶`: match target, reroll remaining columns, or fallback when 0/4."""
         if not self.rogue_memory_choose_appear():
             self.memory_selected_col = None
+            self.memory_reroll_sig = None
             return False
         if not getattr(self, 'core_started', False):
             self.rogue_reset_for_core_map('Season Chaos memory chooser')
@@ -1178,6 +1211,12 @@ class ChaoszeroRogue(ChaoszeroUI):
         if reroll_cols:
             col = reroll_cols[0]
             self.memory_selected_col = None
+            image = getattr(getattr(self, 'device', None), 'image', None)
+            sig = image[::32, ::32].tobytes() if image is not None else None
+            if sig is not None and sig != getattr(self, 'memory_reroll_sig', None):
+                self.memory_reroll_sig = sig
+                if hasattr(self.device, 'click_record_clear'):
+                    self.device.click_record_clear()
             logger.info('Target %s not in %s, reroll col %s at %s' % (target, cards, col, MEMORY_REROLL_POINTS[col - 1]))
             self.tap_point(*MEMORY_REROLL_POINTS[col - 1], name='ROGUE_MEMORY_REROLL')
             return True
@@ -1500,6 +1539,50 @@ class ChaoszeroRogue(ChaoszeroUI):
                         int(centroids[i][1]) + DIALOG_AREA[1])
         return (best[1], best[2]) if best else None
 
+    def rogue_dialog_hide_point(self, confirm_point):
+        """Locate an unchecked neutral-grey checkbox square above `confirm_point`, or None."""
+        image = getattr(getattr(self, 'device', None), 'image', None)
+        if not isinstance(image, np.ndarray) or image.ndim != 3:
+            return None
+        x1, x2 = DIALOG_HIDE_X
+        y1 = max(0, confirm_point[1] + DIALOG_HIDE_Y_OFFSET[0])
+        y2 = max(y1 + 1, confirm_point[1] + DIALOG_HIDE_Y_OFFSET[1])
+        part = self.image_crop((x1, y1, x2, y2)).astype(int)
+        if part.size == 0:
+            return None
+        mask = (
+            (part.min(axis=2) > DIALOG_HIDE_LIGHT)
+            & ((part.max(axis=2) - part.min(axis=2)) < 25)
+        ).astype('uint8')
+        count, _, stats, centroids = cv2.connectedComponentsWithStats(mask, 8)
+        best = None
+        min_s, max_s = DIALOG_HIDE_SIZE
+        for i in range(1, count):
+            width, height, area = stats[i][2], stats[i][3], stats[i][4]
+            if not (min_s <= width <= max_s and min_s <= height <= max_s):
+                continue
+            if abs(width - height) > 4:
+                continue
+            if area < DIALOG_HIDE_FILL * width * height:
+                continue
+            if best is None or area > best[0]:
+                best = (area, int(centroids[i][0]) + x1, int(centroids[i][1]) + y1)
+        return (best[1], best[2]) if best else None
+
+    def rogue_confirm_dialog(self, point, *, name='ROGUE_DIALOG', label='Confirm the dialog'):
+        """Tick `不再顯示` once when present above `point`, otherwise confirm at `point`."""
+        hide_point = None
+        if not getattr(self, 'dialog_hide_clicked', False):
+            hide_point = self.rogue_dialog_hide_point(point)
+        if hide_point:
+            self.dialog_hide_clicked = True
+            logger.info('Check 不再顯示 on dialog at (%s, %s)' % hide_point)
+            self.tap_point(hide_point[0], hide_point[1], name='ROGUE_DIALOG_HIDE')
+            return False
+        logger.info('%s at (%s, %s)' % (label, point[0], point[1]))
+        self.tap_point(point[0], point[1], name=name)
+        return True
+
     def rogue_confirm_point(self, area, size=None):
         """
         Locate the orange 確認 inside an arbitrary area.
@@ -1711,12 +1794,15 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         keep = 0
         if not discard_saves:
-            try:
-                keep = int(self.config.ChaoszeroRogue_RogueSaveKeep)
-            except (AttributeError, TypeError, ValueError):
-                pass
-        if not 1 <= keep <= len(SAVE_TRASH):
-            keep = 0
+            keep = self.rogue_keep_slot_index()
+        if (not discard_saves and keep
+                and getattr(self, 'remove_tracking', False)):
+            missing = self.rogue_keep_slot_unremoved()
+            if missing:
+                summary = ', '.join('%sx%s' % (name, left) for name, left in missing)
+                logger.warning('Save of slot %s still has unremoved card(s): %s; '
+                               'treat as ruined save and decompose all saves' % (keep, summary))
+                keep = 0
         for index, point in enumerate(SAVE_TRASH):
             slot = index + 1
             if slot == keep:
@@ -1784,6 +1870,10 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         if self.appear(ROGUE_GOD, offset=(20, 20), similarity=0.80):
             return True
+        # Event cards mentioning 靈光一閃 inside the middle option box sit right in
+        # GOD_TEXT_AREA (470,612,820,662); real god flash pages never have option dots.
+        if self.rogue_option_points():
+            return False
         text = self.rogue_god_text().replace(' ', '')
         if len(text) >= 4 and '光' in text and ('一' in text or '阴' in text or '閃' in text or '闪' in text):
             logger.info('Flash chooser detected via OCR: %s' % text)
@@ -2007,6 +2097,8 @@ class ChaoszeroRogue(ChaoszeroUI):
             logger.warning('%s is deprecated and shows up as a bogus Alas config, '
                            'please move it to %s'
                            % (EVENT_PICKS_LEGACY, EVENT_PICKS_FILE))
+        if not os.path.exists(path) and os.path.exists(DEFAULT_EVENT_PICKS_FILE):
+            path = DEFAULT_EVENT_PICKS_FILE
         if not os.path.exists(path):
             logger.warning('No %s, event selection will stop for review' % path)
             return self.event_picks
@@ -2365,6 +2457,59 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.option_pending = (x, Timer(6, count=1).start())
         return True
 
+    def rogue_event_badge_point(self):
+        """Locate an overhead purple event badge anywhere in the center scene, or None."""
+        image = getattr(getattr(self, 'device', None), 'image', None)
+        x1, y1, x2, y2 = EVENT_BADGE_SEARCH
+        if image is None or image.ndim < 3 or image.shape[0] < y2 or image.shape[1] < x2:
+            return None
+        if not self.rogue_option_points():
+            return None
+        if hasattr(self.device, 'stuck_record_add') and (
+                self.rogue_battle_appear() or self.rogue_map_appear() or self.rogue_rest_appear()
+                or self.rogue_shop_appear() or self.rogue_shop_sold_appear()
+                or self.rogue_flash_card_appear() or self.rogue_remove_appear()
+                or self.rogue_transform_appear() or self.rogue_flash_appear()
+                or self.rogue_god_appear()):
+            return None
+        tpl = getattr(self, 'event_badge_template', None)
+        if tpl is None:
+            raw = cv2.imread(EVENT_BADGE_TEMPLATE)
+            if raw is None:
+                return None
+            tpl = cv2.cvtColor(raw, cv2.COLOR_BGR2RGB)
+            self.event_badge_template = tpl
+        th, tw = tpl.shape[:2]
+        res = cv2.matchTemplate(image[y1:y2, x1:x2], tpl, cv2.TM_CCOEFF_NORMED)
+        _, score, _, loc = cv2.minMaxLoc(res)
+        if score < EVENT_BADGE_SIMILARITY:
+            return None
+        return x1 + loc[0] + tw // 2, y1 + loc[1] + th // 2
+
+    def rogue_event_badge_appear(self):
+        """Whether a Season Chaos overhead god-flash badge is visible on the current event page."""
+        return self.rogue_event_badge_point() is not None
+
+    def handle_rogue_event_badge(self, press):
+        """Click an event overhead badge before selecting any bottom event option."""
+        point = self.rogue_event_badge_point()
+        if point is None:
+            return False
+        node = (getattr(self, 'core_started', False), getattr(self, 'route_step', 0))
+        if getattr(self, 'event_badge_node', None) != node:
+            self.event_badge_node = node
+            self.event_badge_tries = 0
+        if getattr(self, 'event_badge_tries', 0) >= EVENT_BADGE_TRIES:
+            return False
+        if press.reached() and getattr(self, 'event_badge_wait', Timer(0)).reached():
+            press.reset()
+            self.event_badge_tries = getattr(self, 'event_badge_tries', 0) + 1
+            self.event_badge_wait = Timer(2.5, count=1).start()
+            logger.info('Season event overhead badge -> tap (%s, %s) (%s/%s)'
+                        % (point[0], point[1], self.event_badge_tries, EVENT_BADGE_TRIES))
+            self.tap_point(point[0], point[1], name='ROGUE_EVENT_BADGE')
+        return True
+
     def rogue_event_record(self, points, texts, packs):
         """
         Dump one event page for later accuracy review.
@@ -2441,6 +2586,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         self.spark_selected = None
         self.spark_visible_card = None
+        self.flash_god_column = None
         table = self.rogue_spark_filter()
         # ❗配置读没读到自己看：`RogueSparkFilter` 是纯文本配置，
         # 写错格式（比如全角等号）就会静默解析成 0 条，行为退回"数值最大"。
@@ -2519,6 +2665,11 @@ class ChaoszeroRogue(ChaoszeroUI):
                 ]
                 if any(scores):
                     god_scores = scores
+                    best_col = max(
+                        (col for col, val in enumerate(scores) if val > 0),
+                        key=lambda col: (scores[col], -col),
+                    )
+                    self.flash_god_column = best_col + 1
         else:
             columns = self.card_library.read_columns(texts, card)
 
@@ -2553,6 +2704,7 @@ class ChaoszeroRogue(ChaoszeroUI):
             pick_kwargs['columns'] = columns
         if god_first:
             pick_kwargs['god_first'] = True
+        self.flash_wrong_choice_cols = None
         matched_form = False
         if card in table:
             # ❗配置支持三种写法：
@@ -2574,44 +2726,53 @@ class ChaoszeroRogue(ChaoszeroUI):
                 logger.info('  want: neutral (from RogueSparkFilter)')
             elif form_index is not None:
                 logger.info('  want: rsp%s (from RogueSparkFilter)', form_index + 1)
+
+            def _matches_target(picked_idx):
+                if form_index is not None:
+                    return picked_idx == form_index
+                base_norm = (
+                    (self.card_library.card_meta(card) or {}).get('base_norm', '')
+                    if hasattr(self.card_library, 'card_meta') else ''
+                )
+                form_text = (
+                    base_norm
+                    if picked_idx == rogue_cards.NEUTRAL_FORM_INDEX
+                    else (forms[picked_idx] if picked_idx < len(forms) else '')
+                )
+                return any(word and word in form_text for word in rules)
+
             picked = self.card_library.pick_column(
                 texts, None if form_index is not None else rules, card, form_index, **pick_kwargs)
             if picked:
-                matched_form = True
-                if god_first:
-                    picked_idx = picked[2]
-                    if form_index is not None:
-                        matched_form = (picked_idx == form_index)
-                    else:
-                        base_norm = (
-                            (self.card_library.card_meta(card) or {}).get('base_norm', '')
-                            if hasattr(self.card_library, 'card_meta') else ''
-                        )
-                        form_text = (
-                            base_norm
-                            if picked_idx == rogue_cards.NEUTRAL_FORM_INDEX
-                            else (forms[picked_idx] if picked_idx < len(forms) else '')
-                        )
-                        matched_form = any(word and word in form_text for word in rules)
+                matched_form = _matches_target(picked[2]) if god_first else True
                 if matched_form and card in self.meditate_pending:
                     self.meditate_pending.remove(card)
                     logger.info('Meditation target satisfied: %s; pending: %s'
                                 % (card, self.meditate_pending))
+                elif not matched_form:
+                    self._queue_meditate_card(card)
             elif len(columns) == len(texts):
                 # 认得清三列，但没有一列是想要的效果 -> 这张卡已经闪歪了，
                 # 只在属于人物灵光优先位选定角色时才加入冥想重掷队列。
-                if self._rogue_meditate_allows(card):
-                    if card not in self.meditate_pending:
-                        self.meditate_pending.append(card)
-                    logger.info('Pending meditation cards: %s' % self.meditate_pending)
-                else:
-                    logger.info('Skip meditation queue for %s (not owned by RogueMember slot)' % card)
+                self._queue_meditate_card(card)
                 # ❗这句是「闪到了但没闪出我要的那一种」，和上一条「没认出卡」要分开：
                 # 前者说明识别正常、只是这次随机没给，不需要修；
                 # 后者才是识别问题。
                 logger.info('Flash card %s: wanted form is NOT among the three, '
                             'fall back to RoguePick (will reroll it at the next 冥想)' % card)
+            elif columns:
+                # 即使三列未全认清，只要落手点到了已知非目标形态的列，也确认需要重掷。
+                wrong_cols = {col for col, _, idx in columns if not _matches_target(idx)}
+                if wrong_cols:
+                    self.flash_wrong_choice_cols = (card, wrong_cols)
         else:
+            if god:
+                has_column_god = bool(god_scores and any(god_scores[col] > 0 for col, _, _ in columns))
+                if not has_column_god:
+                    god_col = self.flash_god_column or self.rogue_god_pick()
+                    if god_col:
+                        logger.info('Flash card %s (unspecified form), prefer god column %s' % (card, god_col))
+                        return god_col
             picked = self.card_library.pick_column(texts, name=card, **pick_kwargs)
         if not picked:
             logger.info('No flash form matches %s, keep RoguePick' % card)
@@ -2624,7 +2785,21 @@ class ChaoszeroRogue(ChaoszeroUI):
                     % (card, column + 1, form_label, ratio, raw[:24]))
         return column + 1
 
+    @staticmethod
+    def _flash_cards_washed_out(image):
+        """Whether the 3 flash card bodies are still obscured by the white flash burst."""
+        if image is None or getattr(image, 'ndim', 0) < 3 or image.shape[0] < 480 or image.shape[1] < 1070:
+            return False
+        washed = 0
+        for x1, y1, x2, y2 in FLASH_BODY_BOXES:
+            patch = image[y1:y2, x1:x2]
+            white = float((patch.mean(axis=2) > 240).mean())
+            if white >= 0.45 and float(patch.std()) < 32:
+                washed += 1
+        return washed >= 2
+
     def rogue_choose_flash(self, god=False):
+        self.flash_wrong_choice_cols = None
         column = self.rogue_flash_column(scale=1.8 if god else 1.0, god=god)
         if self.spark_pending:
             if self.spark_visible_card and self.spark_visible_card != self.spark_pending:
@@ -2632,10 +2807,19 @@ class ChaoszeroRogue(ChaoszeroUI):
             elif self.spark_selected != self.spark_pending:
                 # An unreadable or unchanged chooser cannot confirm the previous choice.
                 return
-        index = column or (self.rogue_god_pick() if god else None) or self.rogue_pick_index()
+        index = (
+            column
+            or (getattr(self, 'flash_god_column', None) if god else None)
+            or (self.rogue_god_pick() if god else None)
+            or self.rogue_pick_index()
+        )
         logger.info('Pick column %s on the %sflash page' % (index, 'god ' if god else ''))
-        if self.rogue_pick(FLASH_POINTS, index) and self.spark_selected:
-            self.spark_pending = self.spark_selected
+        if self.rogue_pick(FLASH_POINTS, index):
+            wrong = getattr(self, 'flash_wrong_choice_cols', None)
+            if wrong and (index - 1) in wrong[1]:
+                self._queue_meditate_card(wrong[0])
+            if self.spark_selected:
+                self.spark_pending = self.spark_selected
 
     def rogue_spark_confirm(self):
         if getattr(self, 'spark_pending', None):
@@ -2827,7 +3011,9 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         best = (self._scan_option_points_glow(image, GLOW_BORDER_LIGHT)
                 or self._scan_option_points_glow(image, OPTION_LIGHT))
-        max_glow = self._scan_option_points_glow(image, GLOW_BORDER_LIGHT, max_channel=True)
+        max_180 = self._scan_option_points_glow(image, GLOW_BORDER_LIGHT, max_channel=True)
+        max_140 = self._scan_option_points_glow(image, OPTION_LIGHT, max_channel=True)
+        max_glow = max_140 if len(max_140) > len(max_180) else max_180
         return max_glow if len(max_glow) > len(best) else best
 
     def rogue_option_check_point(self, x):
@@ -2952,14 +3138,16 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         # ❗第二面（核心）**强制避开精英**，不看配置（用户 2026-11-15：
         # 「第 2 面固定事件优先，避开精英怪，这个是底层逻辑」）。
+        credits = getattr(self, 'credits', None)
         return {
             'avoid_elite': (True if getattr(self, 'core_started', False)
                             else bool(getattr(self.config,
                                               'ChaoszeroRogue_RogueAvoidElite', True))),
-            'meditate': bool(getattr(self.config, 'ChaoszeroRogue_RogueMeditate', True)),
-            'junk': False,
-            'need_spark': False,
-            'credits': 0,
+            'meditate': bool(getattr(self, 'config', None) and getattr(
+                self.config, 'ChaoszeroRogue_RogueMeditate', True)),
+            'junk': bool(self.rogue_shop_remove_needed()),
+            'need_spark': bool(getattr(self, 'meditate_pending', None)),
+            'credits': int(credits) if credits is not None else 0,
         }
 
     def rogue_route_read(self):
@@ -2983,6 +3171,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         empty = 0
         for index in range(ROUTE_SCANS):
             self.device.screenshot()
+            if index == 0 and self.device.image is not None:
+                self.route_last_preview = self.device.image.copy()
             current = rogue_route.read_nodes(self.device.image)
             # 连线也要读：只有白线相通的格子才能走（用户 2026-11-15 指出）。
             # read_edges 返回的是**当前屏 nodes 的下标对**，等 merge_nodes 给出
@@ -3086,6 +3276,58 @@ class ChaoszeroRogue(ChaoszeroUI):
             return self.route_plan[self.plan_index][0]
         return None
 
+    def rogue_route_choose_card(self, cards):
+        """Match live 3D cards to the 2D plan, allowing at most one re-read per step."""
+        entry = self.rogue_route_entry()
+        card = rogue_route.planned_card(cards, entry) if entry else None
+        if entry and card is None:
+            kinds = tuple(item.kind for item in sorted(cards, key=lambda item: item.y))
+            if self.route_mismatch != kinds:
+                self.route_mismatch = kinds
+                return None, True
+            self.rogue_dump_route_mismatch()
+            step_key = (bool(getattr(self, 'core_started', False)), int(getattr(self, 'route_step', 0)))
+            if self.route_reads < ROUTE_READS and getattr(self, 'route_reread_step', None) != step_key:
+                logger.warning('Route choices differ: plan %s, live %s; re-read route once on step %s'
+                               % (entry['choices'], kinds, step_key[1] + 1))
+                self.route_reread_step = step_key
+                self.route_plan = None
+                self.route_mismatch = None
+                return None, True
+            logger.warning('Route choices differ: plan %s, live %s; fall back to best card on step %s'
+                           % (entry['choices'], kinds, step_key[1] + 1))
+            self.route_plan = None
+        self.route_mismatch = None
+        if card is None:
+            card = rogue_route.best_card(cards, self.rogue_route_style(), self.rogue_route_state())
+        return card, False
+
+    def rogue_map_fallback(self):
+        """Wait briefly for 3D branch cards, then fall back to tapping `NODE_FALLBACK`.
+
+        Single-node layers (e.g. a mid-floor safe area or boss) often have no
+        separate floating cards to detect; waiting until `MAP_TRIES` whenever
+        `rogue_route_entry()` is non-empty discards the route plan and wastes
+        a 2D route re-read.
+
+        Returns:
+            bool: True if `NODE_FALLBACK` was tapped, False if still waiting.
+        """
+        entry = self.rogue_route_entry()
+        branches = len(entry.get('choices') or ()) if entry else 0
+        fallback_at = 4 if branches > 1 else 3
+        if self.node_tries >= fallback_at:
+            kind = entry.get('kind', 'boss') if entry else 'boss'
+            logger.info('Only one or unreadable platform left (%s), press fallback' % kind)
+            self.node_pending = Timer(NODE_ENTRY_WAIT, count=1).start()
+            self.tap_point(NODE_FALLBACK[0], NODE_FALLBACK[1], name='ROGUE_NODE')
+            return True
+        if branches > 1:
+            logger.info('Planned branches are not visible yet, wait for the platforms')
+        else:
+            logger.info('No node card on the map yet, wait for the platform')
+        return False
+
     def rogue_route_confirm_move(self):
         if self.node_pending is None:
             return False
@@ -3102,6 +3344,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.route_step += 1
         self.plan_index += 1
         self.route_mismatch = None
+        self.route_reread_step = None
         self.node_tries = 0
         self.route_retry = 0
         self.event_page = None
@@ -3155,9 +3398,201 @@ class ChaoszeroRogue(ChaoszeroUI):
         """
         return self.appear(ROGUE_REST, offset=(30, 16), similarity=0.82)
 
+    def _queue_meditate_card(self, card):
+        """Queue `card` for meditation reroll when it belongs to `RogueMember`."""
+        if self._rogue_meditate_allows(card):
+            if card not in self.meditate_pending:
+                self.meditate_pending.append(card)
+            logger.info('Pending meditation cards: %s' % self.meditate_pending)
+        else:
+            logger.info('Skip meditation queue for %s (not owned by RogueMember slot)' % card)
+
+    def _rogue_leave_shop(self, press, reason):
+        """Leave Delang Shop once with a cooldown so closing transitions do not tap camp Skip."""
+        if not press.reached() or not getattr(self, 'shop_leave_wait', Timer(0)).reached():
+            return
+        press.reset()
+        self.shop_leave_wait = Timer(3.5, count=1).start()
+        self.shop_cooldown = Timer(SHOP_COOLDOWN, count=1).start()
+        self.shop_retry = SHOP_RETRY
+        equip = getattr(self, 'equipment', None)
+        if equip is not None:
+            equip.shop_refresh = None
+            equip.shop_refresh_confirmed = False
+        logger.info(reason)
+        self.tap_point(SHOP_LEAVE[0], SHOP_LEAVE[1], name='ROGUE_SHOP_LEAVE')
+
+    def rogue_price_unaffordable(self, image, area, min_pixels=25):
+        """Whether a price box shows red digits (without white affordable digits)."""
+        if image is None or image.ndim < 3:
+            return False
+        x1, y1, x2, y2 = area
+        h, w = image.shape[:2]
+        if h < y2 or w < x2:
+            return False
+        patch = image[y1:y2, x1:x2].astype(int)
+        if int((patch.min(axis=2) > 180).sum()) >= 15:
+            return False
+        red, green, blue = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
+        return int(((red > 135) & (red - green > 45) & (red - blue > 45)).sum()) >= min_pixels
+
+    @staticmethod
+    def _rogue_digit_ocr(image, area, name):
+        """Read one numeric OCR crop cleanly, returning `int` or `None`."""
+        if image is None or image.ndim < 3:
+            return None
+        x1, y1, x2, y2 = area
+        h, w = image.shape[:2]
+        if h < y2 or w < x2:
+            return None
+        ocr = ChaoszeroOcr(area, scale=2.0, alphabet='0123456789', name=name)
+        ocr.SHOW_LOG = False
+        text = ocr.ocr(image)
+        return int(text) if text and text.isdigit() else None
+
+    def rogue_read_credits(self, image=None):
+        """Read current Chaos credits from the top bar when its gold coin icon is visible."""
+        if image is None:
+            image = getattr(getattr(self, 'device', None), 'image', None)
+        if image is None or image.ndim < 3:
+            return None
+        x1, y1, x2, y2 = CREDITS_COIN_AREA
+        h, w = image.shape[:2]
+        if h < y2 or w < x2:
+            return None
+        coin = image[y1:y2, x1:x2].astype(int)
+        gold = (coin[:, :, 0] > 180) & (coin[:, :, 1] > 120) & (coin[:, :, 2] < 120)
+        if int(gold.sum()) < 50:
+            return None
+        return self._rogue_digit_ocr(image, CREDITS_OCR_AREA, 'ROGUE_CREDITS')
+
+    def rogue_update_credits(self, image=None, force=False):
+        """Update cached and persisted credit count on clean/settled screens."""
+        value = self.rogue_read_credits(image)
+        if value is None:
+            return getattr(self, 'credits', None)
+        current = getattr(self, 'credits', None)
+        if force or current is None:
+            self.credits_pending = None
+            if value != current:
+                self.credits = value
+                logger.info('Chaos credits: %s' % value)
+                if hasattr(self, 'rogue_state_save'):
+                    self.rogue_state_save(credits=value)
+        elif value == current:
+            self.credits_pending = None
+        elif value == getattr(self, 'credits_pending', None):
+            self.credits = value
+            self.credits_pending = None
+            logger.info('Chaos credits: %s' % value)
+            if hasattr(self, 'rogue_state_save'):
+                self.rogue_state_save(credits=value)
+        else:
+            self.credits_pending = value
+        return getattr(self, 'credits', value)
+
+    def rogue_read_shop_remove_price(self, image=None):
+        """Read the card-removal price inside Delang Shop and cache the last known price."""
+        if image is None:
+            image = getattr(getattr(self, 'device', None), 'image', None)
+        price = self._rogue_digit_ocr(image, SHOP_REMOVE_PRICE_AREA, 'ROGUE_SHOP_REMOVE_PRICE')
+        if price is not None and price > 0:
+            if price != getattr(self, 'last_shop_remove_price', None):
+                self.last_shop_remove_price = price
+                if hasattr(self, 'rogue_state_save'):
+                    self.rogue_state_save(last_shop_remove_price=price)
+        return price
+
+    def rogue_shop_remove_unaffordable(self, image=None):
+        """Whether the shop's 移除卡牌 option is unaffordable in the current frame."""
+        if image is None:
+            image = getattr(getattr(self, 'device', None), 'image', None)
+        if self.rogue_price_unaffordable(image, SHOP_REMOVE_PRICE_AREA):
+            return True
+        credits = getattr(self, 'credits', None)
+        price = self.rogue_read_shop_remove_price(image)
+        if credits is not None and price is not None and credits < price:
+            return True
+        return False
+
+    def rogue_shelf_price_unaffordable(self, col, image=None):
+        """Whether shop shelf column `col` (0-based) shows an unaffordable red price."""
+        if image is None:
+            image = getattr(getattr(self, 'device', None), 'image', None)
+        cx = 140 + col * 250
+        return self.rogue_price_unaffordable(image, (cx - 35, 572, cx + 105, 612))
+
+    def rogue_keep_slot_index(self):
+        """Return 1-based kept save slot (`1..3`) or `0` if none."""
+        keep = 0
+        cfg = getattr(self, 'config', None)
+        if cfg is not None:
+            try:
+                node = cfg.data.get('ChaoszeroRogue', {})
+                node = node.get('ChaoszeroRogue') or node
+                keep = int(node.get('RogueSaveKeep', getattr(cfg, 'ChaoszeroRogue_RogueSaveKeep', 0)) or 0)
+            except Exception:
+                try:
+                    keep = int(getattr(cfg, 'ChaoszeroRogue_RogueSaveKeep', 0) or 0)
+                except (TypeError, ValueError):
+                    keep = 0
+        return keep if 1 <= keep <= len(SAVE_TRASH) else 0
+
+    def rogue_keep_slot_rules(self):
+        """Return delete rules belonging to the `RogueSaveKeep` slot character."""
+        keep = self.rogue_keep_slot_index()
+        if not keep or not hasattr(self, 'config'):
+            return []
+        try:
+            node = self.config.data.get('ChaoszeroRogue', {})
+            node = node.get('ChaoszeroRogue') or node
+            cid = str(node.get('RogueSlot%sMember' % keep) or '').strip()
+        except Exception:
+            cid = str(getattr(self.config, 'ChaoszeroRogue_RogueSlot%sMember' % keep, '') or '').strip()
+        if not cid:
+            return []
+        card_to_cid, norm_to_cid = rogue_cards.card_character_map()
+        rules = []
+        for name, quota in self.rogue_delete_rules():
+            owner = card_to_cid.get(name) or norm_to_cid.get(rogue_cards.normalize(name))
+            if owner == cid:
+                rules.append((name, quota))
+        return rules
+
+    def rogue_keep_slot_unremoved(self):
+        """Return `[(card_name, remaining), ...]` still unremoved for the kept save slot."""
+        counts = getattr(self, 'remove_counts', {}) or {}
+        cleared = set(getattr(self, 'keep_slot_cleared_cards', ()) or ())
+        missing = []
+        for name, quota in self.rogue_keep_slot_rules():
+            if name in cleared:
+                continue
+            left = quota - counts.get(name, 0)
+            if left > 0:
+                missing.append((name, left))
+        return missing
+
+    def rogue_equipment_budget_blocked(self, node=None):
+        """Whether shop equipment buying should be skipped to protect removal budget."""
+        if node is not None and getattr(self, 'shop_block_equipment_node', None) == node:
+            return True
+        if self.rogue_keep_slot_unremoved():
+            credits = getattr(self, 'credits', None)
+            reserve = max((getattr(self, 'last_shop_remove_price', None) or 70) + 35, 105)
+            if credits is not None and credits < reserve:
+                return True
+        return False
+
     def rogue_visit_rest_shop(self, press):
-        if (not self.shop_cooldown.reached() or self.shop_retry >= SHOP_RETRY
-                or not (self.rogue_shop_remove_needed() or self.equipment.shop_target_slots())):
+        if not self.shop_cooldown.reached() or self.shop_retry >= SHOP_RETRY:
+            return False
+        node = (getattr(self, 'core_started', False), getattr(self, 'route_step', 0))
+        want_remove = self.rogue_shop_remove_needed()
+        if getattr(self, 'shop_block_equipment_node', None) == node and not want_remove:
+            return False
+        equip = getattr(self, 'equipment', None)
+        want_equip = bool(equip and equip.shop_target_slots()) and not self.rogue_equipment_budget_blocked(node)
+        if not (want_remove or want_equip):
             return False
         if self.appear(ROGUE_REST_SHOP, offset=(30, 16), similarity=0.85):
             if press.reached():
@@ -3207,6 +3642,14 @@ class ChaoszeroRogue(ChaoszeroUI):
         if self.rogue_count(MEDITATE_ICON_AREA, 'white', threshold=190) < MEDITATE_ICON_WHITE:
             return False
         if self.appear(ROGUE_MEDITATE_OFF, offset=(25, 12), similarity=0.75):
+            return False
+        credits = getattr(self, 'credits', None)
+        if credits is not None and credits < MEDITATE_COST:
+            node = (getattr(self, 'core_started', False), getattr(self, 'route_step', 0))
+            if getattr(self, 'meditate_unaffordable_node', None) != node:
+                self.meditate_unaffordable_node = node
+                logger.info('Credits %s < %s for meditation, skip meditation and rest instead'
+                            % (credits, MEDITATE_COST))
             return False
         return True
 
@@ -3277,13 +3720,77 @@ class ChaoszeroRogue(ChaoszeroUI):
         points.sort(key=lambda item: (item[2] // 150, item[0]))
         return points
 
+    def _meditate_is_free_skip(self):
+        """Whether bottom button on `rogue_meditate_appear` is `跳過` (free reward) vs `取消`."""
+        image = getattr(self.device, 'image', None)
+        if image is None or not hasattr(image, 'shape') or image.shape[0] < 700:
+            return False
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        text = self.card_reader.read_name(image, (810, 645, 1020, 695), scale=2, raw=True) or ''
+        return ('跳過' in text) or ('跳过' in text)
+
+    def _meditate_free_skip_candidate(self, table):
+        """Pick an un-satisfied, non-god sparked `RogueSparkFilter` card on a free `跳過` grid."""
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        if self.card_library is None:
+            self.card_library = rogue_cards.CardLibrary()
+        image = self.device.image
+        read_block = getattr(self.card_reader, 'read_block', None)
+        allowed = [name for name in table if self._rogue_meditate_allows(name)]
+        if not allowed:
+            return None
+        for x, y, top, left, width, height in self._flash_points_merged():
+            area = (left + 10, top + 6, left + width - 10, top + 34)
+            text = self.card_reader.read_name(image, area, scale=2)
+            name, score = self._match_rule_card(text, allowed)
+            if not name or score < MEDITATE_MATCH:
+                continue
+            patch = image[max(0, top + 44):top + 96, max(0, left + 11):left + 52]
+            if not patch.size:
+                continue
+            orange = int(np.count_nonzero(
+                (patch[:, :, 0] > 180)
+                & (patch[:, :, 0].astype(int) - patch[:, :, 2].astype(int) > 70)
+            ))
+            cyan = int(np.count_nonzero(
+                (patch[:, :, 2] > 170) & (patch[:, :, 1] > 120)
+                & (patch[:, :, 2].astype(int) - patch[:, :, 0].astype(int) > 30)
+            ))
+            # Never overwrite an already god-sparked card or un-sparked base card.
+            if orange >= 300 or cyan < 250:
+                continue
+            if callable(read_block) and isinstance(self.card_library, rogue_cards.CardLibrary):
+                desc = read_block(
+                    image, (left + 8, top + int(height * 0.50), left + width - 8, top + height - 4),
+                    scale=2.0, raw=True)
+                rules = table.get(name, [])
+                token = rules[0].strip() if rules else ''
+                form_index = None
+                if token.lower() in rogue_cards.NEUTRAL_FORM_ALIASES:
+                    form_index = rogue_cards.NEUTRAL_FORM_INDEX
+                elif token.isdigit():
+                    idx = int(token) - 1
+                    if 0 <= idx <= 5:
+                        form_index = idx
+                matched = (
+                    self.card_library.pick_column(
+                        [desc], None if form_index is not None else rules, name, form_index)
+                    if desc else None
+                )
+                if matched:
+                    continue
+            return (x, y), name, score
+        return None
+
     def rogue_meditate_card(self):
         """
         Find the configured target card on the 冥想 grid.
 
-        动态检测当前可见卡牌，只找已记录的闪歪目标，并且要求：
-            最高分 >= MEDITATE_MATCH  且  领先第二名 >= MEDITATE_MARGIN
-        认不准就返回 None —— 用户的要求是宁可不冥想，也不能认错卡去重掷。
+        動態檢測當前可見卡牌，只找已記錄的閃歪目標，並且要求：
+            最高分 >= MEDITATE_MATCH  且  領先第二名 >= MEDITATE_MARGIN
+        認不准就返回 None —— 用戶的要求是寧可不冥想，也不能認錯卡去重擲。
 
         Returns:
             tuple: ((x, y), name, score) of the card to reroll, or None.
@@ -3292,7 +3799,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         if not table:
             logger.info('RogueSparkFilter is empty, nothing to reroll')
             return None
-        # 只按闪歪先后处理队首（仅限人物灵光优先位角色），不能从整个配置表里任意挑一张。
+        # 只按閃歪先後處理隊首（僅限人物靈光優先位角色），不能從整個配置表裡任意挑一張。
         target = self._next_meditate_target()
         if target:
             if target in table:
@@ -3300,6 +3807,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             else:
                 logger.info('Meditate target %s is not in RogueSparkFilter, skip' % target)
                 return None
+        elif self._meditate_is_free_skip():
+            picked = self._meditate_free_skip_candidate(table)
+            if picked:
+                return picked
+            logger.info('No un-satisfied spark card on free re-spark grid, skip it')
+            return None
         else:
             logger.info('No pending meditation target, skip the grid')
             return None
@@ -3531,6 +4044,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.route_reads = 0
         self.route_retry = 0
         self.route_mismatch = None
+        self.route_reread_step = None
         self.route_edges = []
         self.event_page = None
         self.event_index = None
@@ -4035,7 +4549,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 大卡 (286x422) 卡名条在 top+4..46；小卡 (ROGUE_COPY_TITLE2, width<240) 左侧费用标占比大、
         # 下方緊接「技能/攻擊」副标，需向右避开费用标并收窄高度以免混入副标。
         scored = []
-        for x, y, left, top, width, height in points:
+        for idx, (x, y, left, top, width, height) in enumerate(points):
             if width >= 240:
                 area = (left + 12, top + 4, left + width - 12, top + 46)
             else:
@@ -4043,7 +4557,9 @@ class ChaoszeroRogue(ChaoszeroUI):
             text = self.card_reader.read_name(image, area)
             if not text:
                 continue
-            scored.append((rogue_cards.name_score(text, target), target, x, y, text))
+            tier = (self.rogue_card_flash_tier(image, top, left, width, height)
+                    if image is not None else 0)
+            scored.append((rogue_cards.name_score(text, target), tier, -idx, target, x, y, text))
         if not scored:
             logger.info('Copy-card page, no card name readable')
             return None
@@ -4051,10 +4567,70 @@ class ChaoszeroRogue(ChaoszeroUI):
         best = scored[0]
         second = scored[1][0] if len(scored) > 1 else 0.0
         logger.info('Copy-card page, best match %s (%.2f vs %.2f) OCR=%r'
-                    % (best[1], best[0], second, best[4][:14]))
-        if best[0] < COPY_CARD_MATCH or best[0] - second < COPY_CARD_MARGIN:
+                    % (best[3], best[0], second, best[6][:14]))
+        if best[0] < COPY_CARD_MATCH:
             return None
-        return best[2], best[3], best[1], best[0]
+        # Only reject on small margin when the runner-up is below match threshold
+        # (two copies of the same target card both score >= COPY_CARD_MATCH).
+        if best[0] - second < COPY_CARD_MARGIN and second < COPY_CARD_MATCH:
+            return None
+        return best[4], best[5], best[3], best[0]
+
+    def rogue_handle_copy_card_pick(self, press, label, record=False):
+        """Select the configured copy target card, waiting silently on fade-in frames."""
+        if record:
+            self.rogue_card_page_record('copy')
+        is_grid = self.appear(ROGUE_COPY_TITLE2, offset=(16, 10), similarity=0.93)
+        if is_grid and getattr(self, 'copy_grid_picked', False):
+            confirm = self.rogue_primary_point()
+            if confirm:
+                if press.reached():
+                    press.reset()
+                    self.copy_grid_picked = False
+                    self.card_tries = 0
+                    self.copy_pending = None
+                    logger.info('%s, confirm copy at (%s, %s)' % (label, confirm[0], confirm[1]))
+                    self.tap_point(confirm[0], confirm[1], name='ROGUE_COPY_CONFIRM')
+                return
+        points = None
+        if self.copy_target is None:
+            points = self.rogue_copy_card_points()
+            if not points:
+                return
+        if not press.reached():
+            return
+        press.reset()
+        if record:
+            self.card_tries = 0
+        if self.copy_target is None:
+            self.copy_target = self.rogue_copy_card_pick()
+        if self.copy_target:
+            x, y, name, score = self.copy_target
+            logger.info('%s, pick %s at (%s, %s) score %.2f' % (label, name, x, y, score))
+            self.copy_grid_picked = is_grid
+            self.tap_point(x, y, name='ROGUE_COPY_CARD')
+            self.copy_target = None
+            self.copy_miss = 0
+            self.copy_pending = None
+            return
+        self.copy_miss += 1
+        if self.copy_miss < COPY_CARD_MISS:
+            logger.info('%s, %s not found yet (%s/%s), retry'
+                        % (label, self.config.ChaoszeroRogue_RogueCopyCard,
+                           self.copy_miss, COPY_CARD_MISS))
+            return
+        points = points or self.rogue_copy_card_points()
+        if points:
+            x, y = points[0][0], points[0][1]
+            logger.info('%s, %s still not found after %s tries, fall back to the first card at (%s, %s)'
+                        % (label, self.config.ChaoszeroRogue_RogueCopyCard,
+                           self.copy_miss, x, y))
+            self.copy_grid_picked = is_grid
+            self.tap_point(x, y, name='ROGUE_COPY_CARD')
+        else:
+            logger.info('%s, no card detected at all, wait' % label)
+        self.copy_miss = 0
+        self.copy_pending = None
 
     def rogue_copy_card_appear(self):
         """
@@ -4221,6 +4797,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         picked = []
         last_page = 0
         points = []
+        matched_names = set()
+        scanned_to_end = False
         for page in range(REMOVE_SCROLL_TIMES + 1):
             last_page = page
             points = self.rogue_remove_card_points()
@@ -4260,6 +4838,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                     idx, pt, score, disp = best
                     used_indices.add(idx)
                     avail[name] -= 1
+                    matched_names.add(name)
                     picked.append((page, pt, name, score, disp))
                     logger.info('Removal pick: at (%s,%s) -> %s (%.2f) OCR=%r'
                                 % (pt[0], pt[1], name, score, disp))
@@ -4267,9 +4846,12 @@ class ChaoszeroRogue(ChaoszeroUI):
                         return picked, last_page
 
             if page == REMOVE_SCROLL_TIMES:
+                seen |= names
+                scanned_to_end = True
                 break
             if names and names <= seen:
                 logger.info('Removal pick: no new card name after scrolling, reached the end')
+                scanned_to_end = True
                 break
             seen |= names
             logger.info('Removal target (%s) is not visible, scroll down (%s/%s)'
@@ -4283,9 +4865,24 @@ class ChaoszeroRogue(ChaoszeroUI):
             if not self.rogue_remove_appear():
                 logger.info('Removal pick: the removal page is gone after scrolling')
                 break
+        if scanned_to_end and seen and not matched_names:
+            self._mark_absent_keep_slot_cards()
         logger.info('Removal pick: only %s/%s configured target(s) (%s) found on %s card(s)'
                     % (len(picked), count, ', '.join(targets), len(points)))
         return None
+
+    def _mark_absent_keep_slot_cards(self):
+        """Record kept-slot delete targets as absent when a full deck scan finds none."""
+        cleared = list(getattr(self, 'keep_slot_cleared_cards', ()) or ())
+        changed = False
+        for name, _ in self.rogue_keep_slot_rules():
+            if name not in cleared:
+                cleared.append(name)
+                changed = True
+        if changed:
+            self.keep_slot_cleared_cards = cleared
+            if hasattr(self, 'rogue_state_save'):
+                self.rogue_state_save(keep_slot_cleared_cards=cleared)
 
     def rogue_remove_pick(self):
         """Return ((x, y), name, score, OCR) for the highest-priority removal target."""
@@ -4317,13 +4914,15 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.remove_cancel_tries = 0
         self.remove_wait.clear()
 
-    def rogue_remove_cancel(self, point=REMOVE_CANCEL_POINT, name='ROGUE_REMOVE_CANCEL'):
+    def rogue_remove_cancel(self, point=REMOVE_CANCEL_POINT, name='ROGUE_REMOVE_CANCEL',
+                            skip_node=True):
         """Leave a recognized removal page without spending the removal quota."""
         if self.remove_cancel_tries >= REMOVE_MAX_TRIES:
             self.rogue_dump_unknown()
             raise TaskFailed('Card removal page could not be skipped, stop for review')
         self.remove_cancel_tries += 1
-        self.remove_skip_node = (self.core_started, self.route_step)
+        if skip_node:
+            self.remove_skip_node = (self.core_started, self.route_step)
         self.remove_stage = 3
         self.remove_target = None
         self.remove_targets = []
@@ -4340,8 +4939,8 @@ class ChaoszeroRogue(ChaoszeroUI):
         logger.info('The card is picked, press 移除 for %s (confirmed %s/%s)'
                     % (names, self.remove_done, self.rogue_delete_times()))
         self.remove_stage = 2
-        self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
         self.tap_point(*point, name='ROGUE_REMOVE_OK')
+        self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
 
     def handle_rogue_remove(self, press):
         """Own selection, submission and completion before generic page handlers.
@@ -4469,8 +5068,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 self.remove_pending_picks = []
                 self.remove_scroll_page = 0
             return True
-        if ready or self.remove_tries >= REMOVE_MAX_TRIES:
-            # An externally selected card has no verified identity or priority.
+        if self.remove_tries >= REMOVE_MAX_TRIES:
             logger.info('No verified removal target after %s tries, leave without removing'
                         % self.remove_tries)
             self.rogue_remove_cancel()
@@ -4478,6 +5076,18 @@ class ChaoszeroRogue(ChaoszeroUI):
         required = self.rogue_remove_required()
         if required is None:
             logger.info('Removal count is not readable yet, wait')
+            return True
+        if ready and required != 1:
+            # Multi-card removal cannot safely replace an unknown pre-selected slot in-place.
+            acc_node = getattr(self, 'remove_accidental_node', None)
+            cur_node = (self.core_started, self.route_step)
+            accidental = getattr(self, 'remove_accidental_cancels', 0) if acc_node == cur_node else 0
+            skip_node = accidental >= 2
+            if not skip_node:
+                self.remove_accidental_node = cur_node
+                self.remove_accidental_cancels = accidental + 1
+            logger.info('Pre-selected multi-card removal (%s), cancel to reset' % required)
+            self.rogue_remove_cancel(skip_node=skip_node)
             return True
         remaining = self.rogue_delete_times() - self.remove_done
         if remaining < required:
@@ -4491,8 +5101,13 @@ class ChaoszeroRogue(ChaoszeroUI):
         if required == 1:
             picked = self.rogue_remove_pick()
             if picked is None:
-                logger.info('Removal recognition missed (%s/%s), quota unchanged'
-                            % (self.remove_tries, REMOVE_MAX_TRIES))
+                if ready:
+                    logger.info('External selection active and no target found (%s/%s), cancel to reset'
+                                % (self.remove_tries, REMOVE_MAX_TRIES))
+                    self.rogue_remove_cancel(skip_node=False)
+                else:
+                    logger.info('Removal recognition missed (%s/%s), quota unchanged'
+                                % (self.remove_tries, REMOVE_MAX_TRIES))
                 return True
             self.remove_target = picked
             self.remove_targets = [picked]
@@ -4500,8 +5115,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.remove_scroll_page = 0
             self.remove_stage = 1
             self.remove_wait = Timer(REMOVE_WAIT, count=1).start()
-            logger.info('Remove %s at %s (score %.2f, OCR=%r)'
-                        % (picked[1], picked[0], picked[2], picked[3]))
+            if ready:
+                logger.info('Switch accidental selection to %s at %s (score %.2f, OCR=%r)'
+                            % (picked[1], picked[0], picked[2], picked[3]))
+            else:
+                logger.info('Remove %s at %s (score %.2f, OCR=%r)'
+                            % (picked[1], picked[0], picked[2], picked[3]))
             self.tap_point(*picked[0], name='ROGUE_REMOVE_CARD')
             return True
         picks = self.rogue_remove_picks(required)
@@ -4691,6 +5310,37 @@ class ChaoszeroRogue(ChaoszeroUI):
         return self.rogue_template_score(
             './assets/chaoszero/chaoszero/ROGUE_SHOP_SOLD.png',
             SHOP_SOLD_AREA, pad=40) >= SHOP_SOLD_SIMILARITY
+
+    def rogue_shop_buy_card_appear(self):
+        """Return whether an accidental shop neutral-card purchase preview (`購買卡牌`) is open."""
+        image = getattr(getattr(self, 'device', None), 'image', None)
+        if not isinstance(image, np.ndarray) or image.ndim != 3:
+            return False
+        if image.shape[0] < 700 or image.shape[1] < 1000:
+            return False
+        cx1, cy1, cx2, cy2 = SHOP_BUY_CARD_CANCEL_AREA
+        cancel_patch = image[cy1:cy2, cx1:cx2, :3]
+        white_frac = float(((cancel_patch[:, :, 0] > 210)
+                            & (cancel_patch[:, :, 1] > 210)
+                            & (cancel_patch[:, :, 2] > 210)).mean())
+        if white_frac < 0.70:
+            return False
+        bx1, by1, bx2, by2 = SHOP_BUY_CARD_CONFIRM_AREA
+        buy_patch = image[by1:by2, bx1:bx2, :3]
+        red = buy_patch[:, :, 0]
+        green = buy_patch[:, :, 1]
+        blue = buy_patch[:, :, 2]
+        orange_frac = float(((red > 210) & (green > 80) & (green < 175) & (blue < 85)).mean())
+        grey_frac = float(((np.abs(red.astype(np.int16) - green.astype(np.int16)) < 15)
+                           & (red > 70) & (red < 160)).mean())
+        if max(orange_frac, grey_frac) < 0.45:
+            return False
+        if self.rogue_equip_appear():
+            return False
+        if getattr(self, 'card_reader', None) is None:
+            self.card_reader = rogue_cards.CardReader()
+        title = self.card_reader.read_name(image, SHOP_BUY_CARD_TITLE, scale=1.5)
+        return '購買' in title and '卡' in title
 
     def rogue_loot_appear(self):
         """
@@ -4974,6 +5624,20 @@ class ChaoszeroRogue(ChaoszeroUI):
         return (self.appear(ROGUE_SEASON_REROLL, offset=(20, 20), similarity=0.88)
                 or self.appear(ROGUE_SEASON_TITLE, offset=(20, 20), similarity=0.88))
 
+    def rogue_handle_dream_notice(self, press):
+        """Tick `一週內不再顯示` on the Dream Mode notice before confirming."""
+        if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
+            if press.reached():
+                press.reset()
+                if self.rogue_count(DREAM_HIDE_BOX, 'orange') < DREAM_HIDE_ORANGE_MIN:
+                    logger.info('Check 一週內不再顯示 on the dream mode notice')
+                    self.tap_point(*DREAM_HIDE_POINT, name='ROGUE_DREAM_HIDE')
+                else:
+                    logger.info('Close the dream mode notice')
+                    self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
+            return True
+        return False
+
     def rogue_dream_state(self):
         """
         Read the 梦境模式 switch on the 「配置隊伍」 page.
@@ -5010,14 +5674,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         for _ in self.loop(timeout=Timer(20, count=1)):
             self.device.stuck_record_clear()
 
-            if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
-                # 第一次开启梦境模式会弹一整页说明（精神異常 / 崩潰加劇 / 靈光一閃機率
-                # 增加 / 存檔資料增加 + 紫色 `確認`）。不关掉它队伍页不会回来，开关
-                # 也读不到（用户 2026-11-14 提供的截图）。
-                if press.reached():
-                    press.reset()
-                    logger.info('Close the dream mode notice')
-                    self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
+            if self.rogue_handle_dream_notice(press):
                 continue
 
             state = self.rogue_dream_state()
@@ -5212,41 +5869,121 @@ class ChaoszeroRogue(ChaoszeroUI):
         if not digits.isdigit():
             return None
         val = int(digits)
-        return val if 50 <= val <= 300 else None
+        return val if 50 <= val <= 350 else None
 
     @staticmethod
     def _enhance_save_pt_band(raw_image, buf, area):
         """
         Boost light-green `XXXpt` text on white card into crisp black-on-white grayscale.
 
-        Green text (`G≈195` on white `245`) has low luminance contrast in raw RGB,
-        so PP-OCRv3 can confuse `130pt` with `180pt`. Stretching `min(R, B)` turns
-        both dark labels and green digits into high-contrast black on white.
+        Returns `(crop, norm)` where `crop` is the original RGB patch and `norm` is
+        the stretched `min(R, B)` uint8 patch (dark text on bright background).
         """
         x1, y1, x2, y2 = area
         crop = raw_image[y1:y2, x1:x2]
         if not crop.size:
-            return None
+            return None, None
         rb = np.minimum(crop[:, :, 0], crop[:, :, 2])
         lo = float(np.percentile(rb, 1))
         hi = float(np.percentile(rb, 90))
         norm = np.clip((rb.astype(np.float32) - lo) / max(1.0, hi - lo) * 255.0,
                        0, 255).astype(np.uint8)
         buf[y1:y2, x1:x2] = np.stack([norm] * 3, axis=2)
-        return crop
+        return crop, norm
+
+    @staticmethod
+    def _single_row_green_mask(crop):
+        """Return mask of `XXXpt` green digits restricted to the top green text row."""
+        gmask = ((crop[:, :, 1].astype(int) - crop[:, :, 0].astype(int) > 25)
+                 & (crop[:, :, 1].astype(int) - crop[:, :, 2].astype(int) > 20))
+        gy = np.where(gmask.any(axis=1))[0]
+        if not len(gy):
+            return gmask
+        cuts = np.where(np.diff(gy) > 2)[0]
+        if len(cuts):
+            gmask = gmask.copy()
+            gmask[gy[cuts[0]] + 1:, :] = False
+        return gmask
+
+    @staticmethod
+    def _mid_digit_holes(tight_bw):
+        """Count enclosed interior holes of the middle digit blob (`3` -> 0, `8` -> 2)."""
+        mask = (tight_bw < 175).astype(np.uint8)
+        col_sum = mask.sum(axis=0)
+        spans, in_col, start = [], False, 0
+        for i, count in enumerate(col_sum):
+            if count > 0 and not in_col:
+                start, in_col = i, True
+            elif count == 0 and in_col:
+                if i - start >= 3:
+                    spans.append((start, i))
+                in_col = False
+        if in_col and len(col_sum) - start >= 3:
+            spans.append((start, len(col_sum)))
+        if len(spans) < 2:
+            return None
+        left, right = spans[1]
+        if not (6 <= right - left <= 13):
+            return None
+        digit = mask[:, left:right]
+        rows = np.where(digit.sum(axis=1) > 0)[0]
+        if not len(rows):
+            return None
+        digit = digit[rows.min():rows.max() + 1, :]
+        _, hier = cv2.findContours(digit, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        if hier is None:
+            return 0
+        return sum(1 for node in hier[0] if node[3] != -1)
 
     def _read_save_pt_row(self, raw_image, buf, area):
-        """Read and cross-check `XXXpt` from one normalized row."""
-        crop = self._enhance_save_pt_band(raw_image, buf, area)
+        """Read and cross-check `XXXpt` from one normalized row via multi-pass voting."""
+        crop, norm = self._enhance_save_pt_band(raw_image, buf, area)
         if crop is None:
             return None
+        gmask = self._single_row_green_mask(crop)
+        has_green = np.count_nonzero(gmask) >= 15
+        cht = self.card_reader._get_cht() if hasattr(self.card_reader, '_get_cht') else None
+        if has_green and cht is not None:
+            ys, xs = np.where(gmask)
+            x0 = max(0, int(xs.min()) - 4)
+            x1_c = min(crop.shape[1], int(xs.max()) + 5)
+            y0 = max(0, int(ys.min()) - 4)
+            y1_c = min(crop.shape[0], int(ys.max()) + 5)
+            tight_bw = norm[y0:y1_c, x0:x1_c]
+            if tight_bw.shape[0] < 16:
+                return None
+            pad_bw = cv2.copyMakeBorder(tight_bw, 8, 8, 12, 12,
+                                        cv2.BORDER_CONSTANT, value=255)
+            up_bw = cv2.resize(pad_bw, (0, 0), fx=2, fy=2,
+                               interpolation=cv2.INTER_LINEAR)
+            strips = [pad_bw, up_bw, 255 - norm[y0:y1_c, :], norm[y0:y1_c, :]]
+            votes = []
+            for item in cht.lines(strips):
+                text = item.get('text', '') if isinstance(item, dict) else item
+                val = self._parse_save_pt_text(text)
+                if val is not None:
+                    votes.append(val)
+            if not votes:
+                return None
+            top = collections.Counter(votes).most_common(2)
+            if len(top) > 1 and top[0][1] == top[1][1]:
+                # Resolve pure `X30` vs `X80` ties via pixel hole count before giving up.
+                pair = {top[0][0], top[1][0]}
+                holes = self._mid_digit_holes(tight_bw)
+                if pair in ({130, 180}, {230, 280}) and holes is not None:
+                    return min(pair) if holes == 0 else max(pair)
+                return None
+            best = top[0][0]
+            if best in (180, 280) and self._mid_digit_holes(tight_bw) == 0:
+                best -= 50
+            return best
+
         line = self.card_reader.read_name(buf, area, scale=2, raw=True)
         pt_line = self._parse_save_pt_text(line)
         if pt_line is None:
             return None
-        gmask = ((crop[:, :, 1].astype(int) - crop[:, :, 0].astype(int) > 25)
-                 & (crop[:, :, 1].astype(int) - crop[:, :, 2].astype(int) > 20))
-        if np.count_nonzero(gmask) >= 15:
+        votes = [pt_line]
+        if has_green:
             ys, xs = np.where(gmask)
             x1, y1, _, _ = area
             tight_area = (max(0, int(xs.min()) + x1 - 4),
@@ -5256,8 +5993,48 @@ class ChaoszeroRogue(ChaoszeroUI):
             tight = self.card_reader.read_name(buf, tight_area, scale=3, raw=True)
             pt_tight = self._parse_save_pt_text(tight)
             if pt_tight is not None:
-                return pt_tight
-        return pt_line
+                votes.append(pt_tight)
+        top = collections.Counter(votes).most_common(2)
+        if len(top) > 1 and top[0][1] == top[1][1]:
+            return None
+        return top[0][0]
+
+    def rogue_season_read_team_save_pt(self):
+        """Read bottom-right `存檔資料儲存上限` (pt) on `配置隊伍`.
+
+        Stops at x=1224 to exclude the `(i)` icon and includes any +10pt Dream Mode bonus.
+        """
+        if self.card_reader is None:
+            self.card_reader = rogue_cards.CardReader()
+        x1, y1, x2, y2 = SEASON_TEAM_SAVE_PT_AREA
+        crop = self.device.image[y1:y2, x1:x2]
+        if not crop.size:
+            return None
+        blue = crop[:, :, 2].astype(np.float32)
+        lo = float(np.percentile(blue, 15))
+        hi = float(np.percentile(blue, 99.5))
+        st = np.clip((blue - lo) / max(1.0, hi - lo) * 255.0, 0, 255).astype(np.uint8)
+        votes = []
+        cht = self.card_reader._get_cht() if hasattr(self.card_reader, '_get_cht') else None
+        if cht is not None:
+            for item in cht.lines([st, 255 - st]):
+                text = item.get('text', '') if isinstance(item, dict) else item
+                val = self._parse_save_pt_text(text)
+                if val is not None:
+                    votes.append(val)
+        if not votes:
+            buf = self.device.image.copy()
+            buf[y1:y2, x1:x2] = np.stack([255 - st] * 3, axis=2)
+            text = self.card_reader.read_name(buf, SEASON_TEAM_SAVE_PT_AREA, scale=2, raw=True)
+            val = self._parse_save_pt_text(text)
+            if val is not None:
+                votes.append(val)
+        if not votes:
+            return None
+        top = collections.Counter(votes).most_common(2)
+        if len(top) > 1 and top[0][1] == top[1][1]:
+            return None
+        return top[0][0]
 
     def rogue_season_read_save_pt(self):
         """Read `存檔資料儲存上限` (pt) from the right card on the Season Chaos page."""
@@ -5274,7 +6051,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 return pt
         return None
 
-    def rogue_season_reroll_pt(self, target_pt, timeout=300):
+    def rogue_season_reroll_pt(self, target_pt, timeout=300, force_reroll=False):
         """
         Click `再次觀測` until `存檔資料儲存上限 >= target_pt`.
 
@@ -5289,6 +6066,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         read_wait = Timer(10, count=3).start()
         miss_wait = Timer(8, count=3).start()
         last_pt = None
+        confirm_pt = None
         last_card = None
         unchanged = 0
 
@@ -5303,12 +6081,22 @@ class ChaoszeroRogue(ChaoszeroUI):
                     self.tap_point(dialog[0], dialog[1], name='ROGUE_SEASON_REROLL_OK')
                 continue
             if not self.rogue_season_diff_appear():
+                confirm_pt = None
                 if miss_wait.reached():
                     return False
                 continue
             miss_wait.reset()
+            if force_reroll:
+                if press.reached():
+                    force_reroll = False
+                    confirm_pt = None
+                    press.reset()
+                    logger.info('Force reroll Season Chaos after team page check failed')
+                    self.tap_point(*SEASON_REROLL_POINT, name='ROGUE_SEASON_REROLL')
+                continue
             pt = self.rogue_season_read_save_pt()
             if pt is None:
+                confirm_pt = None
                 if read_wait.reached():
                     self.rogue_dump_unknown()
                     raise RequestHumanTakeover('Cannot read Season Chaos save data cap')
@@ -5318,7 +6106,11 @@ class ChaoszeroRogue(ChaoszeroUI):
                 last_pt = pt
                 logger.info('Season Chaos save data cap: %spt (target >= %spt)' % (pt, target_pt))
             if pt >= target_pt:
-                return True
+                if confirm_pt == pt:
+                    return True
+                confirm_pt = pt
+                continue
+            confirm_pt = None
             if not press.reached():
                 continue
             card_now = self.image_crop((885, 270, 1245, 540)).copy()
@@ -5337,6 +6129,51 @@ class ChaoszeroRogue(ChaoszeroUI):
             self.tap_point(*SEASON_REROLL_POINT, name='ROGUE_SEASON_REROLL')
 
         raise RequestHumanTakeover('Timed out waiting for Season Chaos >= %spt' % target_pt)
+
+    def _rogue_verify_team_save_pt(self, is_season, state):
+        """Second-stage save data cap check on `配置隊伍`.
+
+        Returns True when the team-page cap meets `target_pt + (10 if dream else 0)`
+        (or verification is disabled). Otherwise marks `pt_checked = False` and
+        taps back to `season-diff` to reroll.
+        """
+        if not is_season or state['target_pt'] <= 0:
+            return True
+        dream_bonus = 10 if self.rogue_dream_state() else 0
+        need_pt = state['target_pt'] + dream_bonus
+        team_pt = self.rogue_season_read_team_save_pt()
+        if team_pt is None:
+            self.device.screenshot()
+            team_pt = self.rogue_season_read_team_save_pt()
+        if team_pt is None:
+            logger.warning('Team page save data cap unreadable, skip second check')
+            return True
+        if team_pt >= need_pt:
+            logger.info('Team page save data cap verified: %spt >= %spt (target %spt + dream %spt)'
+                        % (team_pt, need_pt, state['target_pt'], dream_bonus))
+            return True
+        # Confirm once on a fresh frame so a single-frame OCR dip does not bounce back.
+        self.device.screenshot()
+        retry_pt = self.rogue_season_read_team_save_pt()
+        if retry_pt is not None and retry_pt >= need_pt:
+            logger.info('Team page save data cap verified: %spt >= %spt (target %spt + dream %spt)'
+                        % (retry_pt, need_pt, state['target_pt'], dream_bonus))
+            return True
+        if retry_pt is not None:
+            team_pt = retry_pt
+        state['team_pt_fails'] = state.get('team_pt_fails', 0) + 1
+        logger.warning('Team page save data cap %spt < %spt (target %spt + dream %spt), back to reroll (%s/%s)'
+                       % (team_pt, need_pt, state['target_pt'], dream_bonus,
+                          state['team_pt_fails'], SEASON_TEAM_PT_RETRIES))
+        if state['team_pt_fails'] >= SEASON_TEAM_PT_RETRIES:
+            self.rogue_dump_unknown()
+            raise RequestHumanTakeover(
+                'Season Chaos team save data cap %spt < %spt after %s retries'
+                % (team_pt, need_pt, SEASON_TEAM_PT_RETRIES))
+        state['pt_checked'] = False
+        state['force_reroll'] = True
+        self.tap_point(*WORLD_BACK_POINT, name='ROGUE_WORLD_BACK')
+        return False
 
     def _rogue_apply_team_settings(self, is_season):
         """Apply Dream Mode and (for Season Chaos) Distortion Adaptation on 配置隊伍."""
@@ -5379,7 +6216,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                 self.rogue_season_difficulty_set(diff)
                 state['diff_checked'] = True
             if not state['pt_checked']:
-                self.rogue_season_reroll_pt(state['target_pt'])
+                self.rogue_season_reroll_pt(
+                    state['target_pt'], force_reroll=state.pop('force_reroll', False))
                 state['pt_checked'] = True
             self.tap_point(*SEASON_DIFF_ENTER, name='ROGUE_SEASON_ENTER')
         elif page in ('team', 'mode', 'world-list', 'world'):
@@ -5425,16 +6263,14 @@ class ChaoszeroRogue(ChaoszeroUI):
             'diff_checked': not reselect_world,
             'pt_checked': target_pt <= 0,
             'target_pt': target_pt,
+            'team_pt_fails': 0,
+            'force_reroll': False,
         }
         wakes = 0
 
         for _ in self.loop(timeout=Timer(timeout, count=1)):
             self.device.stuck_record_clear()
-            if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
-                if press.reached():
-                    press.reset()
-                    logger.info('Close the dream mode notice')
-                    self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
+            if self.rogue_handle_dream_notice(press):
                 continue
             if self.rogue_resume_appear():
                 if press.reached():
@@ -5454,7 +6290,11 @@ class ChaoszeroRogue(ChaoszeroUI):
                 if ready:
                     logger.info('Team page is up')
                     self._rogue_apply_team_settings(is_season)
-                    return True
+                    if self._rogue_verify_team_save_pt(is_season, state):
+                        return True
+                    last = None
+                    press.reset()
+                    continue
 
             if page != last:
                 last = page
@@ -5512,11 +6352,7 @@ class ChaoszeroRogue(ChaoszeroUI):
 
             # 梦境模式开着时，点 `進入` 会先弹一整页说明（四项效果 + 紫色 `確認`）。
             # 不认它就会被后面的判据当成局内页面（2026-11-14 14:04 实拍）。
-            if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
-                if press.reached():
-                    press.reset()
-                    logger.info('Close the dream mode notice')
-                    self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
+            if self.rogue_handle_dream_notice(press):
                 continue
 
             page = None
@@ -5855,11 +6691,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
 
             # 梦境模式的说明页会挡在撤退面板前面。
-            if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
-                if press.reached():
-                    press.reset()
-                    logger.info('Close the dream mode notice')
-                    self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
+            if self.rogue_handle_dream_notice(press):
                 continue
 
             # 面板开着：`撤退` 在 (1031,643)-(1245,693)，和主按钮同一色系，先认它。
@@ -5879,10 +6711,10 @@ class ChaoszeroRogue(ChaoszeroUI):
             if point:
                 if press.reached():
                     press.reset()
-                    logger.info('Confirm the retreat at (%s, %s)' % point)
-                    self.tap_point(point[0], point[1], name='ROGUE_DIALOG')
-                    confirm_sent = True
+                    if self.rogue_confirm_dialog(point, label='Confirm the retreat'):
+                        confirm_sent = True
                 continue
+            self.dialog_hide_clicked = False
 
             # 撤退后的两页都是紫色按钮：`探索結果` 的 `下一步` 和整局结算的 `確認`
             # （2026-11-15 11:28 实测：确认撤退后落在 `探索結果`，只有紫色下一步，
@@ -5941,6 +6773,10 @@ class ChaoszeroRogue(ChaoszeroUI):
         import time
 
         image = self.device.image
+        if not hasattr(self, 'unknown_frames'):
+            self.unknown_frames = set()
+        if not hasattr(self, 'unknown_save'):
+            self.unknown_save = Timer(3, count=1)
         key = image[::24, ::24].tobytes()
         if key in self.unknown_frames:
             return
@@ -5960,6 +6796,24 @@ class ChaoszeroRogue(ChaoszeroUI):
         cv2.imwrite(path, image[:, :, ::-1])
         prune_diagnostics(folder, 'unknown')
         logger.warning('Unknown rogue page, saved a frame to %s' % path)
+
+    def rogue_dump_route_mismatch(self):
+        """Save the 2D preview and 3D map screenshots when planned vs live branches differ."""
+        import os
+        import time
+
+        live = getattr(getattr(self, 'device', None), 'image', None)
+        if live is None:
+            return
+        folder = './log/rogue_pages'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        stamp = time.strftime('%H%M%S')
+        preview = getattr(self, 'route_last_preview', None)
+        if preview is not None:
+            cv2.imwrite(os.path.join(folder, f'route_2d_{stamp}.png'), preview[:, :, ::-1])
+        cv2.imwrite(os.path.join(folder, f'route_3d_{stamp}.png'), live[:, :, ::-1])
+        prune_diagnostics(folder, 'route')
 
     def rogue_card_page_record(self, kind):
         """
@@ -6087,8 +6941,12 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.chest_grey = None
         self.settlement_title_wait = None
         self.shop_wait = Timer(1, count=1)
+        self.shop_leave_wait = Timer(0)
         self.shop_retry = 0
         self.shop_cooldown = Timer(1, count=1)
+        self.event_badge_node = None
+        self.event_badge_tries = 0
+        self.event_badge_wait = Timer(0)
         self.template_cache = {}
         self.fate_tries = 0
         self.fate_index = None
@@ -6164,7 +7022,14 @@ class ChaoszeroRogue(ChaoszeroUI):
         # 新开一局时由 `rogue_enter()` 之后显式清零。
         self.remove_done = int(self.rogue_state_load('remove_done', 0) or 0)
         self.remove_counts = dict(self.rogue_state_load('remove_counts', {}) or {})
+        self.remove_tracking = bool(self.rogue_state_load('remove_tracking', False))
+        self.keep_slot_cleared_cards = list(self.rogue_state_load('keep_slot_cleared_cards', ()) or ())
+        self.credits = self.rogue_state_load('credits', None)
+        self.last_shop_remove_price = self.rogue_state_load('last_shop_remove_price', None)
         self.remove_skip_node = None
+        self.shop_block_equipment_node = None
+        self.shop_remove_tries = 0
+        self.meditate_unaffordable_node = None
         self.remove_tries = 0
         self.remove_cancel_tries = 0
         # 点过卡之后的宽限窗口（见 `REMOVE_WAIT`）
@@ -6198,6 +7063,7 @@ class ChaoszeroRogue(ChaoszeroUI):
         self.route_step = 0
         self.plan_index = 0
         self.route_mismatch = None
+        self.route_reread_step = None
         self.node_pending = None
         self.route_retry = 0
         self.route_reads = 0
@@ -6358,14 +7224,11 @@ class ChaoszeroRogue(ChaoszeroUI):
 
             # 删卡拥有独立的选择/提交/完成链路；过渡帧不交给通用按钮或其他选卡分支。
             if self.handle_rogue_remove(press):
+                self.shop_remove_tries = 0
                 continue
 
             # 0.05 梦境模式说明页（首次进本 / 每周一次）：挡住一切判据，先关掉。
-            if self.appear(ROGUE_DREAM_NOTICE, offset=(20, 20), similarity=0.9):
-                if press.reached():
-                    press.reset()
-                    logger.info('Close the dream mode notice')
-                    self.device.click(ROGUE_DREAM_OK)  # alas-lint: allow - guarded by the appear() above
+            if self.rogue_handle_dream_notice(press):
                 continue
 
             # 0.055 冥想选卡网格（`請選擇1張再次靈光一閃卡牌。`）：
@@ -6375,11 +7238,18 @@ class ChaoszeroRogue(ChaoszeroUI):
             if self.rogue_meditate_appear():
                 if self._pause_for_similar_page('冥想/灵光选择'):
                     continue
-                # 这页也存一帧：网格坐标和卡名区是 2026-11-15 的老数据，
-                # 布局一变就会"认不出卡"（`No card to reroll`），得靠真帧重切。
+                dialog = self.rogue_dialog_point()
+                if dialog:
+                    if press.reached():
+                        press.reset()
+                        self.rest_wait.reset()
+                        self.rogue_confirm_dialog(dialog)
+                    continue
+                self.dialog_hide_clicked = False
                 self.rogue_card_page_record('meditate')
                 if self.meditate_stage < 1 and press.reached():
                     press.reset()
+                    self.rest_wait.reset()
                     picked = self.rogue_meditate_card()
                     if picked:
                         point, name, score = picked
@@ -6401,8 +7271,11 @@ class ChaoszeroRogue(ChaoszeroUI):
                 elif self.meditate_stage == 1 and self.rest_wait.reached():
                     logger.info('Press 再次靈光一閃')
                     self.meditate_stage = 2
+                    self.rest_wait.reset()
                     # 提交不清队列，等重闪确实选到目标形态后再移除对应卡。
                     self.tap_point(MEDITATE_OK_POINT[0], MEDITATE_OK_POINT[1], name='ROGUE_MEDITATE_OK')
+                elif self.meditate_stage == 2 and self.rest_wait.reached():
+                    self.meditate_stage = 0
                 continue
             self.meditate_stage = 0
 
@@ -6508,9 +7381,9 @@ class ChaoszeroRogue(ChaoszeroUI):
             if point:
                 if press.reached():
                     press.reset()
-                    logger.info('Confirm the dialog at (%s, %s)' % point)
-                    self.tap_point(point[0], point[1], name='ROGUE_DIALOG')
+                    self.rogue_confirm_dialog(point)
                 continue
+            self.dialog_hide_clicked = False
 
             # 1. 战斗页：先确保自动战斗、倍速已开，再等待游戏出牌。
             #    ❗但敌人详情面板（战斗中点到怪身上）会把整场按暂停，面板盖住左半屏、
@@ -6537,11 +7410,20 @@ class ChaoszeroRogue(ChaoszeroUI):
             #     神闪卡面不固定（用户 2026-11-14），先按品红描述区猜，猜不出就按
             #     RoguePick；不点的话这页永远推不动（20:43 卡了整局）。
             if self.rogue_god_appear():
+                if self._flash_cards_washed_out(self.device.image):
+                    wait = getattr(self, 'god_flash_wait', None)
+                    if wait is None:
+                        self.god_flash_wait = Timer(GOD_FLASH_SETTLE_WAIT, count=1).start()
+                        continue
+                    if not wait.reached():
+                        continue
+                self.god_flash_wait = None
                 self.rogue_card_page_record('god')
                 if press.reached():
                     press.reset()
                     self.rogue_choose_flash(god=True)
                 continue
+            self.god_flash_wait = None
 
             # 1.5 战斗中的灵光一闪三选一：同一张卡的不同闪形态，**必须选一个**。
             #     这页没有跳过，认不出来就会一直按关闭/卡片，战斗永远不结束。
@@ -6560,8 +7442,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             if self.handle_rogue_card_reward(press):
                 continue
 
-            # 这一帧是不是「複製卡牌」的选人页：主按钮分支和 4.15 都要用，只算一次。
+            # 这一帧是不是「複製卡牌」的选人页或选卡过渡期：主按钮分支、BOSS 战利品判据与 4.15 共用。
+            if self.copy_pending is not None and self.copy_pending.reached():
+                self.copy_pending = None
+            copying = self.copy_pending is not None
             copy_page = self.rogue_copy_appear()
+            copy_card_page = self.rogue_copy_card_appear()
             point = self.rogue_primary_point()
 
             # 2.0 BOSS 战利品页 = 第一面结束的信号（用户 2026-11-15）：
@@ -6572,16 +7458,17 @@ class ChaoszeroRogue(ChaoszeroUI):
             # 途中误触发 `BOSS loot page after 8 step(s)`，导致提前清零并在一面后半段耗光
             # 读图次数，进核心后反而不再规划新路线。
             if (not self.core_started and point and not copy_page
+                    and not copy_card_page and not copying
                     and self.rogue_loot_appear()
                     and self.route_step >= LOOT_MIN_STEP):
                 self.rogue_reset_for_core_map('BOSS loot page after %s step(s)' % self.route_step)
 
             # 2. 橙色主按钮：確認 / 繼續進行 / 獲得 / 進入。
-            # ❗必须排除「複製卡牌」的选人页：那一页的 `確認` **没选人也是橙的**
-            # （2026-11-15 15:00 实机帧 cp_choose.png：bbox 1019,592-1244,658，w225 h66，
-            # 正好落进主按钮判据），排在 `# 4.15` 前面就会先把「確認」按掉 ——
-            # 人一个没选就确认，这次复制直接白给（用户报的「点了角色就直接跳过」）。
-            if point and not copy_page:
+            # ❗必须排除「複製卡牌」的选人页及切入選卡頁过渡期：选人页 `確認` 没选人也是橙的，
+            # 而点完 `確認` 后刚切走那两帧 `copy_page` 先灭、渐变动画里主按钮还在亮
+            # （2026-11-23 15:31:17 实机在 (1133, 663) 连按 `ROGUE_PRIMARY`，直接点中
+            # 刚切入的選卡頁右下角 `跳過`，整轮复制白白浪费）。
+            if point and not copy_page and not copy_card_page and not copying:
                 if press.reached():
                     press.reset()
                     self.card_tries = 0   # 按到主按钮说明上一页已经过了
@@ -6729,50 +7616,12 @@ class ChaoszeroRogue(ChaoszeroUI):
             #        误吃，然后去点左下角图标区 (134,616)，连点十几次都不动
             #        （2026-11-16 02:24 实测，还触发了连点保护）。
             #        这页底部**没有「複製」按钮**，只有白色「跳過」胶囊。
-            if self.rogue_copy_card_appear():
-                self.rogue_card_page_record('copy')
-                # ❗**点卡就是复制**（用户 2026-11-16：「不要点跳过，点那张卡就行了」）。
-                # 这一页底部没有「複製」按钮，只有「跳過」，点一下卡就完成复制。
-                # 先识别配置的目标卡。切页动画可能让卡名暂时读不出来：
-                # 卡面文字在切页那几帧里 OCR 抖动极大（同一张剑之雨实测
-                # 0.93 → 0.52 → 0.52 → 0.50 → 0.49），用某一帧判"没有"会白丢一次复制。
-                # 所以：一旦认到就**锁定**（`copy_target`），不再被后续帧覆盖；
-                # 没认到就每个 `press` 周期重试一次，试满 `COPY_CARD_MISS` 次才选第一张。
-                if press.reached():
-                    press.reset()
-                    self.card_tries = 0
-                    if self.copy_target is None:
-                        self.copy_target = self.rogue_copy_card_pick()
-                    if self.copy_target:
-                        x, y, name, score = self.copy_target
-                        logger.info('Copy-card page, pick %s at (%s, %s) score %.2f'
-                                    % (name, x, y, score))
-                        self.tap_point(x, y, name='ROGUE_COPY_CARD')
-                        self.copy_target = None
-                        self.copy_miss = 0
-                    else:
-                        self.copy_miss += 1
-                        if self.copy_miss < COPY_CARD_MISS:
-                            logger.info('Copy-card page, %s not found yet (%s/%s), retry'
-                                        % (self.config.ChaoszeroRogue_RogueCopyCard, self.copy_miss, COPY_CARD_MISS))
-                            continue
-                        # ❗用户 2026-11-17 选 B：「认不出就点第一张，赌一把」。
-                        # 跳過会把这次复制机会**永久丢掉**，而认不出的原因多半是
-                        # OCR 抖动（同一张剑之雨实测 0.93/0.52/0.50/0.49），
-                        # 赌一张比直接放弃划算。点之前把候选打印出来备查。
-                        points = self.rogue_copy_card_points()
-                        if points:
-                            x, y = points[0][0], points[0][1]
-                            logger.info('Copy-card page, %s still not found after %s tries,'
-                                        ' fall back to the first card at (%s, %s)'
-                                        % (self.config.ChaoszeroRogue_RogueCopyCard, self.copy_miss, x, y))
-                            self.tap_point(x, y, name='ROGUE_COPY_CARD')
-                        else:
-                            logger.info('Copy-card page, no card detected at all, wait')
-                        self.copy_miss = 0
+            if copy_card_page:
+                self.rogue_handle_copy_card_pick(press, 'Copy-card page', record=True)
                 continue
             self.copy_target = None
             self.copy_miss = 0
+            self.copy_grid_picked = False
 
             # 2.02 塔罗命运页：先点一张卡，再点确认。
             #      必须排在 `跳過` 之前：那页右下有颗白色 ▶ 圆钮，正好落在跳过判据
@@ -6959,67 +7808,74 @@ class ChaoszeroRogue(ChaoszeroUI):
                                                name='ROGUE_COPY_OK')
                 continue
 
-            # 4.6 德朗商店：先检查指定装备，再按配额使用右上删卡服务。
-            #     （按 劍幕 > 劍光 认卡、再按检测出的橙色 `移除`）。删完回到这一页会再点一次，
-            #     `RogueDelete` 的配额用完以后就交给 primary 点右下橙色 `離開` 出店。
+            # 4.55 商店誤點貨欄中立卡彈出的「購買卡牌」預覽：直接點「取消」回到商店頁。
+            if self.rogue_shop_buy_card_appear():
+                if press.reached():
+                    press.reset()
+                    logger.info('Unexpected 購買卡牌 preview open, press 取消')
+                    self.tap_point(*SHOP_BUY_CARD_CANCEL, name='ROGUE_SHOP_BUY_CANCEL')
+                continue
+
+            # 4.6 德朗商店：删卡优先级在买装备之上。
+            #     1) 若本节点还需要删卡，先尝试右上 `移除卡牌`；红字/余额不足或多次点不开时，
+            #        连同本节点买装备一起跳过并直接 `離開`（删卡都删不起时不花钱买装备）。
+            #     2) 删卡已完成（进入 `售罄`）或无需删卡时，再按剩余预算执行装备购买。
             shop = self.rogue_shop_appear()
-            if shop or self.rogue_shop_sold_appear():
-                if self.equipment.handle_shop(press):
-                    continue
+            sold = self.rogue_shop_sold_appear()
+            shop_node = (self.core_started, self.route_step)
             if shop:
                 # 真的进店了：重试计数归零，并开始 120 秒冷却（一个营地只删一次，
                 # 删完这张卡会变成「售罄」，`# 4.61` 会把我们送出去）。
                 self.shop_retry = 0
                 self.shop_cooldown = Timer(SHOP_COOLDOWN, count=1).start()
-                # ❗删卡配额用完就**别再点「移除卡牌」**，直接点「離開」出店。
-                # 否则会死循环：点进入删卡页 → 那边发现配额满了点「取消」
-                # → 回到商店又点进删卡页 ……（2026-11-16 01:58 实测转了 3 圈）。
-                if not self.rogue_shop_remove_needed():
-                    if press.reached():
+                self.rest_settling = False
+                self.rogue_update_credits(force=getattr(self, 'shop_leave_wait', Timer(0)).reached())
+                if self.rogue_shop_remove_needed():
+                    unaffordable = self.rogue_shop_remove_unaffordable()
+                    if unaffordable or getattr(self, 'shop_remove_tries', 0) >= SHOP_REMOVE_RETRIES:
+                        self.remove_skip_node = shop_node
+                        self.shop_block_equipment_node = shop_node
+                        self._rogue_leave_shop(
+                            press,
+                            'Cannot afford or open 移除卡牌 (credits=%s, price=%s, tries=%s), '
+                            'skip removal and equipment and leave shop'
+                            % (getattr(self, 'credits', None),
+                               getattr(self, 'last_shop_remove_price', None),
+                               getattr(self, 'shop_remove_tries', 0)),
+                        )
+                        continue
+                    if press.reached() and getattr(self, 'shop_remove_wait', Timer(0)).reached():
                         press.reset()
-                        logger.info('Skip shop removal for this node (%s confirmed removals)'
-                                    % self.remove_done)
-                        self.tap_point(SHOP_LEAVE[0], SHOP_LEAVE[1],
-                                       name='ROGUE_SHOP_LEAVE')
+                        self.shop_remove_tries = getattr(self, 'shop_remove_tries', 0) + 1
+                        self.shop_remove_wait = Timer(3.5, count=1).start()
+                        logger.info('Enter 移除卡牌 in the 德朗商店 (%s/%s)'
+                                    % (self.shop_remove_tries, SHOP_REMOVE_RETRIES))
+                        self.tap_point(SHOP_REMOVE[0], SHOP_REMOVE[1], name='ROGUE_SHOP_REMOVE')
                     continue
-                if press.reached():
-                    press.reset()
-                    logger.info('Enter 移除卡牌 in the 德朗商店')
-                    self.tap_point(SHOP_REMOVE[0], SHOP_REMOVE[1], name='ROGUE_SHOP_REMOVE')
+                self.rogue_read_shop_remove_price()
+                if (getattr(self.equipment, 'shop_refresh', None) is not None
+                        or not self.rogue_equipment_budget_blocked(shop_node)) and self.equipment.handle_shop(press):
+                    continue
+                self._rogue_leave_shop(
+                    press, 'Skip shop removal for this node (%s confirmed removals)' % self.remove_done)
                 continue
 
-            # 4.7 安全区域（休息点）：休息 / 冥想 / 训练 三选一，选一个另两个就锁死。
-            #     用户 2026-11-15：休息免费；训练是拿中立卡，默认不点；冥想只在
-            #     「已经闪了但类型不对」时才用（类型判定还没做，所以目前固定休息）；
-            #     **绝不要落到 `跳過` 分支**，那等于把这个休息点浪费掉。
-            #     ❗不能用画面签名判断"页面变了就重来"：篝火在烧，签名每帧都变，
-            #       stage 永远被打回 0，脚本就一直点休息、从不走到确认框
-            #       （2026-11-15 01:18 实测同一处点了 4 次、确认框一次都没点）。
-            #       只在**离开这一页**（判据不再命中）时清零。
-            # 4.61 商店的删卡已经用掉（右上变「售罄」）：点右下那颗玫红 `離開` 出店。
-            #      ❗它既不是橙色主按钮（`primary`）也不是紫胶囊（`purple` 要 b>195，
-            #      这颗是 r≈200/g≈50/b≈110），两个判据都认不出，所以只能给固定点 ——
-            #      但**前提是售罄判据命中**，不是盲点。
-            if self.rogue_shop_sold_appear():
-                if press.reached():
-                    press.reset()
-                    logger.info('The shop card removal is sold out, leave the shop')
-                    # ❗售罄页**不是**商店页（`rogue_shop_appear()` 为 False），所以永远走不到
-                    # `# 4.6` —— 而 `shop_cooldown` 只在 `# 4.6` 里启动。不在这里补一刀，
-                    # 冷却就一直 `reached()`，回营地又被 `# 4.75` 送进来：
-                    #   Visit 德朗商店 → sold out → leave → Visit 德朗商店 → …… 死循环
-                    # （2026-11-16 02:53 实测转了 6 圈，还触发连点保护）。
-                    # 同时把 `shop_retry` 用满：这个营地的删卡名额已经没了，别再试。
-                    self.shop_cooldown = Timer(SHOP_COOLDOWN, count=1).start()
-                    self.shop_retry = SHOP_RETRY
-                    self.tap_point(SHOP_LEAVE[0], SHOP_LEAVE[1], name='ROGUE_SHOP_LEAVE')
+            # 4.61 商店的删卡已经用掉（右上变「售罄」）：若预算允许先买目标装备，否则点玫红 `離開` 出店。
+            if sold:
+                self.shop_remove_tries = 0
+                self.rest_settling = False
+                self.rogue_update_credits(force=getattr(self, 'shop_leave_wait', Timer(0)).reached())
+                if (getattr(self.equipment, 'shop_refresh', None) is not None
+                        or not self.rogue_equipment_budget_blocked(shop_node)) and self.equipment.handle_shop(press):
+                    continue
+                self._rogue_leave_shop(press, 'The shop card removal is sold out, leave the shop')
                 continue
 
             rest = self.rogue_rest_appear()
-            # 离开营地/商店：下一个营地重新给 3 次点店机会（售罄页 rest/shop 都是
-            # False，会在这里清零 —— 但那边有 `SHOP_COOLDOWN` 120 秒兜着，不会回营地重进）。
+            # 离开营地/商店：下一个营地重新给 3 次点店机会与删卡尝试次数。
             if not rest and not shop:
                 self.shop_retry = 0
+                self.shop_remove_tries = 0
 
             # 第 2 步：休息/冥想点了之后会弹「HP恢復20% / …」的确认框，橙色確認在
             # (845,512)，比通用对话区（y 到 510）低一点，所以这里单独认、单独点。
@@ -7043,6 +7899,8 @@ class ChaoszeroRogue(ChaoszeroUI):
                 continue
             if rest and self.rest_stage == 0 and not self.rogue_rest_settled():
                 continue
+            if rest:
+                self.rogue_update_credits()
 
             # 4.75 识别到「德朗商店」入口才进店，点空后也要重新识别。
             if rest and self.rogue_visit_rest_shop(press):
@@ -7156,6 +8014,7 @@ class ChaoszeroRogue(ChaoszeroUI):
                     return
                 if self.node_pending is not None and not self.node_pending.reached():
                     continue
+                self.rogue_update_credits()
                 if press.reached():
                     press.reset()
                     self.card_tries = 0
@@ -7192,35 +8051,11 @@ class ChaoszeroRogue(ChaoszeroUI):
                     cards = rogue_route.read_cards(self.device.image)
                     if not cards:
                         self.route_mismatch = None
-                        if self.rogue_route_entry():
-                            logger.info('Planned branches are not visible yet, wait for the platforms')
-                        elif self.node_tries >= 3:
-                            # 层末只剩 Boss 平台：那张狼纹徽记的大卡跟平台的粉边连成
-                            # 一片（实测 516x368 一整块），读卡永远读不出来，而这时候
-                            # 已经没有别的格子可选，直接点平台本体
-                            # （2026-11-14 21:53 在这空等到放弃，整轮结束）。
-                            logger.info('Only the boss platform is left, press it')
-                            self.node_pending = Timer(NODE_ENTRY_WAIT, count=1).start()
-                            self.tap_point(NODE_FALLBACK[0], NODE_FALLBACK[1], name='ROGUE_NODE')
-                        else:
-                            logger.info('No node card on the map yet, wait for the platform')
+                        self.rogue_map_fallback()
                         continue
-                    entry = self.rogue_route_entry()
-                    card = rogue_route.planned_card(cards, entry) if entry else None
-                    if entry and card is None:
-                        kinds = tuple(item.kind for item in sorted(cards, key=lambda item: item.y))
-                        if self.route_mismatch != kinds:
-                            self.route_mismatch = kinds
-                            continue
-                        logger.warning('Route choices differ: plan %s, live %s; discard this plan'
-                                       % (entry['choices'], kinds))
-                        self.route_plan = None
-                        if self.route_reads < ROUTE_READS:
-                            continue
-                    self.route_mismatch = None
-                    if card is None:
-                        card = rogue_route.best_card(cards, self.rogue_route_style(),
-                                                     self.rogue_route_state())
+                    card, reread = self.rogue_route_choose_card(cards)
+                    if reread:
+                        continue
                     x, y = card.platform_point()
                     # ❗把**每张卡的坐标和类型**都打出来：之前只打"走了什么"，
                     # 出现"游戏里实际是精英、日志却说战斗"时无从排查
@@ -7356,47 +8191,14 @@ class ChaoszeroRogue(ChaoszeroUI):
             # 掷骰页走 `# 6`、删卡页走 `# 4.3`、复制页走各自的选卡分支。
             # 真正"只能跳过"的页面（卡牌轉換 / 灵光目标战斗员等）暂不处理 ——
             # 按用户的要求先留空，卡住了再逐个补"明确判据 + 跳过"。
-            if self.copy_pending is not None and self.copy_pending.reached():
-                self.copy_pending = None
-            # `copying` 后面 `# 6.5` 的 `elif copying:` 分支还要用（复制卡牌的选卡页），
-            # 删掉通用跳过分支时不能把它一起删了，否则 NameError。
-            copying = self.copy_pending is not None and not self.copy_pending.reached()
-
+            # 6.45 第三层残影等事件头顶紫色徽章：点击可先领一次指定卡牌神闪，必须在点底部选项前处理。
+            if self.handle_rogue_event_badge(press):
+                continue
             # 6.5 Event option selection and its checkmark submission.
             if self.handle_rogue_event(press):
                 continue
             if copying:
-                # 「請選擇欲複製的卡牌。」：卡在画面中部（y 172-598），底部检测带扫不到。
-                # 和 `# 2.005` 一样，优先识别配置的目标卡：
-                # 认到就锁定、认不出先重试几次，别一帧判死（OCR 会抖）。
-                if press.reached():
-                    press.reset()
-                    if self.copy_target is None:
-                        self.copy_target = self.rogue_copy_card_pick()
-                    if self.copy_target:
-                        x, y, name, score = self.copy_target
-                        logger.info('Copy card page, pick %s at (%s, %s) score %.2f'
-                                    % (name, x, y, score))
-                        self.tap_point(x, y, name='ROGUE_COPY_CARD')
-                        self.copy_target = None
-                        self.copy_miss = 0
-                        self.copy_pending = None
-                    else:
-                        self.copy_miss += 1
-                        if self.copy_miss < COPY_CARD_MISS:
-                            logger.info('Copy card page, %s not found yet (%s/%s), retry'
-                                        % (self.config.ChaoszeroRogue_RogueCopyCard, self.copy_miss, COPY_CARD_MISS))
-                            continue
-                        # 同 `# 2.005`：认不出就赌第一张（用户 2026-11-17 选 B）
-                        points = self.rogue_copy_card_points()
-                        if points:
-                            x, y = points[0][0], points[0][1]
-                            logger.info('Copy card page, %s still not found after %s tries,'
-                                        ' fall back to the first card at (%s, %s)'
-                                        % (self.config.ChaoszeroRogue_RogueCopyCard, self.copy_miss, x, y))
-                            self.tap_point(x, y, name='ROGUE_COPY_CARD')
-                        self.copy_miss = 0
-                        self.copy_pending = None
+                self.rogue_handle_copy_card_pick(press, 'Copy card page', record=False)
                 continue
 
             # 6.6 傳送門 / 寶物倉庫入口卡（spec page_1 → page_2）：
@@ -7519,7 +8321,9 @@ class ChaoszeroRogue(ChaoszeroUI):
                 str(node.get('RogueSlot2Member') or ''),
                 str(node.get('RogueSlot3Member') or ''),
             ]
-            preferred = node.get('RogueRemoveMember', 1)
+            preferred = node.get('RogueRemoveMember')
+            if preferred not in (1, 2, 3):
+                preferred = node.get('RogueSaveKeep', 1)
         except Exception as error:
             logger.warning('Failed to read RogueDeleteFilter from config.data: %s' % error)
             text = str(getattr(self.config, 'ChaoszeroRogue_RogueDeleteFilter', '') or '')
@@ -7528,7 +8332,9 @@ class ChaoszeroRogue(ChaoszeroUI):
                 str(getattr(self.config, 'ChaoszeroRogue_RogueSlot2Member', '') or ''),
                 str(getattr(self.config, 'ChaoszeroRogue_RogueSlot3Member', '') or ''),
             ]
-            preferred = getattr(self.config, 'ChaoszeroRogue_RogueRemoveMember', 1)
+            preferred = getattr(self.config, 'ChaoszeroRogue_RogueRemoveMember', None)
+            if preferred not in (1, 2, 3):
+                preferred = getattr(self.config, 'ChaoszeroRogue_RogueSaveKeep', 1)
         rules = rogue_cards.parse_delete_filter(text)
         return rogue_cards.prioritize_delete_rules(rules, slot_cids, preferred)
 
@@ -7593,7 +8399,16 @@ class ChaoszeroRogue(ChaoszeroUI):
                 # 只有"接管局内"（上面的 else 分支）才保留它 —— 那种情况可能已经
                 # 在第二面了，重启脚本不该把状态丢掉。
                 # 删卡次数同理：`RogueDelete` 是「一局 3 张」，新局重新计。
-                self.rogue_state_save(core_started=False, floor3_started=False, remove_done=0, remove_counts={})
+                self.rogue_state_save(
+                    core_started=False,
+                    floor3_started=False,
+                    remove_done=0,
+                    remove_counts={},
+                    remove_tracking=True,
+                    keep_slot_cleared_cards=[],
+                    credits=None,
+                    last_shop_remove_price=None,
+                )
             else:
                 logger.info('Not on an entry page, take over the run in progress')
 

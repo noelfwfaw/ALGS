@@ -244,6 +244,10 @@ LostswordAvalon:
     type: select
     value: 埃塞尔城
     option: [ 埃塞尔城, 爱尔亚城, 埃尔达利亚城, 卡美洛城, 廷塔哲城, 默西亚城 ]
+  City2:
+    type: select
+    value: 爱尔亚城
+    option: [ 埃塞尔城, 爱尔亚城, 埃尔达利亚城, 卡美洛城, 廷塔哲城, 默西亚城 ]
 BrowndustSummon:
   Draw: true
 # 活动。一期的五件事全在这一个任务里，按「剧情 → 活动战斗 → 魔兽追踪者 →

@@ -383,9 +383,9 @@ class Equipment:
     def selected_row(image):
         selected = []
         for row in range(3):
-            patch = image[159 + 160 * row:272 + 160 * row, 776:781].astype(int)
+            patch = image[159 + 160 * row:272 + 160 * row, 776:779].astype(int)
             red, green, blue = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
-            gold = (red > 180) & (green > 105) & (blue < 215) & (red > green * 1.02)
+            gold = (red > 180) & (green > 105) & (blue < 215) & (red - blue >= 25)
             if int(gold.sum()) >= 60:
                 selected.append(row)
         return selected[0] if len(selected) == 1 else None
@@ -691,20 +691,97 @@ class Equipment:
         task.tap_point(SLOT_X[item['slot']], ROW_Y[row], name='ROGUE_EQUIP_SLOT')
         return True
 
-    def shop_equipment_slots(self, target_slots):
+    def shop_equipment_entries(self, target_slots):
+        """Return matching `(col, slot, icon_y)` shelf entries for `target_slots`."""
         if self.shop_templates is None:
             bank = cv2.imread(ROGUE_SHOP_EQUIPMENT_TYPES.file, cv2.IMREAD_GRAYSCALE)
             if bank is None:
                 self.fail('Shop equipment type template is missing')
             self.shop_templates = [bank[y1:y2, x1:x2] for x1, y1, x2, y2 in SHOP_EQUIPMENT_ICONS]
         grey = cv2.cvtColor(self.task.device.image, cv2.COLOR_RGB2GRAY)
-        slots = []
+        entries = []
         for col in range(5):
             patch = grey[495:575, 110 + col * 250:171 + col * 250]
-            if any(cv2.matchTemplate(patch, self.shop_templates[slot], cv2.TM_CCOEFF_NORMED).max() >= .90
-                   for slot in target_slots):
-                slots.append(col)
-        return slots
+            best = max(
+                ((cv2.minMaxLoc(cv2.matchTemplate(patch, self.shop_templates[slot], cv2.TM_CCOEFF_NORMED)), slot)
+                 for slot in target_slots),
+                key=lambda item: item[0][1],
+                default=None,
+            )
+            if best is not None and best[0][1] >= .90:
+                (_, _, _, max_loc), slot = best
+                entries.append((col, slot, 495 + int(max_loc[1])))
+        return entries
+
+    def shop_equipment_slots(self, target_slots):
+        return [col for col, _, _ in self.shop_equipment_entries(target_slots)]
+
+    def shop_read_shelf_item(self, image, col, slot, icon_y):
+        """Read and match the shelf equipment title anchored above `icon_y`."""
+        cx = 140 + col * 250
+        x1, x2 = max(0, cx - 102), min(image.shape[1], cx + 102)
+        y1, y2 = max(0, icon_y - 62), max(0, icon_y - 10)
+        band = image[y1:y2, x1:x2]
+        if not band.size:
+            return '', None
+        row_cnt = (band.max(axis=2) > 175).sum(axis=1)
+        segs = []
+        start = None
+        for idx, count in enumerate(row_cnt):
+            if count >= 2 and start is None:
+                start = idx
+            elif count < 2 and start is not None:
+                if idx - start >= 9:
+                    segs.append((start, idx))
+                start = None
+        if start is not None and len(row_cnt) - start >= 9:
+            segs.append((start, len(row_cnt)))
+        segs = segs[-2:]
+        if not segs:
+            return '', None
+        texts = [
+            self.reader.read_name(
+                image,
+                (x1, y1 + max(0, top - 3), x2, y1 + min(band.shape[0], bottom + 3)),
+                scale=2.0,
+                raw=True,
+            )
+            for top, bottom in segs
+        ]
+        text = ''.join(texts)
+        candidates = [record for record in self.library.item_index if record['slot'] == slot]
+        exact = [record for record in candidates
+                 if key(text) in {key(alias) for alias in self.library.aliases(record)}]
+        if len(exact) == 1:
+            return text, exact[0]
+        if rogue_cards.normalize(text) and candidates:
+            ranked = sorted(
+                [(max(rogue_cards.name_score(text, alias) for alias in self.library.aliases(record)), record)
+                 for record in candidates],
+                key=lambda pair: pair[0],
+                reverse=True,
+            )
+            if ranked[0][0] >= 0.80 and (len(ranked) == 1 or ranked[0][0] - ranked[1][0] >= 0.10):
+                return text, ranked[0][1]
+        return text, None
+
+    def shop_shelf_skip(self, text, item, slot):
+        """Return True only when shelf OCR confirms this column cannot satisfy any rule."""
+        if item is None:
+            return False
+        if item['id'] in self.rules and item['shop'] and self.target_needed(item):
+            return False
+        item_base = key(re.sub(r'^[^:：]+[:：]', '', item['name']))
+        for target in self.targets.values():
+            if target['slot'] != slot or not target['shop'] or not self.target_needed(target):
+                continue
+            target_base = key(re.sub(r'^[^:：]+[:：]', '', target['name']))
+            if item_base and item_base == target_base:
+                return False
+            if rogue_cards.normalize(text) and max(
+                    rogue_cards.name_score(text, alias) for alias in self.library.aliases(target)) >= 0.55:
+                return False
+        return True
 
     def shop_free_refresh_count(self):
         text = SHOP_FREE_REFRESH_COUNT.ocr(self.task.device.image)
@@ -739,14 +816,27 @@ class Equipment:
         target_slots = self.shop_target_slots()
         if not target_slots:
             return False
-        for col in self.shop_equipment_slots(target_slots):
+        for col, slot, icon_y in self.shop_equipment_entries(target_slots):
             if col in self.shop_seen:
+                continue
+            text, item = self.shop_read_shelf_item(self.task.device.image, col, slot, icon_y)
+            if self.shop_shelf_skip(text, item, slot):
+                self.shop_seen.add(col)
+                logger.info('Shop shelf col %s: skip %s (OCR=%r)' % (col + 1, item['name'], text))
+                continue
+            if (hasattr(self.task, 'rogue_shelf_price_unaffordable')
+                    and self.task.rogue_shelf_price_unaffordable(col, self.task.device.image)):
+                self.shop_seen.add(col)
+                label = item['name'] if item else 'unknown'
+                logger.info('Shop shelf col %s: skip %s (insufficient credits, OCR=%r)'
+                            % (col + 1, label, text))
                 continue
             if press.reached():
                 press.reset()
                 self.shop_seen.add(col)
                 self.shop_opening = Timer(6, count=1).start()
-                # 货架先按部位过滤；在详情页确认全名后才购买。
+                label = item['name'] if item else 'unknown'
+                logger.info('Shop shelf col %s: inspect %s (OCR=%r)' % (col + 1, label, text))
                 self.task.tap_point(140 + col * 250, 390, name='ROGUE_SHOP_EQUIPMENT')
             return True
         if not press.reached():

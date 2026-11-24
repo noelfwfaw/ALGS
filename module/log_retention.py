@@ -22,6 +22,7 @@ DIAGNOSTIC_LIMITS = {
     'event': (r'(\d{6}_\d+)\.(?:png|json)', 64, 48 * MIB),
     'card': (r'(\d{6})(?:_c[1-3])?\.(?:png|json)', 64, 12 * MIB),
     'fate': (r'(\d{6})(?:_effect[1-3])?\.(?:png|json)', 64, 16 * MIB),
+    'route': (r'(route_(?:2d|3d)_\d{6})\.png', 32, 24 * MIB),
     'unknown': (r'(unknown_\d{6})\.png', 64, 24 * MIB),
     'screenshot': (r'(\d{13})\.png', 16, 8 * MIB),
     'error': (r'(\d{13})', 15, 48 * MIB),

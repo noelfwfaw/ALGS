@@ -871,6 +871,16 @@
       "卡美洛城": "卡美洛城",
       "廷塔哲城": "廷塔哲城",
       "默西亚城": "默西亚城"
+    },
+    "City2": {
+      "name": "LostswordAvalon.City2.name",
+      "help": "LostswordAvalon.City2.help",
+      "埃塞尔城": "埃塞尔城",
+      "爱尔亚城": "爱尔亚城",
+      "埃尔达利亚城": "埃尔达利亚城",
+      "卡美洛城": "卡美洛城",
+      "廷塔哲城": "廷塔哲城",
+      "默西亚城": "默西亚城"
     }
   },
   "BrowndustSummon": {
@@ -1123,7 +1133,7 @@
     },
     "RogueGodSparkFirst": {
       "name": "Prioritize god sparks over flash form",
-      "help": "When off (default): configured flash form > preferred god spark > general god-spark priority. When on, god-flash pages pick by preferred god spark > general priority > flash form. Normal flash pages are unaffected."
+      "help": "When off (default): configured flash form > preferred god spark > general god-spark priority (cards without a configured flash form still prioritize god sparks on god-flash pages). When on, god-flash pages pick by preferred god spark > general priority > flash form. Normal flash pages are unaffected."
     },
     "RogueSparkCheck": {
       "name": "Retry if first-floor target flash is missing",
@@ -1876,7 +1886,7 @@
       "Unselected": "Not selected",
       "SparkPickerTitle": "Spark forms by party character",
       "SparkPickerEmpty": "Select characters in slots 1-3 above to list their sparkable cards here. Selections sync automatically to Spark filter rules below.",
-      "SparkFormAuto": "Auto (highest value)",
+      "SparkFormAuto": "Auto (prefer god spark, else highest value)",
       "SparkFormNeutral": "Neutral spark (base card + random affix)",
       "GodSparkTitle": "Preferred god sparks",
       "GodSparkAdd": "+ Add preferred god spark...",

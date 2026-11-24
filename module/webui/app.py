@@ -397,6 +397,7 @@ class AlasGUI(Frame):
         server = to_server(deep_get(config, "Alas.Emulator.PackageName", "cn"))
 
         output_list: List[Output] = []
+        seen_rogue_scopes = set()
         for arg, arg_dict in deep_iter(arg_dict, depth=1):
             output_kwargs: T_Output_Kwargs = arg_dict.copy()
 
@@ -416,9 +417,12 @@ class AlasGUI(Frame):
                     self._rogue_hidden_values[arg_name] = str(
                         deep_get(config, [task, group_name, arg_name], output_kwargs["value"]) or ""
                     )
-                    scope_out = put_scope(ROGUE_BUILD_PICKERS[arg_name])
-                    scope_out.spec["scope"] = f"#pywebio-scope-group_{section_name}"
-                    output_list.append(scope_out)
+                    scope_name = ROGUE_BUILD_PICKERS[arg_name]
+                    if scope_name not in seen_rogue_scopes:
+                        seen_rogue_scopes.add(scope_name)
+                        scope_out = put_scope(scope_name)
+                        scope_out.spec["scope"] = f"#pywebio-scope-group_{section_name}"
+                        output_list.append(scope_out)
                 continue
             # Internal pin widget name
             output_kwargs["name"] = f"{task}_{group_name}_{arg_name}"
@@ -1789,9 +1793,10 @@ class AlasGUI(Frame):
             # show something
             put_markdown(
                 """
-            Alas is a free open source software, if you paid for Alas from any channel, please refund.
-            Alas 是一款免费开源软件，如果你在任何渠道付费购买了Alas，请退款。
-            Project repository 项目地址：`https://github.com/LmeSzinc/AzurLaneAutoScript`
+            AlGS is a free, open-source multi-game task scheduler built on the AzurLaneAutoScript (Alas) framework. If you paid for it from any channel, please refund.
+            AlGS 是一款免费开源的多游戏任务调度脚本，基于 AzurLaneAutoScript (Alas) 框架改造。如果你在任何渠道付费购买了本软件，请退款。
+            Project repository 项目地址：`https://github.com/noelfwfaw/ALGS`
+            Framework upstream 框架上游：`https://github.com/LmeSzinc/AzurLaneAutoScript`
             """
             ).style("text-align: center")
 

@@ -300,6 +300,42 @@ class TestGodSparkColumnSelection(unittest.TestCase):
         self.assertEqual(task_gf.rogue_flash_column(scale=1.8, god=True), 2)
         self.assertIsNone(task_gf.spark_selected)
 
+        # Unspecified card (not in RogueSparkFilter) ALWAYS prioritizes god spark on god=True,
+        # even when RogueGodSparkFirst=False
+        task_unspec = make_flash_task({}, '劍之雨 = 常態弱點攻擊', god_first=False)
+        task_unspec.card_reader = SimpleNamespace(
+            read_all=Mock(return_value=[normalize(r) for r in raws_mixed]),
+            last_raw=raws_mixed,
+        )
+        self.assertEqual(task_unspec.rogue_flash_column(scale=1.8, god=True), 2)
+
+        # Unspecified card on god=True when god spark OCR fails falls back to rogue_god_pick()
+        # before form_value
+        raws_no_ocr_god = [raw_forms[0], raw_forms[1], raw_forms[2]]
+        task_vis = make_flash_task({}, '', god_first=False)
+        task_vis.card_reader = SimpleNamespace(
+            read_all=Mock(return_value=[normalize(r) for r in raws_no_ocr_god]),
+            last_raw=raws_no_ocr_god,
+        )
+        task_vis.rogue_god_pick = Mock(return_value=3)
+        self.assertEqual(task_vis.rogue_flash_column(scale=1.8, god=True), 3)
+
+        # Configured card whose wanted form didn't roll still falls back to OCR-matched
+        # flash_god_column in rogue_choose_flash before magenta rogue_god_pick()
+        raws_fallback = [raw_forms[1], raw_forms[2], raw_forms[3] + ' 抽取1']
+        task_fb = make_flash_task({'劍之雨': ['1']}, '', god_first=False)
+        task_fb.card_reader = SimpleNamespace(
+            read_all=Mock(return_value=[normalize(r) for r in raws_fallback]),
+            last_raw=raws_fallback,
+        )
+        task_fb.spark_pending = None
+        task_fb.rogue_god_pick = Mock(return_value=None)
+        task_fb.rogue_pick_index = Mock(return_value=1)
+        task_fb.rogue_pick = Mock(return_value=True)
+        task_fb.rogue_choose_flash(god=True)
+        self.assertEqual(task_fb.flash_god_column, 3)
+        self.assertEqual(task_fb.rogue_pick.call_args[0][1], 3)
+
 
 class TestRealGodScreenshots(unittest.TestCase):
     @classmethod
