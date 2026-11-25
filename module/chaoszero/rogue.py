@@ -606,6 +606,9 @@ INFO_MENU_POINT = (1228, 40)
 RETREAT_TRIES = 3
 MENU_TRIES = 4
 
+# 演出帧 / 「點擊畫面可關閉視窗。」覆盖层关闭点：避开三张卡牌中柱 (x 175~1095)，
+# 防止切入灵光/神闪三选一时误点中间二号位卡。
+CUTSCENE_POINT = (100, 360)
 # 演出帧 / 「點擊畫面可關閉視窗。」覆盖层关闭点：避开三张卡牌中柱 (x 175~1095)
 # 及德朗商店货栏物品区 (y 260~630)，同时低于顶部血条 HUD (y 0~85)。
 CUTSCENE_POINT = (60, 150)
@@ -6270,6 +6273,8 @@ class ChaoszeroRogue(ChaoszeroUI):
 
         for _ in self.loop(timeout=Timer(timeout, count=1)):
             self.device.stuck_record_clear()
+            if self.ui_additional():
+                continue
             if self.rogue_handle_dream_notice(press):
                 continue
             if self.rogue_resume_appear():

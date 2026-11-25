@@ -108,10 +108,27 @@
       "TrickcalLogin",
       "TrickcalMail",
       "TrickcalFriend",
+      "TrickcalOrder",
+      "TrickcalDoll",
+      "TrickcalEvent",
+      "TrickcalDungeon",
+      "TrickcalClass",
+      "TrickcalPvp",
       "TrickcalTask",
       "TrickcalShop",
       "TrickcalNormalShop",
       "TrickcalPass"
+    ]
+  },
+  "Resonance": {
+    "menu": "collapse",
+    "page": "setting",
+    "tasks": [
+      "ResonanceDaily",
+      "ResonanceOperations",
+      "ResonancePass",
+      "ResonanceShop",
+      "ResonanceExchange"
     ]
   }
 }

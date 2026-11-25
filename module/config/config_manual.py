@@ -72,7 +72,8 @@ class ManualConfig:
     > BrowndustRedeem
     > ChaoszeroArk > ChaoszeroSimulation > ChaoszeroDaily > ChaoszeroPass > ChaoszeroRedeem > ChaoszeroMain > ChaoszeroRogue
     > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreChip > CrosscoreExercise > CrosscoreWeekly > CrosscoreBase > CrosscoreTask > CrosscorePass
-    > TrickcalLogin > TrickcalMail > TrickcalFriend > TrickcalTask > TrickcalShop > TrickcalNormalShop > TrickcalPass
+    > TrickcalLogin > TrickcalMail > TrickcalFriend > TrickcalOrder > TrickcalDoll > TrickcalEvent > TrickcalDungeon > TrickcalClass > TrickcalPvp > TrickcalTask > TrickcalShop > TrickcalNormalShop > TrickcalPass
+    > ResonanceOperations > ResonanceDaily > ResonancePass > ResonanceShop > ResonanceExchange
     """
 
     # 工具页（`task.yaml` 里 `page: 'tool'`）能**单独启动**的任务。

@@ -365,6 +365,45 @@ class ConfigUpdater:
     def args(self):
         return read_file(filepath_args())
 
+    SIM_LEGACY_STAGES = (
+        ('TrainingGrowth', ('單元幣', '戰鬥員升級材料', '夥伴升級材料')),
+        ('TrainingMember', ('戰鬥員升階材料—決鬥家', '戰鬥員升階材料—先鋒', '戰鬥員升階材料—遊俠',
+                            '戰鬥員升階材料—獵人', '戰鬥員升階材料—心靈術士', '戰鬥員升階材料—控制師')),
+        ('TrainingPartner', ('夥伴升階材料—決鬥家', '夥伴升階材料—先鋒', '夥伴升階材料—遊俠',
+                             '夥伴升階材料—獵人', '夥伴升階材料—心靈術士', '夥伴升階材料—控制師')),
+        ('TrainingPotential', ('潛力材料—熱情', '潛力材料—秩序', '潛力材料—本能', '潛力材料—虛無', '潛力材料—正義')),
+        ('TrainingMemory', ('光輝與雪花', '進化與荊棘', '序曲與夢境', '夙願與君臨', '火焰與寶珠', '地位與事跡',
+                            '榮譽與權位', '循環與命運', '貪婪與執念', '跟聖甲蟲的約定', '屍體與工具')),
+    )
+    SIM_CHALLENGE_STAGES = ('嚎叫浪子', '面對的恐懼')
+
+    @classmethod
+    def _migrate_chaoszero_sim(cls, old, keys, value, data):
+        sim_old = deep_get(old, keys=['ChaoszeroSimulation', 'ChaoszeroSimulation'], default={})
+        if not isinstance(sim_old, dict):
+            return value
+        try:
+            idx = int(sim_old.get('TrainingStage', 1))
+        except (TypeError, ValueError):
+            idx = 1
+        arg = keys[2]
+        if arg == 'TrainingTarget' and 'TrainingTarget' not in sim_old:
+            saw_legacy = any(tab in sim_old for tab, _ in cls.SIM_LEGACY_STAGES)
+            if not saw_legacy:
+                return value
+            for tab, stages in cls.SIM_LEGACY_STAGES:
+                tab_val = sim_old.get(tab)
+                if isinstance(tab_val, str) and tab_val in stages:
+                    return tab_val
+                if tab_val is True and 1 <= idx <= len(stages):
+                    return stages[idx - 1]
+            return '不刷'
+        if arg == 'TrainingChallenge' and isinstance(value, bool):
+            if value and 1 <= idx <= len(cls.SIM_CHALLENGE_STAGES):
+                return cls.SIM_CHALLENGE_STAGES[idx - 1]
+            return '不刷'
+        return value
+
     def config_update(self, old, is_template=False):
         """
         Args:
@@ -383,6 +422,8 @@ class ConfigUpdater:
             if is_template or value is None or value == '' \
                     or typ in ['lock', 'state'] or (display == 'hide' and typ != 'stored'):
                 value = data['value']
+            elif keys[:2] == ['ChaoszeroSimulation', 'ChaoszeroSimulation']:
+                value = self._migrate_chaoszero_sim(old, keys, value, data)
             value = parse_value(value, data=data)
             deep_set(new, keys=keys, value=value)
 

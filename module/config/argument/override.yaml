@@ -123,3 +123,33 @@ BrowndustRedeem:
     # 2026-11-04). Quoted for the same reason as above: a bare `08:00` is fine
     # but a bare `10:30` would not be.
     ServerUpdate: '08:00'
+
+# ==================== Trickcal (嘟嘟脸恶作剧) ====================
+
+# Double daily runs at 05:00 and 18:00 (user-confirmed) for collection and
+# stamina-consuming tasks.
+TrickcalFriend:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+TrickcalMail:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+TrickcalOrder:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+TrickcalEvent:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+TrickcalDungeon:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+TrickcalTask:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+TrickcalPass:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'
+
+ResonanceDaily:
+  Scheduler:
+    ServerUpdate: '05:00, 18:00'

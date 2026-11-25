@@ -193,7 +193,7 @@ def parse_value(value, data):
 
     """
     if 'option' in data:
-        if value not in data['option']:
+        if (isinstance(value, bool) and not isinstance(data['value'], bool)) or value not in data['option']:
             return data['value']
     if data.get('valuetype') == 'str':
         return str(value)

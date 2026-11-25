@@ -30,7 +30,11 @@
     },
     "Trickcal": {
       "name": "Trickcal",
-      "help": "Trickcal login, daily sign-in, mailbox, friends, tasks, the shop free gifts, bulk purchase in the normal shop and the adventure pass"
+      "help": "Trickcal login, daily sign-in, mailbox, friends, theme-theater events, resource dungeons, tasks, the shop free gifts, bulk purchase in the normal shop and the adventure pass"
+    },
+    "Resonance": {
+      "name": "Resonance Solstice",
+      "help": "Daily activity, operations, pass rewards, and shops"
     }
   },
   "Task": {
@@ -204,7 +208,7 @@
     },
     "ChaoszeroSimulation": {
       "name": "Chaos Zero: Battle training (spend stamina)",
-      "help": "Walks 模擬 → 戰鬥訓練 and farms the ticked tabs in order: open the stage, apply difficulty and battle efficiency, fight, make sure auto-battle is on, take the result, and repeat until the stamina or the daily attempts run out"
+      "help": "Walks 模擬 → 戰鬥訓練: runs the weekly Challenge first when selected (3 attempts per week, 0 stamina), then farms the selected single stamina stage until stamina or rounds run out"
     },
     "ChaoszeroDaily": {
       "name": "Chaos Zero: Daily claim (missions + mailbox)",
@@ -286,6 +290,30 @@
       "name": "Trickcal Friends",
       "help": "Open the friend list from the top right of the lobby. The claim-all button lights up when friends have sent leaves, and is only clicked while lit; then send one back with the send-all button and return to the lobby. Neither button opens a popup, so the run does not wait for one."
     },
+    "TrickcalOrder": {
+      "name": "Trickcal Order",
+      "help": "Enter bottom-right 圣团 -> 总部 -> 世界树圣物 from the lobby to claim the daily relic reward (0 stamina, scheduled before stamina tasks)."
+    },
+    "TrickcalDoll": {
+      "name": "Trickcal Doll Buster",
+      "help": "Enter 冒险 -> 娃娃怪破坏者, pick one of the 8 races, and sweep the default sweepable stage (4 daily tickets, 10 red candy + 1 ticket per run, no stage selection, never buys stamina)."
+    },
+    "TrickcalEvent": {
+      "name": "Trickcal Event",
+      "help": "Enter the theme-theater event, clear unlocked battle difficulties and optionally sweep stamina in 微微辣, skip NEW event stories, claim rewards across all three task tabs, and buy unsold items from the event shop strictly top-to-bottom without skipping."
+    },
+    "TrickcalDungeon": {
+      "name": "Trickcal Dungeon",
+      "help": "Spend star-candy stamina in resource dungeons via 冒险 -> 副本 (independent of event stamina). Optionally sweep 克隆工厂 (8 daily entries) first, then sweep the chosen main dungeon and stage."
+    },
+    "TrickcalClass": {
+      "name": "Trickcal Short Class",
+      "help": "Sweep 短期速成班 via 冒险 -> 短期速成班 (2 free runs/day, 0 stamina, resets at 03:00). Picks the single open class on Mon-Fri and follows SaturdaySubject/SundaySubject on weekends; 25 lessons per subject (0 = auto-pick highest 3-starred lesson)."
+    },
+    "TrickcalPvp": {
+      "name": "Trickcal Arena",
+      "help": "Enter 冒险 -> 巅峰对决 -> 胜利者的竞技场, claim hourly reward if available, and fight the chosen opponent (defaults to opponent 1, 5 daily runs, 0 stamina)."
+    },
     "TrickcalTask": {
       "name": "Trickcal Tasks",
       "help": "Open the task list from the checklist at the top right of the lobby (it opens on the daily tab), claim with the bottom-right claim-all button, then claim the bottom-left point-track reward if it is lit; switch to the weekly tab and repeat the same order, then return to the lobby. A button is only clicked while lit; grey means there is nothing to claim."
@@ -299,8 +327,28 @@
       "help": "Open the normal shop from the 商店 icon at the bottom of the lobby and buy only the 日常商店 tab - the other tabs spend different currencies and are never touched. Tick all six items with 全選, press 一鍵購買, confirm the purchase dialog, dismiss the reward panel and return to the lobby."
     },
     "TrickcalPass": {
-      "name": "Trickcal Adventure Pass",
-      "help": "Open the 冒險通行證 card at the top left of the lobby (the blue ticket, not the level pass next to it) and press the bottom-right 一鍵領取 to take every unlocked reward at once. The button is dim when there is nothing to claim, and the run then returns immediately. The reward panel is dismissed automatically."
+      "name": "Trickcal Pass",
+      "help": "Open 冒险通行证 and 便装通行证 (when active) at the top left of the lobby and press bottom-right 一键领取 to collect available rewards. Skips cleanly when grey/dim or inactive, dismisses reward popups, and returns to the lobby."
+    },
+    "ResonanceDaily": {
+      "name": "Resonance: Daily Activity Rewards",
+      "help": "Collect activity points from completed tasks, then claim unlocked milestone rewards. Runs daily at 05:00 and 18:00 game time."
+    },
+    "ResonanceOperations": {
+      "name": "Resonance: Operations",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period."
+    },
+    "ResonancePass": {
+      "name": "Resonance: Pass Rewards",
+      "help": "Collect daily, weekly, and unlocked level rewards from each active Travel Handbook."
+    },
+    "ResonanceShop": {
+      "name": "Resonance: HQ Shop",
+      "help": "Buy each coin-priced item up to the available limit."
+    },
+    "ResonanceExchange": {
+      "name": "Resonance: B.C.R.L. Exchange",
+      "help": "Exchange only listed items, up to the quantity allowed in one order for each item."
     }
   },
   "Scheduler": {
@@ -961,47 +1009,85 @@
   "ChaoszeroSimulation": {
     "_info": {
       "name": "Battle training",
-      "help": "One switch per tab, plus which row, difficulty, efficiency and rounds"
+      "help": "Every option is a dropdown: pick one stamina stage across the five stamina tabs (Off skips stamina farming); weekly Challenge is independent and runs first"
     },
-    "TrainingGrowth": {
-      "name": "Growth",
-      "help": "Farm the 成長 tab (unit coins and upgrade materials)"
-    },
-    "TrainingMember": {
-      "name": "Fighters",
-      "help": "Farm the 戰鬥員 tab (ascension materials)"
-    },
-    "TrainingPartner": {
-      "name": "Partners",
-      "help": "Farm the 夥伴 tab (ascension materials)"
-    },
-    "TrainingPotential": {
-      "name": "Potential",
-      "help": "Farm the 潛力 tab (fire / order / instinct / void)"
-    },
-    "TrainingMemory": {
-      "name": "Memory shards",
-      "help": "Farm the 記憶碎片 tab, 60 stamina per run"
+    "TrainingTarget": {
+      "name": "Stamina stage",
+      "help": "Pick a single stage from Growth / Fighters / Partners / Potential / Memory shards (Memory costs 60 stamina, others 20)",
+      "不刷": "Off",
+      "單元幣": "[Growth] 單元幣",
+      "戰鬥員升級材料": "[Growth] 戰鬥員升級材料",
+      "夥伴升級材料": "[Growth] 夥伴升級材料",
+      "戰鬥員升階材料—決鬥家": "[Fighters] 戰鬥員升階材料—決鬥家",
+      "戰鬥員升階材料—先鋒": "[Fighters] 戰鬥員升階材料—先鋒",
+      "戰鬥員升階材料—遊俠": "[Fighters] 戰鬥員升階材料—遊俠",
+      "戰鬥員升階材料—獵人": "[Fighters] 戰鬥員升階材料—獵人",
+      "戰鬥員升階材料—心靈術士": "[Fighters] 戰鬥員升階材料—心靈術士",
+      "戰鬥員升階材料—控制師": "[Fighters] 戰鬥員升階材料—控制師",
+      "夥伴升階材料—決鬥家": "[Partners] 夥伴升階材料—決鬥家",
+      "夥伴升階材料—先鋒": "[Partners] 夥伴升階材料—先鋒",
+      "夥伴升階材料—遊俠": "[Partners] 夥伴升階材料—遊俠",
+      "夥伴升階材料—獵人": "[Partners] 夥伴升階材料—獵人",
+      "夥伴升階材料—心靈術士": "[Partners] 夥伴升階材料—心靈術士",
+      "夥伴升階材料—控制師": "[Partners] 夥伴升階材料—控制師",
+      "潛力材料—熱情": "[Potential] 潛力材料—熱情",
+      "潛力材料—秩序": "[Potential] 潛力材料—秩序",
+      "潛力材料—本能": "[Potential] 潛力材料—本能",
+      "潛力材料—虛無": "[Potential] 潛力材料—虛無",
+      "潛力材料—正義": "[Potential] 潛力材料—正義",
+      "光輝與雪花": "[Memory] 光輝與雪花",
+      "進化與荊棘": "[Memory] 進化與荊棘",
+      "序曲與夢境": "[Memory] 序曲與夢境",
+      "夙願與君臨": "[Memory] 夙願與君臨",
+      "火焰與寶珠": "[Memory] 火焰與寶珠",
+      "地位與事跡": "[Memory] 地位與事跡",
+      "榮譽與權位": "[Memory] 榮譽與權位",
+      "循環與命運": "[Memory] 循環與命運",
+      "貪婪與執念": "[Memory] 貪婪與執念",
+      "跟聖甲蟲的約定": "[Memory] 跟聖甲蟲的約定",
+      "屍體與工具": "[Memory] 屍體與工具"
     },
     "TrainingChallenge": {
-      "name": "Challenge",
-      "help": "Farm the 挑戰 tab, 3 attempts a day, no stamina"
-    },
-    "TrainingStage": {
-      "name": "Row",
-      "help": "Counted from the top of the list, four rows per screen: 1-4, then 5, 6… as you scroll. One number for all tabs (記憶碎片 has 11 rows, 戰鬥員/夥伴 6, 潛力 5, 成長 3, 挑戰 2); a tab with fewer rows is skipped"
+      "name": "Challenge (weekly x3)",
+      "help": "Pick a weekly Challenge boss stage (3 attempts per week, 0 stamina; runs first before the stamina stage and skips if 0/3)",
+      "不刷": "Off",
+      "嚎叫浪子": "嚎叫浪子",
+      "面對的恐懼": "面對的恐懼"
     },
     "TrainingDifficulty": {
       "name": "Difficulty",
-      "help": "1-6. 0 leaves whatever the game has selected"
+      "help": "1-6; Keep current leaves whatever the game has selected",
+      "0": "Keep current",
+      "1": "Difficulty 1",
+      "2": "Difficulty 2",
+      "3": "Difficulty 3",
+      "4": "Difficulty 4",
+      "5": "Difficulty 5",
+      "6": "Difficulty 6"
     },
     "TrainingEfficiency": {
       "name": "Battle efficiency",
-      "help": "1-6 runs per entry; cost = stamina per run x efficiency. This is an upper bound: it is lowered to what the current stamina can pay for each round, so stamina never sits at full. 0 leaves the game's setting"
+      "help": "Max runs per entry (capped automatically each round by current stamina; skipped automatically for Memory shards and Challenge)",
+      "0": "Keep current",
+      "1": "1 run",
+      "2": "2 runs",
+      "3": "3 runs",
+      "4": "4 runs",
+      "5": "5 runs",
+      "6": "6 runs (max)"
     },
     "TrainingTimes": {
-      "name": "Rounds per tab",
-      "help": "0 = keep going until the stamina runs out"
+      "name": "Rounds",
+      "help": "Unlimited keeps going until stamina or weekly Challenge attempts run out",
+      "0": "Unlimited (until empty)",
+      "1": "1 round",
+      "2": "2 rounds",
+      "3": "3 rounds",
+      "4": "4 rounds",
+      "5": "5 rounds",
+      "6": "6 rounds",
+      "8": "8 rounds",
+      "10": "10 rounds"
     }
   },
   "ChaoszeroRogue": {
@@ -1738,6 +1824,116 @@
       "help": "Which round this run is on since it started. Resets to 0 every time you press Start; written by the script itself, so you do not have to dig through the log for \"round N\"."
     }
   },
+  "TrickcalEvent": {
+    "_info": {
+      "name": "Trickcal Event Settings",
+      "help": ""
+    },
+    "SweepStamina": {
+      "name": "Sweep remaining stamina",
+      "help": "After clearing difficulties, switch back to 微微辣 and sweep the 3-starred last stage until stamina is below 10. Turn off to only clear new stages."
+    }
+  },
+  "TrickcalDungeon": {
+    "_info": {
+      "name": "Trickcal Dungeon Settings",
+      "help": "Sweep Clone Factory first, then spend leftover star candy in one chosen dungeon."
+    },
+    "CloneFactory": {
+      "name": "Run Clone Factory",
+      "help": "Sweep up to 8 daily entries in 克隆工厂 (20 star candy each) before running the selected main dungeon."
+    },
+    "CloneFactoryStage": {
+      "name": "Clone Factory stage",
+      "help": "Stage number (1-12) to sweep in 克隆工厂 (must already be 3-starred)."
+    },
+    "Dungeon": {
+      "name": "Main dungeon",
+      "help": "Choose which main dungeon spends the remaining star-candy stamina.",
+      "none": "Disabled",
+      "gold": "Gold Rush (金币大作战)",
+      "bakery_macaron": "Bakery - Macaron (魔卡龙)",
+      "bakery_cream": "Bakery - Cream Puff (奶卡龙)",
+      "candy_red": "Candy - Red (Ban Tank)",
+      "candy_blue": "Candy - Blue (Ban DPS)",
+      "candy_green": "Candy - Green (Ban Support)",
+      "crayon": "Crayon (到手蜡)"
+    },
+    "DungeonStage": {
+      "name": "Main dungeon stage",
+      "help": "3-starred stage number to sweep in the chosen main dungeon."
+    }
+  },
+  "TrickcalClass": {
+    "_info": {
+      "name": "Short Class Settings",
+      "help": "Auto-picks the single open class Mon-Fri; uses weekend selections on Sat/Sun"
+    },
+    "SaturdaySubject": {
+      "name": "Saturday subject",
+      "help": "Which subject to enter on Saturday when green/blue/red are open together.",
+      "green": "Green (纯粹)",
+      "blue": "Blue (冷静)",
+      "red": "Red (狂乱)"
+    },
+    "SundaySubject": {
+      "name": "Sunday subject",
+      "help": "Which subject to enter on Sunday when yellow/purple are open together.",
+      "yellow": "Yellow (活泼)",
+      "purple": "Purple (忧郁)"
+    },
+    "GreenLesson": {
+      "name": "Green lesson",
+      "help": "Lesson (1-25) to sweep for Green (0 = highest 3-starred lesson)."
+    },
+    "BlueLesson": {
+      "name": "Blue lesson",
+      "help": "Lesson (1-25) to sweep for Blue (0 = highest 3-starred lesson)."
+    },
+    "RedLesson": {
+      "name": "Red lesson",
+      "help": "Lesson (1-25) to sweep for Red (0 = highest 3-starred lesson)."
+    },
+    "YellowLesson": {
+      "name": "Yellow lesson",
+      "help": "Lesson (1-25) to sweep for Yellow (0 = highest 3-starred lesson)."
+    },
+    "PurpleLesson": {
+      "name": "Purple lesson",
+      "help": "Lesson (1-25) to sweep for Purple (0 = highest 3-starred lesson)."
+    }
+  },
+  "TrickcalDoll": {
+    "_info": {
+      "name": "Doll Buster Settings",
+      "help": "Up to 4 runs/day (10 red candy + 1 ticket each); sweeps the default unlocked stage"
+    },
+    "Race": {
+      "name": "Race",
+      "help": "Which of the 8 races to enter and sweep.",
+      "dragon": "Dragon (龙族)",
+      "elf": "Elf (精灵)",
+      "ghost": "Ghost (幽灵)",
+      "fairy": "Fairy (仙灵)",
+      "witch": "Witch (魔女)",
+      "elemental": "Elemental (自然灵)",
+      "mystic": "Mystic (秘灵)",
+      "beast": "Beast (兽人)"
+    }
+  },
+  "TrickcalPvp": {
+    "_info": {
+      "name": "Arena Settings",
+      "help": "Run 5 daily matches in 胜利者的竞技场 (defaults to opponent 1)"
+    },
+    "Opponent": {
+      "name": "Opponent slot",
+      "help": "Which opponent row from top to bottom to challenge.",
+      "1": "Opponent 1",
+      "2": "Opponent 2",
+      "3": "Opponent 3"
+    }
+  },
   "Storage": {
     "_info": {
       "name": "Task status",
@@ -1908,6 +2104,84 @@
       "EventRecorderRefresh": "Refresh",
       "EventRecorderClear": "Clear",
       "EventRecorderCleared": "Event records cleared"
+    }
+  },
+  "ResonanceOperations": {
+    "_info": {
+      "name": "Operations settings",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period."
+    },
+    "SiegeRuns": {
+      "name": "Operation Siege daily attempts",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
+      "0": "Skip",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    },
+    "SiegeStage": {
+      "name": "Operation Siege stage",
+      "help": "Operation Siege stage",
+      "Order": "Special Order",
+      "Blade": "Blade Operation",
+      "Lantern": "Lantern and Sword",
+      "Material": "Weapon Material Analysis",
+      "Knight": "Knight's Tale",
+      "Think": "I Think, I Am",
+      "Report": "What We Know",
+      "Large": "The Big One!",
+      "Total": "Total Siege"
+    },
+    "SupplyRuns": {
+      "name": "All Armed daily attempts",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
+      "0": "Skip",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    },
+    "SupplyStage": {
+      "name": "All Armed stage preference",
+      "help": "Runs the sole open stage when there is only one. Use this choice when multiple stages are open.",
+      "Auto": "Automatically select an open stage",
+      "Elegant": "Elegant Supply",
+      "Standard": "Standard Supply",
+      "Salvation": "Salvation Supply",
+      "Advanced": "Advanced Supply",
+      "Chaos": "Chaos Supply",
+      "Magic": "Magic Supply"
+    },
+    "WeeklyRuns": {
+      "name": "Wanted weekly attempts",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
+      "0": "Skip",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    }
+  },
+  "ResonanceShop": {
+    "_info": {
+      "name": "HQ Shop settings",
+      "help": "Buy each coin-priced item up to the available limit."
+    },
+    "Include": {
+      "name": "Only buy these items",
+      "help": "Use exact in-game item names, separated by commas or newlines. Leave blank to buy all coin-priced items."
+    },
+    "Exclude": {
+      "name": "Skip these items",
+      "help": "Use exact in-game item names, separated by commas or newlines. Exclusions take priority."
+    }
+  },
+  "ResonanceExchange": {
+    "_info": {
+      "name": "Exchange settings",
+      "help": "Exchange only listed items, up to the quantity allowed in one order for each item."
+    },
+    "Include": {
+      "name": "Exchange filter",
+      "help": "Enter exact in-game item names separated by commas or newlines. Append to the two default names, or clear the list to skip."
     }
   }
 }

@@ -291,6 +291,11 @@ class ChaoszeroUI(Maintenance, UI):
             if self.handle_download_confirm():
                 continue
 
+            # 公告弹窗：客户端一连上服务器就把它顶在大厅上面，整屏盖住。提前于
+            # `page_main` 判据处理，避免刚画出一帧主界面后弹窗弹出被漏掉。
+            if self.handle_announce():
+                continue
+
             # End
             if self.ui_page_appear(page_main):
                 logger.info('Game is at page_main')
@@ -299,13 +304,6 @@ class ChaoszeroUI(Maintenance, UI):
             # Connection failure, also handled from `ui_additional()` because
             # the client raises it in the middle of a task as well.
             if self.handle_connect_failed():
-                continue
-
-            # 公告弹窗：客户端一连上服务器就把它顶在大厅上面，整屏盖住。大厅的
-            # 「故事」在它底下匹配不上（实测 0.40），不接这一支就会掉进最后那支
-            # 「什么都不认识」，点顶部只是把立绘唤醒或关掉，弹窗一直不走。
-            # 它也会在任务中途弹，所以 `ui_additional()` 里再挂一次。
-            if self.handle_announce():
                 continue
 
             # Title screen
@@ -470,6 +468,7 @@ class ChaoszeroUI(Maintenance, UI):
         """
         if self.appear(ANNOUNCE_CLOSE, offset=(20, 20)):
             logger.info('Announcement popup, press its X')
+            self.device.click_record_clear()
             self.device.click(ANNOUNCE_CLOSE)
             # 关不掉不抛异常：`ui_additional()` 每帧都会回来，启动循环也会再转
             # 一圈，反复警告比整个任务失败更有用。

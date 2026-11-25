@@ -269,6 +269,9 @@ class ChaoszeroRedeem(ChaoszeroUI):
             if self.appear(REDEEM_TITLE, offset=REDEEM_OFFSET):
                 return True
 
+            if self.ui_additional():
+                continue
+
             # 上一个码的结果弹窗可能还开着，它盖住输入框和提交键。
             if self.redeem_dismiss_result():
                 continue

@@ -2496,45 +2496,93 @@
       }
     },
     "ChaoszeroSimulation": {
-      "TrainingGrowth": {
-        "type": "checkbox",
-        "value": true
-      },
-      "TrainingMember": {
-        "type": "checkbox",
-        "value": false
-      },
-      "TrainingPartner": {
-        "type": "checkbox",
-        "value": false
-      },
-      "TrainingPotential": {
-        "type": "checkbox",
-        "value": true
-      },
-      "TrainingMemory": {
-        "type": "checkbox",
-        "value": false
+      "TrainingTarget": {
+        "type": "select",
+        "value": "單元幣",
+        "option": [
+          "不刷",
+          "單元幣",
+          "戰鬥員升級材料",
+          "夥伴升級材料",
+          "戰鬥員升階材料—決鬥家",
+          "戰鬥員升階材料—先鋒",
+          "戰鬥員升階材料—遊俠",
+          "戰鬥員升階材料—獵人",
+          "戰鬥員升階材料—心靈術士",
+          "戰鬥員升階材料—控制師",
+          "夥伴升階材料—決鬥家",
+          "夥伴升階材料—先鋒",
+          "夥伴升階材料—遊俠",
+          "夥伴升階材料—獵人",
+          "夥伴升階材料—心靈術士",
+          "夥伴升階材料—控制師",
+          "潛力材料—熱情",
+          "潛力材料—秩序",
+          "潛力材料—本能",
+          "潛力材料—虛無",
+          "潛力材料—正義",
+          "光輝與雪花",
+          "進化與荊棘",
+          "序曲與夢境",
+          "夙願與君臨",
+          "火焰與寶珠",
+          "地位與事跡",
+          "榮譽與權位",
+          "循環與命運",
+          "貪婪與執念",
+          "跟聖甲蟲的約定",
+          "屍體與工具"
+        ]
       },
       "TrainingChallenge": {
-        "type": "checkbox",
-        "value": false
-      },
-      "TrainingStage": {
-        "type": "input",
-        "value": 1
+        "type": "select",
+        "value": "不刷",
+        "option": [
+          "不刷",
+          "嚎叫浪子",
+          "面對的恐懼"
+        ]
       },
       "TrainingDifficulty": {
-        "type": "input",
-        "value": 0
+        "type": "select",
+        "value": 6,
+        "option": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
       },
       "TrainingEfficiency": {
-        "type": "input",
-        "value": 6
+        "type": "select",
+        "value": 6,
+        "option": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
       },
       "TrainingTimes": {
-        "type": "input",
-        "value": 0
+        "type": "select",
+        "value": 0,
+        "option": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          8,
+          10
+        ]
       }
     },
     "Storage": {
@@ -4063,7 +4111,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "05:00",
+        "value": "05:00, 18:00",
         "display": "hide"
       }
     },
@@ -4094,6 +4142,383 @@
       "Command": {
         "type": "input",
         "value": "TrickcalFriend",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalOrder": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalOrder",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalDoll": {
+    "TrickcalDoll": {
+      "Race": {
+        "type": "select",
+        "value": "dragon",
+        "option": [
+          "dragon",
+          "elf",
+          "ghost",
+          "fairy",
+          "witch",
+          "elemental",
+          "mystic",
+          "beast"
+        ]
+      }
+    },
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalDoll",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalEvent": {
+    "TrickcalEvent": {
+      "SweepStamina": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalEvent",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalDungeon": {
+    "TrickcalDungeon": {
+      "CloneFactory": {
+        "type": "checkbox",
+        "value": true
+      },
+      "CloneFactoryStage": {
+        "type": "input",
+        "value": 5,
+        "valuetype": "int"
+      },
+      "Dungeon": {
+        "type": "select",
+        "value": "gold",
+        "option": [
+          "none",
+          "gold",
+          "bakery_macaron",
+          "bakery_cream",
+          "candy_red",
+          "candy_blue",
+          "candy_green",
+          "crayon"
+        ]
+      },
+      "DungeonStage": {
+        "type": "input",
+        "value": 1,
+        "valuetype": "int"
+      }
+    },
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalDungeon",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalClass": {
+    "TrickcalClass": {
+      "SaturdaySubject": {
+        "type": "select",
+        "value": "green",
+        "option": [
+          "green",
+          "blue",
+          "red"
+        ]
+      },
+      "SundaySubject": {
+        "type": "select",
+        "value": "yellow",
+        "option": [
+          "yellow",
+          "purple"
+        ]
+      },
+      "GreenLesson": {
+        "type": "input",
+        "value": 0,
+        "valuetype": "int"
+      },
+      "BlueLesson": {
+        "type": "input",
+        "value": 0,
+        "valuetype": "int"
+      },
+      "RedLesson": {
+        "type": "input",
+        "value": 0,
+        "valuetype": "int"
+      },
+      "YellowLesson": {
+        "type": "input",
+        "value": 0,
+        "valuetype": "int"
+      },
+      "PurpleLesson": {
+        "type": "input",
+        "value": 0,
+        "valuetype": "int"
+      }
+    },
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalClass",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "TrickcalPvp": {
+    "TrickcalPvp": {
+      "Opponent": {
+        "type": "select",
+        "value": 1,
+        "option": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "TrickcalPvp",
         "display": "hide"
       },
       "SuccessInterval": {
@@ -4153,7 +4578,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "05:00",
+        "value": "05:00, 18:00",
         "display": "hide"
       }
     },
@@ -4288,8 +4713,312 @@
       },
       "ServerUpdate": {
         "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceDaily": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceDaily",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceOperations": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceOperations",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
         "value": "05:00",
         "display": "hide"
+      }
+    },
+    "ResonanceOperations": {
+      "SiegeRuns": {
+        "type": "select",
+        "value": 0,
+        "option": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "SiegeStage": {
+        "type": "select",
+        "value": "Order",
+        "option": [
+          "Order",
+          "Blade",
+          "Lantern",
+          "Material",
+          "Knight",
+          "Think",
+          "Report",
+          "Large",
+          "Total"
+        ]
+      },
+      "SupplyRuns": {
+        "type": "select",
+        "value": 0,
+        "option": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "SupplyStage": {
+        "type": "select",
+        "value": "Auto",
+        "option": [
+          "Auto",
+          "Elegant",
+          "Standard",
+          "Salvation",
+          "Advanced",
+          "Chaos",
+          "Magic"
+        ]
+      },
+      "WeeklyRuns": {
+        "type": "select",
+        "value": 0,
+        "option": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonancePass": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonancePass",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceShop": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceShop",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "ResonanceShop": {
+      "Include": {
+        "type": "textarea",
+        "value": "",
+        "valuetype": "str"
+      },
+      "Exclude": {
+        "type": "textarea",
+        "value": "",
+        "valuetype": "str"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceExchange": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceExchange",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "ResonanceExchange": {
+      "Include": {
+        "type": "textarea",
+        "value": "进货采买书, 追加注资申请书",
+        "valuetype": "str"
       }
     },
     "Storage": {

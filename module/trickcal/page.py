@@ -66,9 +66,32 @@ Links are one-way. A new page also has to be added to `TrickcalUI.pages`,
 otherwise `ui_get_current_page()` never sees it (hard rule 61).
 """
 
-from module.trickcal.assets import (BACK, E_7_1, FRIEND_ENTRY, FRIEND_TITLE,
+from module.trickcal.assets import (ADVENTURE_ENTRY, ADVENTURE_TITLE, BACK,
+                                   CLASS_ENTRY, CLASS_HUB_CHECK,
+                                   CLASS_STAGE_CHECK, COSTUME_PASS_TITLE,
+                                   DOLL_ENTRY,
+                                   DOLL_HUB_TITLE, DOLL_STAGE_CHECK,
+                                   DUNGEON_BAKERY_ENTER,
+                                   DUNGEON_BAKERY_ENTRY,
+                                   DUNGEON_BAKERY_SWEEP, DUNGEON_CANDY_CHOOSE,
+                                   DUNGEON_CANDY_ENTRY, DUNGEON_CANDY_SWEEP,
+                                   DUNGEON_CLONE_ENTER, DUNGEON_CLONE_ENTRY,
+                                   DUNGEON_CLONE_SWEEP, DUNGEON_CRAYON_ENTER,
+                                   DUNGEON_CRAYON_ENTRY,
+                                   DUNGEON_CRAYON_SELECT_DECK, DUNGEON_ENTRY,
+                                   DUNGEON_GOLD_ENTER, DUNGEON_GOLD_ENTRY,
+                                   DUNGEON_GOLD_SWEEP, DUNGEON_HUB_TITLE,
+                                   E_7_1, EVENT_ACHIEVEMENT_ENTRY,
+                                   EVENT_BATTLE_ENTRY, EVENT_PASS_CHECK,
+                                   EVENT_SHOP_ENTRY, EVENT_SHOP_TITLE,
+                                   EVENT_STAGE_TITLE, EVENT_STORY_ENTRY,
+                                   EVENT_STORY_TITLE, EVENT_TASK_TITLE,
+                                   FRIEND_ENTRY, FRIEND_TITLE, HOME,
                                    MAIL_CLOSE, MAIL_ENTRY, NORMAL_SHOP_ENTRY,
-                                   NORMAL_SHOP_TITLE, PASS_ENTRY, PASS_TITLE,
+                                   NORMAL_SHOP_TITLE, ORDER_CHECK,
+                                   ORDER_ENTRY, ORDER_RELIC_TITLE, PASS_ENTRY,
+                                   PASS_TITLE, PVP_ARENA_ENTER, PVP_ARENA_TITLE,
+                                   PVP_ENTRY, PVP_GO_WIN, PVP_HUB_TITLE,
                                    SHOP_ENTRY, SHOP_TITLE, TASK_DAILY_TAB,
                                    TASK_ENTRY, TASK_WEEKLY_TAB)
 from module.ui.page import Page
@@ -93,19 +116,117 @@ page_normal_shop = Page(NORMAL_SHOP_TITLE)
 # 实机 1.000，大厅/商店/任务/邮箱等 ≤0.41。注意别和旁边那张「等级通行证」搞混：
 # 那张是日卡，入口在 (20,230)-(110,265)，这个任务只碰 (108,253)-(194,327)。
 page_pass = Page(PASS_TITLE)
+# 便装通行证：赛季制入口，页面判据为左上角「便装通行证」标题（需排在 page_event_pass 之前）
+page_costume_pass = Page(COSTUME_PASS_TITLE)
+# 主题剧院活动主页及「战斗」关卡列表页。每期活动名/入口图标会换，大厅进活动走
+# `TrickcalEvent.event_open()` 处理固定入口与首次开场剧情弹窗，因此不从 `page_main` 单向连出。
+page_event = Page(EVENT_BATTLE_ENTRY)
+page_event_stage = Page(EVENT_STAGE_TITLE)
+page_event_task = Page(EVENT_TASK_TITLE)
+page_event_story = Page(EVENT_STORY_TITLE)
+page_event_shop = Page(EVENT_SHOP_TITLE)
+page_event_pass = Page(EVENT_PASS_CHECK)
+
+# 冒险 -> 副本及五个资源副本页面图
+page_adventure = Page(ADVENTURE_TITLE)
+page_dungeon = Page(DUNGEON_HUB_TITLE)
+page_dungeon_gold = Page(DUNGEON_GOLD_ENTER)
+page_dungeon_gold_stage = Page(DUNGEON_GOLD_SWEEP)
+page_dungeon_bakery = Page(DUNGEON_BAKERY_ENTER)
+page_dungeon_bakery_stage = Page(DUNGEON_BAKERY_SWEEP)
+page_dungeon_candy = Page(DUNGEON_CANDY_CHOOSE)
+page_dungeon_candy_stage = Page(DUNGEON_CANDY_SWEEP)
+page_dungeon_crayon = Page(DUNGEON_CRAYON_ENTER)
+page_dungeon_crayon_stage = Page(DUNGEON_CRAYON_SELECT_DECK)
+page_dungeon_clone = Page(DUNGEON_CLONE_ENTER)
+page_dungeon_clone_stage = Page(DUNGEON_CLONE_SWEEP)
+
+# 短期速成班页面图（不连固定 `page_class -> page_class_stage` 边，入口卡片按星期与配置决定）
+page_class = Page(CLASS_HUB_CHECK)
+page_class_stage = Page(CLASS_STAGE_CHECK)
+
+# 娃娃怪破坏者页面图（不连固定 `page_doll -> page_doll_stage` 边，入口电视按种族选项决定）
+page_doll = Page(DOLL_HUB_TITLE)
+page_doll_stage = Page(DOLL_STAGE_CHECK)
+
+# 巅峰对决（胜利者的竞技场）
+page_pvp = Page(PVP_HUB_TITLE)
+page_pvp_arena = Page(PVP_ARENA_TITLE)
+page_pvp_deck = Page(PVP_GO_WIN)
+
+# 圣团页面图
+page_order = Page(ORDER_CHECK)
+page_order_relic = Page(ORDER_RELIC_TITLE)
 
 page_main.link(button=MAIL_ENTRY, destination=page_mail)
 page_mail.link(button=MAIL_CLOSE, destination=page_main)
 page_main.link(button=FRIEND_ENTRY, destination=page_friend)
-page_friend.link(button=BACK, destination=page_main)
+page_friend.link(button=HOME, destination=page_main)
 page_main.link(button=TASK_ENTRY, destination=page_task)
 page_task.link(button=TASK_WEEKLY_TAB, destination=page_task_weekly)
 page_task_weekly.link(button=TASK_DAILY_TAB, destination=page_task)
 page_task.link(button=BACK, destination=page_main)
 page_task_weekly.link(button=BACK, destination=page_main)
 page_main.link(button=SHOP_ENTRY, destination=page_shop)
-page_shop.link(button=BACK, destination=page_main)
+page_shop.link(button=HOME, destination=page_main)
 page_main.link(button=NORMAL_SHOP_ENTRY, destination=page_normal_shop)
-page_normal_shop.link(button=BACK, destination=page_main)
+page_normal_shop.link(button=HOME, destination=page_main)
 page_main.link(button=PASS_ENTRY, destination=page_pass)
 page_pass.link(button=BACK, destination=page_main)
+page_costume_pass.link(button=HOME, destination=page_main)
+page_event.link(button=HOME, destination=page_main)
+page_event.link(button=EVENT_BATTLE_ENTRY, destination=page_event_stage)
+page_event_stage.link(button=BACK, destination=page_event)
+page_event.link(button=EVENT_ACHIEVEMENT_ENTRY, destination=page_event_task)
+page_event_task.link(button=BACK, destination=page_event)
+page_event.link(button=EVENT_STORY_ENTRY, destination=page_event_story)
+page_event_story.link(button=BACK, destination=page_event)
+page_event.link(button=EVENT_SHOP_ENTRY, destination=page_event_shop)
+page_event_shop.link(button=BACK, destination=page_event)
+page_event_pass.link(button=BACK, destination=page_event)
+
+page_main.link(button=ADVENTURE_ENTRY, destination=page_adventure)
+page_adventure.link(button=HOME, destination=page_main)
+page_adventure.link(button=DUNGEON_ENTRY, destination=page_dungeon)
+page_dungeon.link(button=BACK, destination=page_adventure)
+
+page_dungeon.link(button=DUNGEON_GOLD_ENTRY, destination=page_dungeon_gold)
+page_dungeon_gold.link(button=BACK, destination=page_dungeon)
+page_dungeon_gold.link(button=DUNGEON_GOLD_ENTER, destination=page_dungeon_gold_stage)
+page_dungeon_gold_stage.link(button=BACK, destination=page_dungeon_gold)
+
+page_dungeon.link(button=DUNGEON_BAKERY_ENTRY, destination=page_dungeon_bakery)
+page_dungeon_bakery.link(button=BACK, destination=page_dungeon)
+page_dungeon_bakery.link(button=DUNGEON_BAKERY_ENTER, destination=page_dungeon_bakery_stage)
+page_dungeon_bakery_stage.link(button=BACK, destination=page_dungeon_bakery)
+
+page_dungeon.link(button=DUNGEON_CANDY_ENTRY, destination=page_dungeon_candy)
+page_dungeon_candy.link(button=BACK, destination=page_dungeon)
+page_dungeon_candy_stage.link(button=BACK, destination=page_dungeon_candy)
+
+page_dungeon.link(button=DUNGEON_CRAYON_ENTRY, destination=page_dungeon_crayon)
+page_dungeon_crayon.link(button=BACK, destination=page_dungeon)
+page_dungeon_crayon.link(button=DUNGEON_CRAYON_ENTER, destination=page_dungeon_crayon_stage)
+page_dungeon_crayon_stage.link(button=BACK, destination=page_dungeon_crayon)
+
+page_dungeon.link(button=DUNGEON_CLONE_ENTRY, destination=page_dungeon_clone)
+page_dungeon_clone.link(button=BACK, destination=page_dungeon)
+page_dungeon_clone.link(button=DUNGEON_CLONE_ENTER, destination=page_dungeon_clone_stage)
+page_dungeon_clone_stage.link(button=BACK, destination=page_dungeon_clone)
+
+page_adventure.link(button=CLASS_ENTRY, destination=page_class)
+page_class.link(button=BACK, destination=page_adventure)
+page_class_stage.link(button=BACK, destination=page_class)
+
+page_adventure.link(button=DOLL_ENTRY, destination=page_doll)
+page_doll.link(button=BACK, destination=page_adventure)
+page_doll_stage.link(button=BACK, destination=page_doll)
+
+page_adventure.link(button=PVP_ENTRY, destination=page_pvp)
+page_pvp.link(button=BACK, destination=page_adventure)
+page_pvp.link(button=PVP_ARENA_ENTER, destination=page_pvp_arena)
+page_pvp_arena.link(button=BACK, destination=page_pvp)
+page_pvp_deck.link(button=BACK, destination=page_pvp_arena)
+page_main.link(button=ORDER_ENTRY, destination=page_order)
+page_order.link(button=HOME, destination=page_main)
+page_order_relic.link(button=BACK, destination=page_order)

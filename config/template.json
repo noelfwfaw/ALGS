@@ -692,14 +692,9 @@
       "ServerUpdate": "05:00"
     },
     "ChaoszeroSimulation": {
-      "TrainingGrowth": true,
-      "TrainingMember": false,
-      "TrainingPartner": false,
-      "TrainingPotential": true,
-      "TrainingMemory": false,
-      "TrainingChallenge": false,
-      "TrainingStage": 1,
-      "TrainingDifficulty": 0,
+      "TrainingTarget": "單元幣",
+      "TrainingChallenge": "不刷",
+      "TrainingDifficulty": 6,
       "TrainingEfficiency": 6,
       "TrainingTimes": 0
     },
@@ -1015,7 +1010,7 @@
       "Command": "TrickcalMail",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "05:00"
+      "ServerUpdate": "05:00, 18:00"
     },
     "Storage": {
       "Storage": {}
@@ -1026,6 +1021,108 @@
       "Enable": false,
       "NextRun": "2020-01-01 00:00:00",
       "Command": "TrickcalFriend",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalOrder": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalOrder",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalDoll": {
+    "TrickcalDoll": {
+      "Race": "dragon"
+    },
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalDoll",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalEvent": {
+    "TrickcalEvent": {
+      "SweepStamina": true
+    },
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalEvent",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalDungeon": {
+    "TrickcalDungeon": {
+      "CloneFactory": true,
+      "CloneFactoryStage": 5,
+      "Dungeon": "gold",
+      "DungeonStage": 1
+    },
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalDungeon",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalClass": {
+    "TrickcalClass": {
+      "SaturdaySubject": "green",
+      "SundaySubject": "yellow",
+      "GreenLesson": 0,
+      "BlueLesson": 0,
+      "RedLesson": 0,
+      "YellowLesson": 0,
+      "PurpleLesson": 0
+    },
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalClass",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "TrickcalPvp": {
+    "TrickcalPvp": {
+      "Opponent": 1
+    },
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "TrickcalPvp",
       "SuccessInterval": 0,
       "FailureInterval": 120,
       "ServerUpdate": "05:00"
@@ -1041,7 +1138,7 @@
       "Command": "TrickcalTask",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "05:00"
+      "ServerUpdate": "05:00, 18:00"
     },
     "Storage": {
       "Storage": {}
@@ -1080,7 +1177,86 @@
       "Command": "TrickcalPass",
       "SuccessInterval": 0,
       "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceDaily": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceDaily",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceOperations": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceOperations",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
       "ServerUpdate": "05:00"
+    },
+    "ResonanceOperations": {
+      "SiegeRuns": 0,
+      "SiegeStage": "Order",
+      "SupplyRuns": 0,
+      "SupplyStage": "Auto",
+      "WeeklyRuns": 0
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonancePass": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonancePass",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceShop": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceShop",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ResonanceShop": {
+      "Include": "",
+      "Exclude": ""
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceExchange": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceExchange",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ResonanceExchange": {
+      "Include": "进货采买书, 追加注资申请书"
     },
     "Storage": {
       "Storage": {}

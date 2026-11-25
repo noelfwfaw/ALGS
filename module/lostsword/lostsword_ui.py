@@ -452,8 +452,6 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
         Raises:
             GameStuckError: If the list never clamps.
         """
-        from module.exception import GameStuckError
-
         if forward:
             p1, p2 = (1000, 400), (300, 400)
         else:
@@ -463,12 +461,15 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
         for _ in range(swipes):
             self.device.screenshot()
             before = self.image_crop(band, copy=True)
-            self.device.swipe(p1=p1, p2=p2)
+            # The carousel can ignore a minitouch drag. ADB sends the complete gesture.
+            logger.info('Swipe %s -> %s @ BATTLE_CARDS', p1, p2)
+            self.device.swipe_adb(p1, p2, duration=0.625)
             # 静止判据直接盯卡片带：页签不随卡片滚，盯页签等于没等 —— snap 动画
             # 还在飞就把"后帧"截下来，diff 永远大（2026-11-04 实测四拖全 19~34）。
             # 卡片带的闲置动画抖不出 wait_until_still 的阈值，snap 一完它就返回。
-            self.wait_until_still(band, timeout=3)
-            self.device.screenshot()
+            if not self.wait_until_still(band, timeout=3, skip_first_screenshot=False):
+                self.device.click_record_clear()
+                raise GameStuckError('Battle card list did not settle after drag')
             after = self.image_crop(band, copy=True)
             # 这一拖前后卡片带整段一致 = 没有产生任何位移 = 已经顶在尽头。
             # 阈值放宽到 1：立绘的闲置动画抖不出这个量，滚动位移远大于它。
@@ -480,7 +481,7 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
         # that scrolls twice dies halfway (measured 2026-10-27 in the maze).
         self.device.click_record_clear()
         if not clamped:
-            raise GameStuckError(f'Card list did not clamp after {swipes} swipe(s)')
+            raise GameStuckError(f'Card list did not clamp after {swipes} drag(s)')
 
     def wait_overlay(self, button, timeout=5):
         """

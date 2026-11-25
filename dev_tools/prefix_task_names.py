@@ -43,6 +43,10 @@ PREFIX = {
         'zh-CN': '星之', 'zh-TW': '星之',
         'en-US': 'Star Savior', 'ja-JP': 'スター',
     },
+    'Resonance': {
+        'zh-CN': '琐呐', 'zh-TW': '瑣吶',
+        'en-US': 'Resonance', 'ja-JP': 'レゾナンス',
+    },
 }
 # Chinese reads better without a separator; latin/kana need one.
 SEPARATOR = {'zh-CN': '', 'zh-TW': '', 'en-US': ': ', 'ja-JP': '：'}

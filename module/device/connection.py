@@ -4,6 +4,7 @@ import logging
 import re
 import socket
 import subprocess
+import threading
 import time
 from functools import wraps
 
@@ -26,6 +27,11 @@ from module.device.method.utils import (PackageNotInstalled, RETRY_TRIES, get_se
 from module.exception import EmulatorNotRunningError, RequestHumanTakeover
 from module.logger import logger
 from module.base.grids import SelectedGrids
+
+ADB_SERVER_SLOW_THRESHOLD = 0.5
+ADB_CALL_SLOW_THRESHOLD = 2.0
+ADB_HEALTH_CHECK_COOLDOWN = 30.0
+ADB_HEAL_COOLDOWN = 60.0
 
 
 def retry(func):
@@ -115,6 +121,7 @@ class Connection(ConnectionAttr):
         """
         super().__init__(config)
         if not self.is_over_http:
+            self.check_adb_server_health(reconnect=False, force=True)
             self.detect_device()
 
         # Connect
@@ -210,11 +217,14 @@ class Connection(ConnectionAttr):
         if not isinstance(cmd, str):
             cmd = list(map(str, cmd))
 
+        start = time.monotonic()
         if stream:
             result = self.adb.shell(cmd, stream=stream, timeout=timeout, rstrip=rstrip)
             if recvall:
                 # bytes
-                return recv_all(result)
+                data = recv_all(result)
+                self._maybe_heal_slow_adb(time.monotonic() - start, reconnect=True)
+                return data
             else:
                 # socket
                 return result
@@ -222,6 +232,7 @@ class Connection(ConnectionAttr):
             result = self.adb.shell(cmd, stream=stream, timeout=timeout, rstrip=rstrip)
             result = remove_shell_warning(result)
             # str
+            self._maybe_heal_slow_adb(time.monotonic() - start, reconnect=True)
             return result
 
     @Config.when(DEVICE_OVER_HTTP=True)
@@ -885,23 +896,83 @@ class Connection(ConnectionAttr):
             logger.info(msg)
         self.release_resource()
 
+    def _adb_server_version_latency(self, timeout=3.0):
+        """Measure local `adb` daemon `host:version` roundtrip in seconds."""
+        start = time.monotonic()
+        try:
+            with self.adb_client._connect(timeout=timeout) as c:
+                c.send_command('host:version')
+                c.check_okay()
+                c.read_string_block()
+            return time.monotonic() - start
+        except (OSError, AdbError, AdbTimeout):
+            return max(time.monotonic() - start, timeout)
+
+    def _maybe_heal_slow_adb(self, elapsed, reconnect=True):
+        """Check `host:version` latency when an ADB shell call looks abnormally slow."""
+        if elapsed < ADB_CALL_SLOW_THRESHOLD:
+            return False
+        return self.check_adb_server_health(reconnect=reconnect, force=False)
+
+    def check_adb_server_health(self, reconnect=False, force=False):
+        """Restart the local adb server if `host:version` stalls on two consecutive checks."""
+        if self.is_over_http:
+            return False
+        if threading.current_thread() is not threading.main_thread():
+            return False
+        now = time.monotonic()
+        last_heal = getattr(self, '_adb_heal_at', -ADB_HEAL_COOLDOWN)
+        if now - last_heal < ADB_HEAL_COOLDOWN:
+            return False
+        last_check = getattr(self, '_adb_health_check_at', -ADB_HEALTH_CHECK_COOLDOWN)
+        if not force and now - last_check < ADB_HEALTH_CHECK_COOLDOWN:
+            return False
+
+        self._adb_health_check_at = now
+        latency = self._adb_server_version_latency()
+        if latency < ADB_SERVER_SLOW_THRESHOLD:
+            return False
+        # First probe may include cold-starting adb.exe; confirm on the warm daemon.
+        latency = self._adb_server_version_latency()
+        if latency < ADB_SERVER_SLOW_THRESHOLD:
+            return False
+
+        self._adb_heal_at = now
+        logger.warning(f'ADB server looks stalled (host:version took {latency:.2f}s), restart adb')
+        self.adb_restart()
+        self.adb_start_server()
+        if reconnect:
+            self.adb_connect(wait_device=False)
+        return True
+
     def adb_restart(self):
         """
             Reboot adb client
         """
         logger.info('Restart adb')
         # Kill current client
-        self.adb_client.server_kill()
+        try:
+            self.adb_client.server_kill()
+        except Exception as e:
+            logger.warning(f'adb server_kill failed ({e}), fallback to kill-server')
+            try:
+                self.subprocess_run([self.adb_binary, 'kill-server'], timeout=5)
+            except Exception as err:
+                logger.warning(f'adb kill-server failed: {err}')
         # Init adb client
         del_cached_property(self, 'adb_client')
+        del_cached_property(self, 'adb')
         self.release_resource()
         _ = self.adb_client
 
     @Config.when(DEVICE_OVER_HTTP=False)
     def adb_reconnect(self):
         """
-           Reboot adb client if no device found, otherwise try reconnecting device.
+           Reboot adb client if no device found or server is stalled, otherwise try reconnecting device.
         """
+        if self.check_adb_server_health(reconnect=True, force=True):
+            self.detect_device()
+            return
         if self.config.Emulator_AdbRestart and len(self.list_device()) == 0:
             # Restart Adb
             self.adb_restart()

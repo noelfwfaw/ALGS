@@ -72,6 +72,11 @@ OCR_FUSED_HELD = (648, 640, 712, 668)
 # (which is the order card's reward icon, padded by 6 px). Measured on
 # page_15: need "×10" at (1026,590), 资源暂缺 at (1063,600), 交付 at
 # (992,648)-(1160,669).
+# Inner pass-ticket icon inside `ORDER_BUILD` (69x70): skips the outer grey or
+# golden-yellow 稀有 card frame so both rarities match cleanly. Matched top-left
+# points are shifted back by (-x1, -y1) so all `CARD_*` offsets stay unchanged.
+ORDER_BUILD_CORE = (8, 20, 56, 62)
+
 CARD_NEED = (-66, 146, -26, 170)
 CARD_LACK = (-70, 130, 80, 200)
 CARD_SOLD = (-70, 67, 57, 102)
@@ -80,6 +85,9 @@ CARD_DELIVER = (-100, 204, 68, 225)
 # Eight cards, four per row. The left 制作素材 panel starts at x=20, so the
 # search starts far enough right not to read its 稀有黑匣 icon.
 ORDER_GRID = (270, 60, 1270, 640)
+
+# Maximum crafting round-trips across own and friend libraries per run.
+ORDER_MAX_CRAFTS = 16
 
 # One 驻员预设 icon column on the staff page, four rows visible at a time.
 STAFF_COLUMN = (970, 80, 1060, 645)
@@ -494,29 +502,55 @@ class CrosscoreBase(CrosscoreUI):
         # next screen looks exactly like "the order is not deliverable".
         self.wait_until_still(area=ORDER_GRID, timeout=3)
 
-        crafts = 2
-        for _ in range(2):
-            state = self.order_scan()
+        crafts = ORDER_MAX_CRAFTS
+        can_craft = True
+        for _ in range(ORDER_MAX_CRAFTS):
+            state = self.order_scan(can_craft=can_craft and crafts > 0)
             if state != 'lacked' or crafts <= 0:
                 break
             crafts -= 1
-            if not self.craft_missing():
-                break
+            result = self.craft_missing()
+            if result == 'abort':
+                return
+            if result == 'short':
+                can_craft = False
             if not self.order_reenter():
-                break
+                return
 
-        self.order_friends(crafts)
+        self.order_friends(crafts, can_craft=can_craft)
 
-    def order_scan(self):
+    def order_build_points(self):
+        """
+        Find every 构建订单 card on the current page, including golden 稀有 cards.
+
+        Matching the inner pass-ticket crop avoids the outer card background,
+        then shifts coordinates back to the full `ORDER_BUILD` origin so
+        `CARD_*` offsets stay unchanged.
+
+        Returns:
+            list[tuple[int, int]]: Top-left `ORDER_BUILD` positions, top to bottom.
+        """
+        dx, dy, _, _ = ORDER_BUILD_CORE
+        core = crop(template_of(ORDER_BUILD), ORDER_BUILD_CORE)
+        return [(x - dx, y - dy)
+                for x, y in find_all(self.device.image, core, ORDER_GRID, similarity=0.86)]
+
+    def order_scan(self, can_craft=True):
         """
         Deliver every 构建订单 card on the current library page.
 
         A delivered card can stay on screen with 日限 0/1, so the delivered
         positions are remembered and skipped when the page is scanned again.
+        Ready cards are delivered before lacked cards so crafting failures or
+        disabled crafting never block deliverable cards on the same page.
+
+        Args:
+            can_craft (bool): Whether to stop and return `'lacked'` when only
+                resource-short cards remain.
 
         Returns:
-            str: 'empty' (nothing left), 'lacked' (needs crafting), or
-                'stuck' (the 交付 click did not raise the confirm dialog).
+            str: 'empty' (nothing deliverable left), 'lacked' (needs crafting),
+                or 'stuck' (the 交付 click did not raise the confirm dialog).
         """
         delivered = []
         for _ in range(8):
@@ -527,36 +561,53 @@ class CrosscoreBase(CrosscoreUI):
                 self.order_library_wait()
                 continue
 
-            points = find_all(self.device.image, template_of(ORDER_BUILD), ORDER_GRID, similarity=0.86)
+            points = self.order_build_points()
             points = [p for p in points
                       if all(abs(p[0] - x) > 30 or abs(p[1] - y) > 30 for x, y in delivered)]
             if not points:
                 return 'empty'
 
-            x, y = points[0]
-            # A delivered card stays on the page with a 「告罄」 band and a grey
-            # 交付 bar. Clicking it does nothing but burn the retry window.
-            sold = self.card_area(CARD_SOLD, x, y)
-            if has_template(self.device.image, template_of(ORDER_SOLD), sold, similarity=0.85):
-                logger.info('The construction order is 告罄, skip it')
+            ready = []
+            lacked = []
+            for x, y in points:
+                # A delivered card stays on the page with a 「告罄」 band and a grey
+                # 交付 bar. Clicking it does nothing but burn the retry window.
+                sold = self.card_area(CARD_SOLD, x, y)
+                if has_template(self.device.image, template_of(ORDER_SOLD), sold, similarity=0.85):
+                    logger.info('The construction order is 告罄, skip it')
+                    delivered.append((x, y))
+                    continue
+
+                lack = self.card_area(CARD_LACK, x, y)
+                # 0.80: the red 「资源暂缺」 sits on a different background on every
+                # card, and the exact-text match measured 0.84 on the live library.
+                if has_template(self.device.image, template_of(ORDER_LACK), lack, similarity=0.80):
+                    lacked.append((x, y))
+                else:
+                    ready.append((x, y))
+
+            if ready:
+                x, y = ready[0]
+                deliver = self.tap_area(self.card_area(CARD_DELIVER, x, y), 'ORDER_DELIVER')
+                logger.info('Deliver a construction order')
+                self.device.click(deliver)  # alas-lint: allow - the card is a match found by find_all() on this frame, there is no single Button to guard with
                 delivered.append((x, y))
+                if not self.order_confirm(deliver):
+                    return 'stuck'
                 continue
 
-            lack = self.card_area(CARD_LACK, x, y)
-            # 0.80: the red 「资源暂缺」 sits on a different background on every
-            # card, and the exact-text match measured 0.84 on the live library.
-            if has_template(self.device.image, template_of(ORDER_LACK), lack, similarity=0.80):
-                self.pending_need = self.read_number(
-                    self.card_area(CARD_NEED, x, y), (255, 255, 255), 170, 'ORDER_NEED')
-                logger.info(f'Construction order needs {self.pending_need} black boxes, craft first')
-                return 'lacked'
+            if not lacked:
+                return 'empty'
 
-            deliver = self.tap_area(self.card_area(CARD_DELIVER, x, y), 'ORDER_DELIVER')
-            logger.info('Deliver a construction order')
-            self.device.click(deliver)  # alas-lint: allow - the card is a match found by find_all() on this frame, there is no single Button to guard with
-            delivered.append((x, y))
-            if not self.order_confirm(deliver):
-                return 'stuck'
+            if not can_craft:
+                logger.info('Skip lacked construction order, crafting exhausted')
+                return 'empty'
+
+            x, y = lacked[0]
+            self.pending_need = self.read_number(
+                self.card_area(CARD_NEED, x, y), (255, 255, 255), 170, 'ORDER_NEED')
+            logger.info(f'Construction order needs {self.pending_need} black boxes, craft first')
+            return 'lacked'
 
         return 'empty'
 
@@ -623,12 +674,13 @@ class CrosscoreBase(CrosscoreUI):
                 return True
         return False
 
-    def order_friends(self, crafts):
+    def order_friends(self, crafts, can_craft=True):
         """
         Walk the friends with the right arrow until it drops us back home.
 
         Args:
             crafts (int): How many times a missing-material craft may be done.
+            can_craft (bool): Whether missing-material crafting is still viable.
         """
         if not self.friend_list_enter():
             logger.info('No friend to visit')
@@ -643,11 +695,14 @@ class CrosscoreBase(CrosscoreUI):
 
         unchanged = 0
         for _ in self.loop(timeout=300):
-            state = self.order_scan()
+            state = self.order_scan(can_craft=can_craft and crafts > 0)
             if state == 'lacked' and crafts > 0:
                 crafts -= 1
-                if not self.craft_missing():
+                result = self.craft_missing()
+                if result == 'abort':
                     return
+                if result == 'short':
+                    can_craft = False
                 # 2026-11-08 真机：the 制作素材 page returns to the same order
                 # library, not to the friend list (page_10 -> page_9 in the
                 # spec). Waiting for ORDER_VISIT here timed out and aborted the
@@ -730,7 +785,9 @@ class CrosscoreBase(CrosscoreUI):
         Craft what is missing for the construction order on screen.
 
         Returns:
-            bool: If the craft page was opened and left again.
+            str: `'ok'` when the library returned with enough stock, `'short'`
+                when raw materials or output fell short so later lacked orders
+                should skip crafting, or `'abort'` if the craft UI got stuck.
         """
         need = getattr(self, 'pending_need', 0) or BLACKBOX_PER_ORDER
         # The craft page's cube carries the recipe output, so stock is read on
@@ -750,12 +807,12 @@ class CrosscoreBase(CrosscoreUI):
                 break
         if not opened:
             logger.warning('The craft page did not open')
-            return False
+            return 'abort'
 
         missing = max(0, need - held)
         logger.info(f'Black boxes: have {held}, need {need}, craft {missing}')
         if missing <= 0:
-            return self.craft_back()
+            return 'ok' if self.craft_back() else 'abort'
 
         piezo = self.read_short_number(OCR_PIEZO_HELD, 'PIEZO')
         fused = self.read_short_number(OCR_FUSED_HELD, 'FUSED')
@@ -766,17 +823,29 @@ class CrosscoreBase(CrosscoreUI):
         # Drive the two raw materials by their real stock, not by the amount
         # OCR'd inside the craft dialog (2026-11-10 真机: nine 99-piece batches
         # were made for a 353 gap because the dialog kept reporting 39).
+        piezo_ok = True
+        fused_ok = True
         if piezo < piezo_need:
-            self.craft_item(CRAFT_PIEZO, piezo_need - piezo,
-                            stock=(OCR_PIEZO_HELD, 'PIEZO', piezo_need, piezo))
+            piezo_ok = self.craft_item(
+                CRAFT_PIEZO, piezo_need - piezo,
+                stock=(OCR_PIEZO_HELD, 'PIEZO', piezo_need, piezo))
         if fused < fused_need:
-            self.craft_item(CRAFT_FUSED, fused_need - fused,
-                            stock=(OCR_FUSED_HELD, 'FUSED', fused_need, fused))
+            fused_ok = self.craft_item(
+                CRAFT_FUSED, fused_need - fused,
+                stock=(OCR_FUSED_HELD, 'FUSED', fused_need, fused))
         # The black box stock is on the order library, not on the craft page,
         # so this one still batches on the dialog amount (usually one batch).
-        self.craft_item(CRAFT_BLACKBOX, missing)
+        blackbox_ok = self.craft_item(CRAFT_BLACKBOX, missing)
 
-        return self.craft_back()
+        if not self.craft_back():
+            return 'abort'
+        if not (piezo_ok and fused_ok and blackbox_ok):
+            return 'short'
+        held_after = self.read_number(OCR_BLACKBOX_OWN, (240, 240, 240), 150, 'BLACKBOX')
+        if held_after < need:
+            logger.warning(f'Black boxes still short after crafting: {held_after}/{need}')
+            return 'short'
+        return 'ok'
 
     def craft_item(self, entry, count, stock=None):
         """

@@ -153,16 +153,11 @@ class GeneratedConfig:
     BrowndustHunt_CaveDark = 2
 
     # Group `ChaoszeroSimulation`
-    ChaoszeroSimulation_TrainingGrowth = True
-    ChaoszeroSimulation_TrainingMember = False
-    ChaoszeroSimulation_TrainingPartner = False
-    ChaoszeroSimulation_TrainingPotential = True
-    ChaoszeroSimulation_TrainingMemory = False
-    ChaoszeroSimulation_TrainingChallenge = False
-    ChaoszeroSimulation_TrainingStage = 1
-    ChaoszeroSimulation_TrainingDifficulty = 0
-    ChaoszeroSimulation_TrainingEfficiency = 6
-    ChaoszeroSimulation_TrainingTimes = 0
+    ChaoszeroSimulation_TrainingTarget = '單元幣'  # 不刷, 單元幣, 戰鬥員升級材料, 夥伴升級材料, 戰鬥員升階材料—決鬥家, 戰鬥員升階材料—先鋒, 戰鬥員升階材料—遊俠, 戰鬥員升階材料—獵人, 戰鬥員升階材料—心靈術士, 戰鬥員升階材料—控制師, 夥伴升階材料—決鬥家, 夥伴升階材料—先鋒, 夥伴升階材料—遊俠, 夥伴升階材料—獵人, 夥伴升階材料—心靈術士, 夥伴升階材料—控制師, 潛力材料—熱情, 潛力材料—秩序, 潛力材料—本能, 潛力材料—虛無, 潛力材料—正義, 光輝與雪花, 進化與荊棘, 序曲與夢境, 夙願與君臨, 火焰與寶珠, 地位與事跡, 榮譽與權位, 循環與命運, 貪婪與執念, 跟聖甲蟲的約定, 屍體與工具
+    ChaoszeroSimulation_TrainingChallenge = '不刷'  # 不刷, 嚎叫浪子, 面對的恐懼
+    ChaoszeroSimulation_TrainingDifficulty = 6  # 0, 1, 2, 3, 4, 5, 6
+    ChaoszeroSimulation_TrainingEfficiency = 6  # 0, 1, 2, 3, 4, 5, 6
+    ChaoszeroSimulation_TrainingTimes = 0  # 0, 1, 2, 3, 4, 5, 6, 8, 10
 
     # Group `ChaoszeroRogue`
     ChaoszeroRogue_RogueWorld = '霧之城市'  # 霧之城市, 雙星之影, 審判之沼, 藍壺, 降臨的混沌, 賽季卡厄思
@@ -247,6 +242,44 @@ class GeneratedConfig:
     Starsavior2_RerollCount = 0
     Starsavior2_StopSSRCount = 0
     Starsavior2_Round = 0
+
+    # Group `TrickcalEvent`
+    TrickcalEvent_SweepStamina = True
+
+    # Group `TrickcalDungeon`
+    TrickcalDungeon_CloneFactory = True
+    TrickcalDungeon_CloneFactoryStage = 5
+    TrickcalDungeon_Dungeon = 'gold'  # none, gold, bakery_macaron, bakery_cream, candy_red, candy_blue, candy_green, crayon
+    TrickcalDungeon_DungeonStage = 1
+
+    # Group `TrickcalClass`
+    TrickcalClass_SaturdaySubject = 'green'  # green, blue, red
+    TrickcalClass_SundaySubject = 'yellow'  # yellow, purple
+    TrickcalClass_GreenLesson = 0
+    TrickcalClass_BlueLesson = 0
+    TrickcalClass_RedLesson = 0
+    TrickcalClass_YellowLesson = 0
+    TrickcalClass_PurpleLesson = 0
+
+    # Group `TrickcalDoll`
+    TrickcalDoll_Race = 'dragon'  # dragon, elf, ghost, fairy, witch, elemental, mystic, beast
+
+    # Group `TrickcalPvp`
+    TrickcalPvp_Opponent = 1  # 1, 2, 3
+
+    # Group `ResonanceOperations`
+    ResonanceOperations_SiegeRuns = 0  # 0, 1, 2, 3
+    ResonanceOperations_SiegeStage = 'Order'  # Order, Blade, Lantern, Material, Knight, Think, Report, Large, Total
+    ResonanceOperations_SupplyRuns = 0  # 0, 1, 2, 3
+    ResonanceOperations_SupplyStage = 'Auto'  # Auto, Elegant, Standard, Salvation, Advanced, Chaos, Magic
+    ResonanceOperations_WeeklyRuns = 0  # 0, 1, 2, 3
+
+    # Group `ResonanceShop`
+    ResonanceShop_Include = ''
+    ResonanceShop_Exclude = ''
+
+    # Group `ResonanceExchange`
+    ResonanceExchange_Include = '进货采买书, 追加注资申请书'
 
     # Group `Storage`
     Storage_Storage = {}

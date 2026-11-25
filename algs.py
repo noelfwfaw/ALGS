@@ -375,6 +375,30 @@ class AlGS(GameScheduler):
         from module.trickcal.friend import TrickcalFriend
         TrickcalFriend(config=self.config, device=self.device).run()
 
+    def trickcal_order(self):
+        from module.trickcal.order import TrickcalOrder
+        TrickcalOrder(config=self.config, device=self.device).run()
+
+    def trickcal_event(self):
+        from module.trickcal.event import TrickcalEvent
+        TrickcalEvent(config=self.config, device=self.device).run()
+
+    def trickcal_dungeon(self):
+        from module.trickcal.dungeon import TrickcalDungeon
+        TrickcalDungeon(config=self.config, device=self.device).run()
+
+    def trickcal_class(self):
+        from module.trickcal.class_task import TrickcalClass
+        TrickcalClass(config=self.config, device=self.device).run()
+
+    def trickcal_doll(self):
+        from module.trickcal.doll import TrickcalDoll
+        TrickcalDoll(config=self.config, device=self.device).run()
+
+    def trickcal_pvp(self):
+        from module.trickcal.pvp import TrickcalPvp
+        TrickcalPvp(config=self.config, device=self.device).run()
+
     def trickcal_task(self):
         from module.trickcal.task import TrickcalTask
         TrickcalTask(config=self.config, device=self.device).run()
@@ -392,6 +416,26 @@ class AlGS(GameScheduler):
         TrickcalPass(config=self.config, device=self.device).run()
 
     # ==================== Resonance (雷索纳斯) ====================
+
+    def resonance_daily(self):
+        from module.resonance.daily import ResonanceDaily
+        ResonanceDaily(config=self.config, device=self.device).run()
+
+    def resonance_operations(self):
+        from module.resonance.operations import ResonanceOperations
+        ResonanceOperations(config=self.config, device=self.device).run()
+
+    def resonance_pass(self):
+        from module.resonance.battle_pass import ResonancePass
+        ResonancePass(config=self.config, device=self.device).run()
+
+    def resonance_shop(self):
+        from module.resonance.shop import ResonanceShop
+        ResonanceShop(config=self.config, device=self.device).run()
+
+    def resonance_exchange(self):
+        from module.resonance.exchange import ResonanceExchange
+        ResonanceExchange(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

@@ -18,7 +18,6 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      AVALON_TITLE,
                                      BOSS_BTN_CLOSE,
                                      BOSS_BTN_TEAM,
-                                     BOSS_CARD,
                                      BOSS_DIALOG_CLOSE,
                                      BOSS_DIALOG_TITLE,
                                      BOSS_TICKET_CLOSE,
@@ -100,8 +99,7 @@ page_treasure_quick = Page(TREASURE_QUICK_TITLE)
 # The "是否进行扫荡?" dialog of the boss raid. The dialog does not cover the
 # boss page behind it (its "队伍编排" button stays matched), so this has to come
 # before that page. It is a page of its own because a dialog left open swallows
-# every later click: routing through it lets `ui_ensure(page_boss)` close a stray
-# one instead of clicking into a modal.
+# every later click. Its own page also lets the graph route out of the modal.
 page_boss_dialog = Page(BOSS_DIALOG_TITLE)
 # The 「一键扫荡」 dialog, the paid sweep: it opens when 「扫荡」 is pressed with no
 # free try left, and it spends a Boss Raid Ticket if its own 「扫荡」 button is
@@ -264,7 +262,6 @@ page_event.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 # page leaves the event.
 page_event_stage.link(button=ARENA_BTN_CLOSE, destination=page_event_start)
 page_event_start.link(button=ARENA_BTN_CLOSE, destination=page_event)
-page_battle.link(button=BOSS_CARD, destination=page_boss)
 page_battle.link(button=DUNGEON_CARD, destination=page_dungeon)
 page_battle.link(button=STAR_CARD, destination=page_star)
 page_star.link(button=ARENA_BTN_CLOSE, destination=page_battle)

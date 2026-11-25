@@ -3,12 +3,13 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (BOSS_BEST_SCORE, BOSS_BTN_ENTER,
                                      BOSS_BTN_SWEEP, BOSS_BTN_SWEEP_CONFIRM,
-                                     BOSS_BTN_TEAM, BOSS_DIALOG_CLOSE,
+                                     BOSS_BTN_TEAM, BOSS_CARD, BOSS_DIALOG_CLOSE,
                                      BOSS_DIALOG_TITLE, BOSS_TICKET_CLOSE,
                                      BOSS_TICKET_TITLE, BOSS_VICTORY,
                                      REWARD_POPUP_TITLE)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
-                                          page_battle, page_boss)
+                                          page_battle, page_boss,
+                                          page_boss_dialog, page_boss_ticket)
 
 """
 Boss raid (领主突袭).
@@ -62,9 +63,7 @@ class LostswordBoss(LostswordUI):
             out: page_main
         """
         logger.hr('Boss raid', level=1)
-        self.ui_ensure(page_battle)
-        self.battle_goto_normal()
-        self.ui_ensure(page_boss)
+        self.boss_goto_page()
         self.boss_dismiss_dialogs()
 
         if self.boss_fought_today():
@@ -78,12 +77,35 @@ class LostswordBoss(LostswordUI):
         else:
             logger.info('Sweep is off, the rest of the tries are left alone')
 
-        self.ui_ensure(page_boss)
+        self.boss_goto_page()
         self.boss_dismiss_dialogs()
         self.ui_goto_main()
         # One pass a day, at the daily reset of this game (00:00, pinned in
         # argument/override.yaml).
         self.config.task_delay(server_update=True)
+
+    def boss_goto_page(self, timeout=12):
+        """Find the raid card on the battle tab, then confirm the raid page."""
+        current = self.ui_get_current_page(skip_first_screenshot=False)
+        if current in (page_boss, page_boss_dialog, page_boss_ticket):
+            return
+        if current != page_battle:
+            self.ui_goto(page_battle)
+        if not self.battle_goto_normal():
+            raise GameStuckError('Boss raid: cannot open the normal battle tab')
+
+        retry = Timer(2)
+        for _ in self.loop(timeout=timeout):
+            if self.ui_page_appear(page_boss):
+                self.ui_current = page_boss
+                return
+            if retry.reached() and self.ui_page_appear(page_battle):
+                # The carousel can leave the card anywhere along this row.
+                if self.appear(BOSS_CARD, offset=(-149, -20, 1016, 20)):
+                    logger.info('Boss raid card found at %s', BOSS_CARD.button)
+                    self.tap_asset(BOSS_CARD)
+                    retry.reset()
+        raise GameStuckError('Boss raid page did not open')
 
     def boss_fought_today(self):
         """
@@ -91,7 +113,7 @@ class LostswordBoss(LostswordUI):
 
         Read from the "最高分数" row, which does not exist before the first run
         of the day and stays afterwards. The page is still sliding in when
-        `ui_ensure` returns, and on that frame the row has not been drawn yet
+        navigation returns, and on that frame the row has not been drawn yet
         (measured: absent 10ms after the page arrived, present a second later),
         so the absence is only believed after a bounded wait instead of on the
         first frame.
@@ -179,7 +201,7 @@ class LostswordBoss(LostswordUI):
         """
         swept = 0
         for _ in range(BOSS_SWEEP_TRIES):
-            self.ui_ensure(page_boss)
+            self.boss_goto_page()
             self.boss_dismiss_dialogs()
             # The button keeps its look while there are free tries and switches
             # to the ticket layout once there are none, so a bounded wait that
@@ -197,9 +219,8 @@ class LostswordBoss(LostswordUI):
         Close any dialog left open on the boss page.
 
         Both dialogs cover only the middle of the page: the 「队伍编排」 button
-        below them still matches, so `ui_goto` believes it already arrived at
-        `page_boss` and leaves the dialog open. Closing it is left to the
-        callers of the graph instead.
+        below them still matches. Close either dialog before using the raid
+        controls.
 
         Pages:
             in: page_boss

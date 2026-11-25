@@ -390,6 +390,7 @@ class EventSelectionTest(unittest.TestCase):
         self.assertEqual(self.task.rogue_event_manual_index(['品嚐蘑菇', '吸入孢子'], packs), 2)
         self.assertEqual(self.task.event_choice['id'], child)
         self.task.node_pending = object()
+        self.task.route_plan = None
         self.task.route_step = 1
         self.task.plan_index = 1
         self.task.rogue_map_appear = Mock(return_value=True)

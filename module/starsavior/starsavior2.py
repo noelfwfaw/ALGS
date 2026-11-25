@@ -580,16 +580,40 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
     crash_watch = False
     crash_missing = 0
     crash_grace_until = 0.0
+    _crash_epoch = 0
+    _crash_lock = None
+    _crash_probe_thread = None
+    _crash_probe_result = None
 
     # 热更新保护：认到过热更新就记一个截止时间，这段时间内不判闪退、不强杀。
     hot_update_until = 0.0
 
+    def _crash_state_lock(self):
+        """Return a per-instance lock usable even when `__init__` was bypassed."""
+        lock = self.__dict__.get('_crash_lock')
+        if lock is None:
+            lock = threading.Lock()
+            self.__dict__['_crash_lock'] = lock
+        return lock
+
+    def disarm_crash_watch(self):
+        """停用闪退检测并作废在途的后台探活结果。"""
+        with self._crash_state_lock():
+            self._crash_epoch += 1
+            self._crash_probe_result = None
+            self._crash_timer = None
+            self.crash_missing = 0
+            self.crash_watch = False
+
     def arm_crash_watch(self):
         """画面已就绪，开始查游戏进程；重启 / 重置之后要重新调一次。"""
-        self._crash_timer = None
-        self.crash_missing = 0
-        self.crash_grace_until = time.time() + CRASH_GRACE
-        self.crash_watch = True
+        with self._crash_state_lock():
+            self._crash_epoch += 1
+            self._crash_probe_result = None
+            self._crash_timer = None
+            self.crash_missing = 0
+            self.crash_grace_until = time.time() + CRASH_GRACE
+            self.crash_watch = True
 
     def loop(self, skip_first=True, timeout=None):
         """
@@ -597,7 +621,8 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
 
         这个工具的每一段（guide / journey / settle / claim / gacha / verify /
         reset / wait_start_screen）都走 `self.loop()`，所以挂在这里一处就能覆盖
-        全部长循环，不必逐段插检测。`check_game_crash()` 自己按秒节流。
+        全部长循环，不必逐段插检测。`check_game_crash()` 把 `adb_shell` 放进
+        后台线程按秒节流，主循环零阻塞；即便 adb 临时卡顿也不拖慢点击和截图。
 
         Raises:
             GameCrashed: 连续多次查不到游戏进程，交给 `run()` 重启并重走本轮。
@@ -611,31 +636,48 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
         for _ in self.loop(timeout=seconds):
             self.device.stuck_record_clear()
 
-    def check_game_crash(self):
-        """按秒查一次，连续多次确认「进程没了 / 退回桌面」才抛 `GameCrashed`。
-
-        adb 自己掉线时只跳过本轮检测：那是连接问题，重启游戏救不了。
-        """
-        if not self.crash_watch or time.time() < self.crash_grace_until:
-            return
-        timer = getattr(self, '_crash_timer', None)
-        if timer is None:
-            self._crash_timer = Timer(CRASH_POLL).start()
-            return
-        if not timer.reached():
-            return
-        timer.reset()
-
+    def _probe_crash_state(self):
+        """单次 `adb_shell` 查询进程和前台界面，供后台探活线程调用。"""
         package = server.to_package('starsavior')
+        cmd = (
+            f'pids=$(pidof {package}); echo "__PID__:$pids"; '
+            f'if [ -n "$pids" ]; then {CRASH_FRONT_CMD}; fi'
+        )
+        out = self.device.adb_shell(cmd)
+        pid_value = ''
+        front_lines = []
+        found_marker = False
+        for line in out.splitlines():
+            if not found_marker and line.startswith('__PID__:'):
+                pid_value = line[len('__PID__:'):].strip()
+                found_marker = True
+            else:
+                front_lines.append(line)
+        if not found_marker:
+            raise ValueError('Unexpected crash probe output: %r' % out)
+        if not pid_value:
+            return 'gone', None
+        if self._front_is_desktop('\n'.join(front_lines)):
+            return 'desktop', None
+        return 'ok', None
+
+    def _run_crash_probe(self, epoch, lock):
         try:
-            alive = bool(self.device.adb_shell(['pidof', package]).strip())
-        except Exception as e:
-            logger.warning('闪退检测：adb 查进程失败（%s），跳过本轮' % e)
+            status, info = self._probe_crash_state()
+        except Exception as exc:
+            status, info = 'error', exc
+        with lock:
+            if epoch == self._crash_epoch:
+                self._crash_probe_result = (epoch, status, info)
+            if self._crash_probe_thread is threading.current_thread():
+                self._crash_probe_thread = None
+
+    def _handle_crash_probe(self, status, info):
+        if status == 'error':
+            logger.warning('闪退检测：adb 查进程失败（%s），跳过本轮' % info)
             self.crash_missing = 0
             return
-        gone = not alive
-        desktop = self.game_on_desktop() if alive else False
-        if alive and not desktop:
+        if status == 'ok':
             self.crash_missing = 0
             return
         # 热更新 / 编译着色器期间会有一两帧退到桌面（客户端在重建 Activity），
@@ -644,13 +686,52 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             self.crash_missing = 0
             return
 
+        gone = status == 'gone'
         self.crash_missing += 1
         reason = '进程消失' if gone else '退回桌面'
         logger.warning('闪退检测：%s（%d/%d）'
                        % (reason, self.crash_missing, CRASH_CONFIRM))
         if self.crash_missing >= CRASH_CONFIRM:
-            raise GameCrashed('%s，连续 %d 次' % (reason, self.crash_missing),
+            self.crash_missing = 0
+            raise GameCrashed('%s，连续 %d 次' % (reason, CRASH_CONFIRM),
                               gone=gone)
+
+    def check_game_crash(self):
+        """后台异步查闪退，连续多次确认「进程没了 / 退回桌面」才抛 `GameCrashed`。
+
+        `adb_shell` 在后台线程里执行，不阻塞主循环截图与点击；adb 自己掉线时跳过本轮。
+        """
+        if not self.crash_watch or time.time() < self.crash_grace_until:
+            return
+        lock = self._crash_state_lock()
+        with lock:
+            result = self._crash_probe_result
+            self._crash_probe_result = None
+            epoch = self._crash_epoch
+            thread = self._crash_probe_thread
+        if result is not None and result[0] == epoch:
+            self._handle_crash_probe(result[1], result[2])
+            if self._crash_timer is not None:
+                self._crash_timer.reset()
+
+        timer = getattr(self, '_crash_timer', None)
+        if timer is None:
+            self._crash_timer = Timer(CRASH_POLL).start()
+            return
+        if not timer.reached():
+            return
+        if thread is not None and thread.is_alive():
+            return
+
+        timer.reset()
+        worker = threading.Thread(
+            target=self._run_crash_probe,
+            args=(epoch, lock),
+            daemon=True,
+        )
+        with lock:
+            self._crash_probe_thread = worker
+        worker.start()
 
     def desktop_package(self):
         """默认桌面的包名，查一次就缓存（`cmd package resolve-activity`）。"""
@@ -669,16 +750,12 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                     cached = line.split('/')[0].strip()
         except Exception as e:
             logger.warning('闪退检测：查不到桌面包名（%s），只靠进程判据' % e)
-        self._desktop_package = cached
+        else:
+            self._desktop_package = cached
         return cached
 
-    def game_on_desktop(self):
-        """前台是不是桌面。只认「默认 HOME / 名字带 launcher」，不认普通系统弹窗。"""
-        try:
-            front = self.device.adb_shell(CRASH_FRONT_CMD)
-        except Exception as e:
-            logger.warning('闪退检测：查前台失败（%s），跳过本轮' % e)
-            return False
+    def _front_is_desktop(self, front):
+        """Parse `dumpsys activity activities` lines for launcher foreground."""
         # `dumpsys activity activities` 可能给多行（每个 task 一条），
         # 只拿当前 resumed 那一行，别把历史记录里的桌面读成前台。
         line = ''
@@ -695,6 +772,15 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             return True
         return 'launcher' in line.lower() or 'lawnchair' in line.lower()
 
+    def game_on_desktop(self):
+        """前台是不是桌面。只认「默认 HOME / 名字带 launcher」，不认普通系统弹窗。"""
+        try:
+            front = self.device.adb_shell(CRASH_FRONT_CMD)
+        except Exception as e:
+            logger.warning('闪退检测：查前台失败（%s），跳过本轮' % e)
+            return False
+        return self._front_is_desktop(front)
+
     def restart_game(self, gone=False, force=False):
         """闪退后把游戏拉回来；等画面交给下一轮的 `wait_start_screen()`。
 
@@ -709,8 +795,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
           `GamePageUnknownError`。`device.app_start()` 会作废旧帧并清看门狗。
         """
         logger.hr('游戏闪退，重启', level=1)
-        self.crash_watch = False
-        self.crash_missing = 0
+        self.disarm_crash_watch()
         try:
             package = server.to_package('starsavior')
             # `dev_tools/run_tool.py --step` 不走 `switch_game()`，
@@ -1292,7 +1377,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
             # ❗冷启动 / 换号后画面还没画出来，这段时间**不查进程**：
             #   `app_start()` 是"先杀再启"，中间必然有几帧 `pidof` 是空的。
             #   等 `wait_start_screen()` 认到画面再开检测。
-            self.crash_watch = False
+            self.disarm_crash_watch()
             try:
                 # ❗先等画面，再判登录：冷启动/换号后的加载画面上 `login()` 的判据
                 #   会误判成"已经在游戏里"，接着整条链在加载画面上空转。
@@ -1408,7 +1493,7 @@ class Starsavior2(JourneySpeed, TrainFail, RescuerScan, StarsaviorUI):
                 logger.hr('第 %d 轮没达标，重置账号接着刷' % index, level=1)
                 # ❗重置账号时游戏会重载回标题页，进程可能短暂消失；
                 #   这一小段关掉检测，免得把自己的换号判成闪退。
-                self.crash_watch = False
+                self.disarm_crash_watch()
                 try:
                     reset_ok = self.reset()
                 finally:

@@ -12,7 +12,8 @@ from module.config.server import set_server
 
 set_server('chaoszero')
 
-from module.chaoszero.assets import BOOT_DOWNLOAD_CONFIRM
+from module.chaoszero.ark import ARK_ENTRY, ChaoszeroArk  # noqa: E402
+from module.chaoszero.assets import ANNOUNCE_CLOSE, ARK_TITLE, BOOT_DOWNLOAD_CONFIRM, LOBBY_ARK  # noqa: E402
 from module.chaoszero.chaoszero_ui import ChaoszeroUI
 from module.chaoszero.maintenance import (
     CHAOSZERO_MAINT_BANNER,
@@ -113,6 +114,56 @@ class ChaoszeroMaintenanceTest(unittest.TestCase):
         self.assertTrue(ui.handle_download_confirm())
         ui.device.click.assert_called_once_with(BOOT_DOWNLOAD_CONFIRM)
         ui.wait_until_disappear.assert_called_once()
+
+    def test_announce_popup_closed_inside_ark_enter(self):
+        pop_path = Path(
+            r'C:\Users\14494\.gemini\antigravity\brain\13f03cda-c1d1-419a-8ba6-f6233f3d96d8\.user_uploaded\media_1795574931849_dba17aeb.jpg'
+        )
+        if pop_path.exists():
+            bgr = cv2.imdecode(np.fromfile(str(pop_path), dtype=np.uint8), cv2.IMREAD_COLOR)
+            if bgr.shape[:2] != (720, 1280):
+                bgr = cv2.resize(bgr, (1280, 720), interpolation=cv2.INTER_CUBIC)
+            frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+            ui = ChaoszeroUI.__new__(ChaoszeroUI)
+            ui.device = SimpleNamespace(image=frame, click=Mock(), click_record_clear=Mock())
+            ui.appear = lambda btn, offset=(20, 20), **kwargs: btn.match(ui.device.image, offset=offset)
+            ui.wait_until_disappear = Mock(return_value=True)
+            self.assertTrue(ui.handle_announce())
+            ui.device.click.assert_called_once_with(ANNOUNCE_CLOSE)
+
+        ark = ChaoszeroArk.__new__(ChaoszeroArk)
+        state = {'screen': 'announce'}
+        ark.device = SimpleNamespace(
+            image=np.zeros((720, 1280, 3), dtype=np.uint8),
+            click=Mock(),
+            click_record_clear=Mock(),
+        )
+        ark.loop = lambda timeout=90: iter(range(10))
+        ark.appear = lambda btn, offset=(20, 20), **kwargs: (
+            (btn is ANNOUNCE_CLOSE and state['screen'] == 'announce')
+            or (btn is LOBBY_ARK and state['screen'] == 'lobby')
+            or (btn is ARK_TITLE and state['screen'] == 'ark')
+        )
+        ark.handle_maintenance = lambda: False
+        ark.handle_download_confirm = lambda: False
+        ark.handle_connect_failed = lambda: False
+        ark.wait_until_disappear = lambda btn, **kwargs: True
+        ark.tap_point = Mock()
+
+        def fake_click(btn):
+            if btn is ANNOUNCE_CLOSE:
+                state['screen'] = 'lobby'
+
+        def fake_tap(x, y, name=None):
+            if (x, y) == ARK_ENTRY:
+                state['screen'] = 'ark'
+
+        ark.device.click.side_effect = fake_click
+        ark.tap_point.side_effect = fake_tap
+
+        self.assertTrue(ark.ark_enter(timeout=30))
+        ark.device.click.assert_called_once_with(ANNOUNCE_CLOSE)
+        ark.tap_point.assert_called_once_with(*ARK_ENTRY)
 
 
 if __name__ == '__main__':

@@ -346,6 +346,9 @@ class ChaoszeroArk(ChaoszeroUI):
                 logger.info('At 方舟都市')
                 return True
 
+            if self.ui_additional():
+                continue
+
             # 上一个任务可能把游戏停在災難修復作戰的结算页（那一屏没有入口，
             # 返回键也不管用）。认出它就按「確認」出去，别去点唤醒点。
             if self.war_result_appear():

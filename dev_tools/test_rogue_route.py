@@ -286,7 +286,10 @@ class TestRoute(unittest.TestCase):
     def test_only_confirmed_entry_advances_counters_once(self):
         task = Mock(spec=ChaoszeroRogue)
         task.node_pending = object()
-        task.route_step, task.plan_index = 7, 2
+        plan = [[{'kind': 'rest'}] for _ in range(6)]
+        task.route_plan = plan
+        task.route_reads = rogue.ROUTE_READS
+        task.route_step, task.plan_index = 4, 4
         task.event_visit = {'old': 1}
         for name in (
                 'rogue_map_appear', 'rogue_map_preview_appear', 'rogue_battle_appear',
@@ -312,13 +315,26 @@ class TestRoute(unittest.TestCase):
         self.assertFalse(confirm())
         task.rogue_prompt_appear.return_value = False
         task.rogue_primary_point.return_value = False
-        self.assertEqual((task.route_step, task.plan_index), (7, 2))
+        self.assertEqual((task.route_step, task.plan_index), (4, 4))
+        self.assertIs(task.route_plan, plan)
         self.assertEqual(task.event_visit, {'old': 1})
         task.rogue_rest_appear.return_value = True
         self.assertTrue(confirm())
         self.assertFalse(confirm())
-        self.assertEqual((task.route_step, task.plan_index), (8, 3))
+        self.assertEqual((task.route_step, task.plan_index), (5, 5))
+        self.assertIs(task.route_plan, plan)
+        self.assertEqual(task.route_reads, rogue.ROUTE_READS)
         self.assertEqual(task.event_visit, {})
+
+        for end_step in (6, 12):
+            with self.subTest(end_step=end_step):
+                task.route_step, task.plan_index = end_step - 1, len(plan) - 1
+                task.node_pending = object()
+                task.route_plan, task.route_reads = plan, rogue.ROUTE_READS
+                self.assertTrue(confirm())
+                self.assertIsNone(task.route_plan)
+                self.assertEqual((task.route_step, task.route_reads), (end_step, 0))
+                self.assertFalse(confirm())
 
     def test_route_plan_waits_for_preview_settle_before_reading_and_closing(self):
         task = ChaoszeroRogue.__new__(ChaoszeroRogue)

@@ -227,6 +227,23 @@ Trickcal:
       - Scheduler
     TrickcalFriend:
       - Scheduler
+    TrickcalOrder:
+      - Scheduler
+    TrickcalDoll:
+      - TrickcalDoll
+      - Scheduler
+    TrickcalEvent:
+      - TrickcalEvent
+      - Scheduler
+    TrickcalDungeon:
+      - TrickcalDungeon
+      - Scheduler
+    TrickcalClass:
+      - TrickcalClass
+      - Scheduler
+    TrickcalPvp:
+      - TrickcalPvp
+      - Scheduler
     TrickcalTask:
       - Scheduler
     TrickcalShop:
@@ -235,3 +252,23 @@ Trickcal:
       - Scheduler
     TrickcalPass:
       - Scheduler
+
+# ==================== Resonance (雷索纳斯) ====================
+
+Resonance:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    ResonanceDaily:
+      - Scheduler
+    ResonanceOperations:
+      - Scheduler
+      - ResonanceOperations
+    ResonancePass:
+      - Scheduler
+    ResonanceShop:
+      - Scheduler
+      - ResonanceShop
+    ResonanceExchange:
+      - Scheduler
+      - ResonanceExchange

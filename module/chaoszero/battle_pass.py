@@ -138,6 +138,8 @@ class ChaoszeroPass(ChaoszeroUI):
             if self.pass_appear():
                 logger.info('通行證 is open')
                 return True
+            if self.ui_additional():
+                continue
             if self.appear(PASS_MENU_ITEM, offset=(20, 20)):
                 # 菜单项只在菜单开着时存在，点下去菜单就开始收，天然不会连点。
                 if item.reached():

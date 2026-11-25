@@ -55,7 +55,65 @@ SIM_TABS = (
     ('TrainingMemory', '記憶碎片', 439),
     ('TrainingChallenge', '挑戰', 521),
 )
+SIM_NONE = '不刷'
+SIM_TAB_STAGES = {
+    'TrainingGrowth': (
+        '單元幣',
+        '戰鬥員升級材料',
+        '夥伴升級材料',
+    ),
+    'TrainingMember': (
+        '戰鬥員升階材料—決鬥家',
+        '戰鬥員升階材料—先鋒',
+        '戰鬥員升階材料—遊俠',
+        '戰鬥員升階材料—獵人',
+        '戰鬥員升階材料—心靈術士',
+        '戰鬥員升階材料—控制師',
+    ),
+    'TrainingPartner': (
+        '夥伴升階材料—決鬥家',
+        '夥伴升階材料—先鋒',
+        '夥伴升階材料—遊俠',
+        '夥伴升階材料—獵人',
+        '夥伴升階材料—心靈術士',
+        '夥伴升階材料—控制師',
+    ),
+    'TrainingPotential': (
+        '潛力材料—熱情',
+        '潛力材料—秩序',
+        '潛力材料—本能',
+        '潛力材料—虛無',
+        '潛力材料—正義',
+    ),
+    'TrainingMemory': (
+        '光輝與雪花',
+        '進化與荊棘',
+        '序曲與夢境',
+        '夙願與君臨',
+        '火焰與寶珠',
+        '地位與事跡',
+        '榮譽與權位',
+        '循環與命運',
+        '貪婪與執念',
+        '跟聖甲蟲的約定',
+        '屍體與工具',
+    ),
+    'TrainingChallenge': (
+        '嚎叫浪子',
+        '面對的恐懼',
+    ),
+}
+SIM_TAB_Y = {name: y for _, name, y in SIM_TABS}
+SIM_STAGE_LOOKUP = {
+    stage: (key, name, tab_y, idx)
+    for key, name, tab_y in SIM_TABS
+    if key != 'TrainingChallenge'
+    for idx, stage in enumerate(SIM_TAB_STAGES[key], 1)
+}
 SIM_TAB_X = 160
+# 挑戰页签每周 3 次，数字印在左侧頁籤胶囊里（未选中 x=192..245，选中后右移到 x=288..354）。
+SIM_CHALLENGE_PILL_UNSEL = (192, 510, 245, 530)
+SIM_CHALLENGE_PILL_SEL = (288, 509, 354, 531)
 
 # 右侧关卡列表：一屏四行，滚到顶时四行的中心（实机量的 223 / 361 / 499 / 637）。
 # 点行的中间偏右，避开行尾的体力数字。
@@ -118,6 +176,65 @@ class ChaoszeroSimulation(ChaoszeroUI):
     # 本轮已经确认打开的页签。`run()` 会重置，留一个类属性兜住"直接调某个方法"。
     sim_tab_active = None
 
+    def sim_stage_index(self, key):
+        """Resolve configured stage option (stage name or legacy bool) into a 1-based row index (0 = skip)."""
+        value = getattr(self.config, f'ChaoszeroSimulation_{key}', SIM_NONE)
+        stages = SIM_TAB_STAGES.get(key, ())
+        if value is False or value is None:
+            return 0
+        if value is True:
+            idx = int(getattr(self.config, 'ChaoszeroSimulation_TrainingStage', 1) or 1)
+            return idx if 1 <= idx <= len(stages) else 0
+        text = str(value).strip()
+        if text in ('', SIM_NONE, 'None', 'none', '0'):
+            return 0
+        if text in stages:
+            return stages.index(text) + 1
+        if text.isdigit():
+            idx = int(text)
+            return idx if 1 <= idx <= len(stages) else 0
+        logger.warning(f'{key}: unknown stage option {value!r}, skip')
+        return 0
+
+    def sim_planned_targets(self):
+        """Return enabled targets ordered with weekly Challenge first, followed by at most one stamina target."""
+        targets = []
+        ch_stage = self.sim_stage_index('TrainingChallenge')
+        if ch_stage > 0:
+            targets.append(('挑戰', SIM_TAB_Y['挑戰'], ch_stage,
+                            SIM_TAB_STAGES['TrainingChallenge'][ch_stage - 1]))
+
+        target = str(getattr(self.config, 'ChaoszeroSimulation_TrainingTarget', '') or '').strip()
+        if target in SIM_STAGE_LOOKUP:
+            _, name, tab_y, idx = SIM_STAGE_LOOKUP[target]
+            targets.append((name, tab_y, idx, target))
+        elif not target:
+            for key, name, tab_y in SIM_TABS:
+                if key == 'TrainingChallenge':
+                    continue
+                idx = self.sim_stage_index(key)
+                if idx > 0:
+                    targets.append((name, tab_y, idx, SIM_TAB_STAGES[key][idx - 1]))
+                    break
+        elif target not in (SIM_NONE, 'None', 'none', '0'):
+            logger.warning(f'TrainingTarget: unknown stage option {target!r}, skip')
+        return targets
+
+    def sim_challenge_remaining(self, selected=True):
+        """Read weekly remaining attempts `m/n` from the Challenge left-tab badge (-1 if unreadable)."""
+        area = SIM_CHALLENGE_PILL_SEL if selected else SIM_CHALLENGE_PILL_UNSEL
+        ocr = ChaoszeroOcr(area, lang='cnocr', letter=(40, 40, 40),
+                           threshold=110, scale=3.0, name='CZ_CHALLENGE_LEFT')
+        text = str(ocr.ocr(self.device.image))
+        match = re.search(r'(\d+)\s*/\s*(\d+)', text)
+        if not match:
+            logger.info(f'Challenge attempts badge unreadable: {text!r}')
+            return -1
+        left = int(match.group(1))
+        total = int(match.group(2))
+        logger.info(f'Challenge weekly attempts left: {left}/{total}')
+        return left
+
     def run(self):
         """
         Pages:
@@ -125,9 +242,10 @@ class ChaoszeroSimulation(ChaoszeroUI):
             out: page_main
         """
         logger.hr('Battle training', level=1)
-        # 守卫（固定两行）：六个页签全关就不启动游戏，直接把任务关掉。
-        if not any(getattr(self.config, f'ChaoszeroSimulation_{key}') for key, _, _ in SIM_TABS):
-            logger.info('Every training tab is off')
+        targets = self.sim_planned_targets()
+        # 守卫（固定两行）：挑戰与体力目标全选「不刷」就不启动游戏，直接把任务关掉。
+        if not targets:
+            logger.info('Every training target is off')
             self.config.Scheduler_Enable = False
             self.config.task_stop()
         # 这一轮已经确认打开的页签；换页签时用它判断"要不要点"。
@@ -142,11 +260,9 @@ class ChaoszeroSimulation(ChaoszeroUI):
             self.config.task_delay(success=False)
             return
 
-        for key, name, tab_y in SIM_TABS:
-            if not getattr(self.config, f'ChaoszeroSimulation_{key}'):
-                continue
-            logger.hr(f'Training: {name}', level=2)
-            self.sim_run_tab(name, tab_y)
+        for name, tab_y, stage, stage_label in targets:
+            logger.hr(f'Training: {name} ({stage_label})', level=2)
+            self.sim_run_tab(name, tab_y, stage=stage)
 
         self.sim_quit()
         self.config.task_delay(server_update=True)
@@ -189,6 +305,8 @@ class ChaoszeroSimulation(ChaoszeroUI):
         card_tapped = False
 
         for _ in self.loop(timeout=timeout):
+            if self.ui_additional():
+                continue
             # 模擬 hub now also shares the `< 戰鬥訓練` header, so check `SIM_PAGE`
             # first before declaring arrival at the stage list.
             if self.appear(SIM_PAGE, offset=(20, 20)):
@@ -251,7 +369,7 @@ class ChaoszeroSimulation(ChaoszeroUI):
 
     # -------------------------------------------------------------- 一个页签
 
-    def sim_run_tab(self, name, tab_y):
+    def sim_run_tab(self, name, tab_y, stage=None):
         """
         Run one tab of the stage list from start to finish.
 
@@ -262,6 +380,7 @@ class ChaoszeroSimulation(ChaoszeroUI):
         Args:
             name (str): Tab name, for the log.
             tab_y (int): y of the tab in the left column.
+            stage (int | None): 1-based stage row index to run.
 
         Returns:
             int: How many battles were fought.
@@ -269,15 +388,23 @@ class ChaoszeroSimulation(ChaoszeroUI):
         if not self.sim_switch_tab(name, tab_y):
             return 0
 
+        max_rounds = None
+        if name == '挑戰':
+            remaining = self.sim_challenge_remaining(selected=True)
+            if remaining == 0:
+                logger.info('挑戰: 0 weekly attempts left, skip')
+                return 0
+            max_rounds = remaining if remaining > 0 else 3
+
         if not self.sim_training_appear():
             logger.warning(f'{name}: the stage list is gone')
             return 0
-        if not self.sim_open_stage():
+        if not self.sim_open_stage(stage=stage):
             logger.warning(f'{name}: cannot open the stage')
             return 0
 
         self.sim_configure()
-        fought = self.sim_fight(name)
+        fought = self.sim_fight(name, max_rounds=max_rounds)
 
         # 战斗结束回配置队伍，退一行回列表，下一个页签接着点。
         self.device.adb_shell(['input', 'keyevent', '4'])
@@ -540,7 +667,7 @@ class ChaoszeroSimulation(ChaoszeroUI):
         logger.warning(f'This tab has fewer than {stage} stage(s)')
         return 0
 
-    def sim_open_stage(self, timeout=15):
+    def sim_open_stage(self, stage=None, timeout=15):
         """
         Tap the configured row of the stage list and wait for 配置隊伍.
 
@@ -549,12 +676,16 @@ class ChaoszeroSimulation(ChaoszeroUI):
             out: page_team
 
         Args:
+            stage (int | None): 1-based row index; falls back to legacy TrainingStage if omitted.
             timeout (int, float): Seconds.
 
         Returns:
             bool: If the team page opened.
         """
-        stage = max(int(self.config.ChaoszeroSimulation_TrainingStage), 1)
+        if stage is None:
+            stage = max(int(getattr(self.config, 'ChaoszeroSimulation_TrainingStage', 1) or 1), 1)
+        else:
+            stage = max(int(stage), 1)
         y = self.sim_stage_locate(stage)
         if not y:
             return False
@@ -630,10 +761,7 @@ class ChaoszeroSimulation(ChaoszeroUI):
         """
         Cap the battle efficiency by the stamina actually left.
 
-        配置里的效率是**上限**：体力 117、单场 20 时效率 6 要 120，点「進入」
-        没反应，脚本白等三次就收工，体力留到第二天回满 290 全溢出。
-        这里按 `floor(stamina / per_battle)` 降到 5（100），每轮打完重算，
-        能清多少清多少。读不到体力就退回配置值，绝不瞎降。
+        挑戰为每周固定次数且不消耗体力，直接放行；記憶碎片与挑戰无战斗效率滑条，跳过拖拽。
 
         Pages:
             in: page_team
@@ -645,17 +773,23 @@ class ChaoszeroSimulation(ChaoszeroUI):
         Returns:
             bool: False when even efficiency 1 is unaffordable.
         """
-        configured = int(self.config.ChaoszeroSimulation_TrainingEfficiency)
-        if not 1 <= configured <= 6:
-            logger.info('Battle efficiency left as the game has it')
+        if name == '挑戰':
+            logger.info('挑戰: weekly attempts do not cost stamina')
             return True
 
+        configured = int(self.config.ChaoszeroSimulation_TrainingEfficiency)
         per = SIM_STAMINA_PER_MEMORY if name == '記憶碎片' else SIM_STAMINA_PER_BATTLE
         stamina = self.sim_stamina_left()
-        efficiency = self.sim_affordable_efficiency(stamina, per, configured)
+        check_cap = configured if 1 <= configured <= 6 else 1
+        efficiency = self.sim_affordable_efficiency(stamina, per, check_cap)
         if efficiency == 0:
             logger.info(f'{name}: stamina {stamina} < {per}, skip the battle')
             return False
+        if name == '記憶碎片':
+            return True
+        if not 1 <= configured <= 6:
+            logger.info('Battle efficiency left as the game has it')
+            return True
         if efficiency < 0:
             efficiency = configured
         elif efficiency < configured:
@@ -819,9 +953,9 @@ class ChaoszeroSimulation(ChaoszeroUI):
 
     # ---------------------------------------------------------------- 打一场
 
-    def sim_fight(self, name):
+    def sim_fight(self, name, max_rounds=None):
         """
-        Repeat one battle until the stamina or the daily attempts run out.
+        Repeat one battle until the stamina or weekly attempts run out.
 
         每轮开打前都重算一次效率：上一轮把体力打掉以后，原来的档位可能已经
         付不起了（117 → 效率 5 打掉 100 → 剩 17 → 效率 1 也要 20）。不重算的
@@ -833,6 +967,7 @@ class ChaoszeroSimulation(ChaoszeroUI):
 
         Args:
             name (str): Tab name, for the log.
+            max_rounds (int | None): Hard upper bound (used for weekly Challenge attempts).
 
         Returns:
             int: How many battles were fought.
@@ -840,6 +975,8 @@ class ChaoszeroSimulation(ChaoszeroUI):
         times = int(self.config.ChaoszeroSimulation_TrainingTimes)
         fought = 0
         limit = times if times > 0 else 99
+        if max_rounds is not None:
+            limit = min(limit, max_rounds)
 
         for _ in range(limit):
             if not self.sim_apply_efficiency(name):

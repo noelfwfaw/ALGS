@@ -290,25 +290,59 @@ BrowndustHunt:
 # ==================== Chaos Zero Nightmare (卡厄思梦境) ====================
 
 ChaoszeroSimulation:
-  # 战斗训练左侧那六个页签，从上到下。全开就六个都刷一遍，顺序就是这里的顺序。
-  TrainingGrowth: true
-  TrainingMember: false
-  TrainingPartner: false
-  TrainingPotential: true
-  TrainingMemory: false
-  TrainingChallenge: false
-  # 每个页签打第几项：右侧列表从上往下数，一屏四行（1-4），往下还有行就接着数
-  # 5、6…（記憶碎片 11 行、戰鬥員/夥伴 6 行、潛力 5 行、成長 3 行、挑戰 2 行）。
-  # 四个页签共用这一个序号；哪个页签没这么多行就跳过它。
-  TrainingStage: 1
-  # 难度 1-6；0 = 不动它，用游戏里当前选中的那个。
-  TrainingDifficulty: 0
-  # 战斗效率 1-6：一次打几场，消耗 = 单场体力 × 效率。**这是上限**：脚本每轮
-  # 读顶栏体力自动降档（体力 117、单场 20 → 效率 5 = 100），避免效率 6 要 120
-  # 点不动、体力留到第二天回满溢出。0 = 不动游戏里当前选中的效率。
-  TrainingEfficiency: 6
-  # 每个页签打几轮，0 = 一直打到体力不够或次数用完为止。
-  TrainingTimes: 0
+  # 体力副本只能选一个（成長 / 戰鬥員 / 夥伴 / 潛力 / 記憶碎片 五选一）；选「不刷」则不耗体力。
+  TrainingTarget:
+    value: 單元幣
+    option: [
+      不刷,
+      單元幣,
+      戰鬥員升級材料,
+      夥伴升級材料,
+      戰鬥員升階材料—決鬥家,
+      戰鬥員升階材料—先鋒,
+      戰鬥員升階材料—遊俠,
+      戰鬥員升階材料—獵人,
+      戰鬥員升階材料—心靈術士,
+      戰鬥員升階材料—控制師,
+      夥伴升階材料—決鬥家,
+      夥伴升階材料—先鋒,
+      夥伴升階材料—遊俠,
+      夥伴升階材料—獵人,
+      夥伴升階材料—心靈術士,
+      夥伴升階材料—控制師,
+      潛力材料—熱情,
+      潛力材料—秩序,
+      潛力材料—本能,
+      潛力材料—虛無,
+      潛力材料—正義,
+      光輝與雪花,
+      進化與荊棘,
+      序曲與夢境,
+      夙願與君臨,
+      火焰與寶珠,
+      地位與事跡,
+      榮譽與權位,
+      循環與命運,
+      貪婪與執念,
+      跟聖甲蟲的約定,
+      屍體與工具,
+    ]
+  # 周常「挑戰」独立于体力（每周 3 次），可与上面体力副本同时勾选，脚本会优先打完它。
+  TrainingChallenge:
+    value: 不刷
+    option: [ 不刷, 嚎叫浪子, 面對的恐懼 ]
+  # 难度 1-6；0 = 保持游戏当前选中的难度。
+  TrainingDifficulty:
+    value: 6
+    option: [ 0, 1, 2, 3, 4, 5, 6 ]
+  # 战斗效率上限 1-6；0 = 保持游戏当前选中的效率（記憶碎片/挑戰无效率滑条，会自动跳过设置）。
+  TrainingEfficiency:
+    value: 6
+    option: [ 0, 1, 2, 3, 4, 5, 6 ]
+  # 打几轮；0 = 不限（一直打到体力不够或挑战次数用完）。
+  TrainingTimes:
+    value: 0
+    option: [ 0, 1, 2, 3, 4, 5, 6, 8, 10 ]
 
 ChaoszeroRogue:
   # 进哪个世界：卡厄思顯現的世界列表一共五个，横向排开，最右边那个默认在屏幕外，
@@ -621,3 +655,88 @@ Starsavior2:
     value: 0
     valuetype: int
     display: hide
+
+# ==================== Trickcal ====================
+
+TrickcalEvent:
+  SweepStamina: true
+
+TrickcalDungeon:
+  CloneFactory: true
+  CloneFactoryStage:
+    value: 5
+    valuetype: int
+  Dungeon:
+    value: gold
+    option: [ none, gold, bakery_macaron, bakery_cream, candy_red, candy_blue, candy_green, crayon ]
+  DungeonStage:
+    value: 1
+    valuetype: int
+
+TrickcalClass:
+  SaturdaySubject:
+    value: green
+    option: [ green, blue, red ]
+  SundaySubject:
+    value: yellow
+    option: [ yellow, purple ]
+  GreenLesson:
+    value: 0
+    valuetype: int
+  BlueLesson:
+    value: 0
+    valuetype: int
+  RedLesson:
+    value: 0
+    valuetype: int
+  YellowLesson:
+    value: 0
+    valuetype: int
+  PurpleLesson:
+    value: 0
+    valuetype: int
+
+TrickcalDoll:
+  Race:
+    value: dragon
+    option: [ dragon, elf, ghost, fairy, witch, elemental, mystic, beast ]
+
+TrickcalPvp:
+  Opponent:
+    value: 1
+    option: [ 1, 2, 3 ]
+
+# ==================== Resonance ====================
+
+ResonanceOperations:
+  SiegeRuns:
+    value: 0
+    option: [ 0, 1, 2, 3 ]
+  SiegeStage:
+    value: Order
+    option: [ Order, Blade, Lantern, Material, Knight, Think, Report, Large, Total ]
+  SupplyRuns:
+    value: 0
+    option: [ 0, 1, 2, 3 ]
+  SupplyStage:
+    value: Auto
+    option: [ Auto, Elegant, Standard, Salvation, Advanced, Chaos, Magic ]
+  WeeklyRuns:
+    value: 0
+    option: [ 0, 1, 2, 3 ]
+
+ResonanceShop:
+  Include:
+    type: textarea
+    value: ''
+    valuetype: str
+  Exclude:
+    type: textarea
+    value: ''
+    valuetype: str
+
+ResonanceExchange:
+  Include:
+    type: textarea
+    value: '进货采买书, 追加注资申请书'
+    valuetype: str

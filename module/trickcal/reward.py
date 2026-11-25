@@ -44,8 +44,8 @@ point live in this class, not in the task, so the task just calls
 """
 
 from module.logger import logger
-from module.trickcal.assets import (E_4_1, REWARD_POPUP, REWARD_POPUP_GAIN,
-                                    REWARD_POPUP_GAIN_TALL)
+from module.trickcal.assets import (E_4_1, LEVEL_UP_POPUP, REWARD_POPUP,
+                                    REWARD_POPUP_GAIN, REWARD_POPUP_GAIN_TALL)
 
 # 弹窗的标题文字，宽高都稳定，给一点余量就够。
 POPUP_OFFSET = (20, 20)
@@ -71,7 +71,7 @@ class RewardPopup:
     # 四下毫无反应，面板一直挂着，15 秒里切页签的点击全被它吃掉；点提示行一次就关。
     # REWARD_POPUP_GAIN 是商店买东西后的面板：它画在商品详情页上面，点掉它连详情页
     # 一起关，所以商店任务不需要另外收详情页（用户 2026-11-11 23:20）。
-    reward_popups = (REWARD_POPUP, E_4_1, REWARD_POPUP_GAIN, REWARD_POPUP_GAIN_TALL)
+    reward_popups = (REWARD_POPUP, E_4_1, REWARD_POPUP_GAIN, REWARD_POPUP_GAIN_TALL, LEVEL_UP_POPUP)
 
     def reward_popup_appear(self):
         """

@@ -268,6 +268,9 @@ class ChaoszeroDaily(ChaoszeroUI):
                 logger.info('當日行程 is open')
                 return True
 
+            if self.ui_additional():
+                continue
+
             if self.appear(DAILY_MENU_ITEM, offset=(20, 20)):
                 opened = True
                 if item.reached():
@@ -389,6 +392,9 @@ class ChaoszeroDaily(ChaoszeroUI):
             if self.mail_appear():
                 logger.info('信箱 is open')
                 return True
+
+            if self.ui_additional():
+                continue
 
             if self.appear(DAILY_MENU_ITEM, offset=(20, 20)):
                 if envelope.reached():

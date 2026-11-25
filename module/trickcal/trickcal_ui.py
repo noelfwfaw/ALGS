@@ -53,14 +53,41 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.trickcal.assets import (COUNTDOWN_POPUP, DOWNLOAD_CONFIRM, DOWNLOAD_DEPART, DOWNLOAD_TITLE,
                                     E_1_1, E_2_1, E_2_2, E_3_1, E_5_1, E_5_2,
-                                    E_6_1, E_6_2, SHOP_BUY_CANCEL, SHOP_BUY_CONFIRM)
-from module.trickcal.page import (page_friend, page_mail, page_main,
-                                  page_normal_shop, page_pass, page_shop,
+                                    E_6_1, E_6_2, EVENT_CUTSCENE_SKIP,
+                                    EVENT_GUIDE_CLOSE, EVENT_STORY_CONTINUE,
+                                    EVENT_STORY_LEAVE, EVENT_STORY_MENU,
+                                    EVENT_STORY_SKIP_CONFIRM, HOME,
+                                    SHOP_BUY_CANCEL, SHOP_BUY_CONFIRM)
+from module.trickcal.page import (page_adventure, page_class,
+                                  page_class_stage, page_costume_pass,
+                                  page_doll, page_doll_stage,
+                                  page_dungeon,
+                                  page_dungeon_bakery,
+                                  page_dungeon_bakery_stage,
+                                  page_dungeon_candy, page_dungeon_candy_stage,
+                                  page_dungeon_clone, page_dungeon_clone_stage,
+                                  page_dungeon_crayon,
+                                  page_dungeon_crayon_stage, page_dungeon_gold,
+                                  page_dungeon_gold_stage, page_event,
+                                  page_event_pass, page_event_shop,
+                                  page_event_stage, page_event_story,
+                                  page_event_task, page_friend, page_mail,
+                                  page_main, page_normal_shop, page_order,
+                                  page_order_relic, page_pass, page_pvp,
+                                  page_pvp_arena, page_pvp_deck, page_shop,
                                   page_task, page_task_weekly)
 from module.trickcal.reward import RewardPopup
+from module.ui.page import Page
 from module.ui.ui import UI
 
 OFFSET = (20, 20)
+HOME_OFFSET = (20, 20)
+HOME_INTERVAL = 3
+UI_GOTO_MAIN_TIMEOUT = 60
+# Top-right cutscene menu icon ≡: search the inner 3 bars by luma so
+# bright-sky and dark-roof cutscene backgrounds both match reliably.
+STORY_MENU_OFFSET = (15, 15)
+STORY_MENU_SIMILARITY = 0.75
 BOOT_TIMEOUT = 300
 BOOT_IDLE_TAP = 5
 # A cold start draws the lobby first and replaces the whole screen with the
@@ -92,7 +119,61 @@ class TrickcalUI(RewardPopup, UI):
 
     # 少一个页面 `ui_get_current_page()` 就永远认不出，`ui_goto` 会静默死等 60 秒。
     pages = (page_main, page_mail, page_friend, page_task, page_task_weekly,
-             page_shop, page_normal_shop, page_pass)
+             page_shop, page_normal_shop, page_pass, page_costume_pass,
+             page_event,
+             page_event_stage, page_event_task, page_event_story,
+             page_event_shop, page_event_pass, page_adventure, page_dungeon,
+             page_dungeon_gold, page_dungeon_gold_stage,
+             page_dungeon_bakery, page_dungeon_bakery_stage,
+             page_dungeon_candy, page_dungeon_candy_stage,
+             page_dungeon_crayon, page_dungeon_crayon_stage,
+             page_dungeon_clone, page_dungeon_clone_stage,
+             page_class, page_class_stage, page_doll, page_doll_stage,
+             page_pvp, page_pvp_arena, page_pvp_deck,
+             page_order, page_order_relic)
+
+    def ui_goto(self, destination, offset=(30, 30), skip_first_screenshot=True):
+        """Go to `destination`; when returning to `page_main`, prefer the top-right HOME button."""
+        if destination != page_main:
+            return super().ui_goto(destination, offset=offset, skip_first_screenshot=skip_first_screenshot)
+
+        Page.init_connection(destination)
+        self.interval_clear(list(self.ui_iter_check_buttons()))
+        home_retry = Timer(HOME_INTERVAL)
+        logger.hr(f'UI goto {destination}')
+        try:
+            for _ in self.loop(skip_first=skip_first_screenshot, timeout=UI_GOTO_MAIN_TIMEOUT):
+                if self.ui_loading_appear():
+                    self.ui_wait_loading()
+                    continue
+                if self.ui_page_appear(page=destination, offset=offset):
+                    logger.info(f'Page arrive: {destination}')
+                    self.ui_current = destination
+                    return
+                if self.ui_additional():
+                    continue
+                if self.appear(HOME, offset=HOME_OFFSET):
+                    if home_retry.reached():
+                        home_retry.reset()
+                        logger.info('Page switch: HOME -> page_main')
+                        self.device.click(HOME)
+                    continue
+
+                for page in self.ui_iter_pages():
+                    if page.parent is None or page.check_button is None:
+                        continue
+                    if self.ui_page_appear(page, offset=offset, interval=5):
+                        self.ui_current = page
+                        logger.info(f'Page switch: {page} -> {page.parent}')
+                        button = page.links[page.parent]
+                        self.device.click(button)
+                        self.interval_reset(button)
+                        self.ui_wait_page_leave(page, offset=offset)
+                        break
+
+            raise GameStuckError(f'UI goto {destination} timed out')
+        finally:
+            Page.clear_connection()
 
     def app_start(self):
         """
@@ -188,6 +269,11 @@ class TrickcalUI(RewardPopup, UI):
             lobby_stable = 0
             if self.handle_boot_popups(idle):
                 continue
+            for page in self.pages:
+                if page is not page_main and self.ui_page_appear(page):
+                    logger.info(f'Game is already logged in at {page}, return to page_main')
+                    self.ui_goto_main()
+                    return True
             if self.handle_idle_title(idle):
                 continue
 
@@ -212,8 +298,9 @@ class TrickcalUI(RewardPopup, UI):
         """
         for handler in (self.handle_return_event, self.handle_reward_popup,
                         self.handle_resource_download, self.handle_announcement,
-                        self.handle_countdown_popup, self.handle_title_start,
-                        self.handle_sign_in, self.handle_signed_in_page):
+                        self.handle_countdown_popup, self.handle_cutscene_skip,
+                        self.handle_title_start, self.handle_sign_in,
+                        self.handle_signed_in_page):
             if handler():
                 idle.reset()
                 return True
@@ -329,7 +416,85 @@ class TrickcalUI(RewardPopup, UI):
             return True
         if self.handle_countdown_popup():
             return True
+        if self.handle_cutscene_skip():
+            return True
         return False
+
+    def _appear_luma(self, button, offset=OFFSET, interval=0, similarity=0.85):
+        """Detect `button` via luminance template matching with optional interval throttling."""
+        if hasattr(self.device, 'stuck_record_add'):
+            self.device.stuck_record_add(button)
+        if interval:
+            timers = getattr(self, 'interval_timer', None)
+            if timers is None:
+                timers = {}
+                self.interval_timer = timers
+            if button.name in timers:
+                if timers[button.name].limit != interval:
+                    timers[button.name] = Timer(interval)
+            else:
+                timers[button.name] = Timer(interval)
+            if not timers[button.name].reached():
+                return False
+        appear = button.match_luma(self.device.image, offset=offset, similarity=similarity)
+        if appear and interval:
+            self.interval_timer[button.name].reset()
+        return appear
+
+    def handle_cutscene_skip(self):
+        """
+        Dismiss one cutscene / story skip dialog / tutorial guide overlay on the
+        current frame in strict modal priority order.
+
+        The sidebar `EVENT_CUTSCENE_SKIP` stays visible (~0.997) behind dimmed
+        modals such as `EVENT_STORY_SKIP_CONFIRM` and `EVENT_STORY_LEAVE`, so
+        foreground dialogs must be checked before the sidebar button.
+
+        Returns:
+            bool: If a cutscene or guide control was clicked.
+        """
+        if self.appear(EVENT_GUIDE_CLOSE, offset=OFFSET, interval=2):
+            logger.info('Theme theater guide popup, press close')
+            self.device.click(EVENT_GUIDE_CLOSE)
+            return True
+        if self.appear(EVENT_STORY_SKIP_CONFIRM, offset=OFFSET, interval=2):
+            logger.info('Event story skip confirm, press 跳过')
+            self.device.click(EVENT_STORY_SKIP_CONFIRM)
+            return True
+        if self.appear(EVENT_STORY_LEAVE, offset=OFFSET, interval=2):
+            logger.info('Event last story dialog, press 不看了')
+            self.device.click(EVENT_STORY_LEAVE)
+            return True
+        if self.appear(EVENT_STORY_CONTINUE, offset=OFFSET, interval=2):
+            logger.info('Event story continue dialog, press 继续观看')
+            self.device.click(EVENT_STORY_CONTINUE)
+            return True
+        if self.appear(EVENT_CUTSCENE_SKIP, offset=OFFSET, interval=2):
+            logger.info('Event story sidebar, press 跳过')
+            self.device.click(EVENT_CUTSCENE_SKIP)
+            return True
+        if self._appear_luma(
+            EVENT_STORY_MENU,
+            offset=STORY_MENU_OFFSET,
+            interval=2,
+            similarity=STORY_MENU_SIMILARITY,
+        ):
+            logger.info('Event story menu, press top-right ≡')
+            self.device.click(EVENT_STORY_MENU)  # alas-lint: allow - guarded by _appear_luma(EVENT_STORY_MENU)
+            return True
+        return False
+
+    def handle_event_story_or_guide(self):
+        """
+        Dismiss reward popups or any opening cutscene / story skip / guide overlay
+        on the current frame.
+
+        Returns:
+            bool: If an overlay or cutscene control was clicked.
+        """
+        if self.handle_reward_popup():
+            return True
+        return self.handle_cutscene_skip()
 
     def buy_popup_appear(self):
         """
