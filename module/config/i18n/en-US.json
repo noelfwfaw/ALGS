@@ -2006,6 +2006,14 @@
       "1": "1",
       "2": "2",
       "3": "3"
+    },
+    "UseClarityItem": {
+      "name": "UseClarityItem",
+      "help": "Recover Clarity using Cactus Lollipop (+40), Spring Roll (+60), or Energy Popping Candy (+180); never spends Birch.",
+      "none": "Do not use items",
+      "lollipop": "Lollipop only",
+      "lollipop_gum": "Lollipop + Spring Roll",
+      "all": "Lollipop + Spring Roll + Candy"
     }
   },
   "ResonancePreparation": {
@@ -2028,6 +2036,14 @@
     "FightRed": {
       "name": "ResonancePreparation.FightRed.name",
       "help": "ResonancePreparation.FightRed.help"
+    },
+    "UseClarityItem": {
+      "name": "UseClarityItem",
+      "help": "Recover Clarity using Cactus Lollipop (+40), Spring Roll (+60), or Energy Popping Candy (+180); never spends Birch.",
+      "none": "Do not use items",
+      "lollipop": "Lollipop only",
+      "lollipop_gum": "Lollipop + Spring Roll",
+      "all": "Lollipop + Spring Roll + Candy"
     }
   },
   "ResonanceIsland": {
@@ -2064,6 +2080,10 @@
     "FriendFight": {
       "name": "ResonanceIsland.FriendFight.name",
       "help": "ResonanceIsland.FriendFight.help"
+    },
+    "FriendArrest": {
+      "name": "Arrest Prisoners After Fight",
+      "help": "After winning a friend-island monster battle, if the Arrest button appears, select max warrants and arrest prisoners (requires FriendFight)."
     },
     "FriendClean": {
       "name": "ResonanceIsland.FriendClean.name",
@@ -2134,8 +2154,9 @@
     },
     "RouteMode": {
       "name": "ResonanceTrade.RouteMode.name",
-      "help": "ResonanceTrade.RouteMode.help",
+      "help": "auto: global best one-way/round-trip route using fixed settings; smart_cycle: automatically solves an optimal 2-4 city cycle with inventory-adaptive book weights and per-leg bargain/raise targets (0/10/20%); manual: shuttles only between ManualCityA and ManualCityB.",
       "auto": "auto",
+      "smart_cycle": "Smart Auto (Multi-City Cycle)",
       "manual": "manual"
     },
     "ManualCityA": {

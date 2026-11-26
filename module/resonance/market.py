@@ -8,6 +8,10 @@ import re
 
 from module.resonance.columba import fetch_prices, load_columba_data, normalize_player_config
 from module.resonance.route import SORT_ALIASES, js_round, recommend_routes
+from module.resonance.smart_cycle import (
+    build_edge_options, compute_book_weight, format_cycle_short, format_cycle_summary,
+    load_smart_state, solve_optimal_cycle,
+)
 
 MARKET_FILTER_THRESHOLDS = {
     'all': None,
@@ -25,12 +29,17 @@ SORT_METRIC_LABELS = {
     'profit': '总利润',
     'profit_per_fatigue': '单位疲劳利润',
     'general_profit_index': '综合参考利润',
+    'smart_cycle': '智能环路综合评分',
 }
 
 MARKET_BASE_BUY_V = 100
 MARKET_BASE_SELL_V = 100
 MARKET_GOOD_BUY_V = 80
 MARKET_GOOD_SELL_V = 120
+# Multi-city cycles average independent city swings across 2-3 legs (~1/sqrt(3) of ±20%),
+# so 89/111 aligns smart_cycle's 15/25/40 thresholds with single-leg auto mode.
+SMART_CYCLE_GOOD_BUY_V = 89
+SMART_CYCLE_GOOD_SELL_V = 111
 MARKET_OVERFLOW_FATIGUE = 60
 
 MARKET_STATUS_PATH = os.path.join('config', 'state', 'resonance_market_status.json')
@@ -136,14 +145,49 @@ def _corridor_best_route(price_table, player_config, sort_key, data, manual_citi
     return (best[sort_key], _format_route_label(best)) if best else (0, '')
 
 
-def evaluate_market_quality(prices, player_config, sort_by, data, manual_cities=None):
-    """Evaluate config-normalized market index in 0..100+ (0=100% parity, 100=80/120 good market)."""
+def _smart_cycle_best_score(price_table, player_config, data, book_weight, max_books, neg_fatigue):
+    """Solve smart cycle score without cooldown distortion for market index evaluation."""
+    cities, edges = build_edge_options(
+        price_table, player_config, data, max_books=max_books, neg_fatigue=neg_fatigue, cooled_cities={},
+    )
+    cycle = solve_optimal_cycle(edges, cities, book_weight=book_weight)
+    return (cycle['score'], cycle) if cycle else (0, None)
+
+
+def evaluate_market_quality(
+    prices, player_config, sort_by, data, manual_cities=None, route_mode='auto', smart_state=None,
+):
+    """Evaluate config-normalized market index in 0..100+ (0=100% parity, 100=80/120 for auto/manual or 89/111 for smart_cycle)."""
+    base_prices = build_scaled_prices(data, prices, MARKET_BASE_BUY_V, MARKET_BASE_SELL_V)
+
+    if route_mode == 'smart_cycle':
+        state = smart_state if isinstance(smart_state, dict) else {}
+        owned = state.get('owned_books')
+        neg_fatigue = state.get('neg_fatigue')
+        book_weight, max_books = compute_book_weight(owned)
+        good_prices = build_scaled_prices(data, prices, SMART_CYCLE_GOOD_BUY_V, SMART_CYCLE_GOOD_SELL_V)
+        live_score, live_cycle = _smart_cycle_best_score(prices, player_config, data, book_weight, max_books, neg_fatigue)
+        base_score, _ = _smart_cycle_best_score(base_prices, player_config, data, book_weight, max_books, neg_fatigue)
+        good_score, _ = _smart_cycle_best_score(good_prices, player_config, data, book_weight, max_books, neg_fatigue)
+        if good_score <= base_score:
+            return None
+        return {
+            'index': round((live_score - base_score) / float(good_score - base_score) * 100.0, 1),
+            'live': live_score,
+            'base': base_score,
+            'good': good_score,
+            'sort_by': 'smart_cycle',
+            'route': format_cycle_short(live_cycle),
+            'cycle_detail': format_cycle_summary(live_cycle),
+            'book_weight': round(book_weight, 1),
+            'owned_books': owned,
+        }
+
+    good_prices = build_scaled_prices(data, prices, MARKET_GOOD_BUY_V, MARKET_GOOD_SELL_V)
     sort_key = SORT_ALIASES.get(sort_by, 'general_profit_index')
     live_score, live_route = _corridor_best_route(
         prices, player_config, sort_key, data, manual_cities=manual_cities,
     )
-    base_prices = build_scaled_prices(data, prices, MARKET_BASE_BUY_V, MARKET_BASE_SELL_V)
-    good_prices = build_scaled_prices(data, prices, MARKET_GOOD_BUY_V, MARKET_GOOD_SELL_V)
     base_score, _ = _corridor_best_route(base_prices, player_config, sort_key, data, manual_cities=manual_cities)
     good_score, _ = _corridor_best_route(good_prices, player_config, sort_key, data, manual_cities=manual_cities)
     if good_score <= base_score:
@@ -204,6 +248,9 @@ def build_market_status_record(mq, status, market_filter, fatigue=None, next_che
         'good': mq['good'],
         'sort_by': mq['sort_by'],
         'route': mq.get('route', ''),
+        'cycle_detail': mq.get('cycle_detail', ''),
+        'book_weight': mq.get('book_weight'),
+        'owned_books': mq.get('owned_books'),
         'fatigue': fatigue,
         'next_check': next_check or '',
         'source': source,
@@ -261,12 +308,17 @@ def refresh_market_status_for_webui(
     player_cfg = _build_webui_player_config(profile, cfg, data)
     sort_by = cfg.get('SortBy', 'profit_per_fatigue')
     market_filter = cfg.get('MarketFilter', 'all')
+    route_mode = cfg.get('RouteMode', 'auto')
     manual_cities = None
-    if cfg.get('RouteMode', 'auto') == 'manual':
+    if route_mode == 'manual':
         manual_cities = (cfg.get('ManualCityA', ''), cfg.get('ManualCityB', ''))
+    smart_state = load_smart_state(config_name) if route_mode == 'smart_cycle' else None
 
     live_prices = prices if prices is not None else fetch_prices(ttl=30, force=True, data=data)
-    mq = evaluate_market_quality(live_prices, player_cfg, sort_by, data, manual_cities=manual_cities)
+    mq = evaluate_market_quality(
+        live_prices, player_cfg, sort_by, data,
+        manual_cities=manual_cities, route_mode=route_mode, smart_state=smart_state,
+    )
     if mq is None:
         return None
     threshold = MARKET_FILTER_THRESHOLDS.get(market_filter)
@@ -319,6 +371,11 @@ def format_market_summary(record):
         ),
         '当前最优路线：%s' % route,
     ]
+    if record.get('cycle_detail'):
+        lines.append('智能环路方案：%s' % record['cycle_detail'])
+    if record.get('book_weight') is not None:
+        stock_txt = '%d 本' % int(record['owned_books']) if record.get('owned_books') is not None else '待扫描'
+        lines.append('进货书库存：%s ｜ 书本权重：%.1f 疲劳/本' % (stock_txt, float(record['book_weight'])))
     meta = '最近检测：%s' % record.get('updated_at', '')
     if record.get('fatigue') is not None:
         meta += ' ｜ 当前疲劳：%d' % int(record['fatigue'])

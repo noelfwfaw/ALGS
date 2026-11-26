@@ -12,11 +12,13 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.ocr.ocr import Ocr
 from module.resonance import assets
+from module.resonance.clarity import handle_clarity_recovery, normalize_clarity_item_mode
 from module.resonance.page import page_resonance_prep, page_resonance_survey
 from module.resonance.resonance_ui import ResonanceUI
 
 
 OFFSET = (5, 5)
+SURVEY_CLARITY_PLUS_BOX = (1198, 22, 1236, 50)
 # Setting drawer rows inside 构析勘探, ordered top to bottom as shown on screen.
 TREE_ROWS = (
     ('red', (23, 349, 448, 403)),      # 乱序根须（红树）
@@ -182,48 +184,75 @@ class ResonancePreparation(ResonanceUI):
                 auto_off_timer.reset()
                 auto_retry_timer.reset()
 
-    def _handle_refill_cancel(self):
-        """Cancel any stamina/clarity refill popup so crusade ends without spending items."""
+    def _handle_refill_modal(self):
+        """Handle stamina/clarity refill dialogs according to `UseClarityItem`."""
+        if self.appear(assets.CLARITY_PROMPT, offset=OFFSET) or self.appear(assets.CLARITY_RECOVERY_CHECK, offset=OFFSET):
+            mode = getattr(self.config, 'ResonancePreparation_UseClarityItem', 'none')
+            return 'recovered' if handle_clarity_recovery(self, mode) else 'cancelled'
         if self.appear(assets.FATIGUE_CONFIRM_MODAL, offset=OFFSET) and self.appear(assets.FATIGUE_CONFIRM_CANCEL, offset=OFFSET):
-            return self.appear_then_click(assets.FATIGUE_CONFIRM_CANCEL, offset=OFFSET, interval=2)
-        if self.appear(assets.SHOP_CANCEL, offset=OFFSET):
-            return self.appear_then_click(assets.SHOP_CANCEL, offset=OFFSET, interval=2)
+            if self.appear_then_click(assets.FATIGUE_CONFIRM_CANCEL, offset=OFFSET, interval=2):
+                return 'cancelled'
+        if self.appear_then_click(assets.SHOP_CANCEL, offset=OFFSET, interval=2):
+            return 'cancelled'
+        return None
+
+    def _try_survey_clarity_refill(self):
+        """Open clarity recovery via top-right `+` on survey page and use configured item."""
+        mode = normalize_clarity_item_mode(getattr(self.config, 'ResonancePreparation_UseClarityItem', 'none'))
+        if mode == 'none':
+            return False
+        retry = Timer(1.5)
+        for _ in self.loop(timeout=8):
+            if self.appear(assets.CLARITY_RECOVERY_CHECK, offset=OFFSET) or self.appear(assets.CLARITY_PROMPT, offset=OFFSET):
+                return handle_clarity_recovery(self, mode)
+            if (self.appear(assets.SURVEY_AUTO_STOP, offset=OFFSET) or self.ui_page_appear(page_resonance_survey, offset=OFFSET)) and retry.reached():
+                self.device.click(_box_button(SURVEY_CLARITY_PLUS_BOX, 'SURVEY_CLARITY_PLUS'))
+                retry.reset()
         return False
+
+    def _handle_stop_panel_clarity(self, refills, battle_panel_idle):
+        """Return 'refilled', 'stop', or None on the active auto-crusade detail panel."""
+        if self.appear(assets.SURVEY_BATTLE_START, offset=OFFSET):
+            if not (read_clarity_insufficient(self.device.image) or battle_panel_idle.reached()):
+                return None
+            if refills < 6 and self._try_survey_clarity_refill():
+                return 'refilled'
+            logger.info('琐呐全域整备澄明度不足，停止自动讨伐')
+            self._stop_auto_crusade()
+            return 'stop'
+        battle_panel_idle.reset()
+        return None
 
     def run_auto_crusade(self):
         """Start 开启自动讨伐 and return 'done', 'no_clarity', or 'no_target'."""
-        self.interval_clear(assets.SURVEY_AUTO_START)
-        self.interval_clear(assets.LOGIN_REWARD)
-        self.interval_clear(assets.OP_NEXT)
-        started = False
-        cancelled = False
-        clicks = 0
-        no_start = Timer(6, count=3)
-        finish_settle = Timer(6, count=3)
-        cancel_settle = Timer(2, count=2)
-        battle_panel_idle = Timer(6, count=3)
-        auto_off = Timer(0.5, count=2).start()
-        auto_retry = Timer(4)
+        self.interval_clear((assets.SURVEY_AUTO_START, assets.LOGIN_REWARD, assets.OP_NEXT))
+        started, cancelled, clicks, refills = False, False, 0, 0
+        no_start, finish_settle = Timer(6, count=3), Timer(6, count=3)
+        cancel_settle, battle_panel_idle = Timer(2, count=2), Timer(6, count=3)
+        auto_off, auto_retry = Timer(0.5, count=2).start(), Timer(4)
+
+        def mark_active():
+            finish_settle.reset()
+            battle_panel_idle.reset()
+            self.device.stuck_record_clear()
+            return True
 
         for _ in self.loop(timeout=1200):
             if self.handle_reward_popup() or self.handle_operation_victory():
-                started = True
-                finish_settle.reset()
-                battle_panel_idle.reset()
-                self.device.stuck_record_clear()
+                started = mark_active()
                 continue
-            if self._handle_refill_cancel():
-                cancelled = True
+            refill = self._handle_refill_modal()
+            if refill == 'recovered':
+                mark_active()
+                started, clicks = False, 0
+                continue
+            if refill == 'cancelled':
+                cancelled = mark_active()
                 started = True
-                finish_settle.reset()
                 cancel_settle.reset()
-                battle_panel_idle.reset()
                 continue
             if self.appear(assets.OP_PAUSE, offset=OFFSET):
-                started = True
-                finish_settle.reset()
-                battle_panel_idle.reset()
-                self.device.stuck_record_clear()
+                started = mark_active()
                 self._handle_auto_combat_toggle(auto_off, auto_retry)
                 continue
             auto_off.reset()
@@ -233,13 +262,13 @@ class ResonancePreparation(ResonanceUI):
                     started = True
                     finish_settle.reset()
                     self.device.stuck_record_clear()
-                    if self.appear(assets.SURVEY_BATTLE_START, offset=OFFSET):
-                        if read_clarity_insufficient(self.device.image) or battle_panel_idle.reached():
-                            logger.info('琐呐全域整备澄明度不足，停止自动讨伐')
-                            self._stop_auto_crusade()
-                            return 'no_clarity'
-                    else:
-                        battle_panel_idle.reset()
+                    act = self._handle_stop_panel_clarity(refills, battle_panel_idle)
+                    if act == 'refilled':
+                        refills += 1
+                        started, clicks = False, 0
+                        mark_active()
+                    elif act == 'stop':
+                        return 'no_clarity'
                 elif self.appear(assets.SURVEY_AUTO_START, offset=OFFSET):
                     battle_panel_idle.reset()
                     if cancelled and cancel_settle.reached():
@@ -249,24 +278,17 @@ class ResonancePreparation(ResonanceUI):
                         if finish_settle.reached():
                             logger.info('琐呐全域整备自动讨伐完成')
                             return 'done'
-                    elif clicks == 0:
-                        if self.appear_then_click(assets.SURVEY_AUTO_START, offset=OFFSET, interval=2):
-                            clicks += 1
-                            no_start.reset()
-                            finish_settle.reset()
-                    elif no_start.reached():
+                    elif clicks == 0 and self.appear_then_click(assets.SURVEY_AUTO_START, offset=OFFSET, interval=2):
+                        clicks += 1
+                        no_start.reset()
+                        finish_settle.reset()
+                    elif clicks > 0 and no_start.reached():
                         logger.info('琐呐全域整备无可讨伐目标或体力不足，结束讨伐')
                         return 'no_target'
                 else:
-                    battle_panel_idle.reset()
-                    started = True
-                    finish_settle.reset()
-                    self.device.stuck_record_clear()
+                    started = mark_active()
             elif clicks > 0:
-                battle_panel_idle.reset()
-                started = True
-                finish_settle.reset()
-                self.device.stuck_record_clear()
+                started = mark_active()
         raise GameStuckError('Resonance preparation auto crusade timed out')
 
     def _open_weekly_reward_modal(self):

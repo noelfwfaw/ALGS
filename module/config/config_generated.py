@@ -273,12 +273,14 @@ class GeneratedConfig:
     ResonanceOperations_SupplyRuns = 0  # 0, 1, 2, 3
     ResonanceOperations_SupplyStage = 'Auto'  # Auto, Elegant, Standard, Salvation, Advanced, Chaos, Magic
     ResonanceOperations_WeeklyRuns = 0  # 0, 1, 2, 3
+    ResonanceOperations_UseClarityItem = 'none'  # none, lollipop, lollipop_gum, all
 
     # Group `ResonancePreparation`
     ResonancePreparation_FightPurple = True
     ResonancePreparation_FightRainbow = True
     ResonancePreparation_FightWhite = True
     ResonancePreparation_FightRed = True
+    ResonancePreparation_UseClarityItem = 'none'  # none, lollipop, lollipop_gum, all
 
     # Group `ResonanceIsland`
     ResonanceIsland_CleanTrainGarbage = True
@@ -287,6 +289,7 @@ class GeneratedConfig:
     ResonanceIsland_PlayVolleyball = True
     ResonanceIsland_CollectIncome = True
     ResonanceIsland_FriendFight = True
+    ResonanceIsland_FriendArrest = False
     ResonanceIsland_FriendClean = True
 
     # Group `ResonanceDispatch`
@@ -302,7 +305,7 @@ class GeneratedConfig:
     ResonanceExchange_Include = '进货采买书, 追加注资申请书'
 
     # Group `ResonanceTrade`
-    ResonanceTrade_RouteMode = 'auto'  # auto, manual
+    ResonanceTrade_RouteMode = 'auto'  # auto, smart_cycle, manual
     ResonanceTrade_ManualCityA = '阿妮塔发射中心'  # 修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心, 云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园, 阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥, 贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔
     ResonanceTrade_ManualCityB = '阿妮塔战备工厂'  # 修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心, 云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园, 阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥, 贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔
     ResonanceTrade_SortBy = 'profit_per_fatigue'  # profit, profit_per_fatigue, general_profit_index

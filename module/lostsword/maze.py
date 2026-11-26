@@ -18,14 +18,6 @@ from module.lostsword.assets import ARENA_BTN_CLOSE, MAZE_BTN_AUTO, MAZE_CARD
 from module.lostsword.lostsword_ui import LostswordUI, page_battle
 from module.lostsword.maze_priority import MazePriority
 from module.lostsword.maze_run import MazeAutoRun
-from module.lostsword.utils import match
-
-# The maze card once the list is dragged to its end.
-MAZE_LAST_CARD = (1096, 416)
-# The card art of that slot, used as a position check only (see
-# `maze_at_list_end()`): 0.97 at the end, 0.39 with the cut-off 星辰轮回 card
-# sitting in the window instead, 0.04 anywhere else.
-MAZE_CARD_SIMILARITY = 0.65
 
 
 class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
@@ -131,12 +123,12 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
         """
         Open the maze from the battle tab.
 
-        Two phases on purpose. The list is dragged to its end and checked
-        first, and once the maze card is in the last slot the list is not
-        touched again: the press opens the map through a six second loading
-        screen, and dragging during that screen does nothing but fill the click
-        record until "too many click for a button" kills the task (measured
-        2026-10-27, the map was already open and the task kept swiping).
+        Two phases on purpose. The carousel is scanned to locate the maze card
+        first, and once found the list is not touched again: the press opens the
+        map through a six second loading screen, and dragging during that
+        screen does nothing but fill the click record until "too many click for
+        a button" kills the task (measured 2026-10-27, the map was already open
+        and the task kept swiping).
 
         Pages:
             in: page_battle
@@ -148,12 +140,13 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
         Returns:
             bool: If the map opened.
         """
-        if not self.maze_goto_last_card():
-            logger.warning('The maze card never reached the last slot')
+        point = self.battle_locate_card(MAZE_CARD)
+        if point is None:
+            logger.warning('The maze card was not found on the battle tab')
             return False
 
         for attempt in range(2):
-            self.tap_point(*MAZE_LAST_CARD)
+            self.tap_point(*point)
             timer = Timer(timeout).start()
             while 1:
                 self.device.stuck_record_clear()
@@ -168,56 +161,6 @@ class LostswordMaze(MazeAutoRun, MazePriority, LostswordUI):
             logger.info(f'The press did not open the maze, press again '
                         f'({attempt + 1}/2)')
         return False
-
-    def maze_goto_last_card(self, tries=4):
-        """
-        Drag the card list to its end and check that the maze is in the last
-        slot.
-
-        The behaviour clamp of `battle_scroll()` can lie: a drag that the page
-        eats during the tab switch reads as "no movement = at the end" while the
-        list never left the start (2026-11-04: three rounds of exactly three
-        drags each, and the first drag of the next round moved the list again -
-        the maze was never opened and the task delayed itself a week). The card
-        check is the only truth here, so every failed check buys one more raw
-        drag; only `tries` rounds of both may be spent.
-
-        Args:
-            tries (int): How many rounds of drags may be spent.
-
-        Returns:
-            bool: If the maze card is in the last slot.
-        """
-        for _ in range(tries):
-            self.battle_scroll(forward=True)
-            if self.maze_at_list_end():
-                return True
-            # One drag that ignores the clamp verdict: harmless when the list
-            # really is at its end, decisive when the clamp was a eaten drag.
-            self.device.swipe(p1=(1000, 400), p2=(300, 400))
-            self.wait_until_still((0, 140, 1280, 660), timeout=3)
-            self.device.click_record_clear()
-            if self.maze_at_list_end():
-                return True
-            logger.info('The maze card is not in the last slot yet')
-        return False
-
-    def maze_at_list_end(self):
-        """
-        Whether the card list sits at its end, i.e. the maze card is in the last
-        slot.
-
-        The card art is a position check only, never a state check: the game
-        writes 可进入 / 探险完成 under it and neither is part of the template.
-        The window is wider than the card on purpose - the whole row drifted
-        about 30 px with V1.610.x and the best match inside the window sits on
-        the card in every frame seen (0.971 at the end, 0.04 anywhere else).
-
-        Returns:
-            bool: If the last slot holds the maze.
-        """
-        return match(self.device.image, MAZE_CARD,
-                     (990, 510, 1280, 690)) > MAZE_CARD_SIMILARITY
 
     def maze_on_map(self):
         """

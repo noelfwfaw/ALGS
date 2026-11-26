@@ -8,8 +8,8 @@ from module.lostsword.assets import (BOSS_BEST_SCORE, BOSS_BTN_ENTER,
                                      BOSS_TICKET_TITLE, BOSS_VICTORY,
                                      REWARD_POPUP_TITLE)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
-                                          page_battle, page_boss,
-                                          page_boss_dialog, page_boss_ticket)
+                                          page_boss, page_boss_dialog,
+                                          page_boss_ticket)
 
 """
 Boss raid (领主突袭).
@@ -85,27 +85,20 @@ class LostswordBoss(LostswordUI):
         self.config.task_delay(server_update=True)
 
     def boss_goto_page(self, timeout=12):
-        """Find the raid card on the battle tab, then confirm the raid page."""
-        current = self.ui_get_current_page(skip_first_screenshot=False)
-        if current in (page_boss, page_boss_dialog, page_boss_ticket):
-            return
-        if current != page_battle:
-            self.ui_goto(page_battle)
-        if not self.battle_goto_normal():
-            raise GameStuckError('Boss raid: cannot open the normal battle tab')
+        """
+        Find the raid card on the battle tab, then confirm the raid page.
 
-        retry = Timer(2)
-        for _ in self.loop(timeout=timeout):
-            if self.ui_page_appear(page_boss):
-                self.ui_current = page_boss
-                return
-            if retry.reached() and self.ui_page_appear(page_battle):
-                # The carousel can leave the card anywhere along this row.
-                if self.appear(BOSS_CARD, offset=(-149, -20, 1016, 20)):
-                    logger.info('Boss raid card found at %s', BOSS_CARD.button)
-                    self.tap_asset(BOSS_CARD)
-                    retry.reset()
-        raise GameStuckError('Boss raid page did not open')
+        Pages:
+            in: any
+            out: page_boss
+        """
+        self.battle_goto_card(
+            BOSS_CARD,
+            page_boss,
+            already_on=(page_boss_dialog, page_boss_ticket),
+            timeout=timeout,
+            label='Boss raid',
+        )
 
     def boss_fought_today(self):
         """

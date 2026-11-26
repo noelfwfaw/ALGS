@@ -8,7 +8,6 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      ARENA_BTN_CLOSE,
                                      ARENA_BTN_SEASON,
                                      ARENA_BTN_TEAM,
-                                     ARENA_CARD,
                                      ARENA_SEASON_FOOTER,
                                      ARENA_TITLE,
                                      AVALON_BTN_CLOSE,
@@ -26,7 +25,6 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      CHAR_BTN,
                                      CHAR_BTN_AFFECTION,
                                      CHAR_TITLE,
-                                     DUNGEON_CARD,
                                      DUNGEON_DIALOG_CLOSE,
                                      COPY_BTN_SELECT,
                                      COPY_BTN_SWEEP,
@@ -45,7 +43,6 @@ from module.lostsword.assets import (AFFECTION_BTN_DONE,
                                      GUILD_TITLE,
                                      MAIL_BTN_CLOSE,
                                      MAIL_TITLE,
-                                     STAR_CARD,
                                      STAR_TITLE,
                                      SUMMON_CLOSE,
                                      SUMMON_CONFIRM,
@@ -262,8 +259,8 @@ page_event.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 # page leaves the event.
 page_event_stage.link(button=ARENA_BTN_CLOSE, destination=page_event_start)
 page_event_start.link(button=ARENA_BTN_CLOSE, destination=page_event)
-page_battle.link(button=DUNGEON_CARD, destination=page_dungeon)
-page_battle.link(button=STAR_CARD, destination=page_star)
+# Normal-tab cards shift horizontally across updates and carousel scrolls, so
+# tasks open them dynamically via `battle_goto_card()` instead of static links.
 page_star.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_battle.link(button=AVALON_CARD, destination=page_avalon)
 page_avalon.link(button=AVALON_BTN_CLOSE, destination=page_battle)
@@ -272,7 +269,6 @@ page_avalon_sortie.link(button=ARENA_BTN_CLOSE, destination=page_avalon_status)
 page_copy_stage.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_dungeon.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 page_dungeon_dialog.link(button=DUNGEON_DIALOG_CLOSE, destination=page_dungeon)
-page_battle.link(button=ARENA_CARD, destination=page_arena)
 page_maze.link(button=ARENA_BTN_CLOSE, destination=page_battle)
 # All three cards lead to the same versus page: which one is fought is decided
 # by the task, not by the page graph.

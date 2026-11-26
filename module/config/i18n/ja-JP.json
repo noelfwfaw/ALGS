@@ -2006,6 +2006,14 @@
       "1": "1",
       "2": "2",
       "3": "3"
+    },
+    "UseClarityItem": {
+      "name": "アイテムで澄明度を回復",
+      "help": "回復アイテム不使用・ロリポップ(+40)・スプリングロール(+60)・キャンディ(+180)を選択できます（樺石は消費しません）。",
+      "none": "使用しない",
+      "lollipop": "ロリポップのみ",
+      "lollipop_gum": "ロリポップ + ロール",
+      "all": "全3種を使用"
     }
   },
   "ResonancePreparation": {
@@ -2028,6 +2036,14 @@
     "FightRed": {
       "name": "ResonancePreparation.FightRed.name",
       "help": "ResonancePreparation.FightRed.help"
+    },
+    "UseClarityItem": {
+      "name": "アイテムで澄明度を回復",
+      "help": "回復アイテム不使用・ロリポップ(+40)・スプリングロール(+60)・キャンディ(+180)を選択できます（樺石は消費しません）。",
+      "none": "使用しない",
+      "lollipop": "ロリポップのみ",
+      "lollipop_gum": "ロリポップ + ロール",
+      "all": "全3種を使用"
     }
   },
   "ResonanceIsland": {
@@ -2064,6 +2080,10 @@
     "FriendFight": {
       "name": "ResonanceIsland.FriendFight.name",
       "help": "ResonanceIsland.FriendFight.help"
+    },
+    "FriendArrest": {
+      "name": "戦闘後に囚人を逮捕",
+      "help": "フレンド島の討伐勝利後、「逮捕」ボタンが表示されたら逮捕令を最大にして自動逮捕します（好友助战打怪が有効な場合のみ）。"
     },
     "FriendClean": {
       "name": "ResonanceIsland.FriendClean.name",
@@ -2134,8 +2154,9 @@
     },
     "RouteMode": {
       "name": "ResonanceTrade.RouteMode.name",
-      "help": "ResonanceTrade.RouteMode.help",
+      "help": "auto：固定の仕入れ書数と交渉目標で最適ルートを選択；smart_cycle：仕入れ書在庫に応じた重みで2〜4都市の最適ループと各区間の仕入れ書数・交渉目標（0/10/20%）を自動最適化；manual：指定した2都市間のみを往復。",
       "auto": "auto",
+      "smart_cycle": "スマート全自動（多都市ループ）",
       "manual": "manual"
     },
     "ManualCityA": {

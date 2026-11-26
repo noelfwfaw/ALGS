@@ -1,12 +1,10 @@
-import cv2
-import numpy as np
-
 from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (BOSS_VICTORY, DUNGEON_BTN_BACK,
                                      DUNGEON_CLEAR, LOGIN_CHECK, MAIN_DEFEAT,
                                      REWARD_POPUP_TITLE, SUMMON_SKIP)
+from module.lostsword.battle_nav import BattleNav
 from module.lostsword.event_pass import EventPassPopup
 from module.lostsword.lobby_hide import LobbyHide
 from module.lostsword.offer import OfferPopup
@@ -24,7 +22,7 @@ from module.ui.ui import UI
 BOOT_TIMEOUT = 300
 
 
-class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
+class LostswordUI(BattleNav, LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
     page_main = page_main
 
     # Own pages, in the order they are declared above. The registry is shared
@@ -377,111 +375,6 @@ class LostswordUI(LobbyHide, EventPassPopup, OfferPopup, SignIn, UI):
     # ------------------------------------------------------------------
     # shared state waits
     # ------------------------------------------------------------------
-
-    def battle_goto_normal(self, timeout=8):
-        """
-        Switch the battle page back to its 「普通」 tab.
-
-        The game remembers the tab the page was left on: coming back from the
-        arena landed on 「活动」 once (measured), and the 领主突袭 / 竞技场 cards
-        only exist under 「普通」. Without this the page graph sees `page_battle`
-        but every card click lands on whatever the other tab shows.
-
-        Pages:
-            in: page_battle
-            out: page_battle
-
-        Args:
-            timeout (int, float): Seconds.
-
-        Returns:
-            bool: If the 普通 tab is the open one.
-        """
-        from module.base.utils import get_color
-
-        timeout = Timer(timeout).start()
-        # Not started: an unstarted timer counts as reached, so the first press
-        # goes out on the first frame.
-        retry = Timer(1.5)
-        while 1:
-            self.device.screenshot()
-            color = get_color(self.device.image, BATTLE_TAB_NORMAL.area)
-            if sum(color) / 3 > BATTLE_TAB_SELECTED_MEAN:
-                # The card list keeps the offset it was left at; put it back to
-                # the first card so every card asset sits where it was cut.
-                self.battle_scroll(forward=False)
-                return True
-            # The tab is a plain area of the page with no template of its own,
-            # which `appear()` would need (calling it here raised AttributeError
-            # on 2026-10-28), so the battle heading is what guards the press and
-            # the mean colour above is what decides whether the press landed.
-            if retry.reached():
-                retry.reset()
-                if self.appear(BATTLE_TITLE, offset=30):
-                    self.device.click(BATTLE_TAB_NORMAL)
-            if timeout.reached():
-                logger.warning('Cannot switch the battle page back to 普通')
-                return False
-
-    def battle_scroll(self, forward, swipes=4):
-        """
-        Scroll the card list of the battle page until it clamps at one of its ends.
-
-        The list holds more cards than fit on screen (领主突袭 / 竞技场 / 小队副本 /
-        星辰轮回 / 迷宫) and the game remembers where it was left: after a drag the
-        cards sit at different x positions, and every card asset is anchored to
-        its position. Scrolling to an end makes the layout predictable again.
-
-        **到头与否只认行为判据：再拖一下、卡片带一动不动 = clamp**（2026-11-04
-        实机）。别拿卡片素材当尽头判据 —— 它们只能证明"卡片在它被裁的位置"，
-        而那个位置本身就会随版本漂（V1.610.x 起点 +31px / 尽头 -25px）；也别信
-        `wait_until_still(页签)`，页签不随卡片带滚动，三连拖惯性叠加后列表完全
-        可能停在中间 —— 星辰轮回的点按落进领主突袭的卡里，出口判据再把人捞回来，
-        两个按钮互殴到 `GameTooManyClickError`（当晚 Star 就这么死的）。实测从
-        中间到 clamp 最多四拖，给 `swipes` 上限，拖完还在动就抛给 Restart。
-
-        Pages:
-            in: page_battle
-            out: page_battle
-
-        Args:
-            forward (bool): True to drag towards the end of the list (later
-                cards), False to drag back to the first card.
-            swipes (int): How many drags to make at most.
-
-        Raises:
-            GameStuckError: If the list never clamps.
-        """
-        if forward:
-            p1, p2 = (1000, 400), (300, 400)
-        else:
-            p1, p2 = (300, 400), (1000, 400)
-        band = (0, 140, 1280, 660)
-        clamped = False
-        for _ in range(swipes):
-            self.device.screenshot()
-            before = self.image_crop(band, copy=True)
-            # The carousel can ignore a minitouch drag. ADB sends the complete gesture.
-            logger.info('Swipe %s -> %s @ BATTLE_CARDS', p1, p2)
-            self.device.swipe_adb(p1, p2, duration=0.625)
-            # 静止判据直接盯卡片带：页签不随卡片滚，盯页签等于没等 —— snap 动画
-            # 还在飞就把"后帧"截下来，diff 永远大（2026-11-04 实测四拖全 19~34）。
-            # 卡片带的闲置动画抖不出 wait_until_still 的阈值，snap 一完它就返回。
-            if not self.wait_until_still(band, timeout=3, skip_first_screenshot=False):
-                self.device.click_record_clear()
-                raise GameStuckError('Battle card list did not settle after drag')
-            after = self.image_crop(band, copy=True)
-            # 这一拖前后卡片带整段一致 = 没有产生任何位移 = 已经顶在尽头。
-            # 阈值放宽到 1：立绘的闲置动画抖不出这个量，滚动位移远大于它。
-            if float(np.mean(cv2.absdiff(after, before))) < 1.0:
-                clamped = True
-                break
-        # Every drag here is deliberate and its result is checked by the caller;
-        # counting them towards "too many click for a button" only means a task
-        # that scrolls twice dies halfway (measured 2026-10-27 in the maze).
-        self.device.click_record_clear()
-        if not clamped:
-            raise GameStuckError(f'Card list did not clamp after {swipes} drag(s)')
 
     def wait_overlay(self, button, timeout=5):
         """

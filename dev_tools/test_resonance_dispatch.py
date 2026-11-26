@@ -145,6 +145,13 @@ class TestResonanceDispatch(unittest.TestCase):
         self.assertEqual(parse_team_count(imgs['disp0']), (0, 2))
         self.assertEqual(parse_team_count(imgs['run1']), (1, 2))
         self.assertIn(parse_card_remaining_minutes(imgs['run1'], 0), (239, 240))
+        report_path = base + 'MuMu-20261126-141011-186.png'
+        if os.path.exists(report_path):
+            report_img = np.array(Image.open(report_path).convert('RGB'))
+            self.assertTrue(assets.DISPATCH_REPORT.match(report_img, offset=(5, 5)))
+            self.assertFalse(assets.DISPATCH_CHECK.match(report_img, offset=(5, 5)))
+        for k, img in imgs.items():
+            self.assertFalse(assets.DISPATCH_REPORT.match(img, offset=(5, 5)), k)
 
     def test_dispatch_page_graph_links(self):
         from module.resonance.assets import DAILY_HOME, MAIN_TERMINAL, OP_BACK, TERMINAL_DISPATCH_ENTRY
@@ -343,3 +350,26 @@ class TestResonanceDispatch(unittest.TestCase):
         self.assertNotIn('DISPATCH_CARD_1', clicked)
         task.ui_goto_main.assert_called_once()
         task.config.task_delay.assert_called_once_with(minute=1201)
+
+    def test_dispatch_report_modal_dismissed_in_ui_additional_and_claim(self):
+        from module.resonance import assets
+
+        report_popup = _blank_with(assets.DISPATCH_REPORT)
+        task1 = _new_dispatch_task()
+        task1.device.image = report_popup
+        self.assertTrue(task1.ui_additional())
+        clicked1 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task1.device.click.call_args_list]
+        self.assertEqual(clicked1, ['DISPATCH_REPORT'])
+
+        disp_running = _make_dispatch_screen(['active', 'other', 'idle', 'idle', 'idle'], selected_dur=None, recall=False)
+        disp_card1_done = _make_dispatch_screen(['active', 'other', 'idle', 'idle', 'idle'], selected_dur=None, recall=False)
+        disp_after_claim = _make_dispatch_screen(['active', 'idle', 'idle', 'idle', 'idle'], selected_dur='4h', recall=False)
+        task2 = _new_dispatch_task()
+        task2.device.image = disp_running
+        frames = iter([disp_card1_done, report_popup, disp_after_claim])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            status, mins = task2._inspect_and_claim_card(1)
+        self.assertEqual((status, mins), ('claimed', None))
+        clicked2 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task2.device.click.call_args_list]
+        self.assertEqual(clicked2, ['DISPATCH_CARD_1', 'DISPATCH_CLAIM', 'DISPATCH_REPORT'])

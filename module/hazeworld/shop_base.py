@@ -31,8 +31,9 @@ from module.hazeworld.hazeworld_ui import HazeworldUI
 from module.hazeworld.page import page_mall
 from module.hazeworld.schedule import next_week_refresh
 from module.hazeworld.shop_filter import ShopFilter
-from module.hazeworld.shop_grid import (SHOP_GOODS_AREA, SHOP_MAX_COLUMNS,
-                                       SHOP_ROWS, ShopGrid)
+from module.hazeworld.shop_grid import (SHOP_COLUMN_PITCH, SHOP_GOODS_AREA,
+                                       SHOP_MAX_COLUMNS, SHOP_ROWS,
+                                       SHOP_STEP_MIN_DIFF, ShopGrid)
 from module.logger import logger
 from module.ocr.ocr import Ocr
 
@@ -273,11 +274,9 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
         balance no longer covers a second one. Both end that card, so the loop
         always makes progress.
 
-        The walk can not advance one column after each stop. Every purchase
-        resets the shelf to its first column (measured 2026-11-04: after each
-        确认 the goods were back at 296:原始核心结晶, while merely opening and
-        cancelling the same dialog left them where they were), so every search
-        walks from the start again.
+        The walk does not rewind between steps: `shop_find()` walks linearly
+        across the shelf once per wanted rank and skips any rank seen with no
+        remaining stock during the first full scan.
 
         Returns:
             bool: If the sweep stopped because the next wanted card costs more
@@ -285,10 +284,21 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
             update instead of next week.
         """
         bought = 0
+        at_start = True
+        known_ranks = None
         for rank in range(self.shop_rule_count):
+            if known_ranks is not None and rank not in known_ranks:
+                continue
             while 1:
-                card = self.shop_find(rank)
+                collect = set() if known_ranks is None else None
+                card, reached_end, moved = self.shop_find(
+                    rank, at_start=at_start, collect_ranks=collect,
+                )
+                if moved:
+                    at_start = False
                 if card is None:
+                    if reached_end and collect is not None:
+                        known_ranks = collect
                     break
                 # The balance check comes before any press: confirming a card
                 # the currency cannot cover only opens a rejection dialog.
@@ -301,51 +311,68 @@ class HazeworldShopBase(HazeworldUI, ShopGrid, ShopFilter):
                     logger.attr('Shop sweep', f'bought {bought}')
                     return False
                 bought += 1
+                if moved:
+                    at_start = False
         logger.attr('Shop sweep', f'bought {bought}')
         return False
 
-    def shop_find(self, rank):
+    def _shop_scan_screen(self, columns, rank, collect_ranks=None):
         """
-        Walk from the start of the shelf and return the first card of `rank`
-        that still has something to sell.
+        Return the first buyable card matching `rank` on the visible screen.
+        When `collect_ranks` is provided, record higher buyable ranks too so a
+        full shelf scan avoids redundant passes for sold-out ranks.
+        """
+        cards = [card for column in columns for card in column[1:] if card is not None]
+        for card in cards:
+            card_rank = self.shop_filter_rank(card)
+            if card_rank is None:
+                continue
+            if card_rank == rank:
+                if self.shop_sold_out(card):
+                    logger.info(f'Skip {card[3]}: sold out')
+                    continue
+                return card
+            elif collect_ranks is not None and card_rank > rank and card_rank not in collect_ranks:
+                if not self.shop_sold_out(card):
+                    collect_ranks.add(card_rank)
+        return None
 
-        The card is returned with the shelf left at the view it was read from,
-        so the caller can press it without walking again. A card of another
-        priority is not bought here: the line above it has not been cleared.
+    def shop_find(self, rank, at_start=False, collect_ranks=None):
+        """
+        Walk linearly from the start of the shelf and return the first card
+        of `rank` that still has something to sell.
 
         Args:
             rank (int): Line of the filter, 0 is the first.
+            at_start (bool): True when the shelf is already at column 0.
+            collect_ranks (set | None): Optional set populated with higher
+                buyable ranks seen along the walk.
 
         Returns:
-            tuple or None: The card, or None when no card of this rank is left.
+            tuple: `(card, reached_end, moved)`.
         """
-        handled = 0
-        while handled < SHOP_MAX_COLUMNS:
-            reached = self.shop_walk_to(handled)
+        if not at_start:
+            self.shop_ensure_start()
+        moved = False
+        for _ in range(SHOP_MAX_COLUMNS):
+            stop_before = self.shop_goods_image()
             columns = self.shop_columns(self.shop_cards())
             if not columns:
                 logger.info('No card readable, the shop is done')
-                return None
+                return None, True, moved
             logger.attr('Shop columns', ' '.join(
                 f'{x}{"+" if top and bottom else "-"}' for x, top, bottom in columns))
-            for column in columns:
-                for card in column[1:]:
-                    if card is None:
-                        continue
-                    if self.shop_filter_rank(card) != rank:
-                        continue
-                    if self.shop_sold_out(card):
-                        logger.info(f'Skip {card[3]}: sold out')
-                        continue
-                    return card
-            if reached < handled:
-                # The tail is on screen with the walk clamped; `columns` above
-                # already covers it (one walk back to the same view per
-                # column), so the list has been read to its end.
+            hit = self._shop_scan_screen(columns, rank, collect_ranks=collect_ranks)
+            if hit is not None:
+                return hit, False, moved
+            delta = SHOP_COLUMN_PITCH * 2 if len(columns) >= 3 else SHOP_COLUMN_PITCH
+            if not self.shop_step_forward(delta):
+                return None, True, moved
+            if self.shop_goods_diff(stop_before) < SHOP_STEP_MIN_DIFF:
                 logger.info('The shop list is at its end')
-                return None
-            handled += 1
-        return None
+                return None, True, moved
+            moved = True
+        return None, True, moved
 
     def shop_sold_out(self, card):
         """

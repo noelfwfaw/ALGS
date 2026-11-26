@@ -100,3 +100,98 @@ class TestResonanceOperations(unittest.TestCase):
         task.run_category('supply', 1, 'Magic')
         self.assertEqual(task.find_stage.call_args_list, [call('supply', 'Magic'), call('supply', 'Elegant')])
         task.start_battle.assert_called_once_with()
+
+    def test_starts_battle_with_wide_start_button(self):
+        import os
+        import numpy as np
+        from PIL import Image
+        from module.resonance import assets
+        from module.resonance.operations import ResonanceOperations
+
+        detail_wide = load_image(assets.OP_START_WIDE.file).copy()
+        x1, y1, x2, y2 = assets.OP_DETAIL.area
+        detail_wide[y1:y2, x1:x2] = load_image(assets.OP_DETAIL.file, assets.OP_DETAIL.area)
+        team = load_image(assets.OP_TEAM.file) + load_image(assets.OP_TEAM_START.file)
+        pause = load_image(assets.OP_PAUSE.file)
+
+        task = ResonanceOperations.__new__(ResonanceOperations)
+        task.device = Mock()
+        task.interval_timer = {}
+        frames = iter([detail_wide, team, pause])
+        task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', next(frames))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            task.start_battle()
+        self.assertEqual(
+            task.device.click.call_args_list,
+            [call(assets.OP_START_WIDE), call(assets.OP_TEAM_START)],
+        )
+
+        shot = 'C:/Users/14494/Documents/MuMu共享文件夹/Screenshots/MuMu-20261126-141510-589.png'
+        if os.path.exists(shot):
+            im = np.array(Image.open(shot).convert('RGB'))
+            self.assertTrue(assets.OP_DETAIL.match(im, offset=(5, 5)))
+            self.assertFalse(assets.OP_START.match(im, offset=(5, 5)))
+            self.assertTrue(assets.OP_START_WIDE.match(im, offset=(120, 15)))
+
+    def test_operations_clarity_prompt_cancel_and_recover(self):
+        from dev_tools.test_resonance_clarity import _blank_with, make_clarity_confirm_modal, make_clarity_recovery_screen
+        from module.resonance import assets
+        from module.resonance.operations import ResonanceOperations
+
+        detail_wide = load_image(assets.OP_START_WIDE.file).copy()
+        x1, y1, x2, y2 = assets.OP_DETAIL.area
+        detail_wide[y1:y2, x1:x2] = load_image(assets.OP_DETAIL.file, assets.OP_DETAIL.area)
+        prompt = _blank_with(assets.CLARITY_PROMPT, assets.CLARITY_PROMPT_CANCEL, assets.CLARITY_PROMPT_CONFIRM)
+        page_full = make_clarity_recovery_screen(has_lollipop=True, has_gum=True, has_cactus=False)
+        confirm = make_clarity_confirm_modal()
+        team = load_image(assets.OP_TEAM.file) + load_image(assets.OP_TEAM_START.file)
+        pause = load_image(assets.OP_PAUSE.file)
+
+        # Case 1: UseClarityItem='none' -> cancels prompt and aborts run cleanly
+        task1 = ResonanceOperations.__new__(ResonanceOperations)
+        task1.device = Mock()
+        task1.config = Mock()
+        task1.config.ResonanceOperations_SiegeRuns = 1
+        task1.config.ResonanceOperations_SiegeStage = 'Large'
+        task1.config.ResonanceOperations_SupplyRuns = 0
+        task1.config.ResonanceOperations_SupplyStage = 'Auto'
+        task1.config.ResonanceOperations_WeeklyRuns = 0
+        task1.config.ResonanceOperations_UseClarityItem = 'none'
+        task1.interval_timer = {}
+        task1.ui_ensure = Mock()
+        task1.ui_goto_main = Mock()
+        task1.select_category = Mock()
+        task1.read_remaining = Mock(return_value=3)
+        task1.find_stage = Mock(return_value=('Large', {'Large'}))
+        task1.wait_for_victory = Mock()
+
+        frames1 = iter([detail_wide, prompt, detail_wide])
+        task1.device.screenshot.side_effect = lambda: setattr(task1.device, 'image', next(frames1))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            task1.run()
+        clicked1 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task1.device.click.call_args_list]
+        self.assertEqual(clicked1, ['OP_START_WIDE', 'CLARITY_PROMPT_CANCEL'])
+        task1.wait_for_victory.assert_not_called()
+        task1.ui_goto_main.assert_called_once()
+
+        # Case 2: UseClarityItem='lollipop' -> uses item, retries start, enters battle
+        task2 = ResonanceOperations.__new__(ResonanceOperations)
+        task2.device = Mock()
+        task2.config = Mock()
+        task2.config.ResonanceOperations_UseClarityItem = 'lollipop'
+        task2.interval_timer = {}
+        frames2 = iter([detail_wide, prompt, page_full, confirm, page_full, detail_wide, detail_wide, team, pause])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames2))
+        with patch('module.resonance.clarity.read_clarity_fraction', return_value=(17, 358)), \
+             patch('module.resonance.clarity.CLARITY_CNT_OCR.ocr', side_effect=[['24'], ['40']]), \
+             patch('module.resonance.clarity.FATIGUE_CONFIRM_QTY_OCR.ocr', return_value='1/10'), \
+             patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            self.assertEqual(task2.start_battle(), 'started')
+        clicked2 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task2.device.click.call_args_list]
+        self.assertEqual(
+            clicked2,
+            [
+                'OP_START_WIDE', 'CLARITY_PROMPT_CONFIRM', 'CLARITY_ITEM_LOLLIPOP',
+                'FATIGUE_CONFIRM_OK', 'OP_BACK', 'OP_START_WIDE', 'OP_TEAM_START',
+            ],
+        )

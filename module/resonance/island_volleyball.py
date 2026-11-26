@@ -3,6 +3,7 @@
 import re
 import time
 
+import cv2
 import numpy as np
 
 from module.base.button import Button
@@ -24,7 +25,7 @@ CHAR_CARDS = ((40, 540, 136, 630), (178, 540, 274, 630))
 CHAR_CARD_RECTS = ((26, 530, 150, 625), (164, 530, 288, 625))
 CHAR_LOCK_SEARCH_ROI = (15, 620, 450, 685)
 TIMING_HIT_BOX = (155, 515, 255, 605)
-GRID_COURT_ROI = (20, 310, 635, 640)
+GRID_COURT_ROI = (0, 220, 1280, 710)
 
 
 def _box_button(box, name):
@@ -61,17 +62,30 @@ def find_char_lock_button(image):
 
 
 def detect_grid_blue_marker(image):
-    """Return `(cx, cy)` center of the glowing blue target tile on left court, or None."""
+    """Return `(cx, cy)` center of the glowing blue target tile anywhere on court, or None."""
     rx1, ry1, rx2, ry2 = GRID_COURT_ROI
     roi = image[ry1:ry2, rx1:rx2]
     r = roi[:, :, 0].astype(np.int16)
     g = roi[:, :, 1].astype(np.int16)
     b = roi[:, :, 2].astype(np.int16)
-    mask = (b > 180) & ((b - r) > 75) & (g > 150)
-    ys, xs = np.where(mask)
-    if len(xs) < 800:
-        return None
-    return rx1 + int(xs.mean()), ry1 + int(ys.mean())
+    mask = ((b > 185) & (g > 155) & ((b - r) > 70)).astype(np.uint8)
+    mask[640 - ry1:, 880:] = 0
+    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    count, _, stats, _ = cv2.connectedComponentsWithStats(closed)
+    best = None
+    best_px = 0
+    for idx in range(1, count):
+        x, y, w, h, area = stats[idx]
+        if w < 85 or h < 42 or area < 1800 or not (0.85 <= (w / float(h)) <= 3.8):
+            continue
+        cx, cy = rx1 + x + w // 2, ry1 + y + h // 2
+        if cy < 280 and cx > 850:
+            continue
+        raw_px = int(mask[y:y + h, x:x + w].sum())
+        if raw_px >= 900 and raw_px > best_px:
+            best_px = raw_px
+            best = (cx, cy)
+    return best
 
 
 def detect_timing_bar_x(image):
@@ -94,7 +108,7 @@ def is_timing_bar_resolved(image):
     return int(mask.sum()) >= 1500
 
 
-def should_trigger_timing_hit(cur_x, prev_x, dt, target_x=565, lead_sec=0.12, hard_x=520, miss_x=600):
+def should_trigger_timing_hit(cur_x, prev_x, dt, target_x=545, lead_sec=0.14, hard_x=505, miss_x=595):
     """Decide whether to click volleyball QTE hit right before pointer reaches MISS."""
     if cur_x is None or cur_x < 330 or cur_x >= miss_x:
         return False
@@ -114,10 +128,22 @@ def _click_char_select(ui, select_timer):
             ui.device.click(lock_btn)
         elif not is_char_card_locked(ui.device.image, 0):
             ui.device.click(_box_button(CHAR_CARDS[0], 'VB_CHAR_CARD_0'))
-        else:
+        elif not is_char_card_locked(ui.device.image, 1):
             ui.device.click(_box_button(CHAR_CARDS[1], 'VB_CHAR_CARD_1'))
+        else:
+            return
         ui.device.click_record_clear()
         select_timer.reset()
+
+
+def _handle_volleyball_end(ui):
+    """Dismiss end-of-match or training defeat/victory overlays after entering a match."""
+    return (
+        ui.appear_then_click(assets.VB_TRAINING_END, offset=OFFSET, interval=2)
+        or ui.appear_then_click(assets.TAP_BLANK_EXIT, offset=(40, 100), similarity=0.80, interval=2)
+        or ui.handle_operation_victory()
+        or ui.appear_then_click(assets.OP_BACK, offset=OFFSET, interval=2)
+    )
 
 
 def play_single_volleyball_match(ui):
@@ -189,13 +215,8 @@ def play_single_volleyball_match(ui):
                     grid_timer.reset()
                     ui.device.click_record_clear()
                 continue
-            if match_entered:
-                if ui.appear_then_click(assets.TAP_BLANK_EXIT, offset=(40, 100), similarity=0.80, interval=2):
-                    continue
-                if ui.handle_operation_victory():
-                    continue
-                if ui.appear_then_click(assets.OP_BACK, offset=OFFSET, interval=2):
-                    continue
+            if match_entered and _handle_volleyball_end(ui):
+                continue
     finally:
         ui.device.screenshot_interval_set()
     raise GameStuckError('Volleyball match timed out')

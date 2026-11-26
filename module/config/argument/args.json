@@ -4990,6 +4990,16 @@
           2,
           3
         ]
+      },
+      "UseClarityItem": {
+        "type": "select",
+        "value": "none",
+        "option": [
+          "none",
+          "lollipop",
+          "lollipop_gum",
+          "all"
+        ]
       }
     },
     "Storage": {
@@ -5053,6 +5063,16 @@
       "FightRed": {
         "type": "checkbox",
         "value": true
+      },
+      "UseClarityItem": {
+        "type": "select",
+        "value": "none",
+        "option": [
+          "none",
+          "lollipop",
+          "lollipop_gum",
+          "all"
+        ]
       }
     },
     "Storage": {
@@ -5134,6 +5154,10 @@
       "FriendFight": {
         "type": "checkbox",
         "value": true
+      },
+      "FriendArrest": {
+        "type": "checkbox",
+        "value": false
       },
       "FriendClean": {
         "type": "checkbox",
@@ -5345,6 +5369,7 @@
         "value": "auto",
         "option": [
           "auto",
+          "smart_cycle",
           "manual"
         ]
       },

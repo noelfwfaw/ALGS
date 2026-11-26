@@ -2,18 +2,17 @@ from module.base.timer import Timer
 from module.exception import GameStuckError
 from module.logger import logger
 from module.lostsword.assets import (DUNGEON_BTN_CONFIRM, DUNGEON_BTN_MATCH,
-                                     DUNGEON_CLEAR, DUNGEON_DIALOG_TITLE,
-                                     DUNGEON_TITLE)
-from module.lostsword.lostsword_ui import (LostswordUI, page_battle,
-                                          page_dungeon)
+                                     DUNGEON_CARD, DUNGEON_CLEAR,
+                                     DUNGEON_DIALOG_TITLE, DUNGEON_TITLE)
+from module.lostsword.lostsword_ui import (LostswordUI, page_dungeon,
+                                           page_dungeon_dialog)
 
 """
 Squad dungeon (小队副本).
 
 Flow observed in game:
 
-    page_main -- bottom bar 「战斗」 --> page_battle (普通 tab, the dungeon card is
-                                          the third of the row)
+    page_main -- bottom bar 「战斗」 --> page_battle (普通 tab, carousel card)
     page_battle -- dungeon card --> page_dungeon (黑龙·尼德霍格 / KING)
     page_dungeon -- 「开始匹配 1/1」 --> 「是否前往小队副本房间?」 --> 「确认」
     -> client loading page (正在火热招募队友中… 20)
@@ -67,9 +66,12 @@ class LostswordDungeon(LostswordUI):
             out: page_main
         """
         logger.hr('Squad dungeon', level=1)
-        self.ui_ensure(page_battle)
-        self.battle_goto_normal()
-        self.ui_ensure(page_dungeon)
+        self.battle_goto_card(
+            DUNGEON_CARD,
+            page_dungeon,
+            close_to_dest=(page_dungeon_dialog,),
+            label='Squad dungeon',
+        )
 
         if self.dungeon_available():
             self.dungeon_fight()

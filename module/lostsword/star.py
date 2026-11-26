@@ -11,11 +11,12 @@ from module.lostsword.assets import (ARENA_BTN_CLOSE,
                                      EVENT_BTN_OK,
                                      STAR_BTN_CHALLENGE,
                                      STAR_BTN_ENTER,
+                                     STAR_CARD,
                                      STAR_TAB_1,
                                      STAR_TAB_2,
                                      STAR_TAB_3)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP, LostswordUI,
-                                          page_battle, page_star)
+                                          page_star)
 from module.lostsword.schedule import next_week_reset
 from module.ocr.ocr import Ocr
 
@@ -35,12 +36,11 @@ gets challenged once. The panel opens on the first area (measured), and the
 selected one is drawn on a cream card (mean 133) while the others stay on the
 dark panel (26), so a brightness read decides which one is open.
 
-**The battle page card list scrolls.** It holds five cards (领主突袭 / 竞技场 /
-小队副本 / 星辰轮回 / 迷宫) and keeps the offset it was left at, so every card asset
-is only valid at one scroll position: 星辰轮回 was cut with the list dragged to its
-end (its card in the third slot), the other cards with the list at its start. That
-is why `battle_scroll()` runs before walking in - and `battle_goto_normal()` puts
-the list back to the start for every other battle task.
+**The battle page card list scrolls.** It holds six cards (领主突袭 / 世界领主 /
+竞技场 / 星辰轮回 / 小队副本 / 迷宫) and keeps the offset it was left at, so
+`battle_goto_card()` searches the row dynamically instead of relying on a fixed
+slot. That also keeps navigation resilient when new cards are inserted or
+reordered.
 
 A challenge is not one fight: the first wave ends in VICTORY, tapping through it
 starts a second one (measured: 26.8M then 2.4M, the area score ended at 30.06M).
@@ -144,12 +144,7 @@ class LostswordStar(LostswordUI):
             out: page_main
         """
         logger.hr('Star cycle', level=1)
-        self.ui_ensure(page_battle)
-        self.battle_goto_normal()
-        # 星辰轮回 is the fourth card; its asset was cut with the list scrolled to
-        # the end, so drag it there before walking in.
-        self.battle_scroll(forward=True)
-        self.ui_ensure(page_star)
+        self.battle_goto_card(STAR_CARD, page_star, label='Star cycle')
 
         fought = 0
         # Set by `star_fight()` when the game answers the press with

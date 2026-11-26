@@ -13,9 +13,7 @@ from module.logger import logger
 from module.ocr.ocr import Ocr
 from module.resonance import assets
 from module.resonance.map_nav import ResonanceMapNav
-from module.resonance.page import (
-    page_resonance_city, page_resonance_trade_buy, page_resonance_trade_hub, page_resonance_trade_sell,
-)
+from module.resonance.page import page_resonance_city, page_resonance_trade_buy, page_resonance_trade_hub, page_resonance_trade_sell
 from module.resonance.shop import normalize_name
 
 OFFSET = (5, 5)
@@ -30,6 +28,7 @@ BARGAIN_PIP_XS = (
 MODE_MAX_DOT = (827, 93, 851, 117)
 CARGO_AREA = (1085, 386, 1252, 414)
 SELL_TOTAL_AREA = (1140, 570, 1255, 600)
+SELL_SUMMARY_AREA = (1100, 534, 1255, 600)
 
 FATIGUE_OCR = Ocr((940, 16, 1040, 48), lang='cnocr', threshold=128, alphabet='0123456789/', name='Trade fatigue')
 CARGO_OCR = Ocr([], lang='cnocr', threshold=128, alphabet='0123456789/+-', name='Trade cargo')
@@ -121,20 +120,13 @@ def find_cyan_card_runs(image):
 def count_bargain_pips_in_image(image):
     """Count remaining lit negotiation pips (0..8) underneath the orange button."""
     y1, y2 = BARGAIN_PIP_Y
-    return sum(
-        1 for x1, x2 in BARGAIN_PIP_XS
-        if image[y1:y2, x1:x2].mean() > 130
-    )
+    return sum(1 for x1, x2 in BARGAIN_PIP_XS if image[y1:y2, x1:x2].mean() > 130)
 
 
 def _make_card_button(name, y0, y1):
     """Build a clickable Button for a stocked buy-list card."""
-    area = (500, y0, 852, y1)
-    click_box = (660, y0 + 25, 830, y1 - 25)
-    return Button(
-        area=area, color=(0, 0, 0), button=click_box,
-        name='TRADE_CARD_%s_%d' % (name, y0),
-    )
+    return Button(area=(500, y0, 852, y1), color=(0, 0, 0), button=(660, y0 + 25, 830, y1 - 25),
+                  name='TRADE_CARD_%s_%d' % (name, y0))
 
 
 class ResonanceTrade(ResonanceMapNav):
@@ -246,14 +238,12 @@ class ResonanceTrade(ResonanceMapNav):
         """Open the restock confirmation dialog via 使用道具 -> 进货采买书."""
         self.interval_clear((assets.TRADE_USE_ITEM, assets.TRADE_ITEM_RESTOCK_USE))
         for _ in self.loop(timeout=12):
-            if (self.appear(assets.TRADE_RESTOCK_MODAL, offset=OFFSET)
-                    and self.appear(assets.TRADE_RESTOCK_CONFIRM, offset=OFFSET)):
+            if self.appear(assets.TRADE_RESTOCK_MODAL, offset=OFFSET) and self.appear(assets.TRADE_RESTOCK_CONFIRM, offset=OFFSET):
                 return
             if self.appear(assets.TRADE_ITEMS_MODAL, offset=OFFSET):
                 self.appear_then_click(assets.TRADE_ITEM_RESTOCK_USE, offset=OFFSET, interval=2)
                 continue
-            if self.appear_then_click(assets.TRADE_USE_ITEM, offset=OFFSET, interval=2):
-                continue
+            self.appear_then_click(assets.TRADE_USE_ITEM, offset=OFFSET, interval=2)
         raise GameStuckError('Resonance restock modal did not open')
 
     def _dismiss_restock_overlays(self):
@@ -268,16 +258,13 @@ class ResonanceTrade(ResonanceMapNav):
 
     def _adjust_restock_quantity(self, want):
         """Adjust quantity in the open restock modal and confirm, returning books used."""
-        self.interval_clear((
-            assets.TRADE_RESTOCK_MAX, assets.TRADE_RESTOCK_PLUS,
-            assets.TRADE_RESTOCK_MINUS, assets.TRADE_RESTOCK_CONFIRM,
-        ))
+        self.interval_clear((assets.TRADE_RESTOCK_MAX, assets.TRADE_RESTOCK_PLUS, assets.TRADE_RESTOCK_MINUS, assets.TRADE_RESTOCK_CONFIRM))
         for _ in self.loop(timeout=15):
-            if (self.appear(assets.TRADE_RESTOCK_MODAL, offset=OFFSET)
-                    and self.appear(assets.TRADE_RESTOCK_CONFIRM, offset=OFFSET)):
+            if self.appear(assets.TRADE_RESTOCK_MODAL, offset=OFFSET) and self.appear(assets.TRADE_RESTOCK_CONFIRM, offset=OFFSET):
                 own_text = normalize_name(RESTOCK_OWN_OCR.ocr(self.device.image))
                 owned = int(own_text) if own_text.isdigit() else None
                 if owned == 0:
+                    self._last_restock_owned = 0
                     logger.warning('Resonance trade has 0 restock books left')
                     self._dismiss_restock_overlays()
                     return 0
@@ -287,11 +274,15 @@ class ResonanceTrade(ResonanceMapNav):
                 cur, max_qty = frac
                 cap = min(want, max_qty, owned) if owned is not None else min(want, max_qty)
                 if cap <= 0:
+                    if owned is not None:
+                        self._last_restock_owned = owned
                     self._dismiss_restock_overlays()
                     return 0
                 if cur == cap:
                     self.device.click(assets.TRADE_RESTOCK_CONFIRM)
                     if self.wait_until_disappear(assets.TRADE_RESTOCK_MODAL, offset=OFFSET, timeout=8):
+                        if owned is not None:
+                            self._last_restock_owned = max(0, owned - cap)
                         self._dismiss_restock_overlays()
                         return cap
                     raise GameStuckError('Resonance restock modal did not close after confirm')
@@ -330,28 +321,35 @@ class ResonanceTrade(ResonanceMapNav):
 
     def negotiate(self, is_buy, target_pct, max_fatigue_ratio=0.95):
         """Click bargain or raise until target_pct, pips exhausted, or fatigue cap reached."""
+        self._last_negotiate_fatigue = None
         if target_pct <= 0:
             return
         page_check = assets.TRADE_BUY_CHECK if is_buy else assets.TRADE_SELL_CHECK
         btn = assets.TRADE_BARGAIN if is_buy else assets.TRADE_RAISE
+        start_f, clicked = None, False
         for _ in range(10):
             if not self.wait_until_appear(page_check, offset=OFFSET, timeout=8):
                 raise GameStuckError('Resonance trade page lost during negotiation')
             pct = self.read_bargain_pct()
-            if pct is not None and pct >= target_pct:
-                return
+            if (pct is not None and pct >= target_pct) or self.count_bargain_pips() <= 0:
+                break
             pips = self.count_bargain_pips()
-            if pips <= 0:
-                return
             fatigue = self.read_fatigue()
+            if start_f is None and fatigue is not None:
+                start_f = fatigue[0]
             if fatigue is not None and fatigue[0] + 8 > int(fatigue[1] * max_fatigue_ratio):
                 logger.info('Resonance negotiation stopped by fatigue cap: %s/%s' % fatigue)
-                return
+                break
             if self.appear(btn, offset=OFFSET):
                 self.device.click(btn)
+                clicked = True
                 self._wait_negotiate_settle(page_check, pips, pct)
             else:
-                return
+                break
+        if clicked and start_f is not None:
+            end_f = self.read_fatigue()
+            if end_f is not None and end_f[0] > start_f:
+                self._last_negotiate_fatigue = end_f[0] - start_f
 
     def _confirm_and_dismiss_report(self, page_check, confirm_btn, report_btn):
         """Click buy/sell confirm, wait for settlement report, and dismiss it."""
@@ -413,8 +411,10 @@ class ResonanceTrade(ResonanceMapNav):
         else:
             raise GameStuckError('Resonance sell_all did not stage cargo')
 
+        self.wait_until_still(SELL_SUMMARY_AREA, timeout=2.5, threshold=0.25, skip_first_screenshot=False)
         if raise_target > 0 and self._should_raise_sell(min_raise_total=min_raise_total):
             self.negotiate(is_buy=False, target_pct=raise_target, max_fatigue_ratio=max_fatigue_ratio)
+            self.wait_until_still(SELL_SUMMARY_AREA, timeout=2.0, threshold=0.25, skip_first_screenshot=False)
         self._last_sell_image = self.device.image
         self._confirm_and_dismiss_report(assets.TRADE_SELL_CHECK, assets.TRADE_SELL_CONFIRM, assets.TRADE_SELL_REPORT)
         return True
@@ -423,9 +423,8 @@ class ResonanceTrade(ResonanceMapNav):
         """Scroll the buy commodity list up (1) or down (-1); return True if content moved."""
         if self.appear(assets.TRADE_BUY_CHECK, offset=OFFSET):
             before = self.image_crop(GOODS_LIST)
-            self.device.drag((680, 420), (680, 420 + direction * 260), segments=4, shake=(0, 0),
-                             point_random=(0, 0, 0, 0), shake_random=(0, 0, 0, 0), hold_duration=0.15,
-                             name='TRADE_BUY_SCROLL')
+            self.device.drag((680, 420), (680, 420 + direction * 260), segments=4, shake=(0, 0), point_random=(0, 0, 0, 0),
+                             shake_random=(0, 0, 0, 0), hold_duration=0.15, name='TRADE_BUY_SCROLL')
             if self.wait_until_still(GOODS_LIST, timeout=8, threshold=2, skip_first_screenshot=False):
                 return cv2.absdiff(before, self.image_crop(GOODS_LIST)).mean() >= 2
         raise GameStuckError('Resonance buy list did not settle after scrolling')
@@ -446,11 +445,8 @@ class ResonanceTrade(ResonanceMapNav):
             if not target_names or self.cargo_remaining() == 0:
                 return
             if self.ui_page_appear(page_resonance_trade_buy, offset=OFFSET):
-                match = next(
-                    ((tgt, btn) for card_name, btn, _, _ in self.visible_buy_cards()
-                     for tgt in (match_buy_target(card_name, target_names),) if tgt is not None),
-                    None,
-                )
+                match = next(((tgt, btn) for card_name, btn, _, _ in self.visible_buy_cards()
+                              for tgt in (match_buy_target(card_name, target_names),) if tgt is not None), None)
                 if match is None:
                     return
                 name, btn = match

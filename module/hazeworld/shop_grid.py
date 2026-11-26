@@ -58,13 +58,18 @@ SHOP_GOODS_AREA = (240, 180, 1280, 690)
 # list one column scored 52.4, a swallowed one and a drag against the clamped
 # end scored 0.01 to 0.44. The card art shimmers faintly, so the line sits
 # well above the idle noise and far below a real move.
-SHOP_MOVED_DIFF = 2.0
+SHOP_MOVED_DIFF = 4.0
+# Minimum panel diff after a forward step to confirm the list actually advanced
+# rather than staying clamped at the right end.
+SHOP_STEP_MIN_DIFF = 8.0
 # Distance between two columns, and therefore the drag that advances the shelf
 # by exactly one of them.
 SHOP_COLUMN_PITCH = 272
 # A drag that leaves the goods untouched is retried this many times before the
 # shelf counts as clamped - a single one is swallowed now and then.
 SHOP_DRAG_RETRY = 4
+# Consecutive zero-diff drags needed to confirm the shelf is back at column 0.
+SHOP_HOME_STILL = 2
 # How far the sweep walks before giving up on finding the list end. The shops
 # show about a dozen columns this week; the cap is what keeps a shelf that
 # never clamps from dragging forever.
@@ -224,10 +229,30 @@ class ShopGrid:
                 still = 0
                 continue
             still += 1
-            if still >= 3:
+            if still >= SHOP_HOME_STILL:
                 logger.info('Shop list is at its start')
                 return True
         logger.warning('Shop list did not reach its start')
+        return False
+
+    def shop_ensure_start(self):
+        """
+        Confirm the shelf is at column 0; drag it all the way left if not.
+        """
+        if self.shop_drag_moved(self.shop_goods_image(), -SHOP_COLUMN_PITCH * 3):
+            logger.info('The shelf was not at its start, dragging it back')
+            self.shop_scroll_home()
+
+    def shop_step_forward(self, delta=SHOP_COLUMN_PITCH):
+        """
+        Advance the shelf right by `delta`; return False when clamped at end.
+        """
+        before = self.shop_goods_image()
+        for _ in range(SHOP_DRAG_RETRY):
+            if self.shop_drag_moved(before, delta):
+                return True
+            logger.info('The shop list did not take the drag, retrying')
+        logger.info('The shop list is at its end')
         return False
 
     def shop_walk_to(self, column):
@@ -246,18 +271,10 @@ class ShopGrid:
             int: How many columns the shelf really moved. Short of `column`
             means it clamped - no column sits that far right.
         """
-        if self.shop_drag_moved(self.shop_goods_image(), -SHOP_COLUMN_PITCH * 3):
-            logger.info('The shelf was not at its start, dragging it back')
-            self.shop_scroll_home()
+        self.shop_ensure_start()
         moved = 0
         for _ in range(column):
-            before = self.shop_goods_image()
-            for _ in range(SHOP_DRAG_RETRY):
-                if self.shop_drag_moved(before, SHOP_COLUMN_PITCH):
-                    moved += 1
-                    break
-                logger.info('The shop list did not take the drag, retrying')
-            else:
-                logger.info('The shop list is at its end')
+            if not self.shop_step_forward(SHOP_COLUMN_PITCH):
                 break
+            moved += 1
         return moved

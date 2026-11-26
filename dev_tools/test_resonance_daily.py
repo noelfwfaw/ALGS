@@ -82,3 +82,42 @@ class TestResonanceDaily(unittest.TestCase):
                 for now, next_run in cases:
                     clock.now.return_value = now
                     self.assertEqual(get_server_next_update(schedule), next_run)
+
+    def test_claim_milestones_accepts_shifted_reward_and_direct_claim(self):
+        from module.resonance.assets import DAILY_CHECK, LOGIN_REWARD
+        from module.resonance.daily import MILESTONES, ResonanceDaily
+
+        base = load_image(DAILY_CHECK.file)
+        m_yellow = base.copy()
+        x1, y1, x2, y2 = MILESTONES.buttons[0].area
+        m_yellow[y1:y2, x1:x2] = (248, 179, 1)
+        m_claimed = base.copy()
+        m_claimed[y1:y2, x1:x2] = (63, 85, 126)
+
+        shifted_popup = base.copy()
+        sx1, sy1, sx2, sy2 = LOGIN_REWARD.area
+        shifted_popup[sy1 + 70:sy2 + 70, sx1:sx2] = load_image(LOGIN_REWARD.file, LOGIN_REWARD.area)
+
+        # Case 1: Shifted LOGIN_REWARD popup (dy=+70) detected by claim_milestones and closed by handle_reward_popup
+        task1 = ResonanceDaily.__new__(ResonanceDaily)
+        task1.device = Mock()
+        task1.device.image = m_yellow
+        task1.interval_timer = {}
+        frames1 = iter([shifted_popup, shifted_popup, m_claimed])
+        task1.device.screenshot.side_effect = lambda: setattr(task1.device, 'image', next(frames1))
+        with patch('module.base.timer.time', side_effect=count(100, 3)):
+            task1.claim_milestones()
+        clicked1 = [c[0][0].name for c in task1.device.click.call_args_list]
+        self.assertEqual(clicked1, ['MILESTONES_0_0', 'LOGIN_REWARD'])
+
+        # Case 2: Milestone turns claimed directly without popup -> exits cleanly without GameStuckError
+        task2 = ResonanceDaily.__new__(ResonanceDaily)
+        task2.device = Mock()
+        task2.device.image = m_yellow
+        task2.interval_timer = {}
+        frames2 = iter([m_claimed, m_claimed])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames2))
+        with patch('module.base.timer.time', side_effect=count(100, 3)):
+            task2.claim_milestones()
+        clicked2 = [c[0][0].name for c in task2.device.click.call_args_list]
+        self.assertEqual(clicked2, ['MILESTONES_0_0'])

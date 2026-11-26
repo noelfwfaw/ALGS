@@ -2006,6 +2006,14 @@
       "1": "1",
       "2": "2",
       "3": "3"
+    },
+    "UseClarityItem": {
+      "name": "使用道具恢復澄明度",
+      "help": "可選擇不使用、僅仙人掌能量棒棒糖(+40)、棒棒糖+跳跳卷(+60)或全部三檔道具(+180，絕不消耗樺石)；不足時自動取消補充並結束。",
+      "none": "不使用恢復道具",
+      "lollipop": "僅使用仙人掌能量棒棒糖",
+      "lollipop_gum": "棒棒糖 + 仙人掌跳跳卷",
+      "all": "棒棒糖 + 跳跳卷 + 能量跳糖"
     }
   },
   "ResonancePreparation": {
@@ -2028,6 +2036,14 @@
     "FightRed": {
       "name": "ResonancePreparation.FightRed.name",
       "help": "ResonancePreparation.FightRed.help"
+    },
+    "UseClarityItem": {
+      "name": "使用道具恢復澄明度",
+      "help": "可選擇不使用、僅仙人掌能量棒棒糖(+40)、棒棒糖+跳跳卷(+60)或全部三檔道具(+180，絕不消耗樺石)；不足時自動取消補充並結束。",
+      "none": "不使用恢復道具",
+      "lollipop": "僅使用仙人掌能量棒棒糖",
+      "lollipop_gum": "棒棒糖 + 仙人掌跳跳卷",
+      "all": "棒棒糖 + 跳跳卷 + 能量跳糖"
     }
   },
   "ResonanceIsland": {
@@ -2064,6 +2080,10 @@
     "FriendFight": {
       "name": "ResonanceIsland.FriendFight.name",
       "help": "ResonanceIsland.FriendFight.help"
+    },
+    "FriendArrest": {
+      "name": "打怪順便逮捕囚犯",
+      "help": "好友助戰打怪勝利後，若結算頁出現「逮捕」按鈕，自動拉滿逮捕令並執行逮捕（需同時開啟「好友助戰打怪」）。"
     },
     "FriendClean": {
       "name": "ResonanceIsland.FriendClean.name",
@@ -2134,8 +2154,9 @@
     },
     "RouteMode": {
       "name": "ResonanceTrade.RouteMode.name",
-      "help": "ResonanceTrade.RouteMode.help",
+      "help": "auto：依固定進貨書與議價目標全域挑選最佳路線；smart_cycle：全自動求解 2~4 城最佳環路，依進貨書庫存自動調整權重並決定各段用書量與獨立砍價/抬價目標（0/10/20%）；manual：僅在手動指定的兩個城市間來回跑商。",
       "auto": "auto",
+      "smart_cycle": "智慧全自動（多城環路）",
       "manual": "manual"
     },
     "ManualCityA": {

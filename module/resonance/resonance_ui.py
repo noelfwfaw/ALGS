@@ -3,10 +3,11 @@
 from module.base.button import Button
 from module.exception import GameStuckError
 from module.resonance.assets import (
-    DAILY_HOME, EXCHANGE_MODAL_ARROW, FATIGUE_CONFIRM_CANCEL, FATIGUE_CONFIRM_MODAL, LOGIN_DAILY_CHECK_IN,
-    LOGIN_ENTER, LOGIN_REWARD, LOGIN_START, MAP_ASSIST_PANEL, MAP_DRIVE_ASSIST, OP_NEXT, OP_WIN,
-    PRESTIGE_MODAL_CHECK, PRESTIGE_MODAL_CONFIRM, PREP_REWARD_MODAL, SHOP_CANCEL, SHOP_MAX, SHOP_MODAL_PRICE,
-    TRADE_BUY_REPORT, TRADE_ITEMS_MODAL, TRADE_RESTOCK_CANCEL, TRADE_RESTOCK_MODAL, TRADE_SELL_REPORT,
+    BENTO_CONFIRM_MODAL, DAILY_HOME, DISPATCH_REPORT, EXCHANGE_MODAL_ARROW, FATIGUE_CONFIRM_CANCEL,
+    FATIGUE_CONFIRM_MODAL, LOGIN_DAILY_CHECK_IN, LOGIN_ENTER, LOGIN_REWARD, LOGIN_START, MAP_ASSIST_PANEL,
+    MAP_DRIVE_ASSIST, OP_NEXT, OP_WIN, PRESTIGE_MODAL_CHECK, PRESTIGE_MODAL_CONFIRM, PREP_REWARD_MODAL, SHOP_CANCEL,
+    SHOP_MAX, SHOP_MODAL_PRICE, TRADE_BUY_REPORT, TRADE_ITEMS_MODAL, TRADE_RESTOCK_CANCEL, TRADE_RESTOCK_MODAL,
+    TRADE_SELL_REPORT,
 )
 from module.resonance.page import (
     page_daily, page_main, page_resonance_bento, page_resonance_city, page_resonance_crew,
@@ -106,6 +107,8 @@ class ResonanceUI(UI):
             return self.appear_then_click(PRESTIGE_MODAL_CONFIRM, offset=offset, interval=2)
         if self.appear(MAP_ASSIST_PANEL, offset=offset):
             return self.appear_then_click(MAP_DRIVE_ASSIST, offset=offset, interval=2)
+        if self.appear_then_click(BENTO_CONFIRM_MODAL, offset=(60, 10), interval=2):
+            return True
         return self.appear_then_click(TRADE_ITEMS_MODAL, offset=offset, interval=2)
 
     def ui_additional(self):
@@ -114,5 +117,5 @@ class ResonanceUI(UI):
             return True
         return any(
             self.appear_then_click(button, offset=(5, 5), interval=2)
-            for button in (LOGIN_DAILY_CHECK_IN, LOGIN_START, LOGIN_ENTER, PREP_REWARD_MODAL)
+            for button in (LOGIN_DAILY_CHECK_IN, LOGIN_START, LOGIN_ENTER, PREP_REWARD_MODAL, DISPATCH_REPORT)
         )

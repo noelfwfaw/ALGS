@@ -159,6 +159,44 @@ class TestResonanceProfile(unittest.TestCase):
             self.assertTrue(fat.recover_fatigue(880, 912, 80, item_mode='none', use_bento=True))
         self.assertEqual(fat.device.click.call_args_list, [unittest.mock.call(assets.BENTO_USE_ALL)])
 
+        # Bento confirmation modal (with shifted centered text) -> confirmed via GARBAGE_CONFIRM_OK, and ui_additional cancels safely
+        bento_confirm = np.zeros((720, 1280, 3), dtype=np.uint8)
+        bx1, by1, bx2, by2 = assets.BENTO_CONFIRM_MODAL.area
+        bento_confirm[by1:by2, bx1 - 20:bx2 - 20] = load_image(
+            assets.BENTO_CONFIRM_MODAL.file, assets.BENTO_CONFIRM_MODAL.area,
+        )
+        okx1, oky1, okx2, oky2 = assets.GARBAGE_CONFIRM_OK.area
+        bento_confirm[oky1:oky2, okx1:okx2] = load_image(
+            assets.GARBAGE_CONFIRM_OK.file, assets.GARBAGE_CONFIRM_OK.area,
+        )
+        fat_c = ResonanceFatigue.__new__(ResonanceFatigue)
+        fat_c.device = Mock()
+        fat_c.interval_timer = {}
+        fat_c.ui_ensure = Mock()
+        fat_c.device.image = bento_ready
+        fat_c.read_bento_fatigue = Mock(side_effect=[(880, 912), (880, 912), (682, 912)])
+        bc_frames = iter([bento_ready, bento_confirm, bento_done])
+        fat_c.device.screenshot.side_effect = lambda: setattr(fat_c.device, 'image', next(bc_frames))
+        with patch('module.base.timer.time', side_effect=count(100, 2.0)):
+            self.assertTrue(fat_c.recover_fatigue(880, 912, 80, item_mode='none', use_bento=True))
+        self.assertEqual(
+            fat_c.device.click.call_args_list,
+            [unittest.mock.call(assets.BENTO_USE_ALL), unittest.mock.call(assets.GARBAGE_CONFIRM_OK)],
+        )
+
+        stray_ui = ResonanceFatigue.__new__(ResonanceFatigue)
+        stray_ui.device = Mock()
+        stray_ui.interval_timer = {}
+        stray_ui.device.image = bento_confirm
+        self.assertTrue(stray_ui.ui_additional())
+        self.assertEqual(stray_ui.device.click.call_args_list, [unittest.mock.call(assets.BENTO_CONFIRM_MODAL)])
+
+        err_shot = 'log/error/1795677579642/2026-11-26_15-19-39-605164.png'
+        if os.path.exists(err_shot):
+            im = load_image(err_shot)
+            self.assertTrue(assets.BENTO_CONFIRM_MODAL.match(im, offset=(60, 10)))
+            self.assertTrue(assets.GARBAGE_CONFIRM_OK.match(im, offset=(5, 5)))
+
         # Rest area drink flow: buy -> SKIP -> skip modal (ticks checkbox + confirm) -> fatigue -50 -> exhausted
         drink_page = load_image(assets.REST_AREA_DRINK_BUY.file)
         skip_page = load_image(assets.REST_AREA_SKIP.file)

@@ -724,12 +724,20 @@ ResonanceOperations:
   WeeklyRuns:
     value: 0
     option: [ 0, 1, 2, 3 ]
+  UseClarityItem:
+    type: select
+    value: none
+    option: [ none, lollipop, lollipop_gum, all ]
 
 ResonancePreparation:
   FightPurple: true
   FightRainbow: true
   FightWhite: true
   FightRed: true
+  UseClarityItem:
+    type: select
+    value: none
+    option: [ none, lollipop, lollipop_gum, all ]
 
 ResonanceIsland:
   CleanTrainGarbage: true
@@ -744,6 +752,7 @@ ResonanceIsland:
   PlayVolleyball: true
   CollectIncome: true
   FriendFight: true
+  FriendArrest: false
   FriendClean: true
 
 ResonanceDispatch:
@@ -780,7 +789,7 @@ ResonanceTrade:
   RouteMode:
     type: select
     value: auto
-    option: [ auto, manual ]
+    option: [ auto, smart_cycle, manual ]
   ManualCityA:
     type: select
     value: 阿妮塔发射中心

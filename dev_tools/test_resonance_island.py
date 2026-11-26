@@ -22,16 +22,19 @@ def _blank_with(*buttons):
     return canvas
 
 
-def _make_promo_modal(method='flyer'):
+def _make_promo_modal(method='flyer', with_full_toast=False):
     from module.resonance import assets
     from module.resonance.island import PROMO_METHOD_TABS
 
-    frame = _blank_with(
+    frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+    frame[336:384, 400:880] = 28 if with_full_toast else (140, 165, 195)
+    for btn in (
         assets.ISLAND_PROMO_MODAL,
         assets.ISLAND_PROMO_MAX,
         assets.ISLAND_PROMO_CONFIRM,
         assets.ISLAND_PROMO_CANCEL,
-    )
+    ):
+        _paste_button(frame, btn)
     x1, y1, x2, y2 = PROMO_METHOD_TABS[method]
     frame[y1:y2, x1:x2] = (248, 248, 248)
     return frame
@@ -102,6 +105,7 @@ def _new_island_task(
     play_vb=True,
     collect_income=True,
     friend_fight=True,
+    friend_arrest=False,
     friend_clean=True,
 ):
     from module.resonance.island import ResonanceIsland
@@ -115,6 +119,7 @@ def _new_island_task(
     task.config.ResonanceIsland_PlayVolleyball = play_vb
     task.config.ResonanceIsland_CollectIncome = collect_income
     task.config.ResonanceIsland_FriendFight = friend_fight
+    task.config.ResonanceIsland_FriendArrest = friend_arrest
     task.config.ResonanceIsland_FriendClean = friend_clean
     task.interval_timer = {}
     task.ui_ensure = Mock()
@@ -130,12 +135,15 @@ class TestResonanceIsland(unittest.TestCase):
     def test_island_assets_and_vision_on_real_screenshots(self):
         from module.resonance import assets
         from module.resonance.island import (
-            find_sidebar_template, is_promo_method_selected, is_promo_park_full, read_beach_income,
-            read_promo_stock, ISLAND_CARD_ROI, SIDEBAR_ROI,
+            PROMO_TOURIST_OCR, find_sidebar_template, is_promo_method_selected, is_promo_park_full,
+            is_promo_park_full_toast, read_beach_income, read_promo_stock, ISLAND_CARD_ROI, SIDEBAR_ROI,
         )
         from module.resonance.island_friends import (
-            detect_friend_monsters, has_friend_clean_coin, is_friend_next_enabled, is_garbage_full_toast,
-            read_friend_assist_remaining, read_friend_clean_remaining, read_friend_monster_count,
+            detect_friend_monsters, find_friend_list_clean_row, has_friend_clean_coin,
+            has_friend_clean_cooldown, has_friend_list_clean_icon, has_friend_list_row,
+            is_friend_list_row_current, is_friend_next_enabled, is_friend_sort_active,
+            is_garbage_full_toast, read_friend_assist_remaining, read_friend_clean_remaining,
+            read_friend_monster_count,
         )
         from module.resonance.island_volleyball import (
             detect_grid_blue_marker, detect_timing_bar_x, find_char_lock_button, is_char_card_locked,
@@ -171,6 +179,11 @@ class TestResonanceIsland(unittest.TestCase):
             'f_mon2': base + 'MuMu-20261126-003123-330.png',
             'f_team': base + 'MuMu-20261126-003126-203.png',
             'f_win': base + 'MuMu-20261126-003217-124.png',
+            'f_win_arrest': base + 'MuMu-20261126-122425-490.png',
+            'arrest_modal_1': base + 'MuMu-20261126-122430-449.png',
+            'arrest_modal_max': base + 'MuMu-20261126-122433-380.png',
+            'arrest_anim': base + 'MuMu-20261126-122438-012.png',
+            'arrest_result': base + 'MuMu-20261126-122444-696.png',
             'f_clean': base + 'MuMu-20261126-003321-308.png',
             'f_toast': base + 'MuMu-20261126-003332-657.png',
         }
@@ -218,6 +231,13 @@ class TestResonanceIsland(unittest.TestCase):
             (assets.ISLAND_FRIEND_CHECK, {'f_mon1', 'f_mon2', 'f_clean', 'f_toast'}),
             (assets.ISLAND_FRIEND_CLEAN, {'f_mon1', 'f_mon2', 'f_clean', 'f_toast'}),
             (assets.ISLAND_FRIEND_NEXT, {'f_mon1', 'f_mon2', 'f_clean', 'f_toast'}),
+            (assets.OP_WIN_ARREST, {'f_win_arrest'}),
+            (assets.ARREST_MODAL, {'arrest_modal_1', 'arrest_modal_max'}),
+            (assets.ARREST_MAX, {'arrest_modal_1', 'arrest_modal_max'}),
+            (assets.ARREST_CONFIRM, {'arrest_modal_1', 'arrest_modal_max'}),
+            (assets.ARREST_CANCEL, {'arrest_modal_1', 'arrest_modal_max'}),
+            (assets.ARREST_ANIM_SKIP, {'arrest_anim'}),
+            (assets.ARREST_RESULT, {'arrest_result'}),
         ]
         for btn, owners in expected_hits:
             for key, img in imgs.items():
@@ -229,12 +249,21 @@ class TestResonanceIsland(unittest.TestCase):
         self.assertTrue(assets.TAP_BLANK_EXIT.match(imgs['vb_mode'], offset=(5, 5)))
         self.assertTrue(assets.LOGIN_REWARD.match(imgs['reward'], offset=(30, 140), similarity=0.78))
         self.assertTrue(assets.OP_TEAM.match(imgs['f_team'], offset=(5, 5)))
-        self.assertTrue(assets.OP_WIN.match(imgs['f_win'], offset=(5, 5)))
+        for key, img in imgs.items():
+            self.assertEqual(assets.OP_WIN.match(img, offset=(5, 5)), key in {'f_win', 'f_win_arrest'}, key)
+        sim_full_prisoners = imgs['arrest_result'].copy()
+        sim_full_prisoners[685:694, 65:385] = (60, 140, 245)
+        self.assertTrue(assets.ARREST_RESULT.match(sim_full_prisoners, offset=(5, 5)))
 
         # Promotion vision & OCR
         self.assertTrue(is_promo_method_selected(imgs['promo_modal'], 'flyer'))
         self.assertFalse(is_promo_method_selected(imgs['promo_modal'], 'ad_ticket'))
         self.assertFalse(is_promo_park_full(imgs['promo']))
+        self.assertFalse(is_promo_park_full_toast(imgs['promo']))
+        self.assertFalse(is_promo_park_full_toast(imgs['promo_modal']))
+        sim_full_bar = imgs['promo'].copy()
+        sim_full_bar[47:51, 1126:1264] = 245
+        self.assertEqual(PROMO_TOURIST_OCR.ocr(sim_full_bar), '90/360')
         self.assertEqual(read_promo_stock(imgs['promo'], 'flyer'), 500)
         self.assertEqual(read_promo_stock(imgs['promo'], 'ad_ticket'), 2203)
         self.assertGreater(read_beach_income(imgs['beach']), 0)
@@ -268,9 +297,37 @@ class TestResonanceIsland(unittest.TestCase):
         self.assertEqual(len(detect_friend_monsters(imgs['beach'])), 0)
         self.assertFalse(has_friend_clean_coin(imgs['f_mon1']))
         self.assertTrue(has_friend_clean_coin(imgs['f_clean']))
+        self.assertFalse(has_friend_clean_cooldown(imgs['f_clean']))
+        self.assertFalse(has_friend_clean_cooldown(imgs['f_mon1']))
         self.assertTrue(is_friend_next_enabled(imgs['f_mon1']))
         self.assertFalse(is_garbage_full_toast(imgs['f_clean']))
         self.assertTrue(is_garbage_full_toast(imgs['f_toast']))
+        self.assertEqual([has_friend_list_clean_icon(imgs['flist'], r) for r in range(4)], [False, False, False, True])
+        self.assertFalse(is_friend_sort_active(imgs['flist'], assets.ISLAND_FRIEND_SORT_CLEAN))
+        self.assertEqual(find_friend_list_clean_row(imgs['flist']), 3)
+        clean_path = base + 'MuMu-20261126-131806-690.png'
+        if os.path.exists(clean_path):
+            flist_clean = np.array(Image.open(clean_path).convert('RGB'))
+            self.assertEqual([has_friend_list_row(flist_clean, r) for r in range(4)], [True, True, True, True])
+            self.assertEqual([has_friend_list_clean_icon(flist_clean, r) for r in range(4)], [True, True, True, True])
+            self.assertEqual([is_friend_list_row_current(flist_clean, r) for r in range(4)], [True, False, False, False])
+            self.assertTrue(is_friend_sort_active(flist_clean, assets.ISLAND_FRIEND_SORT_CLEAN))
+            self.assertEqual(find_friend_list_clean_row(flist_clean), 0)
+            self.assertEqual(find_friend_list_clean_row(flist_clean, skip_current=True), 1)
+        clean_res_path = base + 'MuMu-20261126-133440-910.png'
+        if os.path.exists(clean_res_path):
+            f_clean_res = np.array(Image.open(clean_res_path).convert('RGB'))
+            self.assertTrue(assets.ISLAND_FRIEND_CLEAN_RESULT.match(f_clean_res, offset=(5, 5)))
+            self.assertTrue(assets.TAP_BLANK_EXIT.match(f_clean_res, offset=(40, 100), similarity=0.80))
+            self.assertLess(assets.TAP_BLANK_EXIT.button[3], 720)
+            self.assertFalse(is_garbage_full_toast(f_clean_res))
+        cooldown_path = base + 'MuMu-20261126-134711-707.png'
+        if os.path.exists(cooldown_path):
+            f_cd = np.array(Image.open(cooldown_path).convert('RGB'))
+            self.assertTrue(assets.ISLAND_FRIEND_CHECK.match(f_cd, offset=(5, 5)))
+            self.assertTrue(has_friend_clean_cooldown(f_cd))
+        for key, img in imgs.items():
+            self.assertFalse(assets.ISLAND_FRIEND_CLEAN_RESULT.match(img, offset=(5, 5)), key)
 
     def test_volleyball_timing_physics(self):
         from module.resonance.island_volleyball import should_trigger_timing_hit
@@ -388,6 +445,63 @@ class TestResonanceIsland(unittest.TestCase):
         task2.device.click.assert_not_called()
         _ = hub
 
+    def test_run_promotion_aborts_on_full_toast_and_confirm_stall(self):
+        from module.resonance import assets
+
+        promo = _blank_with(assets.ISLAND_PROMO_CHECK)
+        modal_flyer = _make_promo_modal('flyer')
+        modal_toast = _make_promo_modal('flyer', with_full_toast=True)
+
+        # Case 1: 游客已满 toast inside modal cancels and exits back to hub
+        task1 = _new_island_task(promo_type='promotion', promo_method='flyer')
+        task1.device.image = promo
+        frames1 = iter([modal_flyer, modal_flyer, modal_toast, promo])
+        task1.device.screenshot.side_effect = lambda: setattr(task1.device, 'image', next(frames1))
+        with patch('module.resonance.island.is_promo_park_full', return_value=False), \
+             patch('module.resonance.island.read_promo_stock', return_value=120), \
+             patch('module.resonance.island_friends.TOAST_OCR.ocr', return_value='游客已满!'), \
+             patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            task1.run_promotion()
+
+        clicked1 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task1.device.click.call_args_list]
+        self.assertEqual(
+            clicked1,
+            ['PROMO_CARD_promotion', 'ISLAND_PROMO_MAX', 'ISLAND_PROMO_CONFIRM', 'ISLAND_PROMO_CANCEL'],
+        )
+
+        # Case 2: confirm stall fallback cancels after 2 unresponsive confirm clicks
+        task2 = _new_island_task(promo_type='promotion', promo_method='flyer')
+        task2.device.image = promo
+        frames2 = iter([modal_flyer, modal_flyer, modal_flyer, modal_flyer, promo])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames2))
+        with patch('module.resonance.island.is_promo_park_full', return_value=False), \
+             patch('module.resonance.island.read_promo_stock', return_value=120), \
+             patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            task2.run_promotion()
+
+        clicked2 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task2.device.click.call_args_list]
+        self.assertEqual(
+            clicked2,
+            [
+                'PROMO_CARD_promotion',
+                'ISLAND_PROMO_MAX',
+                'ISLAND_PROMO_CONFIRM',
+                'ISLAND_PROMO_CONFIRM',
+                'ISLAND_PROMO_CANCEL',
+            ],
+        )
+
+        # Case 3: entry frame not yet showing full -> post-settle re-check skips before opening modal
+        task3 = _new_island_task(promo_type='promotion', promo_method='flyer')
+        task3.device.image = promo
+        task3.device.screenshot.side_effect = lambda: setattr(task3.device, 'image', promo)
+        with patch('module.resonance.island.is_promo_park_full', side_effect=[False, True]), \
+             patch('module.resonance.island.read_promo_stock', return_value=120), \
+             patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            task3.run_promotion()
+
+        task3.device.click.assert_not_called()
+
     def test_volleyball_full_match_and_interval_restore(self):
         from module.resonance import assets
         from module.resonance.island_volleyball import run_beach_volleyball
@@ -481,6 +595,8 @@ class TestResonanceIsland(unittest.TestCase):
             assets.ISLAND_FRIEND_SORT_CLEAN,
             assets.ISLAND_FRIEND_VISIT_0,
         )
+        flist_clean = flist.copy()
+        flist_clean[214:230, 434:456] = 250
         f_mon = _make_friend_island(next_enabled=True, with_monster=True)
         op_team = _blank_with(assets.OP_TEAM, assets.OP_TEAM_START)
         op_win = _blank_with(assets.OP_WIN, assets.OP_NEXT)
@@ -500,10 +616,10 @@ class TestResonanceIsland(unittest.TestCase):
             op_team,
             op_win,
             f_mon,
-            # Clean phase _open_friend_and_visit_first (skip_first=False): f_mon -> tab_visit -> flist -> sort -> flist -> visit -> f_coin
+            # Clean phase _open_friend_and_visit_first (skip_first=False): f_mon -> tab_visit -> flist_clean -> sort -> flist_clean -> visit -> f_coin
             f_mon,
-            flist,
-            flist,
+            flist_clean,
+            flist_clean,
             f_coin,
             # Clean clicks -> garbage-full toast
             toast,
@@ -536,6 +652,222 @@ class TestResonanceIsland(unittest.TestCase):
             ],
         )
 
+    def test_friend_clean_uses_broom_icon_and_skips_empty(self):
+        from module.resonance import assets
+        from module.resonance.island_friends import run_island_friends
+
+        beach = _blank_with(assets.ISLAND_BEACH_CHECK, assets.ISLAND_FRIEND_TAB)
+        flist_no_broom = _blank_with(assets.ISLAND_FRIEND_LIST, assets.ISLAND_FRIEND_SORT_CLEAN)
+        flist_no_broom[210:276, 470:548] = (235, 160, 180)
+
+        # Case 1: sorted by 清扫 with 0 broom icons -> close drawer without visiting anyone
+        task1 = _new_island_task()
+        task1.device.image = beach
+        frames1 = iter([beach, flist_no_broom, flist_no_broom, beach])
+        task1.device.screenshot.side_effect = lambda: setattr(task1.device, 'image', next(frames1))
+        with patch('module.base.timer.time', side_effect=count(100, 1.5)):
+            run_island_friends(task1, fight=False, clean=True)
+        clicked1 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task1.device.click.call_args_list]
+        self.assertEqual(clicked1, ['ISLAND_FRIEND_TAB', 'ISLAND_FRIEND_SORT_CLEAN', 'FRIEND_DRAWER_CLOSE'])
+
+        # Case 2: active 清扫 chevron + Row 0 current pink without broom -> clicks Row 1 directly, then exits on empty
+        flist_row1 = _blank_with(assets.ISLAND_FRIEND_LIST)
+        flist_row1[154:169, 298:328] = (230, 160, 180)   # active 清扫 chevron
+        flist_row1[207:237, 300:360] = (220, 170, 195)   # Row 0 pink current (no broom)
+        flist_row1[210:276, 470:548] = (235, 160, 180)   # Row 0 visit triangle
+        flist_row1[331:361, 300:360] = (120, 185, 240)   # Row 1 blue other
+        flist_row1[334:400, 470:548] = (235, 160, 180)   # Row 1 visit triangle
+        flist_row1[336:354, 434:456] = 250               # Row 1 white broom icon
+        flist_active_empty = _blank_with(assets.ISLAND_FRIEND_LIST)
+        flist_active_empty[154:169, 298:328] = (230, 160, 180)
+
+        f_coin = _make_friend_island(with_coin=True)
+        clean_res = _blank_with(assets.ISLAND_FRIEND_CLEAN_RESULT)
+        f_done = _make_friend_island(with_coin=False)
+        task2 = _new_island_task()
+        task2.device.image = beach
+        frames2 = iter([beach, flist_row1, f_coin, clean_res, f_done, f_done, flist_active_empty, f_done, beach])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames2))
+        with patch('module.resonance.island_friends.read_friend_clean_remaining', side_effect=[3, 2]), \
+             patch('module.base.timer.time', side_effect=count(100, 1.5)):
+            run_island_friends(task2, fight=False, clean=True)
+        clicked2 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task2.device.click.call_args_list]
+        self.assertEqual(
+            clicked2,
+            [
+                'ISLAND_FRIEND_TAB',
+                'ISLAND_FRIEND_VISIT_1',
+                'ISLAND_FRIEND_CLEAN',
+                'ISLAND_FRIEND_CLEAN_RESULT',
+                'ISLAND_FRIEND_TAB_VISIT',
+                'FRIEND_DRAWER_CLOSE',
+                'OP_BACK',
+            ],
+        )
+
+        # Case 3: post-clean return to cooldown stops without retrying; 2 cooldown friends stop phase cleanly
+        f_coin_cd = f_coin.copy()
+        f_coin_cd[68:84, 1035:1075] = (235, 130, 155)
+        flist_2clean = _blank_with(assets.ISLAND_FRIEND_LIST)
+        flist_2clean[154:169, 298:328] = (230, 160, 180)
+        flist_2clean[210:276, 470:548] = (235, 160, 180)
+        flist_2clean[214:230, 434:456] = 250
+        flist_2clean_next = flist_2clean.copy()
+        flist_2clean_next[207:237, 300:360] = (220, 170, 195)
+        flist_2clean_next[334:400, 470:548] = (235, 160, 180)
+        flist_2clean_next[336:354, 434:456] = 250
+
+        task3 = _new_island_task()
+        task3.device.image = beach
+        frames3 = iter([
+            beach, flist_2clean, f_coin, clean_res, f_coin_cd,
+            f_coin_cd, flist_2clean, f_coin_cd,
+            f_coin_cd, flist_2clean_next, f_coin_cd,
+            beach,
+        ])
+        task3.device.screenshot.side_effect = lambda: setattr(task3.device, 'image', next(frames3))
+        with patch('module.base.timer.time', side_effect=count(100, 1.5)):
+            run_island_friends(task3, fight=False, clean=True)
+        clicked3 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task3.device.click.call_args_list]
+        self.assertEqual(
+            clicked3,
+            [
+                'ISLAND_FRIEND_TAB',
+                'ISLAND_FRIEND_VISIT_0',
+                'ISLAND_FRIEND_CLEAN',
+                'ISLAND_FRIEND_CLEAN_RESULT',
+                'ISLAND_FRIEND_TAB_VISIT',
+                'ISLAND_FRIEND_VISIT_0',
+                'ISLAND_FRIEND_TAB_VISIT',
+                'ISLAND_FRIEND_VISIT_1',
+                'OP_BACK',
+            ],
+        )
+
+    def test_friend_fight_arrest_flow_and_fallbacks(self):
+        from module.resonance import assets
+        from module.resonance.island_friends import _wait_friend_battle
+
+        op_team = _blank_with(assets.OP_TEAM, assets.OP_TEAM_START)
+        op_win = _blank_with(assets.OP_WIN, assets.OP_NEXT)
+        op_win_arrest = _blank_with(assets.OP_WIN, assets.OP_NEXT, assets.OP_WIN_ARREST)
+        modal = _blank_with(
+            assets.ARREST_MODAL,
+            assets.ARREST_MAX,
+            assets.ARREST_CONFIRM,
+            assets.ARREST_CANCEL,
+            assets.TAP_BLANK_EXIT,
+        )
+        anim = _blank_with(assets.ARREST_ANIM_SKIP)
+        result = _blank_with(assets.ARREST_RESULT)
+        blank_exit_only = _blank_with(assets.TAP_BLANK_EXIT)
+        friend = _make_friend_island(next_enabled=True)
+
+        # Case 1: Happy path closes ARREST_RESULT directly back to friend island without clicking OP_NEXT
+        task1 = _new_island_task(friend_arrest=True)
+        task1.device.image = op_team
+        frames1 = iter([op_win_arrest, modal, modal, anim, result, friend])
+        task1.device.screenshot.side_effect = lambda: setattr(task1.device, 'image', next(frames1))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            _wait_friend_battle(task1, arrest=True)
+        clicked1 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task1.device.click.call_args_list]
+        self.assertEqual(
+            clicked1,
+            ['OP_TEAM_START', 'OP_WIN_ARREST', 'ARREST_MAX', 'ARREST_CONFIRM', 'ARREST_ANIM_SKIP', 'ARREST_RESULT'],
+        )
+
+        # Case 2: Non-capturable monster (OP_WIN without OP_WIN_ARREST) settles and clicks OP_NEXT
+        task2 = _new_island_task(friend_arrest=True)
+        task2.device.image = op_team
+        frames2 = iter([op_win, op_win, friend])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames2))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            _wait_friend_battle(task2, arrest=True)
+        clicked2 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task2.device.click.call_args_list]
+        self.assertEqual(clicked2, ['OP_TEAM_START', 'OP_NEXT'])
+
+        # Case 3: Confirm stall cancels modal back to victory screen, then exits via OP_NEXT once
+        task3 = _new_island_task(friend_arrest=True)
+        task3.device.image = op_team
+        frames3 = iter([op_win_arrest, modal, modal, modal, modal, op_win_arrest, friend])
+        task3.device.screenshot.side_effect = lambda: setattr(task3.device, 'image', next(frames3))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            _wait_friend_battle(task3, arrest=True)
+        clicked3 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task3.device.click.call_args_list]
+        self.assertEqual(
+            clicked3,
+            [
+                'OP_TEAM_START',
+                'OP_WIN_ARREST',
+                'ARREST_MAX',
+                'ARREST_CONFIRM',
+                'ARREST_CONFIRM',
+                'ARREST_CANCEL',
+                'OP_NEXT',
+            ],
+        )
+
+        # Case 4: Variant 0-caught result screen closes cleanly via TAP_BLANK_EXIT fallback
+        task4 = _new_island_task(friend_arrest=True)
+        task4.device.image = op_team
+        frames4 = iter([op_win_arrest, modal, modal, blank_exit_only, friend])
+        task4.device.screenshot.side_effect = lambda: setattr(task4.device, 'image', next(frames4))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            _wait_friend_battle(task4, arrest=True)
+        clicked4 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task4.device.click.call_args_list]
+        self.assertEqual(
+            clicked4,
+            ['OP_TEAM_START', 'OP_WIN_ARREST', 'ARREST_MAX', 'ARREST_CONFIRM', 'TAP_BLANK_EXIT'],
+        )
+
+    def test_volleyball_zoom_pan_blue_tile_and_training_end(self):
+        from module.resonance import assets
+        from module.resonance.island_volleyball import (
+            _click_char_select, detect_grid_blue_marker, play_single_volleyball_match,
+        )
+
+        # 1) Distractors alone (ocean, ▼ arrow, thin net pole, umbrella, hint pill) -> None
+        base_noise = np.full((720, 1280, 3), 180, dtype=np.uint8)
+        base_noise[0:215, :] = (20, 160, 235)          # Ocean top band
+        base_noise[290:325, 420:450] = (50, 175, 240)  # Small overhead ▼ arrow
+        base_noise[240:420, 628:644] = (50, 175, 240)  # Thin vertical net pole
+        base_noise[225:275, 920:1080] = (80, 200, 245) # Top-right beach umbrella
+        base_noise[650:695, 900:1240] = (90, 185, 240) # Bottom-right hint pill
+        self.assertIsNone(detect_grid_blue_marker(base_noise))
+
+        # 2) Zoomed/shifted hollow tiles past x=635, above y=310, or near bottom edge
+        for x1, y1, x2, y2 in ((700, 350, 880, 440), (260, 615, 460, 700), (300, 235, 460, 305)):
+            frame = base_noise.copy()
+            frame[y1:y2, x1:x2] = (80, 195, 240)
+            frame[y1 + 14:y2 - 14, x1 + 22:x2 - 22] = (180, 180, 180)
+            pos = detect_grid_blue_marker(frame)
+            self.assertIsNotNone(pos, f'missed shifted/zoomed tile {(x1, y1, x2, y2)}')
+            self.assertLess(abs(pos[0] - (x1 + x2) // 2), 15)
+            self.assertLess(abs(pos[1] - (y1 + y2) // 2), 15)
+
+        # 3) _click_char_select stays idle once both cards are locked
+        both_locked = _make_char_select(locked_indices=(0, 1), lock_idx=None)
+        idle_task = _new_island_task()
+        idle_task.device.image = both_locked
+        _click_char_select(idle_task, Mock(reached=Mock(return_value=True)))
+        idle_task.device.click.assert_not_called()
+
+        # 4) play_single_volleyball_match clicks VB_TRAINING_END on Defeat screen to exit
+        sel0 = _make_char_select(locked_indices=(), lock_idx=0)
+        sel1 = _make_char_select(locked_indices=(0,), lock_idx=1)
+        court = _make_court_with_tile(x1=710, y1=240, x2=890, y2=330)
+        training_end = _blank_with(assets.VB_TRAINING_END)
+        vb_mode = _blank_with(assets.VB_MODE_MATCH)
+
+        end_task = _new_island_task(play_vb=True)
+        end_task.device.image = sel0
+        frames = iter([sel1, court, training_end, vb_mode])
+        end_task.device.screenshot.side_effect = lambda: setattr(end_task.device, 'image', next(frames))
+        with patch('module.base.timer.time', side_effect=count(100, 1.0)):
+            self.assertTrue(play_single_volleyball_match(end_task))
+        clicked = [getattr(c[0][0], 'name', str(c[0][0])) for c in end_task.device.click.call_args_list]
+        self.assertEqual(clicked, ['TEMPLATE_VB_LOCK_CLICK', 'TEMPLATE_VB_LOCK_CLICK', 'VB_GRID_TILE', 'VB_TRAINING_END'])
+
     def test_island_run_orchestration(self):
         from module.resonance.page import page_resonance_island_beach
 
@@ -546,6 +878,7 @@ class TestResonanceIsland(unittest.TestCase):
             play_vb=True,
             collect_income=True,
             friend_fight=True,
+            friend_arrest=True,
             friend_clean=False,
         )
         task.clean_train_garbage = Mock()
@@ -563,6 +896,6 @@ class TestResonanceIsland(unittest.TestCase):
         m_vb.assert_called_once_with(task)
         task.ui_ensure.assert_called_once_with(page_resonance_island_beach, skip_first_screenshot=False)
         task.collect_daily_income.assert_called_once()
-        m_fr.assert_called_once_with(task, fight=True, clean=False)
+        m_fr.assert_called_once_with(task, fight=True, clean=False, arrest=True)
         task.ui_goto_main.assert_called_once()
         task.config.task_delay.assert_called_once_with(server_update=True)

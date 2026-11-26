@@ -179,7 +179,7 @@ class ResonanceDispatch(ResonanceUI):
         clicked = False
         wait = Timer(0.6)
         for _ in self.loop(timeout=6):
-            if self.handle_reward_popup():
+            if self.handle_reward_popup() or self.appear_then_click(assets.DISPATCH_REPORT, offset=OFFSET, interval=2):
                 continue
             if self.ui_page_appear(page_resonance_dispatch, offset=OFFSET):
                 if not clicked:
@@ -203,7 +203,7 @@ class ResonanceDispatch(ResonanceUI):
         settle = Timer(1.2)
         claimed = False
         for _ in self.loop(timeout=12):
-            if self.handle_reward_popup():
+            if self.handle_reward_popup() or self.appear_then_click(assets.DISPATCH_REPORT, offset=OFFSET, interval=2):
                 claimed = True
                 settle.reset()
                 continue
@@ -314,7 +314,7 @@ class ResonanceDispatch(ResonanceUI):
         """Click bright yellow '派遣' until active card count rises or red '召回' appears."""
         self.interval_clear(assets.DISPATCH_SEND_READY)
         for _ in self.loop(timeout=12):
-            if self.handle_reward_popup():
+            if self.handle_reward_popup() or self.appear_then_click(assets.DISPATCH_REPORT, offset=OFFSET, interval=2):
                 continue
             if self.ui_page_appear(page_resonance_dispatch, offset=OFFSET):
                 if (count_active_cards(self.device.image) > active_before

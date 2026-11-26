@@ -66,7 +66,7 @@ def _make_op_victory():
     return _blank_with(assets.OP_WIN, assets.OP_NEXT)
 
 
-def _new_task(purple=True, rainbow=True, white=True, red=True):
+def _new_task(purple=True, rainbow=True, white=True, red=True, use_clarity_item='none'):
     from module.resonance.preparation import ResonancePreparation
 
     task = ResonancePreparation.__new__(ResonancePreparation)
@@ -76,6 +76,7 @@ def _new_task(purple=True, rainbow=True, white=True, red=True):
     task.config.ResonancePreparation_FightRainbow = rainbow
     task.config.ResonancePreparation_FightWhite = white
     task.config.ResonancePreparation_FightRed = red
+    task.config.ResonancePreparation_UseClarityItem = use_clarity_item
     task.interval_timer = {}
     task.ui_ensure = Mock()
     task.ui_goto_main = Mock()
@@ -365,3 +366,48 @@ class TestResonancePreparation(unittest.TestCase):
         )
         task.ui_goto_main.assert_called_once()
         task.config.task_delay.assert_called_once_with(server_update=True)
+
+    def test_auto_crusade_clarity_item_refill_and_prompt_cancel(self):
+        from dev_tools.test_resonance_clarity import make_clarity_confirm_modal, make_clarity_recovery_screen
+        from module.resonance import assets
+
+        survey_closed = _blank_with(assets.SURVEY_CHECK, assets.SURVEY_AUTO_START, assets.SURVEY_SETTING)
+        survey_stop_panel = _blank_with(assets.SURVEY_AUTO_STOP, assets.SURVEY_BATTLE_START, assets.SURVEY_SETTING)
+        page_full = make_clarity_recovery_screen(has_lollipop=True, has_gum=True, has_cactus=False)
+        confirm = make_clarity_confirm_modal()
+        op_win = _make_op_victory()
+        prompt = _blank_with(assets.CLARITY_PROMPT, assets.CLARITY_PROMPT_CANCEL, assets.CLARITY_PROMPT_CONFIRM)
+
+        # Case 1: UseClarityItem='lollipop' -> clicks SURVEY_CLARITY_PLUS, uses lollipop, finishes crusade
+        task1 = _new_task(use_clarity_item='lollipop')
+        task1.device.image = survey_closed
+        frames1 = iter([
+            survey_stop_panel,
+            page_full, confirm, page_full, survey_closed, survey_closed,
+            op_win, survey_closed, survey_closed, survey_closed, survey_closed,
+        ])
+        task1.device.screenshot.side_effect = lambda: setattr(task1.device, 'image', next(frames1))
+        with patch('module.resonance.preparation.read_clarity_insufficient', return_value=True), \
+             patch('module.resonance.clarity.read_clarity_fraction', return_value=(17, 358)), \
+             patch('module.resonance.clarity.CLARITY_CNT_OCR.ocr', side_effect=[['24'], ['40']]), \
+             patch('module.resonance.clarity.FATIGUE_CONFIRM_QTY_OCR.ocr', return_value='1/10'), \
+             patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            self.assertEqual(task1.run_auto_crusade(), 'done')
+        clicked1 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task1.device.click.call_args_list]
+        self.assertEqual(
+            clicked1,
+            [
+                'SURVEY_AUTO_START', 'SURVEY_CLARITY_PLUS', 'CLARITY_ITEM_LOLLIPOP',
+                'FATIGUE_CONFIRM_OK', 'OP_BACK', 'SURVEY_AUTO_START', 'OP_NEXT',
+            ],
+        )
+
+        # Case 2: UseClarityItem='none' -> cancels CLARITY_PROMPT cleanly and returns 'no_clarity'
+        task2 = _new_task(use_clarity_item='none')
+        task2.device.image = survey_closed
+        frames2 = iter([prompt, survey_closed, survey_closed, survey_closed, survey_closed])
+        task2.device.screenshot.side_effect = lambda: setattr(task2.device, 'image', next(frames2))
+        with patch('module.base.timer.time', side_effect=count(100, 3.0)):
+            self.assertEqual(task2.run_auto_crusade(), 'no_clarity')
+        clicked2 = [getattr(c[0][0], 'name', str(c[0][0])) for c in task2.device.click.call_args_list]
+        self.assertEqual(clicked2, ['SURVEY_AUTO_START', 'CLARITY_PROMPT_CANCEL'])

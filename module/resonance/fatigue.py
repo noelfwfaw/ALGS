@@ -203,9 +203,12 @@ class ResonanceFatigue(ResonanceProfile):
         latest = before
         clicks = 0
         ready = Timer(1.5).start()
-        self.interval_clear(assets.BENTO_USE_ALL)
-        for _ in self.loop(skip_first=False, timeout=10):
+        self.interval_clear((assets.BENTO_USE_ALL, assets.GARBAGE_CONFIRM_OK))
+        for _ in self.loop(skip_first=False, timeout=15):
             if self.handle_reward_popup():
+                continue
+            if self.appear(assets.BENTO_CONFIRM_MODAL, offset=(60, 10)):
+                self.appear_then_click(assets.GARBAGE_CONFIRM_OK, offset=OFFSET, interval=1.5)
                 continue
             if self.ui_page_appear(page_resonance_bento, offset=OFFSET):
                 now = self.read_bento_fatigue()

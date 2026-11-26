@@ -125,7 +125,7 @@ class TestResonanceTrade(unittest.TestCase):
         task.count_bargain_pips = Mock(side_effect=[8, 7, 7])
         task.read_bargain_pct = Mock(side_effect=[0.0, 13.0, 13.0])
 
-        frames = iter([sell_staged, sell_staged, sell_blur, sell_staged, sell_staged, sell_report, sell_all])
+        frames = iter([sell_staged, sell_staged, sell_staged, sell_blur, sell_staged, sell_staged, sell_staged, sell_staged, sell_report, sell_all])
         task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', next(frames))
         with patch('module.base.timer.time', side_effect=count(100, 0.6)):
             result = task.sell_all(raise_target=10)
@@ -146,7 +146,7 @@ class TestResonanceTrade(unittest.TestCase):
         task_low.enter_exchange = Mock()
         task_low.ensure_max_mode = Mock()
         task_low.read_sell_total = Mock(return_value=19166)
-        frames_low = iter([sell_staged, sell_report, sell_all])
+        frames_low = iter([sell_staged, sell_staged, sell_staged, sell_report, sell_all])
         task_low.device.screenshot.side_effect = lambda: setattr(task_low.device, 'image', next(frames_low))
         with patch('module.base.timer.time', side_effect=count(100, 0.6)):
             self.assertTrue(task_low.sell_all(raise_target=20))
@@ -177,9 +177,9 @@ class TestResonanceTrade(unittest.TestCase):
         task_race.enter_exchange = Mock()
         task_race.ensure_max_mode = Mock()
         hub_frame = load_image(assets.TRADE_HUB_CHECK.file)
-        race_frames = iter([sell_ripple_clear_cart, sell_staged, sell_report, hub_frame])
+        race_frames = iter([sell_ripple_clear_cart, sell_staged, sell_staged, sell_staged, sell_report, hub_frame])
         task_race.device.screenshot.side_effect = lambda: setattr(task_race.device, 'image', next(race_frames))
-        with patch('module.base.timer.time', side_effect=count(100, 3)):
+        with patch('module.base.timer.time', side_effect=count(100, 0.5)):
             self.assertTrue(task_race.sell_all(raise_target=0))
         self.assertEqual(task_race.device.click.call_args_list, [
             call(assets.TRADE_SELL_ALL),
@@ -298,9 +298,9 @@ class TestResonanceTrade(unittest.TestCase):
         task_sell.interval_timer = {}
         task_sell.enter_exchange = Mock()
         task_sell.ensure_max_mode = Mock()
-        sell_frames = iter([sell_staged, sell_report, reward_frame, hub_frame])
+        sell_frames = iter([sell_staged, sell_staged, sell_staged, sell_report, reward_frame, hub_frame])
         task_sell.device.screenshot.side_effect = lambda: setattr(task_sell.device, 'image', next(sell_frames))
-        with patch('module.base.timer.time', side_effect=count(100, 3)):
+        with patch('module.base.timer.time', side_effect=count(100, 0.5)):
             self.assertTrue(task_sell.sell_all(raise_target=0))
         self.assertIs(task_sell.ui_current, page_resonance_trade_hub)
         self.assertEqual(task_sell.device.click.call_args_list, [
@@ -332,3 +332,35 @@ class TestResonanceTrade(unittest.TestCase):
             call(assets.TRADE_BUY_CONFIRM),
             call(assets.TRADE_BUY_REPORT),
         ])
+
+    def test_sell_all_waits_for_rolling_profit_animation_to_settle(self):
+        from module.resonance import assets
+        from module.resonance.trade import SELL_SUMMARY_AREA, ResonanceTrade
+
+        sell_base = load_image(assets.TRADE_SELL_CHECK.file)
+        sell_stocked = sell_base + load_image(assets.TRADE_SELL_ALL.file)
+        sell_stocked[200:320, 484:494] = (230, 180, 40)
+        staged = sell_base + load_image(assets.TRADE_CANCEL_ALL.file) + load_image(assets.TRADE_SELL_CONFIRM.file)
+        x1, y1, x2, y2 = SELL_SUMMARY_AREA
+
+        roll1 = staged.copy()
+        roll1[y1:y2, x1:x2] = 60
+        roll2 = staged.copy()
+        roll2[y1:y2, x1:x2] = 120
+        settled = staged.copy()
+        settled[y1:y2, x1:x2] = 210
+        sell_report = load_image(assets.TRADE_SELL_REPORT.file)
+
+        task = ResonanceTrade.__new__(ResonanceTrade)
+        task.device = Mock()
+        task.device.image = sell_stocked
+        task.interval_timer = {}
+        task.enter_exchange = Mock()
+        task.ensure_max_mode = Mock()
+        frames = iter([roll1, roll2, settled, settled.copy(), sell_report, sell_stocked])
+        task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', next(frames))
+        with patch('module.base.timer.time', side_effect=count(100, 0.3)):
+            self.assertTrue(task.sell_all(raise_target=0))
+
+        self.assertIsNotNone(task._last_sell_image)
+        self.assertTrue(np.array_equal(task._last_sell_image[y1:y2, x1:x2], settled[y1:y2, x1:x2]))

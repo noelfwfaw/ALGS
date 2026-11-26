@@ -8,14 +8,16 @@ from module.lostsword.assets import (ARENA_BTN_CHALLENGE_1,
                                      ARENA_BTN_CHALLENGE_3,
                                      ARENA_BTN_CLOSE, ARENA_BTN_ENTER,
                                      ARENA_BTN_SEASON, ARENA_BTN_SKIP,
-                                     ARENA_BTN_TEAM, ARENA_PROMO_TAG,
-                                     ARENA_DEFEAT, ARENA_SEASON_CLAIM_ALL,
-                                     ARENA_TITLE, ARENA_VICTORY,
-                                     MAIN_BTN_BATTLE, REWARD_POPUP_TITLE)
+                                     ARENA_BTN_TEAM, ARENA_CARD,
+                                     ARENA_DEFEAT, ARENA_PROMO_TAG,
+                                     ARENA_SEASON_CLAIM_ALL, ARENA_TITLE,
+                                     ARENA_VICTORY, MAIN_BTN_BATTLE,
+                                     REWARD_POPUP_TITLE)
 from module.lostsword.lostsword_ui import (BOSS_RESULT_TAP,
                                            LostswordUI,
                                            page_arena,
-                                           page_battle)
+                                           page_arena_preview,
+                                           page_arena_season)
 
 """
 竞技场 (arena).
@@ -102,9 +104,7 @@ class LostswordArena(LostswordUI):
             out: page_main
         """
         logger.hr('Arena', level=1)
-        self.ui_ensure(page_battle)
-        self.battle_goto_normal()
-        self.ui_ensure(page_arena)
+        self.arena_goto_page()
 
         tickets = self.arena_ticket_count()
         logger.attr('Arena tickets', tickets)
@@ -134,6 +134,21 @@ class LostswordArena(LostswordUI):
         # the tickets pile up in between and are all spent in one go here.
         self.config.task_delay(server_update=True)
 
+    def arena_goto_page(self):
+        """
+        Find the arena card on the battle tab, then confirm the arena list.
+
+        Pages:
+            in: any
+            out: page_arena
+        """
+        self.battle_goto_card(
+            ARENA_CARD,
+            page_arena,
+            close_to_dest=(page_arena_preview, page_arena_season),
+            label='Arena',
+        )
+
     def arena_season_claim(self):
         """
         Claim the season missions of the arena, all three tabs.
@@ -152,7 +167,7 @@ class LostswordArena(LostswordUI):
             int: How many tabs paid out.
         """
         logger.hr('Season missions', level=2)
-        self.ui_ensure(page_arena)
+        self.arena_goto_page()
         if self.wait_until_appear(ARENA_BTN_SEASON, offset=30, timeout=2):
             self.device.click(ARENA_BTN_SEASON)
         else:
@@ -409,9 +424,7 @@ class LostswordArena(LostswordUI):
                 # back on another tab. Walk in from the lobby: that resets the
                 # tab and anything the battle left behind.
                 logger.info('Battle ended back at the lobby, walk into the list')
-                self.ui_ensure(page_battle)
-                self.battle_goto_normal()
-                self.ui_ensure(page_arena)
+                self.arena_goto_page()
                 return True
 
             if self.appear(ARENA_BTN_SKIP, offset=30):

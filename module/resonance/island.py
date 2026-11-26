@@ -8,7 +8,7 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.ocr.ocr import Ocr
 from module.resonance import assets
-from module.resonance.island_friends import run_island_friends
+from module.resonance.island_friends import TOAST_OCR, run_island_friends
 from module.resonance.island_volleyball import run_beach_volleyball
 from module.resonance.page import (
     page_resonance_garbage, page_resonance_island_beach, page_resonance_island_hub, page_resonance_island_promo,
@@ -18,7 +18,7 @@ from module.resonance.resonance_ui import ResonanceUI
 
 
 OFFSET = (5, 5)
-PROMO_TOURIST_OCR = Ocr((1185, 20, 1268, 54), threshold=128, alphabet='0123456789/', name='Island tourists')
+PROMO_TOURIST_OCR = Ocr((1145, 22, 1268, 44), threshold=128, alphabet='0123456789/', name='Island tourists')
 PROMO_FLYER_OCR = Ocr((980, 18, 1085, 58), threshold=128, alphabet='0123456789', name='Island flyers')
 PROMO_AD_OCR = Ocr((820, 18, 930, 58), threshold=128, alphabet='0123456789', name='Island ad tickets')
 BEACH_INCOME_OCR = Ocr((125, 650, 248, 686), threshold=128, alphabet='0123456789', name='Island income')
@@ -54,6 +54,15 @@ def is_promo_park_full(image):
         return False
     cur, cap = int(match.group(1)), int(match.group(2))
     return cap > 0 and cur >= cap
+
+
+def is_promo_park_full_toast(image):
+    """Return True when the center dark toast banner indicates 游客已满."""
+    band = image[336:384, 400:880]
+    if float(band.mean()) >= 80.0:
+        return False
+    text = str(TOAST_OCR.ocr(image))
+    return any(keyword in text for keyword in ('游客', '已满'))
 
 
 def read_promo_stock(image, method):
@@ -144,6 +153,17 @@ class ResonanceIsland(ResonanceUI):
                     swipe_timer.reset()
         raise GameStuckError('Did not enter 海岛物语 hub')
 
+    def _should_skip_promotion(self, method):
+        """Return True and log if tourist capacity is full or configured promo stock is 0."""
+        if is_promo_park_full(self.device.image):
+            logger.info('海岛游客已满，跳过海岛宣传')
+            return True
+        stock = read_promo_stock(self.device.image, method)
+        if stock is not None and stock <= 0:
+            logger.info(f'海岛宣传道具 ({method}) 为 0，跳过海岛宣传')
+            return True
+        return False
+
     def run_promotion(self):
         """Execute 海岛宣传 with configured promotion card, method tab, and MAX quantity.
 
@@ -156,19 +176,16 @@ class ResonanceIsland(ResonanceUI):
         if promo_type == 'none':
             return
         self.ui_ensure(page_resonance_island_promo, skip_first_screenshot=False)
-        if is_promo_park_full(self.device.image):
-            logger.info('海岛游客已满，跳过海岛宣传')
-            self.ui_ensure(page_resonance_island_hub, skip_first_screenshot=False)
-            return
-        stock = read_promo_stock(self.device.image, method)
-        if stock is not None and stock <= 0:
-            logger.info(f'海岛宣传道具 ({method}) 为 0，跳过海岛宣传')
+        if self._should_skip_promotion(method):
             self.ui_ensure(page_resonance_island_hub, skip_first_screenshot=False)
             return
 
         submitted = False
+        aborted = False
         max_clicked = False
         result_clicks = 0
+        confirm_clicks = 0
+        confirm_timer = Timer(2.0)
         card_timer = Timer(1.5).start()
         for _ in self.loop(timeout=30):
             if self.handle_reward_popup():
@@ -181,13 +198,22 @@ class ResonanceIsland(ResonanceUI):
                 else:
                     self.appear_then_click(assets.ISLAND_PROMO_GO_REVENUE, offset=OFFSET, interval=2)
                 continue
-            if submitted and (
+            if (submitted or aborted) and (
                 self.appear(assets.ISLAND_PROMO_CHECK, offset=OFFSET)
                 or self.appear(assets.ISLAND_BEACH_CHECK, offset=OFFSET)
                 or self.appear(assets.ISLAND_HUB_CHECK, offset=OFFSET)
             ):
                 break
             if self.appear(assets.ISLAND_PROMO_MODAL, offset=OFFSET):
+                if not aborted and is_promo_park_full_toast(self.device.image):
+                    logger.info('海岛宣传提示游客已满，取消并跳过海岛宣传')
+                    aborted = True
+                if aborted or (confirm_clicks >= 2 and confirm_timer.reached()):
+                    if not aborted:
+                        logger.warning('海岛宣传确认未生效，取消并跳过海岛宣传')
+                        aborted = True
+                    self.appear_then_click(assets.ISLAND_PROMO_CANCEL, offset=OFFSET, interval=1.5)
+                    continue
                 if not is_promo_method_selected(self.device.image, method):
                     self.device.click(_box_button(PROMO_METHOD_TABS[method], f'PROMO_TAB_{method}'))
                     continue
@@ -196,8 +222,17 @@ class ResonanceIsland(ResonanceUI):
                     continue
                 if self.appear_then_click(assets.ISLAND_PROMO_CONFIRM, offset=OFFSET, interval=2):
                     submitted = True
+                    confirm_clicks += 1
+                    confirm_timer.reset()
                 continue
-            if self.appear(assets.ISLAND_PROMO_CHECK, offset=OFFSET) and not submitted and card_timer.reached():
+            if (
+                self.appear(assets.ISLAND_PROMO_CHECK, offset=OFFSET)
+                and not submitted
+                and not aborted
+                and card_timer.reached()
+            ):
+                if self._should_skip_promotion(method):
+                    break
                 self.device.click(_box_button(PROMO_CARD_BOXES[promo_type], f'PROMO_CARD_{promo_type}'))
                 card_timer.reset()
                 continue
@@ -239,6 +274,7 @@ class ResonanceIsland(ResonanceUI):
         play_vb = getattr(self.config, 'ResonanceIsland_PlayVolleyball', True)
         collect_income = getattr(self.config, 'ResonanceIsland_CollectIncome', True)
         friend_fight = getattr(self.config, 'ResonanceIsland_FriendFight', True)
+        friend_arrest = getattr(self.config, 'ResonanceIsland_FriendArrest', False)
         friend_clean = getattr(self.config, 'ResonanceIsland_FriendClean', True)
 
         if clean_garbage:
@@ -255,7 +291,7 @@ class ResonanceIsland(ResonanceUI):
                 if collect_income:
                     self.collect_daily_income()
                 if friend_fight or friend_clean:
-                    run_island_friends(self, fight=friend_fight, clean=friend_clean)
+                    run_island_friends(self, fight=friend_fight, clean=friend_clean, arrest=friend_arrest)
 
         self.ui_goto_main()
         self.config.task_delay(server_update=True)

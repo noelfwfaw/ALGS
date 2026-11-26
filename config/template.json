@@ -1241,7 +1241,8 @@
       "SiegeStage": "Order",
       "SupplyRuns": 0,
       "SupplyStage": "Auto",
-      "WeeklyRuns": 0
+      "WeeklyRuns": 0,
+      "UseClarityItem": "none"
     },
     "Storage": {
       "Storage": {}
@@ -1260,7 +1261,8 @@
       "FightPurple": true,
       "FightRainbow": true,
       "FightWhite": true,
-      "FightRed": true
+      "FightRed": true,
+      "UseClarityItem": "none"
     },
     "Storage": {
       "Storage": {}
@@ -1282,6 +1284,7 @@
       "PlayVolleyball": true,
       "CollectIncome": true,
       "FriendFight": true,
+      "FriendArrest": false,
       "FriendClean": true
     },
     "Storage": {

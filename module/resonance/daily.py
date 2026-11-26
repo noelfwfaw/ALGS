@@ -47,6 +47,22 @@ class ResonanceDaily(ResonanceUI):
                     break
         raise GameStuckError('Resonance daily task cards did not settle')
 
+    def _reward_popup_appear(self):
+        return (
+            self.appear(LOGIN_REWARD, offset=(5, 5))
+            or self.appear(LOGIN_REWARD, offset=(30, 140), similarity=0.78)
+        )
+
+    def _wait_milestone_claimed(self, gift):
+        for _ in self.loop(skip_first=False, timeout=8):
+            if self._reward_popup_appear():
+                return True
+            if self.ui_page_appear(page_daily):
+                if self.image_color_count(gift, (248, 179, 1), threshold=35, count=35):
+                    continue
+                return True
+        return False
+
     def claim_milestones(self):
         for _ in self.loop(timeout=45):
             if self.handle_reward_popup():
@@ -55,7 +71,7 @@ class ResonanceDaily(ResonanceUI):
                 for gift in MILESTONES.buttons:
                     if self.image_color_count(gift, (248, 179, 1), threshold=35, count=35):
                         self.device.click(gift)
-                        if not self.wait_until_appear(LOGIN_REWARD, offset=(5, 5), timeout=8):
+                        if not self._wait_milestone_claimed(gift):
                             raise GameStuckError(f'Resonance activity reward did not appear for {gift}')
                         break
                 else:

@@ -384,3 +384,48 @@ class TestResonanceCaravan(unittest.TestCase):
         c4.buy_plan.assert_called_once()
         c4.travel_to.assert_called_once()
         self.assertEqual(self.mock_save_market_status.call_args_list[-1][0][1]['status'], 'pass')
+
+    def test_reposition_excludes_negotiation_only_goods(self):
+        from module.resonance.caravan import build_player_config, plan_next_leg
+        from module.resonance.columba import PRESTIGE_CITIES, load_columba_data
+
+        data = load_columba_data()
+        profile = {'maxLot': 994, 'prestige': {c: 20 for c in PRESTIGE_CITIES}, 'roles': {}}
+        cfg = SimpleNamespace(
+            ResonanceTrade_SortBy='profit',
+            ResonanceTrade_RoundTrip=False,
+            ResonanceTrade_RestockBooks=2,
+            ResonanceTrade_BargainPercent=20,
+            ResonanceTrade_RaisePercent=20,
+            ResonanceTrade_ReturnBargain=False,
+            ResonanceTrade_ExcludedCities='武林源',
+        )
+        player_cfg = build_player_config(profile, cfg, data)
+
+        anita_prod = next(p['name'] for p in data['products_by_city']['阿妮塔发射中心'] if p.get('type') != 'Craft')
+        shug_prods = [p['name'] for p in data['products_by_city']['修格里城'] if p.get('type') != 'Craft']
+        neg_only_good, safe_good = shug_prods[0], shug_prods[1]
+        prices = {
+            anita_prod: {
+                'buy': {'阿妮塔发射中心': {'price': 500, 'variation': 80, 'trend': 'down', 'time': 0}},
+                'sell': {'岚心城': {'price': 15000, 'variation': 150, 'trend': 'up', 'time': 0}},
+            },
+            # Profitable only under 20% bargain + 20% raise, money-losing at 0% + 0%
+            neg_only_good: {
+                'buy': {'修格里城': {'price': 1000, 'variation': 100, 'trend': 'same', 'time': 0}},
+                'sell': {'阿妮塔发射中心': {'price': 1000, 'variation': 100, 'trend': 'same', 'time': 0}},
+            },
+            # Still profitable at 0% + 0%
+            safe_good: {
+                'buy': {'修格里城': {'price': 400, 'variation': 90, 'trend': 'down', 'time': 0}},
+                'sell': {'阿妮塔发射中心': {'price': 900, 'variation': 120, 'trend': 'up', 'time': 0}},
+            },
+        }
+
+        repo = plan_next_leg('修格里城', prices, player_cfg, 'profit', data)
+        self.assertTrue(repo['is_reposition'])
+        self.assertEqual((repo['from_city'], repo['to_city']), ('修格里城', '阿妮塔发射中心'))
+        bought_names = [item['name'] for item in repo['leg']['combinations']]
+        self.assertEqual(bought_names, [safe_good])
+        self.assertNotIn(neg_only_good, bought_names)
+        self.assertLess(repo['leg']['combinations'][0]['single_profit'], 600)

@@ -5,6 +5,7 @@ from module.exception import GameStuckError
 from module.logger import logger
 from module.ocr.ocr import Ocr
 from module.resonance import assets
+from module.resonance.clarity import handle_clarity_recovery
 from module.resonance.page import page_resonance_operations
 from module.resonance.resonance_ui import ResonanceUI
 
@@ -41,7 +42,8 @@ class ResonanceOperations(ResonanceUI):
             self.ui_ensure(page_resonance_operations, skip_first_screenshot=False)
             for category, count, stage in plan:
                 if count:
-                    self.run_category(category, count, stage)
+                    if self.run_category(category, count, stage) == 'no_clarity':
+                        break
             self.ui_goto_main()
         self.config.task_delay(server_update=True)
 
@@ -59,7 +61,9 @@ class ResonanceOperations(ResonanceUI):
                 return
             logger.info(f'Resonance operation: {category}/{stage}')
             preferred = stage
-            self.start_battle()
+            if self.start_battle() == 'no_clarity':
+                logger.info('行动汇总澄明度不足，停止后续作战')
+                return 'no_clarity'
             self.wait_for_victory()
             self.ui_ensure(page_resonance_operations, skip_first_screenshot=False)
             self.select_category(category)
@@ -134,14 +138,24 @@ class ResonanceOperations(ResonanceUI):
         sent = False
         for _ in self.loop(skip_first=False, timeout=30):
             if self.appear(assets.OP_PAUSE, offset=OFFSET):
-                return
+                return 'started'
+            if self.appear(assets.CLARITY_PROMPT, offset=OFFSET) or self.appear(assets.CLARITY_RECOVERY_CHECK, offset=OFFSET):
+                mode = getattr(self.config, 'ResonanceOperations_UseClarityItem', 'none')
+                if handle_clarity_recovery(self, mode):
+                    self.interval_clear((assets.OP_START, assets.OP_START_WIDE))
+                    sent = False
+                    continue
+                return 'no_clarity'
             if sent:
                 continue
             if self.appear(assets.OP_TEAM, offset=OFFSET):
                 sent = self.appear_then_click(assets.OP_TEAM_START, offset=OFFSET, interval=2)
                 continue
             if self.appear(assets.OP_DETAIL, offset=OFFSET):
-                self.appear_then_click(assets.OP_START, offset=OFFSET, interval=2)
+                if self.appear_then_click(assets.OP_START, offset=OFFSET, interval=2):
+                    continue
+                if self.appear_then_click(assets.OP_START_WIDE, offset=(120, 15), interval=2):
+                    continue
         raise GameStuckError('Resonance operation battle did not start')
 
     def wait_for_victory(self):
