@@ -159,6 +159,7 @@ class TrickcalUI(RewardPopup, UI):
                         self.device.click(HOME)
                     continue
 
+                hopped = False
                 for page in self.ui_iter_pages():
                     if page.parent is None or page.check_button is None:
                         continue
@@ -169,6 +170,8 @@ class TrickcalUI(RewardPopup, UI):
                         self.device.click(button)
                         self.interval_reset(button)
                         self.ui_wait_page_leave(page, offset=offset)
+                        hopped = True
+                    if hopped:
                         break
 
             raise GameStuckError(f'UI goto {destination} timed out')
