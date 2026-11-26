@@ -377,6 +377,9 @@ class AlasGUI(Frame):
                 content=[put_text(task_help).style("font-size: 1rem")],
             )
 
+        if task == "ResonanceTrade":
+            self._init_resonance_market_card()
+
         config = self.alas_config.read_file(self.alas_name)
         for group, arg_dict in deep_iter(self.ALAS_ARGS[task], depth=1):
             if task == group[0] == "ChaoszeroRogue":
@@ -1097,13 +1100,28 @@ class AlasGUI(Frame):
 
         def put_task(func: Function):
             with use_scope(f"overview-task_{func.command}"):
-                put_column(
-                    [
-                        put_text(t(f"Task.{func.command}.name")).style("--arg-title--"),
-                        put_text(str(func.next_run)).style("--arg-help--"),
-                    ],
-                    size="auto auto",
-                )
+                col_items = [
+                    put_text(t(f"Task.{func.command}.name")).style("--arg-title--"),
+                    put_text(str(func.next_run)).style("--arg-help--"),
+                ]
+                if func.command == "ResonanceTrade" and self.alas_name:
+                    from module.resonance.market import format_market_summary, load_market_status
+                    from module.resonance.profit_log import summarize_profit_history
+
+                    record = load_market_status(self.alas_name)
+                    if record:
+                        summary = format_market_summary(record)
+                        col_items.append(
+                            put_text(summary["overview_line"]).style(
+                                f"--arg-help--; color: {summary['color']}; font-weight: 500;"
+                            )
+                        )
+                    ps = summarize_profit_history(self.alas_name)
+                    if ps["overview_line"]:
+                        col_items.append(
+                            put_text(ps["overview_line"]).style("--arg-help--")
+                        )
+                put_column(col_items, size="auto " * len(col_items))
                 put_button(
                     label=t("Gui.Button.Setting"),
                     onclick=lambda: self.alas_set_group(func.command),
@@ -1168,6 +1186,165 @@ class AlasGUI(Frame):
                 )
 
         return _update
+
+    def _init_resonance_market_card(self) -> None:
+        """Render live ResonanceTrade market quality and 30-day profit cards with polling."""
+        from module.resonance.market import load_market_status
+        from module.resonance.profit_log import summarize_profit_history
+
+        with use_scope("groups"):
+            put_scope(
+                "group_ResonanceMarketStatus",
+                [
+                    put_row(
+                        [
+                            put_text("实时行情状态").style(
+                                "font-size: 1.25rem; font-weight: 500; margin: auto .25rem;"
+                            ),
+                            put_button(
+                                label="立即检测行情",
+                                onclick=self._on_click_check_resonance_market,
+                                color="info",
+                            ),
+                        ],
+                        size="1fr auto",
+                    ),
+                    put_html('<hr class="hr-group">'),
+                    put_scope("resonance_market_body"),
+                ],
+            ).style("--group-card--")
+            put_scope(
+                "group_ResonanceProfitLog",
+                [
+                    put_text("跑商利润记录（近30天 · 按05:00日结）").style(
+                        "font-size: 1.25rem; font-weight: 500; margin: 0 .25rem;"
+                    ),
+                    put_html('<hr class="hr-group">'),
+                    put_scope("resonance_profit_body"),
+                ],
+            ).style("--group-card--")
+        self._render_resonance_market_body(load_market_status(self.alas_name))
+        self._render_resonance_profit_body(summarize_profit_history(self.alas_name))
+        self.task_handler.add(self._alas_update_resonance_market_status(), 3, True)
+
+    def _render_resonance_market_body(self, record) -> None:
+        clear("resonance_market_body")
+        with use_scope("resonance_market_body"):
+            if not record:
+                put_text("尚未检测行情，点击右上角「立即检测行情」或启动跑商后自动更新。").style(
+                    "--arg-help--"
+                )
+                return
+            from module.resonance.market import format_market_summary
+
+            summary = format_market_summary(record)
+            put_text(summary["badge"]).style(
+                f"--arg-title--; color: {summary['color']}; font-weight: 600;"
+            )
+            for line in summary["detail_lines"]:
+                put_text(line).style("--arg-help--")
+
+    def _render_resonance_profit_body(self, summary) -> None:
+        from module.resonance.profit_log import format_delta_html
+
+        clear("resonance_profit_body")
+        with use_scope("resonance_profit_body"):
+            if summary["active_days"] == 0:
+                put_text("暂无跑商利润记录，完成自动卖出后将自动统计每日利润与涨跌。").style(
+                    "--arg-help--"
+                )
+                return
+            today_html = (
+                f"今日利润：<b>{summary['today_total']:,}</b>"
+                f"（{summary['today_count']} 笔，均笔 {summary['today_avg']:,}）"
+                f" ｜ 较前日：{format_delta_html(summary['today_delta_text'], summary['today_delta_color'])}"
+            )
+            put_html(today_html).style("--arg-title--")
+            best = summary["best_day"]
+            best_part = f" ｜ 最高单日：{best[0]} ({best[1]:,})" if best else ""
+            put_text(
+                f"近30天累计：{summary['total_30d']:,}（{summary['active_days']} 天 / "
+                f"{summary['count_30d']} 笔，日均 {summary['avg_day_30d']:,}）{best_part}"
+            ).style("--arg-help--")
+            if summary["today_trades"]:
+                trade_rows = [
+                    [
+                        tr.get("time", ""),
+                        f"{tr.get('from') or '?'} -> {tr.get('to') or '?'}",
+                        f"{tr.get('profit', 0):+,}" + (" (预估)" if tr.get("estimated") else ""),
+                    ]
+                    for tr in summary["today_trades"]
+                ]
+                put_collapse(
+                    f"今日交易明细（{summary['today_count']} 笔）",
+                    [put_table(trade_rows, header=["时间", "路线", "单次利润"])],
+                    open=False,
+                )
+            daily_rows = [
+                [
+                    row["date"],
+                    row["count"],
+                    f"{row['total']:,}",
+                    put_html(format_delta_html(row["delta_text"], row["delta_color"])),
+                ]
+                for row in summary["daily_rows"]
+            ]
+            put_collapse(
+                f"近30天每日利润与涨跌（{summary['active_days']} 天）",
+                [put_table(daily_rows, header=["日期", "笔数", "当日利润", "较前日涨跌"])],
+                open=True,
+            )
+
+    def _alas_update_resonance_market_status(self):
+        """Return a 3s polling callback refreshing Resonance market & profit cards on updates."""
+        from module.resonance.market import load_market_status
+        from module.resonance.profit_log import load_profit_days, summarize_profit_history
+
+        last = {
+            "market": load_market_status(self.alas_name),
+            "profit": load_profit_days(self.alas_name),
+        }
+
+        def _update():
+            if not self.alas_name or not self.visible or self.page != "ResonanceTrade":
+                return
+            record = load_market_status(self.alas_name)
+            if record != last["market"]:
+                last["market"] = record
+                self._render_resonance_market_body(record)
+            profit_days = load_profit_days(self.alas_name)
+            if profit_days != last["profit"]:
+                last["profit"] = profit_days
+                self._render_resonance_profit_body(summarize_profit_history(self.alas_name))
+
+        return _update
+
+    def _on_click_check_resonance_market(self) -> None:
+        if not self.alas_name:
+            return
+        from module.resonance.market import load_market_status, refresh_market_status_for_webui
+
+        clear("resonance_market_body")
+        with use_scope("resonance_market_body"):
+            put_text("正在拉取科伦巴最新行情...").style("--arg-help--")
+        toast("正在检测科伦巴实时行情...", duration=2, position="right", color="info")
+        try:
+            with open(filepath_config(self.alas_name), "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            trade_cfg = deep_get(cfg, ["ResonanceTrade", "ResonanceTrade"], {})
+            record = refresh_market_status_for_webui(self.alas_name, trade_cfg)
+            self._render_resonance_market_body(record)
+            if record:
+                toast(
+                    f"行情指数 {record['index']:.1f} 已更新",
+                    duration=2,
+                    position="right",
+                    color="success",
+                )
+        except Exception as e:
+            logger.exception(e)
+            self._render_resonance_market_body(load_market_status(self.alas_name))
+            toast(f"行情检测失败: {e}", duration=3, position="right", color="error")
 
     def alas_game_groups(self) -> List[str]:
         """

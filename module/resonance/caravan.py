@@ -1,0 +1,499 @@
+"""Scheduled automated caravan trading task for 雷索纳斯 (Resonance Solstice)."""
+
+import copy
+from datetime import datetime, timedelta
+import json
+import os
+
+import numpy as np
+
+from module.logger import logger
+from module.ocr.ocr import Ocr
+from module.resonance.columba import fetch_prices, load_columba_data, normalize_player_config
+from module.resonance.fatigue import (
+    REST_AREA_MAX_DRINKS, REST_AREA_MIN_FATIGUE, compute_fatigue_recovery_minutes,
+    is_rest_area_done_today, mark_rest_area_done, nearest_rest_area_city, normalize_fatigue_item_mode,
+)
+from module.resonance.invest import ResonanceInvest
+from module.resonance.map_nav import MAP_COORDS_05X, canonical_city_name
+from module.resonance.market import (
+    MARKET_FILTER_THRESHOLDS, MARKET_OVERFLOW_FATIGUE, build_market_status_record, evaluate_market_quality,
+    save_market_status,
+)
+from module.resonance.page import page_main, page_resonance_trade_buy
+from module.resonance.profit_log import parse_sell_profit_text, record_trade_profit
+from module.resonance.route import _calc_fatigue, recommend_routes
+from module.resonance.shop import filter_names
+
+TRADE_STATE_PATH = os.path.join('config', 'state', 'resonance_trade_state.json')
+PROFIT_OCR = Ocr((1050, 534, 1255, 566), lang='cnocr', threshold=128, alphabet='0123456789,+-', name='Sell profit')
+
+
+def load_trade_state(path=TRADE_STATE_PATH):
+    """Load persisted crash-recovery checkpoint for cargo origin/target."""
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_trade_state(bought_city, target_city, negotiate_sell=False, expected_profit=0, path=TRADE_STATE_PATH):
+    """Persist pending transit state after buying cargo in `bought_city`."""
+    folder = os.path.dirname(path)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(
+            {
+                'bought_city': bought_city,
+                'target_city': target_city,
+                'negotiate_sell': bool(negotiate_sell),
+                'expected_profit': int(expected_profit or 0),
+            },
+            f,
+            ensure_ascii=False,
+        )
+    os.replace(tmp, path)
+
+
+def clear_trade_state(path=TRADE_STATE_PATH):
+    """Remove pending transit checkpoint after arriving and selling cargo."""
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def build_player_config(profile, config, data):
+    """Merge auto-scanned player profile with WebUI trading parameters."""
+    raw_excluded = filter_names(getattr(config, 'ResonanceTrade_ExcludedCities', '武林源'))
+    excluded = {canonical_city_name(name) for name in raw_excluded if canonical_city_name(name)}
+    for city in data['cities']:
+        if city not in MAP_COORDS_05X:
+            excluded.add(city)
+
+    bargain_pct = int(getattr(config, 'ResonanceTrade_BargainPercent', 20) or 0)
+    raise_pct = int(getattr(config, 'ResonanceTrade_RaisePercent', 20) or 0)
+    return_bargain = bool(getattr(config, 'ResonanceTrade_ReturnBargain', False))
+    disabled = bargain_pct == 0 and raise_pct == 0
+    bargain_cfg = {
+        'bargainPercent': bargain_pct,
+        'raisePercent': raise_pct,
+        'bargainFatigue': 0,
+        'raiseFatigue': 0,
+        'disabled': disabled,
+    }
+    ret_bargain_cfg = (
+        dict(bargain_cfg)
+        if return_bargain
+        else {'bargainPercent': 0, 'raisePercent': 0, 'bargainFatigue': 0, 'raiseFatigue': 0, 'disabled': True}
+    )
+    raw = {
+        'maxLot': int(profile.get('maxLot', 500) or 500),
+        'prestige': dict(profile.get('prestige', {})),
+        'roles': dict(profile.get('roles', {})),
+        'onegraph': {
+            'maxRestock': int(getattr(config, 'ResonanceTrade_RestockBooks', 2) or 0),
+            'goAndReturn': bool(getattr(config, 'ResonanceTrade_RoundTrip', False)),
+        },
+        'bargain': dict(bargain_cfg),
+        'returnBargain': ret_bargain_cfg,
+        'excludedCities': sorted(excluded),
+    }
+    return normalize_player_config(raw, data=data)
+
+
+def _empty_leg(from_city, to_city, roles, data):
+    """Construct an empty repositioning leg when no goods are profitable."""
+    return {
+        'combinations': [],
+        'buy_order': [],
+        'profit': 0,
+        'restock': 0,
+        'fatigue': _calc_fatigue(from_city, to_city, roles, data),
+        'profit_per_fatigue': 0,
+        'general_profit_index': 0,
+        'used_lot': 0,
+    }
+
+
+def _reposition_leg(from_city, to_city, prices, player_config, data, best_route):
+    """Plan a 0-restock repositioning leg from `from_city` to `to_city`."""
+    repo_cfg = copy.deepcopy(player_config)
+    repo_cfg['onegraph']['maxRestock'] = 0
+    repo_cfg['onegraph']['goAndReturn'] = False
+    repo_cfg['excludedCities'] = [c for c in repo_cfg.get('excludedCities', ()) if c != from_city]
+    repo_routes = recommend_routes(
+        prices, player_config=repo_cfg, data=data, sort_by='profit',
+        go_and_return=False, max_restock=0, from_city=from_city, to_city=to_city, limit=1,
+    )
+    repo_leg = (
+        repo_routes[0]['go']
+        if repo_routes and repo_routes[0]['profit'] > 0
+        else _empty_leg(from_city, to_city, player_config['roles'], data)
+    )
+    return {
+        'from_city': from_city, 'to_city': to_city, 'leg': repo_leg,
+        'is_reposition': True, 'is_return': False, 'best_route': best_route,
+    }
+
+
+def _plan_manual_leg(current_city, city_a, city_b, prices, player_config, data):
+    """Plan next profitable leg between two manually chosen cities (or 0-restock reposition to closer)."""
+    manual_cfg = copy.deepcopy(player_config)
+    manual_cfg['excludedCities'] = [
+        c for c in manual_cfg.get('excludedCities', ()) if c not in (city_a, city_b)
+    ]
+    roles = manual_cfg.get('roles', {})
+    if current_city in (city_a, city_b):
+        is_return = current_city == city_b
+        src, dst = (city_b, city_a) if is_return else (city_a, city_b)
+        cfg = copy.deepcopy(manual_cfg)
+        if is_return:
+            cfg['bargain'] = dict(cfg['returnBargain'])
+        routes = recommend_routes(
+            prices, player_config=cfg, data=data, sort_by='profit',
+            go_and_return=False, from_city=src, to_city=dst, limit=1,
+        )
+        leg = routes[0]['go'] if routes and routes[0]['profit'] > 0 else _empty_leg(src, dst, roles, data)
+        return {
+            'from_city': src, 'to_city': dst, 'leg': leg,
+            'is_reposition': False, 'is_return': is_return, 'best_route': routes[0] if routes else None,
+        }
+    entry = min((city_a, city_b), key=lambda c: _calc_fatigue(current_city, c, roles, data))
+    return _reposition_leg(current_city, entry, prices, manual_cfg, data, None)
+
+
+def plan_next_leg(current_city, prices, player_config, sort_by, data, manual_cities=None):
+    """Pick optimal leg: manual A<->B shuttle if configured, else global best A->B with 0-restock C->A."""
+    if manual_cities:
+        city_a, city_b = canonical_city_name(manual_cities[0]), canonical_city_name(manual_cities[1])
+        if city_a and city_b and city_a != city_b and city_a in MAP_COORDS_05X and city_b in MAP_COORDS_05X:
+            return _plan_manual_leg(current_city, city_a, city_b, prices, player_config, data)
+
+    routes = recommend_routes(
+        prices, player_config=player_config, data=data, sort_by=sort_by, limit=1,
+    )
+    if not routes:
+        return None
+    best = routes[0]
+    src, dst = best['from_city'], best['to_city']
+    if current_city == src:
+        return {
+            'from_city': src, 'to_city': dst, 'leg': best['go'],
+            'is_reposition': False, 'is_return': False, 'best_route': best,
+        }
+    if best['go_and_return'] and current_city == dst and best['ret'] is not None:
+        return {
+            'from_city': dst, 'to_city': src, 'leg': best['ret'],
+            'is_reposition': False, 'is_return': True, 'best_route': best,
+        }
+    return _reposition_leg(current_city, src, prices, player_config, data, best)
+
+
+def read_sell_profit(image):
+    """Read staged sell profit (signed int) from the exchange sell panel, or None."""
+    if image is None:
+        return None
+    crop = image[534:566, 1050:1255]
+    gray = crop.max(axis=2)
+    up = np.repeat(np.repeat(gray, 2, axis=0), 2, axis=1)
+    rgb = np.stack((up, up, up), axis=2)
+    raw = PROFIT_OCR.ocr([rgb], direct_ocr=True)
+    text = str(raw[0] if isinstance(raw, list) and raw else raw or '').strip()
+    val = parse_sell_profit_text(text)
+    if val is None:
+        return None
+    if val > 0:
+        bright = crop[crop.max(axis=2) > 140].astype(int)
+        if len(bright):
+            red_mask = (bright[:, 0] - bright[:, 1] > 60) & (bright[:, 0] > 150)
+            if int(red_mask.sum()) > len(bright) * 0.4:
+                val = -val
+    return val
+
+
+class ResonanceCaravan(ResonanceInvest):
+    """Scheduled multi-leg trading loop with repositioning and fatigue recovery."""
+
+    def _sell_and_record_profit(self, current_city, state, raise_target=0):
+        """Sell cargo and persist actual (or expected fallback) profit into the 30-day ledger."""
+        sold = self.sell_all(raise_target=raise_target)
+        if not sold:
+            return False
+        profit = read_sell_profit(getattr(self, '_last_sell_image', None))
+        estimated = False
+        if profit is None and state.get('expected_profit'):
+            profit = int(state['expected_profit'])
+            estimated = True
+        if profit is not None:
+            from_city = state.get('bought_city') or ''
+            config_name = getattr(self.config, 'config_name', '') or 'default'
+            record_trade_profit(
+                config_name, profit, from_city=from_city, to_city=current_city, estimated=estimated,
+            )
+            tag = ' (预估)' if estimated else ''
+            logger.info('跑商卖出利润: %+d (%s -> %s%s)', profit, from_city or '未知', current_city, tag)
+        return True
+
+    @staticmethod
+    def _estimate_leg_fatigue(leg, bargain_pct, raise_pct, is_reposition, is_return=False, return_bargain=False):
+        """Estimate total fatigue needed for buying, negotiating, and driving one leg."""
+        allow_neg = (not is_reposition) and (not is_return or return_bargain) and bool(leg.get('combinations'))
+        if not allow_neg:
+            return int(leg.get('fatigue', 0))
+        negotiate_cap = (8 if bargain_pct > 0 else 0) + (8 if raise_pct > 0 else 0)
+        return int(leg.get('fatigue', 0)) + negotiate_cap
+
+    def _schedule_fatigue_wait(self, cur_fatigue, max_fatigue, needed_fatigue):
+        """Return to main screen and schedule NextRun based on 6 min/fatigue recovery."""
+        wait_min = max(6, compute_fatigue_recovery_minutes(cur_fatigue, max_fatigue, needed_fatigue))
+        remaining = max(0, max_fatigue - cur_fatigue)
+        logger.info(
+            '琐呐跑商疲劳不足 (剩余 %d, 本趟预计需要 %d), 已排期 %d 分钟后继续',
+            remaining, needed_fatigue, wait_min,
+        )
+        self.ui_goto_main()
+        self.config.task_delay(minute=wait_min)
+
+    def _ensure_fatigue_for_leg(self, cur_fatigue, max_fatigue, needed_fatigue, item_mode, use_bento):
+        """Ensure sufficient fatigue to execute the next leg, recovering or delaying if short."""
+        if max_fatigue - cur_fatigue >= needed_fatigue:
+            return True
+        if (use_bento or item_mode != 'none') and self.recover_fatigue(
+            cur_fatigue, max_fatigue, needed_fatigue, item_mode=item_mode, use_bento=use_bento,
+        ):
+            return True
+        self._schedule_fatigue_wait(cur_fatigue, max_fatigue, needed_fatigue)
+        return False
+
+    def _read_current_fatigue(self, profile):
+        """Read live (cur, max) fatigue from top bar or world map, falling back to cache."""
+        fatigue = self.read_fatigue()
+        if fatigue is not None:
+            return fatigue
+        self.enter_exchange(page_resonance_trade_buy)
+        fatigue = self.read_fatigue()
+        return fatigue if fatigue is not None else (0, 900)
+
+    def _resume_pending_transit(self, current_city, state, use_ramming, item_mode, use_bento, data):
+        """Depart directly if crash happened after buying cargo in `current_city`."""
+        bought = state.get('bought_city')
+        target = state.get('target_city')
+        if bought != current_city or not target or target == current_city or target not in MAP_COORDS_05X:
+            return current_city, False
+
+        logger.info('检测到上次在 %s 购入货物尚未出发，跳过卖出并直接前往 %s', bought, target)
+        cur_f, max_f = self._read_current_fatigue({})
+        needed = _calc_fatigue(current_city, target, {}, data)
+        if not self._ensure_fatigue_for_leg(cur_f, max_f, needed, item_mode, use_bento):
+            return None, False
+        self.travel_to(target, use_ramming=use_ramming, configure_assist=True)
+        return target, True
+
+    def _maybe_drink_rest_area(self, current_city, player_cfg, state, use_ramming, assist_done, data):
+        """Visit nearest rest area to drink sodas when fatigue >= 300 and daily quota remains."""
+        if is_rest_area_done_today() or state.get('bought_city') == current_city:
+            return current_city, assist_done
+        cur_f, max_f = self._read_current_fatigue(player_cfg)
+        if cur_f < REST_AREA_MIN_FATIGUE:
+            logger.info('当前疲劳 %d 低于 %d，暂不去休息区喝汽水', cur_f, REST_AREA_MIN_FATIGUE)
+            return current_city, assist_done
+
+        rest_city, travel_f = nearest_rest_area_city(current_city, player_cfg['roles'], data)
+        if rest_city != current_city:
+            if max_f - cur_f < travel_f:
+                return current_city, assist_done
+            logger.info('当前疲劳 %d >= %d，前往最近休息区 %s 喝汽水', cur_f, REST_AREA_MIN_FATIGUE, rest_city)
+            self._sell_and_record_profit(current_city, state, raise_target=0)
+            clear_trade_state()
+            state.clear()
+            self.travel_to(rest_city, use_ramming=use_ramming, configure_assist=not assist_done)
+            current_city = rest_city
+            assist_done = True
+
+        drinks, exhausted, _ = self.drink_rest_area_soda(max_drinks=REST_AREA_MAX_DRINKS)
+        if exhausted or drinks >= REST_AREA_MAX_DRINKS:
+            mark_rest_area_done()
+        return current_city, assist_done
+
+    def _check_market_gate(
+        self, prices, player_cfg, sort_by, manual_cities, cur_fatigue,
+        market_filter, overflow_protect, wait_min, data,
+    ):
+        """Evaluate live market quality, persist WebUI status, and gate poor markets."""
+        mq = evaluate_market_quality(prices, player_cfg, sort_by, data, manual_cities=manual_cities)
+        if mq is None:
+            return True
+        config_name = getattr(self.config, 'config_name', '') or 'default'
+        threshold = MARKET_FILTER_THRESHOLDS.get(market_filter)
+        if threshold is None:
+            save_market_status(config_name, build_market_status_record(mq, 'open', market_filter, fatigue=cur_fatigue))
+            return True
+        if mq['index'] >= threshold:
+            save_market_status(config_name, build_market_status_record(mq, 'pass', market_filter, fatigue=cur_fatigue))
+            logger.info(
+                '当前行情指数 %.1f >= 门槛 %.0f (实时=%d, 平价基准=%d, 常规上限=%d)，继续跑商',
+                mq['index'], threshold, mq['live'], mq['base'], mq['good'],
+            )
+            return True
+        if overflow_protect and cur_fatigue <= MARKET_OVERFLOW_FATIGUE:
+            save_market_status(config_name, build_market_status_record(mq, 'overflow', market_filter, fatigue=cur_fatigue))
+            logger.info(
+                '当前行情指数 %.1f < 门槛 %.0f，但当前疲劳 %d <= %d（防疲劳溢出），放行跑商',
+                mq['index'], threshold, cur_fatigue, MARKET_OVERFLOW_FATIGUE,
+            )
+            return True
+        delay_min = max(5, int(wait_min or 30))
+        next_check = (datetime.now() + timedelta(minutes=delay_min)).strftime('%Y-%m-%d %H:%M:%S')
+        save_market_status(
+            config_name,
+            build_market_status_record(mq, 'wait', market_filter, fatigue=cur_fatigue, next_check=next_check),
+        )
+        logger.info(
+            '当前行情指数 %.1f < 门槛 %.0f (实时=%d, 平价基准=%d, 常规上限=%d)，暂不跑商，%d 分钟后复查',
+            mq['index'], threshold, mq['live'], mq['base'], mq['good'], delay_min,
+        )
+        self.ui_goto_main()
+        self.config.task_delay(minute=delay_min)
+        return False
+
+    def _execute_one_leg(self, current_city, prices, player_cfg, state, opts):
+        """Sell arrived cargo, plan next leg, buy if needed, and travel to next city."""
+        (sort_by, bargain_pct, raise_pct, return_bargain, use_ramming, item_mode,
+         use_bento, use_rest_area, auto_invest, invest_state, manual_cities, assist_done,
+         market_opts, data) = opts
+        market_filter, overflow_protect, wait_min = market_opts
+        if state.get('bought_city') != current_city:
+            sell_raise = raise_pct if state.get('negotiate_sell', False) else 0
+            self._sell_and_record_profit(current_city, state, raise_target=sell_raise)
+            clear_trade_state()
+            state.clear()
+            if use_rest_area:
+                current_city, assist_done = self._maybe_drink_rest_area(
+                    current_city, player_cfg, state, use_ramming, assist_done, data,
+                )
+        if auto_invest and invest_state.get('city') != current_city and state.get('bought_city') != current_city:
+            self.invest_current_city()
+            invest_state['city'] = current_city
+
+        fatigue = self._read_current_fatigue(player_cfg)
+        if state.get('bought_city') != current_city:
+            if not self._check_market_gate(
+                prices, player_cfg, sort_by, manual_cities, fatigue[0],
+                market_filter, overflow_protect, wait_min, data,
+            ):
+                return None, assist_done
+
+        plan = plan_next_leg(current_city, prices, player_cfg, sort_by, data, manual_cities=manual_cities)
+        if plan is None:
+            logger.warning('琐呐跑商未找到盈利路线，30 分钟后重试')
+            self.ui_goto_main()
+            self.config.task_delay(minute=30)
+            return None, assist_done
+
+        needed = self._estimate_leg_fatigue(
+            plan['leg'], bargain_pct, raise_pct, plan['is_reposition'],
+            is_return=plan['is_return'], return_bargain=return_bargain,
+        )
+        if not self._ensure_fatigue_for_leg(fatigue[0], fatigue[1], needed, item_mode, use_bento):
+            return None, assist_done
+
+        allow_neg = (not plan['is_reposition']) and (not plan['is_return'] or return_bargain)
+        buy_bargain = bargain_pct if allow_neg else 0
+        next_negotiate_sell = allow_neg and (raise_pct > 0)
+
+        leg_kind = '接驳段(0本)' if plan['is_reposition'] else ('回程' if plan['is_return'] else '主路线')
+        logger.info(
+            '琐呐跑商[%s]: %s -> %s (进货书=%d, 预计利润=%d, 路程疲劳=%d)',
+            leg_kind, plan['from_city'], plan['to_city'],
+            plan['leg'].get('restock', 0), plan['leg'].get('profit', 0), plan['leg'].get('fatigue', 0),
+        )
+        if plan['leg'].get('combinations'):
+            bought = self.buy_plan(
+                plan['leg'], restock_books=plan['leg']['restock'], bargain_target=buy_bargain,
+            )
+            if bought:
+                exp_profit = plan['leg'].get('profit', 0)
+                save_trade_state(
+                    current_city, plan['to_city'],
+                    negotiate_sell=next_negotiate_sell, expected_profit=exp_profit,
+                )
+                state['bought_city'] = current_city
+                state['target_city'] = plan['to_city']
+                state['negotiate_sell'] = next_negotiate_sell
+                state['expected_profit'] = exp_profit
+
+        self.travel_to(plan['to_city'], use_ramming=use_ramming, configure_assist=not assist_done)
+        return plan['to_city'], True
+
+    def run(self):
+        """Run automated trading legs until fatigue runs out and schedule next run."""
+        data = load_columba_data()
+        self.ui_ensure(page_main, skip_first_screenshot=False)
+        self.wait_until_docked()
+
+        force_refresh = bool(getattr(self.config, 'ResonanceTrade_RefreshProfile', False))
+        profile = self.ensure_profile(force_refresh=force_refresh)
+        if force_refresh:
+            self.config.ResonanceTrade_RefreshProfile = False
+
+        player_cfg = build_player_config(profile, self.config, data)
+        current_city = self.get_current_city()
+        if current_city not in MAP_COORDS_05X:
+            logger.warning('当前城市 %r 暂未收录世界地图坐标，无法自动跑商', current_city)
+            self.ui_goto_main()
+            self.config.task_delay(minute=60)
+            return
+
+        sort_by = getattr(self.config, 'ResonanceTrade_SortBy', 'profit_per_fatigue')
+        bargain_pct = int(getattr(self.config, 'ResonanceTrade_BargainPercent', 20) or 0)
+        raise_pct = int(getattr(self.config, 'ResonanceTrade_RaisePercent', 20) or 0)
+        return_bargain = bool(getattr(self.config, 'ResonanceTrade_ReturnBargain', False))
+        use_ramming = bool(getattr(self.config, 'ResonanceTrade_UseRamming', False))
+        item_mode = normalize_fatigue_item_mode(getattr(self.config, 'ResonanceTrade_UseFatigueItem', 'none'))
+        use_bento = bool(getattr(self.config, 'ResonanceTrade_UseBento', False))
+        use_rest_area = bool(getattr(self.config, 'ResonanceTrade_UseRestArea', False))
+        auto_invest = bool(getattr(self.config, 'ResonanceTrade_AutoInvest', False))
+        market_opts = (
+            getattr(self.config, 'ResonanceTrade_MarketFilter', 'all'),
+            bool(getattr(self.config, 'ResonanceTrade_MarketOverflowProtect', True)),
+            max(5, int(getattr(self.config, 'ResonanceTrade_MarketWaitMinutes', 30) or 30)),
+        )
+        manual_cities = None
+        if getattr(self.config, 'ResonanceTrade_RouteMode', 'auto') == 'manual':
+            manual_cities = (
+                getattr(self.config, 'ResonanceTrade_ManualCityA', ''),
+                getattr(self.config, 'ResonanceTrade_ManualCityB', ''),
+            )
+
+        state = load_trade_state()
+        invest_state = {'city': None}
+        current_city, assist_done = self._resume_pending_transit(
+            current_city, state, use_ramming, item_mode, use_bento, data,
+        )
+        if current_city is None:
+            return
+        if use_rest_area:
+            current_city, assist_done = self._maybe_drink_rest_area(
+                current_city, player_cfg, state, use_ramming, assist_done, data,
+            )
+
+        for _ in range(30):
+            prices = fetch_prices(ttl=180, data=data)
+            opts = (sort_by, bargain_pct, raise_pct, return_bargain, use_ramming, item_mode,
+                    use_bento, use_rest_area, auto_invest, invest_state, manual_cities, assist_done,
+                    market_opts, data)
+            next_city, assist_done = self._execute_one_leg(current_city, prices, player_cfg, state, opts)
+            if next_city is None:
+                return
+            current_city = next_city
+
+        self.ui_goto_main()
+        self.config.task_delay(minute=10)

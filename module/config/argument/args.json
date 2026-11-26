@@ -4726,6 +4726,131 @@
       }
     }
   },
+  "ResonanceMail": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceMail",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceDispatch": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceDispatch",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "ResonanceDispatch": {
+      "Task1": {
+        "type": "select",
+        "value": "patrol",
+        "option": [
+          "patrol",
+          "drill",
+          "collect",
+          "materialize",
+          "enhance"
+        ]
+      },
+      "Task2": {
+        "type": "select",
+        "value": "drill",
+        "option": [
+          "none",
+          "patrol",
+          "drill",
+          "collect",
+          "materialize",
+          "enhance"
+        ]
+      },
+      "Duration": {
+        "type": "select",
+        "value": "12h",
+        "option": [
+          "4h",
+          "8h",
+          "12h",
+          "20h"
+        ]
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "ResonanceDaily": {
     "Scheduler": {
       "Enable": {
@@ -4876,6 +5001,154 @@
       }
     }
   },
+  "ResonancePreparation": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonancePreparation",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "ResonancePreparation": {
+      "FightPurple": {
+        "type": "checkbox",
+        "value": true
+      },
+      "FightRainbow": {
+        "type": "checkbox",
+        "value": true
+      },
+      "FightWhite": {
+        "type": "checkbox",
+        "value": true
+      },
+      "FightRed": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceIsland": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceIsland",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00, 18:00",
+        "display": "hide"
+      }
+    },
+    "ResonanceIsland": {
+      "CleanTrainGarbage": {
+        "type": "checkbox",
+        "value": true
+      },
+      "PromotionType": {
+        "type": "select",
+        "value": "promotion",
+        "option": [
+          "promotion",
+          "theme",
+          "celebrity",
+          "none"
+        ]
+      },
+      "PromotionMethod": {
+        "type": "select",
+        "value": "flyer",
+        "option": [
+          "flyer",
+          "ad_ticket"
+        ]
+      },
+      "PlayVolleyball": {
+        "type": "checkbox",
+        "value": true
+      },
+      "CollectIncome": {
+        "type": "checkbox",
+        "value": true
+      },
+      "FriendFight": {
+        "type": "checkbox",
+        "value": true
+      },
+      "FriendClean": {
+        "type": "checkbox",
+        "value": true
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
   "ResonancePass": {
     "Scheduler": {
       "Enable": {
@@ -4908,7 +5181,7 @@
       },
       "ServerUpdate": {
         "type": "input",
-        "value": "05:00",
+        "value": "05:00, 18:00",
         "display": "hide"
       }
     },
@@ -5019,6 +5292,199 @@
         "type": "textarea",
         "value": "进货采买书, 追加注资申请书",
         "valuetype": "str"
+      }
+    },
+    "Storage": {
+      "Storage": {
+        "type": "storage",
+        "value": {},
+        "valuetype": "ignore",
+        "display": "disabled"
+      }
+    }
+  },
+  "ResonanceTrade": {
+    "Scheduler": {
+      "Enable": {
+        "type": "checkbox",
+        "value": false,
+        "option": [
+          true,
+          false
+        ]
+      },
+      "NextRun": {
+        "type": "datetime",
+        "value": "2020-01-01 00:00:00",
+        "validate": "datetime"
+      },
+      "Command": {
+        "type": "input",
+        "value": "ResonanceTrade",
+        "display": "hide"
+      },
+      "SuccessInterval": {
+        "type": "input",
+        "value": 0,
+        "display": "hide"
+      },
+      "FailureInterval": {
+        "type": "input",
+        "value": 120,
+        "display": "hide"
+      },
+      "ServerUpdate": {
+        "type": "input",
+        "value": "05:00",
+        "display": "hide"
+      }
+    },
+    "ResonanceTrade": {
+      "RouteMode": {
+        "type": "select",
+        "value": "auto",
+        "option": [
+          "auto",
+          "manual"
+        ]
+      },
+      "ManualCityA": {
+        "type": "select",
+        "value": "阿妮塔发射中心",
+        "option": [
+          "修格里城",
+          "澄明数据中心",
+          "七号自由港",
+          "曼德矿场",
+          "阿妮塔发射中心",
+          "云岫桥基地",
+          "铁盟哨站",
+          "阿妮塔战备工厂",
+          "黑月游乐城",
+          "淘金乐园",
+          "阿妮塔能源研究所",
+          "荒原站",
+          "栖羽站",
+          "岚心城",
+          "远星大桥",
+          "贡露城",
+          "维蒂林场",
+          "塔图站",
+          "海角城",
+          "汇流塔"
+        ]
+      },
+      "ManualCityB": {
+        "type": "select",
+        "value": "阿妮塔战备工厂",
+        "option": [
+          "修格里城",
+          "澄明数据中心",
+          "七号自由港",
+          "曼德矿场",
+          "阿妮塔发射中心",
+          "云岫桥基地",
+          "铁盟哨站",
+          "阿妮塔战备工厂",
+          "黑月游乐城",
+          "淘金乐园",
+          "阿妮塔能源研究所",
+          "荒原站",
+          "栖羽站",
+          "岚心城",
+          "远星大桥",
+          "贡露城",
+          "维蒂林场",
+          "塔图站",
+          "海角城",
+          "汇流塔"
+        ]
+      },
+      "SortBy": {
+        "type": "select",
+        "value": "profit_per_fatigue",
+        "option": [
+          "profit",
+          "profit_per_fatigue",
+          "general_profit_index"
+        ]
+      },
+      "MarketFilter": {
+        "type": "select",
+        "value": "all",
+        "option": [
+          "all",
+          "normal",
+          "good",
+          "great"
+        ]
+      },
+      "MarketOverflowProtect": {
+        "type": "checkbox",
+        "value": true
+      },
+      "MarketWaitMinutes": {
+        "type": "input",
+        "value": 30,
+        "valuetype": "int"
+      },
+      "RoundTrip": {
+        "type": "checkbox",
+        "value": false
+      },
+      "RestockBooks": {
+        "type": "input",
+        "value": 2,
+        "valuetype": "int"
+      },
+      "BargainPercent": {
+        "type": "input",
+        "value": 20,
+        "valuetype": "int"
+      },
+      "RaisePercent": {
+        "type": "input",
+        "value": 20,
+        "valuetype": "int"
+      },
+      "ReturnBargain": {
+        "type": "checkbox",
+        "value": false
+      },
+      "AutoInvest": {
+        "type": "checkbox",
+        "value": false
+      },
+      "UseRamming": {
+        "type": "checkbox",
+        "value": false
+      },
+      "UseRestArea": {
+        "type": "checkbox",
+        "value": true
+      },
+      "UseBento": {
+        "type": "checkbox",
+        "value": true
+      },
+      "UseFatigueItem": {
+        "type": "select",
+        "value": "none",
+        "option": [
+          "none",
+          "lollipop",
+          "lollipop_gum",
+          "all"
+        ]
+      },
+      "ExcludedCities": {
+        "type": "textarea",
+        "value": "武林源",
+        "valuetype": "str"
+      },
+      "RefreshProfile": {
+        "type": "checkbox",
+        "value": false
       }
     },
     "Storage": {

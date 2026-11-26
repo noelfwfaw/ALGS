@@ -259,11 +259,22 @@ Resonance:
   menu: 'collapse'
   page: 'setting'
   tasks:
+    ResonanceMail:
+      - Scheduler
+    ResonanceDispatch:
+      - Scheduler
+      - ResonanceDispatch
     ResonanceDaily:
       - Scheduler
     ResonanceOperations:
       - Scheduler
       - ResonanceOperations
+    ResonancePreparation:
+      - Scheduler
+      - ResonancePreparation
+    ResonanceIsland:
+      - Scheduler
+      - ResonanceIsland
     ResonancePass:
       - Scheduler
     ResonanceShop:
@@ -272,3 +283,6 @@ Resonance:
     ResonanceExchange:
       - Scheduler
       - ResonanceExchange
+    ResonanceTrade:
+      - Scheduler
+      - ResonanceTrade

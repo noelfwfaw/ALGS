@@ -1183,6 +1183,37 @@
       "Storage": {}
     }
   },
+  "ResonanceMail": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceMail",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceDispatch": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceDispatch",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "ResonanceDispatch": {
+      "Task1": "patrol",
+      "Task2": "drill",
+      "Duration": "12h"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "ResonanceDaily": {
     "Scheduler": {
       "Enable": false,
@@ -1216,6 +1247,47 @@
       "Storage": {}
     }
   },
+  "ResonancePreparation": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonancePreparation",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "ResonancePreparation": {
+      "FightPurple": true,
+      "FightRainbow": true,
+      "FightWhite": true,
+      "FightRed": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceIsland": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceIsland",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00, 18:00"
+    },
+    "ResonanceIsland": {
+      "CleanTrainGarbage": true,
+      "PromotionType": "promotion",
+      "PromotionMethod": "flyer",
+      "PlayVolleyball": true,
+      "CollectIncome": true,
+      "FriendFight": true,
+      "FriendClean": true
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "ResonancePass": {
     "Scheduler": {
       "Enable": false,
@@ -1223,7 +1295,7 @@
       "Command": "ResonancePass",
       "SuccessInterval": 0,
       "FailureInterval": 120,
-      "ServerUpdate": "05:00"
+      "ServerUpdate": "05:00, 18:00"
     },
     "Storage": {
       "Storage": {}
@@ -1257,6 +1329,40 @@
     },
     "ResonanceExchange": {
       "Include": "进货采买书, 追加注资申请书"
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
+  "ResonanceTrade": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceTrade",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ResonanceTrade": {
+      "RouteMode": "auto",
+      "ManualCityA": "阿妮塔发射中心",
+      "ManualCityB": "阿妮塔战备工厂",
+      "SortBy": "profit_per_fatigue",
+      "MarketFilter": "all",
+      "MarketOverflowProtect": true,
+      "MarketWaitMinutes": 30,
+      "RoundTrip": false,
+      "RestockBooks": 2,
+      "BargainPercent": 20,
+      "RaisePercent": 20,
+      "ReturnBargain": false,
+      "AutoInvest": false,
+      "UseRamming": false,
+      "UseRestArea": true,
+      "UseBento": true,
+      "UseFatigueItem": "none",
+      "ExcludedCities": "武林源",
+      "RefreshProfile": false
     },
     "Storage": {
       "Storage": {}

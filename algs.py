@@ -417,6 +417,14 @@ class AlGS(GameScheduler):
 
     # ==================== Resonance (雷索纳斯) ====================
 
+    def resonance_mail(self):
+        from module.resonance.mail import ResonanceMail
+        ResonanceMail(config=self.config, device=self.device).run()
+
+    def resonance_dispatch(self):
+        from module.resonance.dispatch import ResonanceDispatch
+        ResonanceDispatch(config=self.config, device=self.device).run()
+
     def resonance_daily(self):
         from module.resonance.daily import ResonanceDaily
         ResonanceDaily(config=self.config, device=self.device).run()
@@ -424,6 +432,14 @@ class AlGS(GameScheduler):
     def resonance_operations(self):
         from module.resonance.operations import ResonanceOperations
         ResonanceOperations(config=self.config, device=self.device).run()
+
+    def resonance_preparation(self):
+        from module.resonance.preparation import ResonancePreparation
+        ResonancePreparation(config=self.config, device=self.device).run()
+
+    def resonance_island(self):
+        from module.resonance.island import ResonanceIsland
+        ResonanceIsland(config=self.config, device=self.device).run()
 
     def resonance_pass(self):
         from module.resonance.battle_pass import ResonancePass
@@ -436,6 +452,10 @@ class AlGS(GameScheduler):
     def resonance_exchange(self):
         from module.resonance.exchange import ResonanceExchange
         ResonanceExchange(config=self.config, device=self.device).run()
+
+    def resonance_trade(self):
+        from module.resonance.caravan import ResonanceCaravan
+        ResonanceCaravan(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

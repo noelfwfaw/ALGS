@@ -274,12 +274,53 @@ class GeneratedConfig:
     ResonanceOperations_SupplyStage = 'Auto'  # Auto, Elegant, Standard, Salvation, Advanced, Chaos, Magic
     ResonanceOperations_WeeklyRuns = 0  # 0, 1, 2, 3
 
+    # Group `ResonancePreparation`
+    ResonancePreparation_FightPurple = True
+    ResonancePreparation_FightRainbow = True
+    ResonancePreparation_FightWhite = True
+    ResonancePreparation_FightRed = True
+
+    # Group `ResonanceIsland`
+    ResonanceIsland_CleanTrainGarbage = True
+    ResonanceIsland_PromotionType = 'promotion'  # promotion, theme, celebrity, none
+    ResonanceIsland_PromotionMethod = 'flyer'  # flyer, ad_ticket
+    ResonanceIsland_PlayVolleyball = True
+    ResonanceIsland_CollectIncome = True
+    ResonanceIsland_FriendFight = True
+    ResonanceIsland_FriendClean = True
+
+    # Group `ResonanceDispatch`
+    ResonanceDispatch_Task1 = 'patrol'  # patrol, drill, collect, materialize, enhance
+    ResonanceDispatch_Task2 = 'drill'  # none, patrol, drill, collect, materialize, enhance
+    ResonanceDispatch_Duration = '12h'  # 4h, 8h, 12h, 20h
+
     # Group `ResonanceShop`
     ResonanceShop_Include = ''
     ResonanceShop_Exclude = ''
 
     # Group `ResonanceExchange`
     ResonanceExchange_Include = '进货采买书, 追加注资申请书'
+
+    # Group `ResonanceTrade`
+    ResonanceTrade_RouteMode = 'auto'  # auto, manual
+    ResonanceTrade_ManualCityA = '阿妮塔发射中心'  # 修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心, 云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园, 阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥, 贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔
+    ResonanceTrade_ManualCityB = '阿妮塔战备工厂'  # 修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心, 云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园, 阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥, 贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔
+    ResonanceTrade_SortBy = 'profit_per_fatigue'  # profit, profit_per_fatigue, general_profit_index
+    ResonanceTrade_MarketFilter = 'all'  # all, normal, good, great
+    ResonanceTrade_MarketOverflowProtect = True
+    ResonanceTrade_MarketWaitMinutes = 30
+    ResonanceTrade_RoundTrip = False
+    ResonanceTrade_RestockBooks = 2
+    ResonanceTrade_BargainPercent = 20
+    ResonanceTrade_RaisePercent = 20
+    ResonanceTrade_ReturnBargain = False
+    ResonanceTrade_AutoInvest = False
+    ResonanceTrade_UseRamming = False
+    ResonanceTrade_UseRestArea = True
+    ResonanceTrade_UseBento = True
+    ResonanceTrade_UseFatigueItem = 'none'  # none, lollipop, lollipop_gum, all
+    ResonanceTrade_ExcludedCities = '武林源'
+    ResonanceTrade_RefreshProfile = False
 
     # Group `Storage`
     Storage_Storage = {}

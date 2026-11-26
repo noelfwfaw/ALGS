@@ -124,11 +124,16 @@
     "menu": "collapse",
     "page": "setting",
     "tasks": [
+      "ResonanceMail",
+      "ResonanceDispatch",
       "ResonanceDaily",
       "ResonanceOperations",
+      "ResonancePreparation",
+      "ResonanceIsland",
       "ResonancePass",
       "ResonanceShop",
-      "ResonanceExchange"
+      "ResonanceExchange",
+      "ResonanceTrade"
     ]
   }
 }

@@ -330,6 +330,14 @@
       "name": "Trickcal Pass",
       "help": "Open 冒险通行证 and 便装通行证 (when active) at the top left of the lobby and press bottom-right 一键领取 to collect available rewards. Skips cleanly when grey/dim or inactive, dismisses reward popups, and returns to the lobby."
     },
+    "ResonanceMail": {
+      "name": "Task.ResonanceMail.name",
+      "help": "Task.ResonanceMail.help"
+    },
+    "ResonanceDispatch": {
+      "name": "Task.ResonanceDispatch.name",
+      "help": "Task.ResonanceDispatch.help"
+    },
     "ResonanceDaily": {
       "name": "Resonance: Daily Activity Rewards",
       "help": "Collect activity points from completed tasks, then claim unlocked milestone rewards. Runs daily at 05:00 and 18:00 game time."
@@ -337,6 +345,14 @@
     "ResonanceOperations": {
       "name": "Resonance: Operations",
       "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period."
+    },
+    "ResonancePreparation": {
+      "name": "Task.ResonancePreparation.name",
+      "help": "Task.ResonancePreparation.help"
+    },
+    "ResonanceIsland": {
+      "name": "Task.ResonanceIsland.name",
+      "help": "Task.ResonanceIsland.help"
     },
     "ResonancePass": {
       "name": "Resonance: Pass Rewards",
@@ -349,6 +365,10 @@
     "ResonanceExchange": {
       "name": "Resonance: B.C.R.L. Exchange",
       "help": "Exchange only listed items, up to the quantity allowed in one order for each item."
+    },
+    "ResonanceTrade": {
+      "name": "Task.ResonanceTrade.name",
+      "help": "Task.ResonanceTrade.help"
     }
   },
   "Scheduler": {
@@ -1934,6 +1954,314 @@
       "3": "Opponent 3"
     }
   },
+  "ResonanceOperations": {
+    "_info": {
+      "name": "Operations settings",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period."
+    },
+    "SiegeRuns": {
+      "name": "Operation Siege daily attempts",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
+      "0": "Skip",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    },
+    "SiegeStage": {
+      "name": "Operation Siege stage",
+      "help": "Operation Siege stage",
+      "Order": "Special Order",
+      "Blade": "Blade Operation",
+      "Lantern": "Lantern and Sword",
+      "Material": "Weapon Material Analysis",
+      "Knight": "Knight's Tale",
+      "Think": "I Think, I Am",
+      "Report": "What We Know",
+      "Large": "The Big One!",
+      "Total": "Total Siege"
+    },
+    "SupplyRuns": {
+      "name": "All Armed daily attempts",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
+      "0": "Skip",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    },
+    "SupplyStage": {
+      "name": "All Armed stage preference",
+      "help": "Runs the sole open stage when there is only one. Use this choice when multiple stages are open.",
+      "Auto": "Automatically select an open stage",
+      "Elegant": "Elegant Supply",
+      "Standard": "Standard Supply",
+      "Salvation": "Salvation Supply",
+      "Advanced": "Advanced Supply",
+      "Chaos": "Chaos Supply",
+      "Magic": "Magic Supply"
+    },
+    "WeeklyRuns": {
+      "name": "Wanted weekly attempts",
+      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
+      "0": "Skip",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    }
+  },
+  "ResonancePreparation": {
+    "_info": {
+      "name": "ResonancePreparation._info.name",
+      "help": "ResonancePreparation._info.help"
+    },
+    "FightPurple": {
+      "name": "ResonancePreparation.FightPurple.name",
+      "help": "ResonancePreparation.FightPurple.help"
+    },
+    "FightRainbow": {
+      "name": "ResonancePreparation.FightRainbow.name",
+      "help": "ResonancePreparation.FightRainbow.help"
+    },
+    "FightWhite": {
+      "name": "ResonancePreparation.FightWhite.name",
+      "help": "ResonancePreparation.FightWhite.help"
+    },
+    "FightRed": {
+      "name": "ResonancePreparation.FightRed.name",
+      "help": "ResonancePreparation.FightRed.help"
+    }
+  },
+  "ResonanceIsland": {
+    "_info": {
+      "name": "ResonanceIsland._info.name",
+      "help": "ResonanceIsland._info.help"
+    },
+    "CleanTrainGarbage": {
+      "name": "ResonanceIsland.CleanTrainGarbage.name",
+      "help": "ResonanceIsland.CleanTrainGarbage.help"
+    },
+    "PromotionType": {
+      "name": "ResonanceIsland.PromotionType.name",
+      "help": "ResonanceIsland.PromotionType.help",
+      "promotion": "promotion",
+      "theme": "theme",
+      "celebrity": "celebrity",
+      "none": "none"
+    },
+    "PromotionMethod": {
+      "name": "ResonanceIsland.PromotionMethod.name",
+      "help": "ResonanceIsland.PromotionMethod.help",
+      "flyer": "flyer",
+      "ad_ticket": "ad_ticket"
+    },
+    "PlayVolleyball": {
+      "name": "ResonanceIsland.PlayVolleyball.name",
+      "help": "ResonanceIsland.PlayVolleyball.help"
+    },
+    "CollectIncome": {
+      "name": "ResonanceIsland.CollectIncome.name",
+      "help": "ResonanceIsland.CollectIncome.help"
+    },
+    "FriendFight": {
+      "name": "ResonanceIsland.FriendFight.name",
+      "help": "ResonanceIsland.FriendFight.help"
+    },
+    "FriendClean": {
+      "name": "ResonanceIsland.FriendClean.name",
+      "help": "ResonanceIsland.FriendClean.help"
+    }
+  },
+  "ResonanceDispatch": {
+    "_info": {
+      "name": "ResonanceDispatch._info.name",
+      "help": "ResonanceDispatch._info.help"
+    },
+    "Task1": {
+      "name": "ResonanceDispatch.Task1.name",
+      "help": "ResonanceDispatch.Task1.help",
+      "patrol": "patrol",
+      "drill": "drill",
+      "collect": "collect",
+      "materialize": "materialize",
+      "enhance": "enhance"
+    },
+    "Task2": {
+      "name": "ResonanceDispatch.Task2.name",
+      "help": "ResonanceDispatch.Task2.help",
+      "none": "none",
+      "patrol": "patrol",
+      "drill": "drill",
+      "collect": "collect",
+      "materialize": "materialize",
+      "enhance": "enhance"
+    },
+    "Duration": {
+      "name": "ResonanceDispatch.Duration.name",
+      "help": "ResonanceDispatch.Duration.help",
+      "4h": "4h",
+      "8h": "8h",
+      "12h": "12h",
+      "20h": "20h"
+    }
+  },
+  "ResonanceShop": {
+    "_info": {
+      "name": "HQ Shop settings",
+      "help": "Buy each coin-priced item up to the available limit."
+    },
+    "Include": {
+      "name": "Only buy these items",
+      "help": "Use exact in-game item names, separated by commas or newlines. Leave blank to buy all coin-priced items."
+    },
+    "Exclude": {
+      "name": "Skip these items",
+      "help": "Use exact in-game item names, separated by commas or newlines. Exclusions take priority."
+    }
+  },
+  "ResonanceExchange": {
+    "_info": {
+      "name": "Exchange settings",
+      "help": "Exchange only listed items, up to the quantity allowed in one order for each item."
+    },
+    "Include": {
+      "name": "Exchange filter",
+      "help": "Enter exact in-game item names separated by commas or newlines. Append to the two default names, or clear the list to skip."
+    }
+  },
+  "ResonanceTrade": {
+    "_info": {
+      "name": "ResonanceTrade._info.name",
+      "help": "ResonanceTrade._info.help"
+    },
+    "RouteMode": {
+      "name": "ResonanceTrade.RouteMode.name",
+      "help": "ResonanceTrade.RouteMode.help",
+      "auto": "auto",
+      "manual": "manual"
+    },
+    "ManualCityA": {
+      "name": "ResonanceTrade.ManualCityA.name",
+      "help": "ResonanceTrade.ManualCityA.help",
+      "修格里城": "修格里城",
+      "澄明数据中心": "澄明数据中心",
+      "七号自由港": "七号自由港",
+      "曼德矿场": "曼德矿场",
+      "阿妮塔发射中心": "阿妮塔发射中心",
+      "云岫桥基地": "云岫桥基地",
+      "铁盟哨站": "铁盟哨站",
+      "阿妮塔战备工厂": "阿妮塔战备工厂",
+      "黑月游乐城": "黑月游乐城",
+      "淘金乐园": "淘金乐园",
+      "阿妮塔能源研究所": "阿妮塔能源研究所",
+      "荒原站": "荒原站",
+      "栖羽站": "栖羽站",
+      "岚心城": "岚心城",
+      "远星大桥": "远星大桥",
+      "贡露城": "贡露城",
+      "维蒂林场": "维蒂林场",
+      "塔图站": "塔图站",
+      "海角城": "海角城",
+      "汇流塔": "汇流塔"
+    },
+    "ManualCityB": {
+      "name": "ResonanceTrade.ManualCityB.name",
+      "help": "ResonanceTrade.ManualCityB.help",
+      "修格里城": "修格里城",
+      "澄明数据中心": "澄明数据中心",
+      "七号自由港": "七号自由港",
+      "曼德矿场": "曼德矿场",
+      "阿妮塔发射中心": "阿妮塔发射中心",
+      "云岫桥基地": "云岫桥基地",
+      "铁盟哨站": "铁盟哨站",
+      "阿妮塔战备工厂": "阿妮塔战备工厂",
+      "黑月游乐城": "黑月游乐城",
+      "淘金乐园": "淘金乐园",
+      "阿妮塔能源研究所": "阿妮塔能源研究所",
+      "荒原站": "荒原站",
+      "栖羽站": "栖羽站",
+      "岚心城": "岚心城",
+      "远星大桥": "远星大桥",
+      "贡露城": "贡露城",
+      "维蒂林场": "维蒂林场",
+      "塔图站": "塔图站",
+      "海角城": "海角城",
+      "汇流塔": "汇流塔"
+    },
+    "SortBy": {
+      "name": "ResonanceTrade.SortBy.name",
+      "help": "ResonanceTrade.SortBy.help",
+      "profit": "profit",
+      "profit_per_fatigue": "profit_per_fatigue",
+      "general_profit_index": "general_profit_index"
+    },
+    "MarketFilter": {
+      "name": "ResonanceTrade.MarketFilter.name",
+      "help": "ResonanceTrade.MarketFilter.help",
+      "all": "all",
+      "normal": "normal",
+      "good": "good",
+      "great": "great"
+    },
+    "MarketOverflowProtect": {
+      "name": "ResonanceTrade.MarketOverflowProtect.name",
+      "help": "ResonanceTrade.MarketOverflowProtect.help"
+    },
+    "MarketWaitMinutes": {
+      "name": "ResonanceTrade.MarketWaitMinutes.name",
+      "help": "ResonanceTrade.MarketWaitMinutes.help"
+    },
+    "RoundTrip": {
+      "name": "ResonanceTrade.RoundTrip.name",
+      "help": "ResonanceTrade.RoundTrip.help"
+    },
+    "RestockBooks": {
+      "name": "ResonanceTrade.RestockBooks.name",
+      "help": "ResonanceTrade.RestockBooks.help"
+    },
+    "BargainPercent": {
+      "name": "ResonanceTrade.BargainPercent.name",
+      "help": "ResonanceTrade.BargainPercent.help"
+    },
+    "RaisePercent": {
+      "name": "ResonanceTrade.RaisePercent.name",
+      "help": "ResonanceTrade.RaisePercent.help"
+    },
+    "ReturnBargain": {
+      "name": "ResonanceTrade.ReturnBargain.name",
+      "help": "ResonanceTrade.ReturnBargain.help"
+    },
+    "AutoInvest": {
+      "name": "ResonanceTrade.AutoInvest.name",
+      "help": "ResonanceTrade.AutoInvest.help"
+    },
+    "UseRamming": {
+      "name": "ResonanceTrade.UseRamming.name",
+      "help": "ResonanceTrade.UseRamming.help"
+    },
+    "UseRestArea": {
+      "name": "ResonanceTrade.UseRestArea.name",
+      "help": "ResonanceTrade.UseRestArea.help"
+    },
+    "UseBento": {
+      "name": "ResonanceTrade.UseBento.name",
+      "help": "ResonanceTrade.UseBento.help"
+    },
+    "UseFatigueItem": {
+      "name": "ResonanceTrade.UseFatigueItem.name",
+      "help": "ResonanceTrade.UseFatigueItem.help",
+      "none": "none",
+      "lollipop": "lollipop",
+      "lollipop_gum": "lollipop_gum",
+      "all": "all"
+    },
+    "ExcludedCities": {
+      "name": "ResonanceTrade.ExcludedCities.name",
+      "help": "ResonanceTrade.ExcludedCities.help"
+    },
+    "RefreshProfile": {
+      "name": "ResonanceTrade.RefreshProfile.name",
+      "help": "ResonanceTrade.RefreshProfile.help"
+    }
+  },
   "Storage": {
     "_info": {
       "name": "Task status",
@@ -2104,84 +2432,6 @@
       "EventRecorderRefresh": "Refresh",
       "EventRecorderClear": "Clear",
       "EventRecorderCleared": "Event records cleared"
-    }
-  },
-  "ResonanceOperations": {
-    "_info": {
-      "name": "Operations settings",
-      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period."
-    },
-    "SiegeRuns": {
-      "name": "Operation Siege daily attempts",
-      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
-      "0": "Skip",
-      "1": "1",
-      "2": "2",
-      "3": "3"
-    },
-    "SiegeStage": {
-      "name": "Operation Siege stage",
-      "help": "Operation Siege stage",
-      "Order": "Special Order",
-      "Blade": "Blade Operation",
-      "Lantern": "Lantern and Sword",
-      "Material": "Weapon Material Analysis",
-      "Knight": "Knight's Tale",
-      "Think": "I Think, I Am",
-      "Report": "What We Know",
-      "Large": "The Big One!",
-      "Total": "Total Siege"
-    },
-    "SupplyRuns": {
-      "name": "All Armed daily attempts",
-      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
-      "0": "Skip",
-      "1": "1",
-      "2": "2",
-      "3": "3"
-    },
-    "SupplyStage": {
-      "name": "All Armed stage preference",
-      "help": "Runs the sole open stage when there is only one. Use this choice when multiple stages are open.",
-      "Auto": "Automatically select an open stage",
-      "Elegant": "Elegant Supply",
-      "Standard": "Standard Supply",
-      "Salvation": "Salvation Supply",
-      "Advanced": "Advanced Supply",
-      "Chaos": "Chaos Supply",
-      "Magic": "Magic Supply"
-    },
-    "WeeklyRuns": {
-      "name": "Wanted weekly attempts",
-      "help": "Play battles using the game's remaining reward attempts and enable auto combat in battle. Counts include attempts already used in the period.",
-      "0": "Skip",
-      "1": "1",
-      "2": "2",
-      "3": "3"
-    }
-  },
-  "ResonanceShop": {
-    "_info": {
-      "name": "HQ Shop settings",
-      "help": "Buy each coin-priced item up to the available limit."
-    },
-    "Include": {
-      "name": "Only buy these items",
-      "help": "Use exact in-game item names, separated by commas or newlines. Leave blank to buy all coin-priced items."
-    },
-    "Exclude": {
-      "name": "Skip these items",
-      "help": "Use exact in-game item names, separated by commas or newlines. Exclusions take priority."
-    }
-  },
-  "ResonanceExchange": {
-    "_info": {
-      "name": "Exchange settings",
-      "help": "Exchange only listed items, up to the quantity allowed in one order for each item."
-    },
-    "Include": {
-      "name": "Exchange filter",
-      "help": "Enter exact in-game item names separated by commas or newlines. Append to the two default names, or clear the list to skip."
     }
   }
 }

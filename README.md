@@ -4,8 +4,8 @@
 
 **单模拟器多游戏任务调度脚本**
 
-![games](https://img.shields.io/badge/games-6-success?style=flat-square)
-![tasks](https://img.shields.io/badge/tasks-63-blue?style=flat-square)
+![games](https://img.shields.io/badge/games-7-success?style=flat-square)
+![tasks](https://img.shields.io/badge/tasks-79-blue?style=flat-square)
 ![resolution](https://img.shields.io/badge/resolution-1280x720-informational?style=flat-square)
 ![license](https://img.shields.io/badge/license-GPL--3.0-red?style=flat-square)
 
@@ -15,7 +15,7 @@
 
 AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript) 框架改造：在一个 Android 模拟器中运行多个游戏，按任务排期依次执行。每个任务独立记录下次运行时间，到期后自动启动模拟器完成对应操作，结束后关闭游戏。
 
-当前支持 6 个游戏、63 个任务，另有 2 个不参与排期的独立工具。
+当前支持 7 个游戏、79 个任务，另有 2 个不参与排期的独立工具。
 
 ## 📖 目录
 
@@ -41,7 +41,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 卡厄思梦境 Chaos Zero Nightmare | 7 | 05:00 | 刷新时间暂定 |
 | 交错战线 Crosscore | 10 | 05:00 | 兑换码、邮箱、任务、通行证、每日探索、芯片分解、模拟军演、周本（碎星虚影）、基地；另有「交错跳过剧情」独立工具 |
 | 嘟嘟脸恶作剧 Trickcal | 13 | 05:00、18:00 | 登录、邮箱、好友、圣团、娃娃怪、主题剧院活动、嘟嘟副本、速成班、巅峰对决、任务、尊享商店免费礼包、日常商店批量购买、通行证；回归活动默认只关闭、不领奖 |
-| 雷索纳斯 Resonance | 5 | 05:00、18:00 | 每日活跃、行动汇总（利刃围剿 / 全境特供 / 私贩追缴）、环游手册通行证、总部商店扫货、赴命商店兑换 |
+| 雷索纳斯 Resonance | 10 | 05:00、18:00 | 邮件领取、派遣委托、每日活跃、行动汇总（利刃围剿 / 全境特供 / 私贩追缴）、全域整备（构析勘探与周奖励）、海岛物语、环游手册通行证、总部商店扫货、赴命商店兑换、自动跑商（含行情过滤与 30 天利润记录） |
 
 星之救援者以独立工具的形式提供刷初始功能，不参与排期，从 WebUI 的「工具」页面手动启动。每轮依次完成登录、引导、旅程、领奖、抽卡与验号；达到设定目标后保留账号，未达标则重置账号重新登录。闪退、游戏进程消失或意外掉回标题页时会自动重登，并按当前画面接回大厅、旅程、剧情或引导，不会从头重走已经过的教学。该工具只适用于已登录 Google 的空号或小号，重置会清空账号进度，使用前请先看[星之救援者的注意事项](#starsavior-notes)。
 
@@ -173,17 +173,22 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ### 雷索纳斯
 
-> 5 个任务 · 每天 05:00 刷新，每日活跃另有 18:00 补跑
+> 10 个任务 · 每天 05:00 刷新，邮件 / 每日活跃 / 全域整备 / 海岛物语 / 通行证另有 18:00 补跑；派遣委托与跑商按倒计时/疲劳动态排期
 
 | 任务 | 说明 |
 |:---|:---|
-| 琐呐每日活跃 | 领取已完成任务的活跃度，再领取上排已解锁的礼盒 |
-| 琐呐行动汇总 | 按游戏剩余奖励次数打「利刃围剿」「全境特供」「私贩追缴」三类关卡，开战后开启自动战斗。次数按本周期已用次数累计，所以中途手动打过也不会多打 |
+| 琐呐邮件领取 | 从主界面侧边栏进入邮箱，有未领邮件时一键领取并自动关闭奖励弹窗 |
+| 琐呐派遣委托 | 从作战终端进入派遣委托，领取已完成奖励并按配置选 5 名空闲乘员派出最多两支队伍（义务巡逻 / 战斗演习 / 思维搜集 / 思维具现 / 强化材料搜集），按最短剩余时间排期 |
+| 琐呐每日活跃领取 | 领取已完成任务的活跃度，再领取上排已解锁的礼盒 |
+| 琐呐行动汇总 | 按游戏剩余奖励次数打「利刃围剿」「全境特供」「私贩追缴」三类关卡，开战后开启自动战斗。次数按本周期已用次数累计，中途手动打过也不会多打 |
+| 琐呐全域整备 | 进入「构析勘探」按配置勾选紫 / 彩 / 白 / 红树并开启自动讨伐至体力不足或无目标，随后领取「本周奖励」进度里程碑 |
+| 琐呐海岛物语 | 先清理列车维护垃圾压缩机（可选），再进经营活动「海岛物语」依次执行海岛宣传、沙滩排球、今日收益收取及好友治安打怪与清扫垃圾 |
 | 琐呐通行证领取 | 领取各本「环游手册」的每日任务、每周任务与已解锁的等级奖励。面板里有两本手册时逐本切换领取 |
 | 琐呐总部商店 | 逐件买到金币商品的可购上限。`Include` 留空＝买全部金币商品，`Exclude` 优先级更高 |
 | 琐呐赴命商店 | 只兑换过滤器中的道具，每种按单笔可兑上限兑换；默认兑换「进货采买书」「追加注资申请书」 |
+| 琐呐跑商 | 自动读取货舱上限、各城声望与乘员共振；支持接入科伦巴实时物价自动规划最优路线（或手动双城往返）、配置自适应行情过滤、到达顺路投资、疲劳恢复（休息区喝汽水 / 便当 / 提神道具），并在 WebUI 实时展示行情状态与近 30 天利润记录 |
 
-行动汇总的三类关卡可在配置里分别设每日/每周次数（`0` 为跳过）与关卡偏好；总部商店只买金币商品，赴命商店只兑过滤器里列出的道具。
+行动汇总的三类关卡可在配置里分别设每日/每周次数（`0` 为跳过）与关卡偏好；总部商店只买金币商品，赴命商店只兑过滤器里列出的道具；跑商支持在 WebUI 总览页与任务配置页实时查看行情状态卡片、手动触发「立即检测行情」及查看近 30 天利润与每日涨跌记录。
 
 <a name="schedule"></a>
 
@@ -218,8 +223,10 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 | 交错战线 | 交错基地 | 按驻员时长（一队 15.5h、二队 8.5h） | 每次运行换一次班，按换上的队伍时长排下次 |
 | 嘟嘟脸恶作剧 | 嘟嘟登录、嘟嘟娃娃怪、嘟嘟速成班、嘟嘟巅峰对决、嘟嘟尊享商店、嘟嘟普通商店 | 每天 05:00 | 日刷新 |
 | 嘟嘟脸恶作剧 | 嘟嘟邮箱、嘟嘟好友、嘟嘟圣团、嘟嘟活动、嘟嘟副本、嘟嘟任务、嘟嘟通行证 | 每天 05:00、18:00 | 日刷新，中午补跑一次 |
-| 雷索纳斯 | 琐呐每日活跃 | 每天 05:00、18:00 | 日刷新，中午补跑一次 |
-| 雷索纳斯 | 琐呐行动汇总、琐呐通行证领取、琐呐总部商店、琐呐赴命商店 | 每天 05:00 | 日刷新 |
+| 雷索纳斯 | 琐呐邮件领取、琐呐每日活跃领取、琐呐全域整备、琐呐海岛物语、琐呐通行证领取 | 每天 05:00、18:00 | 日刷新，傍晚补跑一次 |
+| 雷索纳斯 | 琐呐行动汇总、琐呐总部商店、琐呐赴命商店 | 每天 05:00 | 日刷新 |
+| 雷索纳斯 | 琐呐派遣委托 | 最早完成队伍的剩余时间 +1 分钟 | 无进行中队伍时按 05:00、18:00 排期 |
+| 雷索纳斯 | 琐呐跑商 | 按疲劳 / 行情复查间隔动态排期 | 疲劳不足按 6 分钟/点恢复排期；行情未达标按 `MarketWaitMinutes` 复查 |
 
 日刷新时间按游戏分别计算。运行时间相同的任务连续执行，共用一次模拟器启动；同一游戏已到期的任务会先一起跑完再切下一个游戏，运行途中另一个游戏新到期的任务不会插队，避免反复启停模拟器。
 
@@ -235,7 +242,7 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 6. 点击「开始」立即执行，或等待排期自动运行。
 7. 需要立刻执行某个游戏的当轮任务时，点击「一键全跑 <游戏>」。该操作仅将已启用任务的下次运行时间置为当前时间，调度器按优先级依次执行；未启用的任务不会被打开。
 
-界面里的任务名都带游戏前缀（苍雾 / 失落 / 棕尘 / 卡厄思 / 交错 / 星之 / 嘟嘟），多游戏同时勾选时便于区分。
+界面里的任务名都带游戏前缀（苍雾 / 失落 / 棕尘 / 卡厄思 / 交错 / 星之 / 嘟嘟 / 琐呐），多游戏同时勾选时便于区分。
 
 关闭浏览器不影响后台调度。
 
@@ -325,10 +332,18 @@ AlGS 基于 [AzurLaneAutoScript](https://github.com/LmeSzinc/AzurLaneAutoScript)
 
 ### 雷索纳斯
 
+- 派遣委托：`Task1` / `Task2` 分别配置最多两支队伍的委托类型（义务巡逻 `patrol` / 战斗演习 `drill` / 思维搜集 `collect` / 思维具现 `materialize` / 强化材料搜集 `enhance`），`Duration` 选择派遣时长（4 / 8 / 12 / 20 小时），自动收菜并选 5 名空闲乘员派出。
 - 行动汇总：`SiegeRuns` / `SupplyRuns` 分别设「利刃围剿」「全境特供」的每日次数，`WeeklyRuns` 设「私贩追缴」的每周次数，填 `0` 表示跳过该类别。`SiegeStage` / `SupplyStage` 选关卡偏好，`Auto` 表示自动挑当前开放的关卡。次数按游戏内本周期已用次数累计，手动打过的不会重复打。
+- 全域整备：`FightPurple` / `FightRainbow` / `FightWhite` / `FightRed` 分别勾选构析勘探的紫（桦树浮标）/ 彩（混响浮标）/ 白（异构厄枝）/ 红（乱序根须）树并自动讨伐至体力不足或无目标，随后自动领取「本周奖励」进度里程碑。
+- 海岛物语：可配置是否先清理列车垃圾压缩机（`CleanTrainGarbage`）、海岛宣传类型与宣传方式（`PromotionType` / `PromotionMethod`：传单或广告券）、沙滩排球（`PlayVolleyball`）、收取今日收益（`CollectIncome`），以及好友治安打怪（`FriendFight`）与清扫垃圾（`FriendClean`）。
 - 总部商店：`Include` 填只买哪些道具（留空＝全部金币商品），`Exclude` 填要跳过的道具，两者都按游戏内道具全名匹配，逗号、顿号或换行分隔，排除优先。逐件买到金币商品的可购上限。
 - 赴命商店：`Include` 填要兑换的道具全名，默认已含「进货采买书」「追加注资申请书」两件，留空则跳过这个任务。每种按单笔可兑上限兑换。
-- 每日活跃与通行证不需要配置，脚本领完活跃度礼盒后再逐本领取「环游手册」的每日、每周与等级奖励。
+- 邮件领取、每日活跃与通行证不需要额外配置：邮箱有未领附件时一键领取，活跃领完后再逐本领取「环游手册」的每日、每周与等级奖励。
+- 跑商：
+  - **路线与档案**：首次运行自动读取货舱上限、所有城市声望及乘员共振并缓存（勾选 `RefreshProfile` 可下次强制重扫）；支持 `RouteMode` 在「自动最优」与「手动双城往返（`ManualCityA` ↔ `ManualCityB`）」间切换。自动模式接入实时物价后按 `SortBy` 选择全局最优路线（当前城市非最佳起点时使用 0 本进货书接驳过去），可配置 `RoundTrip`、`RestockBooks`、`ExcludedCities`、`BargainPercent`、`RaisePercent`、`ReturnBargain`、到达顺便投资交易品（`AutoInvest`），以及护卫迎击是否使用撞击武器（`UseRamming`）。
+  - **疲劳恢复**：支持到达城市且当前疲劳 ≥ 300 时前往休息区喝汽水并自动确认「再喝一杯」弹窗（`UseRestArea`）、使用便当盒（`UseBento`），以及按 `UseFatigueItem` 分档消耗棒棒糖/口香糖/全提神道具（绝不动用桦石）；疲劳仍不足时按 6 分钟/点恢复时间自动排入调度。
+  - **行情过滤与实时监控**：`MarketFilter` 按当前玩家档案与配置的同口径做配置自适应评分（0~100 相对参考基准）：`不限` / `常规 ≥ 15` / `较好 ≥ 25` / `极佳 ≥ 40`；开启 `MarketOverflowProtect` 后当距离上限仅剩 ≤ 60 疲劳时放行防溢出；行情未达标时按 `MarketWaitMinutes` 间隔复查。WebUI 总览页与 `ResonanceTrade` 配置页会实时展示当前行情状态并支持手动点击「立即检测行情」。
+  - **30 天跑商利润记录**：按每日 05:00 日结，自动识别卖出结算净收益（识别失败时回退预估利润并标注预估），在 WebUI 总览页与 `ResonanceTrade` 页展示今日利润、逐笔交易明细及近 30 天每日涨跌。
 
 ### 星之救援者（工具）
 
@@ -398,6 +413,7 @@ GNU General Public License v3.0，见 [`LICENSE`](LICENSE)。
 
 - **E7BOT Wiki（[wiki.e7bot.top](https://wiki.e7bot.top/)）**：卡厄思梦境「卡厄思肉鸽」使用的离线知识库与图鉴资源由 [`dev_tools/gen_chaoszero_rogue_db.py`](dev_tools/gen_chaoszero_rogue_db.py)、[`dev_tools/gen_chaoszero_rogue_cards.py`](dev_tools/gen_chaoszero_rogue_cards.py)、[`dev_tools/gen_chaoszero_rogue_sparks.py`](dev_tools/gen_chaoszero_rogue_sparks.py) 与 [`dev_tools/gen_chaoszero_rogue_relics.py`](dev_tools/gen_chaoszero_rogue_relics.py) 从 E7BOT Wiki 接口离线抓取并打包至仓库（运行期间只读本地文件），包括事件数据库（`module/chaoszero/rogue_events.json.gz`、`dev_tools/rogue_events/events.json`）、卡牌与灵光一闪形态库（`module/chaoszero/rogue_cards.json.gz`）、神闪与中立闪词条库（`module/chaoszero/rogue_sparks.json.gz`）、装备与角色索引及对应图标（`module/chaoszero/rogue_relics.json.gz`、`rogue_equipment_icons.npz`、`rogue_equipment_faces.npz`）。部分实机名差异与命运卡标题字模（`rogue_fate_titles.npz`）由实机截图校准补充。
 - **GameKee（[www.gamekee.com](https://www.gamekee.com/)）**：各游戏的兑换码任务（失落之剑、棕色尘埃2、卡厄思梦境、交错战线）通过 [`module/coupon/gamekee.py`](module/coupon/gamekee.py) 请求 GameKee 兑换码公开接口拉取当前未过期的兑换码列表。
+- **科伦巴商会（[www.resonance-columba.com](https://www.resonance-columba.com/)）**：雷索纳斯「琐呐跑商」使用的静态商品、城市与乘员共振基础数据由 [`dev_tools/update_resonance_columba_data.py`](dev_tools/update_resonance_columba_data.py) 整理至 [`module/resonance/columba_data.json`](module/resonance/columba_data.json)，并通过 [`module/resonance/columba.py`](module/resonance/columba.py) 拉取实时物价与计算路线/行情评分。
 
 ### 新增开源模型与依赖库
 

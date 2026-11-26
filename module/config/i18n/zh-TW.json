@@ -330,6 +330,14 @@
       "name": "嘟嘟通行證",
       "help": "從主畫面左上角分別進入「冒險通行證」與「便裝通行證」（存在時），點右下角「一鍵領取」把能領的獎勵一次領完；沒有獎勵時按鈕變暗或置灰直接返回，獲得獎勵彈窗自動點掉，最後回到主畫面。"
     },
+    "ResonanceMail": {
+      "name": "Task.ResonanceMail.name",
+      "help": "Task.ResonanceMail.help"
+    },
+    "ResonanceDispatch": {
+      "name": "Task.ResonanceDispatch.name",
+      "help": "Task.ResonanceDispatch.help"
+    },
     "ResonanceDaily": {
       "name": "瑣吶每日活躍領取",
       "help": "領取已完成任務的活躍度，再領取上排已解鎖的禮盒。每天 05:00 和 18:00 執行。"
@@ -337,6 +345,14 @@
     "ResonanceOperations": {
       "name": "瑣吶行動彙總",
       "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。"
+    },
+    "ResonancePreparation": {
+      "name": "Task.ResonancePreparation.name",
+      "help": "Task.ResonancePreparation.help"
+    },
+    "ResonanceIsland": {
+      "name": "Task.ResonanceIsland.name",
+      "help": "Task.ResonanceIsland.help"
     },
     "ResonancePass": {
       "name": "瑣吶通行證領取",
@@ -349,6 +365,10 @@
     "ResonanceExchange": {
       "name": "瑣吶赴命商店",
       "help": "只兌換篩選器中的道具，每種按單筆可兌上限兌換。"
+    },
+    "ResonanceTrade": {
+      "name": "Task.ResonanceTrade.name",
+      "help": "Task.ResonanceTrade.help"
     }
   },
   "Scheduler": {
@@ -1934,6 +1954,314 @@
       "3": "第 3 個對手"
     }
   },
+  "ResonanceOperations": {
+    "_info": {
+      "name": "行動彙總設定",
+      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。"
+    },
+    "SiegeRuns": {
+      "name": "利刃圍剿每日次數",
+      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。",
+      "0": "略過",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    },
+    "SiegeStage": {
+      "name": "利刃圍剿關卡",
+      "help": "利刃圍剿關卡",
+      "Order": "特殊訂單",
+      "Blade": "利刃行動",
+      "Lantern": "挑燈看劍",
+      "Material": "武器材質分析",
+      "Knight": "騎士小說",
+      "Think": "我思我在",
+      "Report": "所知所聞",
+      "Large": "「大的！」",
+      "Total": "總體圍剿"
+    },
+    "SupplyRuns": {
+      "name": "全境特供每日次數",
+      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。",
+      "0": "略過",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    },
+    "SupplyStage": {
+      "name": "全境特供關卡偏好",
+      "help": "當天只有一個關卡開放時自動打該關。多個關卡開放時按此選項。",
+      "Auto": "自動選擇開放關卡",
+      "Elegant": "特供·雅致",
+      "Standard": "特供·制式",
+      "Salvation": "特供·救世",
+      "Advanced": "特供·尖端",
+      "Chaos": "特供·混沌",
+      "Magic": "特供·魔力"
+    },
+    "WeeklyRuns": {
+      "name": "私販追繳每週次數",
+      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。",
+      "0": "略過",
+      "1": "1",
+      "2": "2",
+      "3": "3"
+    }
+  },
+  "ResonancePreparation": {
+    "_info": {
+      "name": "ResonancePreparation._info.name",
+      "help": "ResonancePreparation._info.help"
+    },
+    "FightPurple": {
+      "name": "ResonancePreparation.FightPurple.name",
+      "help": "ResonancePreparation.FightPurple.help"
+    },
+    "FightRainbow": {
+      "name": "ResonancePreparation.FightRainbow.name",
+      "help": "ResonancePreparation.FightRainbow.help"
+    },
+    "FightWhite": {
+      "name": "ResonancePreparation.FightWhite.name",
+      "help": "ResonancePreparation.FightWhite.help"
+    },
+    "FightRed": {
+      "name": "ResonancePreparation.FightRed.name",
+      "help": "ResonancePreparation.FightRed.help"
+    }
+  },
+  "ResonanceIsland": {
+    "_info": {
+      "name": "ResonanceIsland._info.name",
+      "help": "ResonanceIsland._info.help"
+    },
+    "CleanTrainGarbage": {
+      "name": "ResonanceIsland.CleanTrainGarbage.name",
+      "help": "ResonanceIsland.CleanTrainGarbage.help"
+    },
+    "PromotionType": {
+      "name": "ResonanceIsland.PromotionType.name",
+      "help": "ResonanceIsland.PromotionType.help",
+      "promotion": "promotion",
+      "theme": "theme",
+      "celebrity": "celebrity",
+      "none": "none"
+    },
+    "PromotionMethod": {
+      "name": "ResonanceIsland.PromotionMethod.name",
+      "help": "ResonanceIsland.PromotionMethod.help",
+      "flyer": "flyer",
+      "ad_ticket": "ad_ticket"
+    },
+    "PlayVolleyball": {
+      "name": "ResonanceIsland.PlayVolleyball.name",
+      "help": "ResonanceIsland.PlayVolleyball.help"
+    },
+    "CollectIncome": {
+      "name": "ResonanceIsland.CollectIncome.name",
+      "help": "ResonanceIsland.CollectIncome.help"
+    },
+    "FriendFight": {
+      "name": "ResonanceIsland.FriendFight.name",
+      "help": "ResonanceIsland.FriendFight.help"
+    },
+    "FriendClean": {
+      "name": "ResonanceIsland.FriendClean.name",
+      "help": "ResonanceIsland.FriendClean.help"
+    }
+  },
+  "ResonanceDispatch": {
+    "_info": {
+      "name": "ResonanceDispatch._info.name",
+      "help": "ResonanceDispatch._info.help"
+    },
+    "Task1": {
+      "name": "ResonanceDispatch.Task1.name",
+      "help": "ResonanceDispatch.Task1.help",
+      "patrol": "patrol",
+      "drill": "drill",
+      "collect": "collect",
+      "materialize": "materialize",
+      "enhance": "enhance"
+    },
+    "Task2": {
+      "name": "ResonanceDispatch.Task2.name",
+      "help": "ResonanceDispatch.Task2.help",
+      "none": "none",
+      "patrol": "patrol",
+      "drill": "drill",
+      "collect": "collect",
+      "materialize": "materialize",
+      "enhance": "enhance"
+    },
+    "Duration": {
+      "name": "ResonanceDispatch.Duration.name",
+      "help": "ResonanceDispatch.Duration.help",
+      "4h": "4h",
+      "8h": "8h",
+      "12h": "12h",
+      "20h": "20h"
+    }
+  },
+  "ResonanceShop": {
+    "_info": {
+      "name": "總部商店掃貨設定",
+      "help": "逐件買到金幣商品的可購上限。"
+    },
+    "Include": {
+      "name": "只買這些道具",
+      "help": "填遊戲內道具全名，用逗號、頓號或換行分隔。留空會購買全部金幣商品。"
+    },
+    "Exclude": {
+      "name": "略過這些道具",
+      "help": "填不買的道具全名，用逗號、頓號或換行分隔。排除優先。"
+    }
+  },
+  "ResonanceExchange": {
+    "_info": {
+      "name": "赴命商店兌換設定",
+      "help": "只兌換篩選器中的道具，每種按單筆可兌上限兌換。"
+    },
+    "Include": {
+      "name": "兌換篩選器",
+      "help": "填遊戲內道具全名，用逗號、頓號或換行分隔。可附加至預設兩件，留空略過。"
+    }
+  },
+  "ResonanceTrade": {
+    "_info": {
+      "name": "ResonanceTrade._info.name",
+      "help": "ResonanceTrade._info.help"
+    },
+    "RouteMode": {
+      "name": "ResonanceTrade.RouteMode.name",
+      "help": "ResonanceTrade.RouteMode.help",
+      "auto": "auto",
+      "manual": "manual"
+    },
+    "ManualCityA": {
+      "name": "ResonanceTrade.ManualCityA.name",
+      "help": "ResonanceTrade.ManualCityA.help",
+      "修格里城": "修格里城",
+      "澄明数据中心": "澄明数据中心",
+      "七号自由港": "七号自由港",
+      "曼德矿场": "曼德矿场",
+      "阿妮塔发射中心": "阿妮塔发射中心",
+      "云岫桥基地": "云岫桥基地",
+      "铁盟哨站": "铁盟哨站",
+      "阿妮塔战备工厂": "阿妮塔战备工厂",
+      "黑月游乐城": "黑月游乐城",
+      "淘金乐园": "淘金乐园",
+      "阿妮塔能源研究所": "阿妮塔能源研究所",
+      "荒原站": "荒原站",
+      "栖羽站": "栖羽站",
+      "岚心城": "岚心城",
+      "远星大桥": "远星大桥",
+      "贡露城": "贡露城",
+      "维蒂林场": "维蒂林场",
+      "塔图站": "塔图站",
+      "海角城": "海角城",
+      "汇流塔": "汇流塔"
+    },
+    "ManualCityB": {
+      "name": "ResonanceTrade.ManualCityB.name",
+      "help": "ResonanceTrade.ManualCityB.help",
+      "修格里城": "修格里城",
+      "澄明数据中心": "澄明数据中心",
+      "七号自由港": "七号自由港",
+      "曼德矿场": "曼德矿场",
+      "阿妮塔发射中心": "阿妮塔发射中心",
+      "云岫桥基地": "云岫桥基地",
+      "铁盟哨站": "铁盟哨站",
+      "阿妮塔战备工厂": "阿妮塔战备工厂",
+      "黑月游乐城": "黑月游乐城",
+      "淘金乐园": "淘金乐园",
+      "阿妮塔能源研究所": "阿妮塔能源研究所",
+      "荒原站": "荒原站",
+      "栖羽站": "栖羽站",
+      "岚心城": "岚心城",
+      "远星大桥": "远星大桥",
+      "贡露城": "贡露城",
+      "维蒂林场": "维蒂林场",
+      "塔图站": "塔图站",
+      "海角城": "海角城",
+      "汇流塔": "汇流塔"
+    },
+    "SortBy": {
+      "name": "ResonanceTrade.SortBy.name",
+      "help": "ResonanceTrade.SortBy.help",
+      "profit": "profit",
+      "profit_per_fatigue": "profit_per_fatigue",
+      "general_profit_index": "general_profit_index"
+    },
+    "MarketFilter": {
+      "name": "ResonanceTrade.MarketFilter.name",
+      "help": "ResonanceTrade.MarketFilter.help",
+      "all": "all",
+      "normal": "normal",
+      "good": "good",
+      "great": "great"
+    },
+    "MarketOverflowProtect": {
+      "name": "ResonanceTrade.MarketOverflowProtect.name",
+      "help": "ResonanceTrade.MarketOverflowProtect.help"
+    },
+    "MarketWaitMinutes": {
+      "name": "ResonanceTrade.MarketWaitMinutes.name",
+      "help": "ResonanceTrade.MarketWaitMinutes.help"
+    },
+    "RoundTrip": {
+      "name": "ResonanceTrade.RoundTrip.name",
+      "help": "ResonanceTrade.RoundTrip.help"
+    },
+    "RestockBooks": {
+      "name": "ResonanceTrade.RestockBooks.name",
+      "help": "ResonanceTrade.RestockBooks.help"
+    },
+    "BargainPercent": {
+      "name": "ResonanceTrade.BargainPercent.name",
+      "help": "ResonanceTrade.BargainPercent.help"
+    },
+    "RaisePercent": {
+      "name": "ResonanceTrade.RaisePercent.name",
+      "help": "ResonanceTrade.RaisePercent.help"
+    },
+    "ReturnBargain": {
+      "name": "ResonanceTrade.ReturnBargain.name",
+      "help": "ResonanceTrade.ReturnBargain.help"
+    },
+    "AutoInvest": {
+      "name": "ResonanceTrade.AutoInvest.name",
+      "help": "ResonanceTrade.AutoInvest.help"
+    },
+    "UseRamming": {
+      "name": "ResonanceTrade.UseRamming.name",
+      "help": "ResonanceTrade.UseRamming.help"
+    },
+    "UseRestArea": {
+      "name": "ResonanceTrade.UseRestArea.name",
+      "help": "ResonanceTrade.UseRestArea.help"
+    },
+    "UseBento": {
+      "name": "ResonanceTrade.UseBento.name",
+      "help": "ResonanceTrade.UseBento.help"
+    },
+    "UseFatigueItem": {
+      "name": "ResonanceTrade.UseFatigueItem.name",
+      "help": "ResonanceTrade.UseFatigueItem.help",
+      "none": "none",
+      "lollipop": "lollipop",
+      "lollipop_gum": "lollipop_gum",
+      "all": "all"
+    },
+    "ExcludedCities": {
+      "name": "ResonanceTrade.ExcludedCities.name",
+      "help": "ResonanceTrade.ExcludedCities.help"
+    },
+    "RefreshProfile": {
+      "name": "ResonanceTrade.RefreshProfile.name",
+      "help": "ResonanceTrade.RefreshProfile.help"
+    }
+  },
   "Storage": {
     "_info": {
       "name": "任務狀態",
@@ -2104,84 +2432,6 @@
       "EventRecorderRefresh": "重新整理",
       "EventRecorderClear": "清空記錄",
       "EventRecorderCleared": "已清空事件記錄"
-    }
-  },
-  "ResonanceOperations": {
-    "_info": {
-      "name": "行動彙總設定",
-      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。"
-    },
-    "SiegeRuns": {
-      "name": "利刃圍剿每日次數",
-      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。",
-      "0": "略過",
-      "1": "1",
-      "2": "2",
-      "3": "3"
-    },
-    "SiegeStage": {
-      "name": "利刃圍剿關卡",
-      "help": "利刃圍剿關卡",
-      "Order": "特殊訂單",
-      "Blade": "利刃行動",
-      "Lantern": "挑燈看劍",
-      "Material": "武器材質分析",
-      "Knight": "騎士小說",
-      "Think": "我思我在",
-      "Report": "所知所聞",
-      "Large": "「大的！」",
-      "Total": "總體圍剿"
-    },
-    "SupplyRuns": {
-      "name": "全境特供每日次數",
-      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。",
-      "0": "略過",
-      "1": "1",
-      "2": "2",
-      "3": "3"
-    },
-    "SupplyStage": {
-      "name": "全境特供關卡偏好",
-      "help": "當天只有一個關卡開放時自動打該關。多個關卡開放時按此選項。",
-      "Auto": "自動選擇開放關卡",
-      "Elegant": "特供·雅致",
-      "Standard": "特供·制式",
-      "Salvation": "特供·救世",
-      "Advanced": "特供·尖端",
-      "Chaos": "特供·混沌",
-      "Magic": "特供·魔力"
-    },
-    "WeeklyRuns": {
-      "name": "私販追繳每週次數",
-      "help": "按遊戲剩餘獎勵次數進行實戰，並在開戰後開啟自動戰鬥。次數從本週期已用次數累計。",
-      "0": "略過",
-      "1": "1",
-      "2": "2",
-      "3": "3"
-    }
-  },
-  "ResonanceShop": {
-    "_info": {
-      "name": "總部商店掃貨設定",
-      "help": "逐件買到金幣商品的可購上限。"
-    },
-    "Include": {
-      "name": "只買這些道具",
-      "help": "填遊戲內道具全名，用逗號、頓號或換行分隔。留空會購買全部金幣商品。"
-    },
-    "Exclude": {
-      "name": "略過這些道具",
-      "help": "填不買的道具全名，用逗號、頓號或換行分隔。排除優先。"
-    }
-  },
-  "ResonanceExchange": {
-    "_info": {
-      "name": "赴命商店兌換設定",
-      "help": "只兌換篩選器中的道具，每種按單筆可兌上限兌換。"
-    },
-    "Include": {
-      "name": "兌換篩選器",
-      "help": "填遊戲內道具全名，用逗號、頓號或換行分隔。可附加至預設兩件，留空略過。"
     }
   }
 }

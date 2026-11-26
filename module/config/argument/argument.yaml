@@ -725,6 +725,41 @@ ResonanceOperations:
     value: 0
     option: [ 0, 1, 2, 3 ]
 
+ResonancePreparation:
+  FightPurple: true
+  FightRainbow: true
+  FightWhite: true
+  FightRed: true
+
+ResonanceIsland:
+  CleanTrainGarbage: true
+  PromotionType:
+    type: select
+    value: promotion
+    option: [ promotion, theme, celebrity, none ]
+  PromotionMethod:
+    type: select
+    value: flyer
+    option: [ flyer, ad_ticket ]
+  PlayVolleyball: true
+  CollectIncome: true
+  FriendFight: true
+  FriendClean: true
+
+ResonanceDispatch:
+  Task1:
+    type: select
+    value: patrol
+    option: [ patrol, drill, collect, materialize, enhance ]
+  Task2:
+    type: select
+    value: drill
+    option: [ none, patrol, drill, collect, materialize, enhance ]
+  Duration:
+    type: select
+    value: 12h
+    option: [ 4h, 8h, 12h, 20h ]
+
 ResonanceShop:
   Include:
     type: textarea
@@ -740,3 +775,63 @@ ResonanceExchange:
     type: textarea
     value: '进货采买书, 追加注资申请书'
     valuetype: str
+
+ResonanceTrade:
+  RouteMode:
+    type: select
+    value: auto
+    option: [ auto, manual ]
+  ManualCityA:
+    type: select
+    value: 阿妮塔发射中心
+    option: [
+      修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心,
+      云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园,
+      阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥,
+      贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔,
+    ]
+  ManualCityB:
+    type: select
+    value: 阿妮塔战备工厂
+    option: [
+      修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心,
+      云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园,
+      阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥,
+      贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔,
+    ]
+  SortBy:
+    type: select
+    value: profit_per_fatigue
+    option: [ profit, profit_per_fatigue, general_profit_index ]
+  MarketFilter:
+    type: select
+    value: all
+    option: [ all, normal, good, great ]
+  MarketOverflowProtect: true
+  MarketWaitMinutes:
+    value: 30
+    valuetype: int
+  RoundTrip: false
+  RestockBooks:
+    value: 2
+    valuetype: int
+  BargainPercent:
+    value: 20
+    valuetype: int
+  RaisePercent:
+    value: 20
+    valuetype: int
+  ReturnBargain: false
+  AutoInvest: false
+  UseRamming: false
+  UseRestArea: true
+  UseBento: true
+  UseFatigueItem:
+    type: select
+    value: none
+    option: [ none, lollipop, lollipop_gum, all ]
+  ExcludedCities:
+    type: textarea
+    value: '武林源'
+    valuetype: str
+  RefreshProfile: false
