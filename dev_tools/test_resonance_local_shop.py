@@ -262,9 +262,9 @@ class TestResonanceLocalShop(unittest.TestCase):
                 patch.object(local_shop, 'record_trade_profit') as profit:
             task.run()
             task.sell_all.assert_not_called()
-            self.assertEqual(record['cargo'], {'bought_city': a, 'target_city': c})
+            self.assertEqual(record['cargo'], {'bought_city': a, 'target_city': c, 'restock_used': 0})
             task.run()
-            profit.assert_called_once_with('local-shop-test', 120, from_city=a, to_city=c)
+            profit.assert_called_once_with('local-shop-test', 120, from_city=a, to_city=c, restock_used=0)
         self.assertEqual([args[0][1]['maxLot'] for args in calculate.call_args_list], [400, 100])
         self.assertTrue(all(args[1]['max_restock'] == 0 for args in calculate.call_args_list))
         self.assertEqual(task.buy_plan.call_args_list, [
@@ -272,6 +272,30 @@ class TestResonanceLocalShop(unittest.TestCase):
         ])
         self.assertEqual(task.travel_to.call_args_list, [call(b), call(c)])
         self.assertNotIn('cargo', record)
+
+    def test_sweep_sale_keeps_legacy_restock_usage_unknown(self):
+        task = self.make_task()
+        task.enter_exchange = Mock()
+        task.read_cargo = Mock(return_value=(300, 0, 400))
+        task.ensure_max_mode = Mock()
+        task.interval_timer = {}
+        task.appear = Mock(return_value=True)
+        task.loop = Mock(return_value=iter((None,)))
+        task.wait_until_still = Mock(return_value=True)
+        task.appear_then_click = Mock(return_value=True)
+        task.wait_until_disappear = Mock(return_value=True)
+        task._confirm_and_dismiss_report = Mock()
+        task.sell_all = Mock(side_effect=lambda **kwargs: kwargs['approve'](None))
+        state = {'cargo': {'bought_city': '贡露城', 'target_city': '修格里城'}}
+        with patch.object(local_shop, 'read_sell_profit', return_value=120), \
+                patch.object(local_shop, '_write_json_dict') as save, \
+                patch.object(local_shop, 'record_trade_profit') as profit:
+            self.assertTrue(task.sell_sweep_cargo('修格里城', state, 'unused'))
+        profit.assert_called_once_with(
+            'local-shop-test', 120, from_city='贡露城', to_city='修格里城', restock_used=None,
+        )
+        self.assertNotIn('cargo', state)
+        save.assert_called_once()
 
     def test_negative_profit_cancels_staged_sale_and_keeps_checkpoint(self):
         task = self.make_task()

@@ -2055,10 +2055,6 @@
       "name": "ResonanceIsland._info.name",
       "help": "ResonanceIsland._info.help"
     },
-    "CleanTrainGarbage": {
-      "name": "ResonanceIsland.CleanTrainGarbage.name",
-      "help": "ResonanceIsland.CleanTrainGarbage.help"
-    },
     "PromotionType": {
       "name": "ResonanceIsland.PromotionType.name",
       "help": "ResonanceIsland.PromotionType.help",
@@ -2295,6 +2291,10 @@
     "RefreshProfile": {
       "name": "ResonanceTrade.RefreshProfile.name",
       "help": "ResonanceTrade.RefreshProfile.help"
+    },
+    "RecycleAtWilderness": {
+      "name": "荒原站順路免費回收垃圾",
+      "help": "開啟後，跑商路線確認途經荒原站時順路停靠，免費回收列車垃圾，海島物語跳過車廂內的付費清理；關閉後跑商不為清理額外停靠，固定由海島物語執行原本的車廂付費清理。兩種方式互斥，同一設定每天最多清理一次（05:00 重置）。"
     }
   },
   "Storage": {

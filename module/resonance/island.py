@@ -34,6 +34,8 @@ PROMO_METHOD_TABS = {
 }
 SIDEBAR_ROI = (10, 80, 260, 715)
 ISLAND_CARD_ROI = (15, 240, 220, 700)
+# Lives in the ResonanceTrade task, so it is read through `config.cross_get`.
+RECYCLE_AT_WILDERNESS = 'ResonanceTrade.ResonanceTrade.RecycleAtWilderness'
 
 
 def _box_button(box, name):
@@ -87,8 +89,51 @@ def find_sidebar_template(image, template, roi):
     return button.move((rx1, ry1))
 
 
+def load_garbage_clean_record():
+    """Return the daily garbage-clean record helpers shared with 荒原站 recycling.
+
+    The record is owned by `module.resonance.wilderness_recycle`, so the free
+    and the paid cleanup share one 05:00 day boundary. Imported on demand
+    because only the paid path needs it.
+    """
+    from module.resonance.wilderness_recycle import is_garbage_cleaned_today, mark_garbage_cleaned
+    return is_garbage_cleaned_today, mark_garbage_cleaned
+
+
 class ResonanceIsland(ResonanceUI):
     """Train garbage compactor pre-clean + 海岛物语 daily routine."""
+
+    def is_recycle_at_wilderness(self):
+        """Return True when trading recycles the garbage at 荒原站 for this config.
+
+        The switch belongs to the ResonanceTrade task, and binding only covers
+        this task's own groups, so it has to be read through `cross_get`.
+        """
+        cross_get = getattr(self.config, 'cross_get', None)
+        if not callable(cross_get):
+            return False
+        return bool(cross_get(RECYCLE_AT_WILDERNESS, False))
+
+    def clean_train_garbage_once(self):
+        """Run the paid train-car cleanup at most once per 05:00 day.
+
+        The daily mark is shared with the free 荒原站 recycling, so whichever
+        mode ran first today blocks the other. `clean_train_garbage()` returns
+        only after the compactor is confirmed cleared or empty, so a failure
+        raises before the mark and the next run may retry.
+
+        Pages:
+            in: any known page
+            out: page_resonance_garbage
+        """
+        config_name = getattr(self.config, 'config_name', '') or 'default'
+        is_cleaned_today, mark_cleaned = load_garbage_clean_record()
+        if is_cleaned_today(config_name):
+            logger.info('今日列车垃圾已清理过，跳过车厢付费清理')
+            return
+        self.clean_train_garbage()
+        mark_cleaned(config_name)
+        logger.info('车厢付费清理完成，已记录今日清理')
 
     def clean_train_garbage(self):
         """Clear compressed garbage blocks in train maintenance before visiting friends.
@@ -269,7 +314,6 @@ class ResonanceIsland(ResonanceUI):
         self.ui_ensure(page_resonance_island_beach, skip_first_screenshot=False)
 
     def run(self):
-        clean_garbage = getattr(self.config, 'ResonanceIsland_CleanTrainGarbage', True)
         promo_type = getattr(self.config, 'ResonanceIsland_PromotionType', 'promotion')
         play_vb = getattr(self.config, 'ResonanceIsland_PlayVolleyball', True)
         collect_income = getattr(self.config, 'ResonanceIsland_CollectIncome', True)
@@ -277,8 +321,10 @@ class ResonanceIsland(ResonanceUI):
         friend_arrest = getattr(self.config, 'ResonanceIsland_FriendArrest', False)
         friend_clean = getattr(self.config, 'ResonanceIsland_FriendClean', True)
 
-        if clean_garbage:
-            self.clean_train_garbage()
+        if self.is_recycle_at_wilderness():
+            logger.info('跑商顺路荒原站免费回收已接管垃圾清理，海岛跳过车厢付费清理')
+        else:
+            self.clean_train_garbage_once()
 
         if promo_type != 'none' or play_vb or collect_income or friend_fight or friend_clean:
             self.goto_island_hub()

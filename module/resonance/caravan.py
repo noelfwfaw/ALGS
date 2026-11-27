@@ -7,6 +7,7 @@ import os
 
 import numpy as np
 
+from module.exception import TaskFailed
 from module.logger import logger
 from module.ocr.ocr import Ocr
 from module.resonance.columba import fetch_prices, load_columba_data, normalize_player_config
@@ -15,7 +16,7 @@ from module.resonance.fatigue import (
     is_rest_area_done_today, mark_rest_area_done, nearest_rest_area_city, normalize_fatigue_item_mode,
 )
 from module.resonance.invest import ResonanceInvest
-from module.resonance.map_nav import MAP_COORDS_05X, canonical_city_name
+from module.resonance.map_nav import MAP_COORDS_05X, WILDERNESS_CITY, canonical_city_name, route_passes_wilderness
 from module.resonance.market import (
     MARKET_FILTER_THRESHOLDS, MARKET_OVERFLOW_FATIGUE, build_market_status_record, evaluate_market_quality,
     save_market_status,
@@ -29,6 +30,7 @@ from module.resonance.smart_cycle import (
     plan_smart_endgame_leg, record_negotiation_fatigue, record_zero_book_buy, safe_negotiation_budget,
     update_smart_books,
 )
+from module.resonance.wilderness_recycle import ResonanceWildernessRecycle
 
 TRADE_STATE_PATH = os.path.join('config', 'state', 'resonance_trade_state.json')
 PROFIT_OCR = Ocr((1050, 534, 1255, 566), lang='cnocr', threshold=128, alphabet='0123456789,+-', name='Sell profit')
@@ -47,7 +49,8 @@ def load_trade_state(path=TRADE_STATE_PATH):
 
 
 def save_trade_state(bought_city, target_city, negotiate_sell=False, expected_profit=0,
-                     sell_raise_target=None, path=TRADE_STATE_PATH):
+                     sell_raise_target=None, path=TRADE_STATE_PATH, restock_used=None,
+                     via_wilderness=False, wilderness_done=False):
     """Persist pending transit state after buying cargo in `bought_city`."""
     folder = os.path.dirname(path)
     if folder:
@@ -56,9 +59,12 @@ def save_trade_state(bought_city, target_city, negotiate_sell=False, expected_pr
     payload = {
         'bought_city': bought_city, 'target_city': target_city,
         'negotiate_sell': bool(negotiate_sell), 'expected_profit': int(expected_profit or 0),
+        'via_wilderness': bool(via_wilderness), 'wilderness_done': bool(wilderness_done),
     }
     if sell_raise_target is not None:
         payload['sell_raise_target'] = int(sell_raise_target)
+    if restock_used is not None:
+        payload['restock_used'] = int(restock_used)
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(payload, f, ensure_ascii=False)
     os.replace(tmp, path)
@@ -184,8 +190,119 @@ def read_sell_profit(image):
     return val
 
 
-class ResonanceCaravan(ResonanceInvest):
+class ResonanceCaravan(ResonanceInvest, ResonanceWildernessRecycle):
     """Scheduled multi-leg trading loop with repositioning and fatigue recovery."""
+
+    def _wilderness_enabled(self):
+        return bool(getattr(self.config, 'ResonanceTrade_RecycleAtWilderness', False))
+
+    def _garbage_cleaned_today(self, config_name):
+        from module.resonance.wilderness_recycle import is_garbage_cleaned_today
+        return is_garbage_cleaned_today(config_name)
+
+    def _mark_garbage_cleaned(self, config_name):
+        from module.resonance.wilderness_recycle import mark_garbage_cleaned
+        mark_garbage_cleaned(config_name)
+
+    def _persist_transit_state(self, state):
+        save_trade_state(
+            state.get('bought_city'), state.get('target_city'),
+            negotiate_sell=state.get('negotiate_sell', False), expected_profit=state.get('expected_profit', 0),
+            sell_raise_target=state.get('sell_raise_target'), restock_used=state.get('restock_used'),
+            via_wilderness=state.get('via_wilderness', False), wilderness_done=state.get('wilderness_done', False),
+        )
+
+    def _pending_sell_raise(self, state):
+        sell_raise = state.get('sell_raise_target')
+        if sell_raise is None and state.get('negotiate_sell'):
+            sell_raise = int(getattr(self.config, 'ResonanceTrade_RaisePercent', 20) or 0)
+        return int(sell_raise or 0)
+
+    def _checkpoint_empty_leg(self, current_city, plan, state, via_wilderness, restock_used=None):
+        """Persist an active transit even when this leg buys no cargo."""
+        state.clear()
+        state.update({'bought_city': current_city, 'target_city': plan['to_city'], 'expected_profit': 0,
+                      'via_wilderness': bool(via_wilderness), 'wilderness_done': False})
+        if restock_used is not None:
+            state['restock_used'] = restock_used
+        self._persist_transit_state(state)
+        return state
+
+    @staticmethod
+    def _leg_drive_fatigue(plan, player_cfg, data, via_wilderness):
+        if not via_wilderness:
+            return int(plan['leg'].get('fatigue', 0))
+        roles = player_cfg.get('roles', {})
+        return (_calc_fatigue(plan['from_city'], WILDERNESS_CITY, roles, data)
+                + _calc_fatigue(WILDERNESS_CITY, plan['to_city'], roles, data))
+
+    def _clean_at_wilderness(self, config_name, city_verified=False):
+        """Clean only after live station verification; return False without marking on failure."""
+        if not self._wilderness_enabled() or self._garbage_cleaned_today(config_name):
+            return True
+        for _ in range(2):
+            if not city_verified and self.get_current_city() != WILDERNESS_CITY:
+                return False
+            city_verified = False
+            if self.recycle_wilderness_garbage():
+                self._mark_garbage_cleaned(config_name)
+                return True
+        return False
+
+    def _fail_wilderness_stop(self):
+        logger.warning('荒原站垃圾清理未确认，保留待售状态，10 分钟后重试')
+        self.ui_goto_main()
+        self.config.task_delay(minute=10)
+        raise TaskFailed('Resonance wilderness garbage cleanup was not confirmed')
+
+    def _finish_wilderness_stop(self, state, config_name, city_verified=False):
+        """Verify arrival, clean if required, and atomically remember that the stop is complete."""
+        if not city_verified and self.get_current_city() != WILDERNESS_CITY:
+            self._fail_wilderness_stop()
+        if not self._clean_at_wilderness(config_name, city_verified=True):
+            self._fail_wilderness_stop()
+        if not state.get('wilderness_done'):
+            state['wilderness_done'] = True
+            self._persist_transit_state(state)
+
+    def _verify_transit_arrival(self, destination):
+        current_city = self.get_current_city()
+        if current_city != destination:
+            logger.warning('跑商实际抵达 %s，而非原定 %s，保留待售状态，10 分钟后重试',
+                           current_city, destination)
+            self.ui_goto_main()
+            self.config.task_delay(minute=10)
+            raise TaskFailed('Resonance transit arrived at %r instead of %r' % (current_city, destination))
+        return current_city
+
+    def _ensure_wilderness_exit_fatigue(self, state, destinations, data, item_mode, use_bento, roles):
+        fatigue = self._read_current_fatigue(roles)
+        if fatigue is None:
+            self._delay_unreadable_fatigue()
+            return False
+        cur_f, max_f = fatigue
+        drive = sum(_calc_fatigue(src, dst, roles, data)
+                    for src, dst in zip([WILDERNESS_CITY] + list(destinations), destinations))
+        needed = drive + safe_negotiation_budget(self._pending_sell_raise(state)) + DRIVE_FATIGUE_BUFFER
+        return self._ensure_fatigue_for_leg(cur_f, max_f, needed, item_mode, use_bento)
+
+    def _travel_transit(self, current_city, state, destinations, use_ramming, config_name,
+                        data, item_mode, use_bento, assist_done=False, roles=None):
+        """Travel committed waypoints, verifying every extra wilderness-transit arrival."""
+        via = bool(state.get('via_wilderness'))
+        roles = roles or {}
+        arrived_city = current_city
+        for index, destination in enumerate(destinations):
+            if via and arrived_city == WILDERNESS_CITY:
+                if not self._ensure_wilderness_exit_fatigue(
+                        state, destinations[index:], data, item_mode, use_bento, roles):
+                    return None
+            self.travel_to(destination, use_ramming=use_ramming,
+                           configure_assist=index == 0 and not assist_done)
+            arrived_city = self._verify_transit_arrival(destination) if via else destination
+            if via and destination == WILDERNESS_CITY and state.get('target_city') != WILDERNESS_CITY:
+                self._finish_wilderness_stop(state, config_name, city_verified=True)
+        return arrived_city
 
     def _sell_and_record_profit(self, current_city, state, raise_target=0):
         """Sell cargo and persist actual (or expected fallback) profit into the 30-day ledger."""
@@ -200,17 +317,20 @@ class ResonanceCaravan(ResonanceInvest):
         if profit is not None:
             from_city = state.get('bought_city') or ''
             config_name = getattr(self.config, 'config_name', '') or 'default'
-            record_trade_profit(config_name, profit, from_city=from_city, to_city=current_city, estimated=estimated)
+            record_trade_profit(config_name, profit, from_city=from_city, to_city=current_city, estimated=estimated,
+                                restock_used=state.get('restock_used'))
             tag = ' (预估)' if estimated else ''
             logger.info('跑商卖出利润: %+d (%s -> %s%s)', profit, from_city or '未知', current_city, tag)
         return True
 
     @staticmethod
-    def _estimate_leg_fatigue(leg, bargain_pct, raise_pct, is_reposition, is_return=False, return_bargain=False):
+    def _estimate_leg_fatigue(leg, bargain_pct, raise_pct, is_reposition, is_return=False, return_bargain=False,
+                              drive_fatigue=None):
         """Estimate conservative atomic fatigue needed for buy-neg, driving, and sell-neg."""
         allow_neg = (not is_reposition) and (not is_return or return_bargain) and bool(leg.get('combinations'))
         bp, rp = (bargain_pct, raise_pct) if allow_neg else (0, 0)
-        return leg_atomic_fatigue_budget(leg.get('fatigue', 0), bp, rp)
+        drive = leg.get('fatigue', 0) if drive_fatigue is None else drive_fatigue
+        return leg_atomic_fatigue_budget(drive, bp, rp)
 
     def _schedule_fatigue_wait(self, cur_fatigue, max_fatigue, needed_fatigue):
         """Return to main screen and schedule NextRun based on 6 min/fatigue recovery."""
@@ -254,24 +374,48 @@ class ResonanceCaravan(ResonanceInvest):
         self.ui_goto_main()
         self.config.task_delay(minute=10)
 
-    def _resume_pending_transit(self, current_city, state, use_ramming, item_mode, use_bento, data):
-        """Depart directly if crash happened after buying cargo in `current_city`."""
+    def _resume_pending_transit(self, current_city, state, use_ramming, item_mode, use_bento, data, player_cfg=None):
+        """Continue a persisted transit from its origin or wilderness stop without selling or rebuying."""
         bought = state.get('bought_city')
         target = state.get('target_city')
-        if bought != current_city or not target or target == current_city or target not in MAP_COORDS_05X:
+        if not bought or not target or target == bought or target not in MAP_COORDS_05X:
+            return current_city, False
+        config_name = getattr(self.config, 'config_name', '') or 'default'
+        previous_via = bool(state.get('via_wilderness'))
+        via = previous_via or (self._wilderness_enabled() and route_passes_wilderness(bought, target)
+                               and not self._garbage_cleaned_today(config_name))
+        if current_city == bought:
+            if via != previous_via:
+                state['via_wilderness'] = via
+                self._persist_transit_state(state)
+            destinations = [WILDERNESS_CITY, target] if via else [target]
+        elif current_city == WILDERNESS_CITY and previous_via and target != WILDERNESS_CITY:
+            destinations = [target]
+            if not state.get('wilderness_done'):
+                self._finish_wilderness_stop(state, config_name)
+        else:
             return current_city, False
 
-        logger.info('检测到上次在 %s 购入货物尚未出发，跳过卖出并直接前往 %s', bought, target)
-        fatigue = self._read_current_fatigue({})
+        if current_city == WILDERNESS_CITY and current_city == bought:
+            if not self._clean_at_wilderness(config_name):
+                self._fail_wilderness_stop()
+        enhanced_transit = via or (current_city == WILDERNESS_CITY and previous_via)
+        roles = (player_cfg or {}).get('roles', {}) if enhanced_transit else {}
+        logger.info('检测到 %s 的未完成行程，沿原终点 %s 继续', bought, target)
+        fatigue = self._read_current_fatigue(roles)
         if fatigue is None:
             self._delay_unreadable_fatigue()
             return None, False
         cur_f, max_f = fatigue
-        needed = _calc_fatigue(current_city, target, {}, data) + DRIVE_FATIGUE_BUFFER
+        drive = sum(_calc_fatigue(src, dst, roles, data) for src, dst in zip([current_city] + destinations, destinations))
+        needed = drive + DRIVE_FATIGUE_BUFFER
+        if enhanced_transit:
+            needed += safe_negotiation_budget(self._pending_sell_raise(state))
         if not self._ensure_fatigue_for_leg(cur_f, max_f, needed, item_mode, use_bento):
             return None, False
-        self.travel_to(target, use_ramming=use_ramming, configure_assist=True)
-        return target, True
+        target = self._travel_transit(current_city, state, destinations, use_ramming, config_name,
+                                      data, item_mode, use_bento, roles=roles)
+        return target, target is not None
 
     def _maybe_drink_rest_area(self, current_city, player_cfg, state, use_ramming, assist_done, data):
         """Visit nearest rest area to drink sodas when fatigue >= 300 and daily quota remains."""
@@ -336,6 +480,23 @@ class ResonanceCaravan(ResonanceInvest):
             return plan_smart_cycle_leg(current_city, prices, player_cfg, data, smart_state=load_smart_state(config_name))
         return plan_next_leg(current_city, prices, player_cfg, sort_by, data, manual_cities=manual_cities)
 
+    def _wilderness_stop_for_plan(self, plan, config_name):
+        return (self._wilderness_enabled() and route_passes_wilderness(plan['from_city'], plan['to_city'])
+                and not self._garbage_cleaned_today(config_name))
+
+    def _plan_needed_fatigue(self, plan, player_cfg, data, via_wilderness, bargain_pct, raise_pct, return_bargain):
+        drive = self._leg_drive_fatigue(plan, player_cfg, data, via_wilderness)
+        if plan.get('is_smart_cycle'):
+            direct = int(plan['leg'].get('fatigue', 0))
+            atomic = int(plan.get('atomic_fatigue') or leg_atomic_fatigue_budget(
+                direct, plan.get('bargain_target', 0), plan.get('raise_target', 0),
+            ))
+            return atomic if not via_wilderness else drive + max(0, atomic - direct)
+        return self._estimate_leg_fatigue(
+            plan['leg'], bargain_pct, raise_pct, plan['is_reposition'],
+            is_return=plan['is_return'], return_bargain=return_bargain, drive_fatigue=drive,
+        )
+
     def _execute_one_leg(self, current_city, prices, player_cfg, state, opts):
         """Sell arrived cargo, plan next leg, buy if needed, and travel to next city."""
         (sort_by, bargain_pct, raise_pct, return_bargain, use_ramming, item_mode,
@@ -344,6 +505,14 @@ class ResonanceCaravan(ResonanceInvest):
         market_filter, overflow_protect, wait_min = market_opts
         config_name = getattr(self.config, 'config_name', '') or 'default'
 
+        pending_target = state.get('target_city')
+        if pending_target and current_city not in (state.get('bought_city'), pending_target):
+            logger.warning('待售行程停留在非终点 %s，保留货物并停止本次跑商', current_city)
+            self.ui_goto_main()
+            self.config.task_delay(minute=10)
+            raise TaskFailed('Resonance pending trade transit stopped at an unexpected city')
+        if current_city == WILDERNESS_CITY and not self._clean_at_wilderness(config_name):
+            self._fail_wilderness_stop()
         if state.get('bought_city') != current_city:
             sell_raise = state.get('sell_raise_target')
             if sell_raise is None:
@@ -371,14 +540,9 @@ class ResonanceCaravan(ResonanceInvest):
             self.ui_goto_main()
             self.config.task_delay(minute=30)
             return None, assist_done
-        needed = (
-            int(plan.get('atomic_fatigue') or leg_atomic_fatigue_budget(
-                plan['leg'].get('fatigue', 0), plan.get('bargain_target', 0), plan.get('raise_target', 0),
-            ))
-            if plan.get('is_smart_cycle') else self._estimate_leg_fatigue(
-                plan['leg'], bargain_pct, raise_pct, plan['is_reposition'],
-                is_return=plan['is_return'], return_bargain=return_bargain,
-            )
+        via_wilderness = self._wilderness_stop_for_plan(plan, config_name)
+        needed = self._plan_needed_fatigue(
+            plan, player_cfg, data, via_wilderness, bargain_pct, raise_pct, return_bargain,
         )
         if not self._has_or_recover_fatigue(fatigue[0], fatigue[1], needed, item_mode, use_bento):
             endgame = None
@@ -393,24 +557,50 @@ class ResonanceCaravan(ResonanceInvest):
                 self._schedule_fatigue_wait(fatigue[0], fatigue[1], needed)
                 return None, assist_done
             plan = endgame
+            via_wilderness = self._wilderness_stop_for_plan(plan, config_name)
+            needed = self._plan_needed_fatigue(
+                plan, player_cfg, data, via_wilderness, bargain_pct, raise_pct, return_bargain,
+            )
+            if not self._has_or_recover_fatigue(fatigue[0], fatigue[1], needed, item_mode, use_bento):
+                self._schedule_fatigue_wait(fatigue[0], fatigue[1], needed)
+                return None, assist_done
 
         buy_bargain, next_negotiate_sell, next_sell_raise = self._log_planned_leg(plan, bargain_pct, raise_pct, return_bargain)
+        sell_r = next_sell_raise if next_sell_raise is not None else (raise_pct if next_negotiate_sell else 0)
+        drive = self._leg_drive_fatigue(plan, player_cfg, data, via_wilderness)
         if plan['leg'].get('combinations'):
-            sell_r = next_sell_raise if next_sell_raise is not None else (raise_pct if next_negotiate_sell else 0)
-            buy_reserve = int(plan['leg'].get('fatigue', 0)) + safe_negotiation_budget(sell_r) + DRIVE_FATIGUE_BUFFER
+            buy_reserve = drive + safe_negotiation_budget(sell_r) + DRIVE_FATIGUE_BUFFER
             bought = self.buy_plan(plan['leg'], restock_books=plan['leg']['restock'], bargain_target=buy_bargain, reserve_fatigue=buy_reserve)
             if bought:
-                self._finish_bought_leg(current_city, plan, state, buy_bargain, next_negotiate_sell, next_sell_raise, route_mode, config_name)
-        self.travel_to(plan['to_city'], use_ramming=use_ramming, configure_assist=not assist_done)
-        return plan['to_city'], True
+                self._finish_bought_leg(current_city, plan, state, buy_bargain, next_negotiate_sell, sell_r,
+                                        route_mode, config_name, via_wilderness=via_wilderness)
+            elif via_wilderness:
+                self._checkpoint_empty_leg(current_city, plan, state, via_wilderness,
+                                           restock_used=getattr(self, '_last_restock_used', None))
+        elif via_wilderness:
+            self._checkpoint_empty_leg(current_city, plan, state, via_wilderness)
+        destinations = [WILDERNESS_CITY, plan['to_city']] if via_wilderness else [plan['to_city']]
+        next_city = self._travel_transit(current_city, state, destinations, use_ramming, config_name,
+                                         data, item_mode, use_bento, assist_done=assist_done,
+                                         roles=player_cfg.get('roles', {}))
+        return next_city, next_city is not None
 
-    def _finish_bought_leg(self, current_city, plan, state, buy_bargain, next_negotiate_sell, next_sell_raise, route_mode, config_name):
+    def _finish_bought_leg(self, current_city, plan, state, buy_bargain, next_negotiate_sell, next_sell_raise,
+                           route_mode, config_name, via_wilderness=False):
         """Persist post-buy checkpoint state and update smart-cycle telemetry."""
         exp_profit = plan['leg'].get('profit', 0)
-        save_trade_state(current_city, plan['to_city'], negotiate_sell=next_negotiate_sell, expected_profit=exp_profit, sell_raise_target=next_sell_raise)
-        state.update({'bought_city': current_city, 'target_city': plan['to_city'], 'negotiate_sell': next_negotiate_sell, 'expected_profit': exp_profit})
-        if next_sell_raise is not None:
+        restock_used = getattr(self, '_last_restock_used', None)
+        state.update({'bought_city': current_city, 'target_city': plan['to_city'], 'negotiate_sell': next_negotiate_sell,
+                      'expected_profit': exp_profit, 'via_wilderness': bool(via_wilderness), 'wilderness_done': False})
+        if restock_used is None:
+            state.pop('restock_used', None)
+        else:
+            state['restock_used'] = restock_used
+        if next_sell_raise is None:
+            state.pop('sell_raise_target', None)
+        else:
             state['sell_raise_target'] = next_sell_raise
+        self._persist_transit_state(state)
         if route_mode != 'smart_cycle':
             return
         restock_owned = getattr(self, '_last_restock_owned', None)
@@ -490,10 +680,16 @@ class ResonanceCaravan(ResonanceInvest):
         (sort_by, bargain_pct, raise_pct, return_bargain, use_ramming, item_mode,
          use_bento, use_rest_area, auto_invest, route_mode, manual_cities, market_opts) = self._collect_run_config()
         state, invest_state = load_trade_state(), {'city': None}
-        current_city, assist_done = self._resume_pending_transit(current_city, state, use_ramming, item_mode, use_bento, data)
+        config_name = getattr(self.config, 'config_name', '') or 'default'
+        if current_city == WILDERNESS_CITY and self._wilderness_enabled():
+            if not self._clean_at_wilderness(config_name, city_verified=True):
+                self._fail_wilderness_stop()
+        current_city, assist_done = self._resume_pending_transit(
+            current_city, state, use_ramming, item_mode, use_bento, data, player_cfg=player_cfg)
         if current_city is None:
             return
-        if use_rest_area:
+        pending_via_elsewhere = bool(state.get('via_wilderness')) and state.get('target_city') != current_city
+        if use_rest_area and not pending_via_elsewhere:
             current_city, assist_done = self._maybe_drink_rest_area(current_city, player_cfg, state, use_ramming, assist_done, data)
 
         for _ in range(30):

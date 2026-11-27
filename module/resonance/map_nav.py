@@ -47,6 +47,9 @@ MAP_COORDS_05X = {
     '汇流塔': ('cyan', -550, 549),
 }
 CITY_ALIASES = {'7号自由港': '七号自由港', '甘露城': '贡露城'}
+WILDERNESS_CITY = '荒原站'
+# 实机轨道图：荒原站东侧只有这三站，且东端封闭；其余已支持站点均在荒原站西侧。
+WILDERNESS_EAST_CITIES = frozenset(('云岫桥基地', '栖羽站', '岚心城'))
 _MATCH_CANDIDATES = sorted(
     list(MAP_COORDS_05X.keys()) + list(CITY_ALIASES.keys()),
     key=len,
@@ -75,6 +78,16 @@ def canonical_city_name(name):
         if candidate in text:
             return CITY_ALIASES.get(candidate, candidate)
     return text
+
+
+def route_passes_wilderness(from_city, to_city):
+    """Return True only for confirmed rail routes crossing the wilderness east/west divide."""
+    origin, target = canonical_city_name(from_city), canonical_city_name(to_city)
+    if origin == target or origin not in MAP_COORDS_05X or target not in MAP_COORDS_05X:
+        return False
+    if WILDERNESS_CITY in (origin, target):
+        return False
+    return (origin in WILDERNESS_EAST_CITIES) != (target in WILDERNESS_EAST_CITIES)
 
 
 def get_zoom_thumb_y(image):

@@ -99,7 +99,7 @@ def _make_friend_island(next_enabled=True, with_coin=False, with_monster=False):
 
 
 def _new_island_task(
-    clean_garbage=True,
+    recycle_at_wilderness=False,
     promo_type='promotion',
     promo_method='flyer',
     play_vb=True,
@@ -113,7 +113,10 @@ def _new_island_task(
     task = ResonanceIsland.__new__(ResonanceIsland)
     task.device = Mock()
     task.config = Mock()
-    task.config.ResonanceIsland_CleanTrainGarbage = clean_garbage
+    task.config.config_name = 'island_test'
+    # Mock() would answer truthy on its own; the switch is read through
+    # cross_get, so give it an explicit return value.
+    task.config.cross_get = Mock(return_value=recycle_at_wilderness)
     task.config.ResonanceIsland_PromotionType = promo_type
     task.config.ResonanceIsland_PromotionMethod = promo_method
     task.config.ResonanceIsland_PlayVolleyball = play_vb
@@ -872,7 +875,7 @@ class TestResonanceIsland(unittest.TestCase):
         from module.resonance.page import page_resonance_island_beach
 
         task = _new_island_task(
-            clean_garbage=True,
+            recycle_at_wilderness=False,
             promo_type='celebrity',
             promo_method='flyer',
             play_vb=True,
@@ -885,12 +888,16 @@ class TestResonanceIsland(unittest.TestCase):
         task.goto_island_hub = Mock()
         task.run_promotion = Mock()
         task.collect_daily_income = Mock()
+        mark_cleaned = Mock()
 
-        with patch('module.resonance.island.run_beach_volleyball') as m_vb, \
+        with patch('module.resonance.island.load_garbage_clean_record',
+                   return_value=(Mock(return_value=False), mark_cleaned)), \
+             patch('module.resonance.island.run_beach_volleyball') as m_vb, \
              patch('module.resonance.island.run_island_friends') as m_fr:
             task.run()
 
         task.clean_train_garbage.assert_called_once()
+        mark_cleaned.assert_called_once_with('island_test')
         task.goto_island_hub.assert_called_once()
         task.run_promotion.assert_called_once()
         m_vb.assert_called_once_with(task)
@@ -898,4 +905,147 @@ class TestResonanceIsland(unittest.TestCase):
         task.collect_daily_income.assert_called_once()
         m_fr.assert_called_once_with(task, fight=True, clean=False, arrest=True)
         task.ui_goto_main.assert_called_once()
+        task.config.task_delay.assert_called_once_with(server_update=True)
+
+    def test_island_reads_recycle_switch_through_cross_get(self):
+        from module.resonance.island import RECYCLE_AT_WILDERNESS
+
+        task = _new_island_task(recycle_at_wilderness=False)
+        self.assertFalse(task.is_recycle_at_wilderness())
+        task.config.cross_get.assert_called_once_with(
+            'ResonanceTrade.ResonanceTrade.RecycleAtWilderness', False)
+        self.assertEqual(RECYCLE_AT_WILDERNESS, 'ResonanceTrade.ResonanceTrade.RecycleAtWilderness')
+
+        task_on = _new_island_task(recycle_at_wilderness=True)
+        self.assertTrue(task_on.is_recycle_at_wilderness())
+
+        # A config object without cross_get keeps the original paid cleanup.
+        task_plain = _new_island_task()
+        task_plain.config = Mock(spec=['config_name'])
+        self.assertFalse(task_plain.is_recycle_at_wilderness())
+
+    def test_island_recycle_switch_on_real_config(self):
+        from module.config.config import AlasConfig
+        from module.config.utils import read_file
+        from module.resonance.island import ResonanceIsland
+
+        task = ResonanceIsland.__new__(ResonanceIsland)
+        task.config = AlasConfig.__new__(AlasConfig)
+        task.config.data = read_file('config/template.json')
+
+        # Default off: the island keeps the original paid train-car cleanup.
+        self.assertFalse(task.is_recycle_at_wilderness())
+        task.config.data['ResonanceTrade']['ResonanceTrade']['RecycleAtWilderness'] = True
+        self.assertTrue(task.is_recycle_at_wilderness())
+
+    def test_island_generated_recycle_default(self):
+        from module.config.config_generated import GeneratedConfig
+        from module.config.deep import deep_get
+        from module.config.utils import read_file
+
+        self.assertFalse(GeneratedConfig.ResonanceTrade_RecycleAtWilderness)
+        self.assertFalse(hasattr(GeneratedConfig, 'ResonanceIsland_CleanTrainGarbage'))
+
+        args = read_file('module/config/argument/args.json')
+        entry = deep_get(args, 'ResonanceTrade.ResonanceTrade.RecycleAtWilderness')
+        self.assertEqual(entry, {'type': 'checkbox', 'value': False})
+        self.assertIsNone(deep_get(args, 'ResonanceIsland.ResonanceIsland.CleanTrainGarbage'))
+
+    def test_island_paid_clean_skipped_when_wilderness_mode_on(self):
+        task = _new_island_task(
+            recycle_at_wilderness=True,
+            promo_type='theme',
+            play_vb=True,
+            collect_income=True,
+            friend_fight=True,
+            friend_clean=True,
+        )
+        task.clean_train_garbage = Mock()
+        task.goto_island_hub = Mock()
+        task.run_promotion = Mock()
+        task.collect_daily_income = Mock()
+
+        with patch('module.resonance.island.load_garbage_clean_record') as load_record, \
+             patch('module.resonance.island.run_beach_volleyball') as m_vb, \
+             patch('module.resonance.island.run_island_friends') as m_fr:
+            task.run()
+
+        task.clean_train_garbage.assert_not_called()
+        load_record.assert_not_called()
+        # The rest of the island routine still runs.
+        task.goto_island_hub.assert_called_once()
+        task.run_promotion.assert_called_once()
+        m_vb.assert_called_once_with(task)
+        task.collect_daily_income.assert_called_once()
+        m_fr.assert_called_once_with(task, fight=True, clean=True, arrest=False)
+        task.ui_goto_main.assert_called_once()
+        task.config.task_delay.assert_called_once_with(server_update=True)
+
+    def test_island_paid_clean_skipped_when_already_cleaned_today(self):
+        task = _new_island_task(
+            recycle_at_wilderness=False,
+            promo_type='none',
+            play_vb=False,
+            collect_income=False,
+            friend_fight=False,
+            friend_clean=False,
+        )
+        task.clean_train_garbage = Mock()
+        mark_cleaned = Mock()
+
+        with patch('module.resonance.island.load_garbage_clean_record',
+                   return_value=(Mock(return_value=True), mark_cleaned)):
+            task.run()
+
+        task.clean_train_garbage.assert_not_called()
+        mark_cleaned.assert_not_called()
+        task.ui_goto_main.assert_called_once()
+        task.config.task_delay.assert_called_once_with(server_update=True)
+
+    def test_island_paid_clean_failure_keeps_day_unmarked(self):
+        from module.exception import GameStuckError
+
+        task = _new_island_task(
+            recycle_at_wilderness=False,
+            promo_type='none',
+            play_vb=False,
+            collect_income=False,
+            friend_fight=False,
+            friend_clean=False,
+        )
+        task.clean_train_garbage = Mock(side_effect=GameStuckError('compactor timeout'))
+        mark_cleaned = Mock()
+        is_cleaned_today = Mock(return_value=False)
+
+        with patch('module.resonance.island.load_garbage_clean_record',
+                   return_value=(is_cleaned_today, mark_cleaned)):
+            with self.assertRaises(GameStuckError):
+                task.run()
+
+        is_cleaned_today.assert_called_once_with('island_test')
+        mark_cleaned.assert_not_called()
+
+    def test_island_marks_empty_compactor_as_cleaned(self):
+        from module.resonance import assets
+
+        garb_empty = _blank_with(assets.GARBAGE_CHECK)
+        task = _new_island_task(
+            recycle_at_wilderness=False,
+            promo_type='none',
+            play_vb=False,
+            collect_income=False,
+            friend_fight=False,
+            friend_clean=False,
+        )
+        task.device.image = garb_empty
+        task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', garb_empty)
+        mark_cleaned = Mock()
+
+        with patch('module.resonance.island.load_garbage_clean_record',
+                   return_value=(Mock(return_value=False), mark_cleaned)), \
+             patch('module.base.timer.time', side_effect=count(100, 1.0)):
+            task.run()
+
+        task.device.click.assert_not_called()
+        mark_cleaned.assert_called_once_with('island_test')
         task.config.task_delay.assert_called_once_with(server_update=True)

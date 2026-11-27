@@ -283,7 +283,6 @@ class GeneratedConfig:
     ResonancePreparation_UseClarityItem = 'none'  # none, lollipop, lollipop_gum, all
 
     # Group `ResonanceIsland`
-    ResonanceIsland_CleanTrainGarbage = True
     ResonanceIsland_PromotionType = 'promotion'  # promotion, theme, celebrity, none
     ResonanceIsland_PromotionMethod = 'flyer'  # flyer, ad_ticket
     ResonanceIsland_PlayVolleyball = True
@@ -327,6 +326,7 @@ class GeneratedConfig:
     ResonanceTrade_UseFatigueItem = 'none'  # none, lollipop, lollipop_gum, all
     ResonanceTrade_ExcludedCities = '武林源'
     ResonanceTrade_RefreshProfile = False
+    ResonanceTrade_RecycleAtWilderness = False
 
     # Group `Storage`
     Storage_Storage = {}

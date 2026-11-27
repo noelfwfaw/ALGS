@@ -1278,7 +1278,6 @@
       "ServerUpdate": "05:00, 18:00"
     },
     "ResonanceIsland": {
-      "CleanTrainGarbage": true,
       "PromotionType": "promotion",
       "PromotionMethod": "flyer",
       "PlayVolleyball": true,
@@ -1381,7 +1380,8 @@
       "UseBento": true,
       "UseFatigueItem": "none",
       "ExcludedCities": "武林源",
-      "RefreshProfile": false
+      "RefreshProfile": false,
+      "RecycleAtWilderness": false
     },
     "Storage": {
       "Storage": {}

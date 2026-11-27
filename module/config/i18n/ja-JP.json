@@ -2055,10 +2055,6 @@
       "name": "ResonanceIsland._info.name",
       "help": "ResonanceIsland._info.help"
     },
-    "CleanTrainGarbage": {
-      "name": "ResonanceIsland.CleanTrainGarbage.name",
-      "help": "ResonanceIsland.CleanTrainGarbage.help"
-    },
     "PromotionType": {
       "name": "ResonanceIsland.PromotionType.name",
       "help": "ResonanceIsland.PromotionType.help",
@@ -2295,6 +2291,10 @@
     "RefreshProfile": {
       "name": "ResonanceTrade.RefreshProfile.name",
       "help": "ResonanceTrade.RefreshProfile.help"
+    },
+    "RecycleAtWilderness": {
+      "name": "荒野駅でついでに無料ゴミ回収",
+      "help": "オンにすると、交易ルートが荒野駅を通過する場合に立ち寄って列車ゴミを無料回収し、島物語は車両の有料清掃をスキップします。オフにすると交易は清掃のため立ち寄らず、島物語が従来どおり車両の有料清掃を実行します。両方式は排他で、同一設定につき1日1回まで（05:00 リセット）。"
     }
   },
   "Storage": {

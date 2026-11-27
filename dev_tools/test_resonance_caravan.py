@@ -143,6 +143,56 @@ class TestResonanceCaravan(unittest.TestCase):
             self.assertTrue(caravan.config.task_delay.called)
             self.assertGreater(caravan.config.task_delay.call_args[1]['minute'], 0)
 
+    def test_buy_checkpoint_survives_new_object_and_records_actual_book_usage(self):
+        from module.resonance.caravan import ResonanceCaravan, load_trade_state, save_trade_state
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, 'trade_state.json')
+            buyer = ResonanceCaravan.__new__(ResonanceCaravan)
+            buyer.config = SimpleNamespace(config_name='TEST')
+            buyer._last_restock_used = 1
+            state = {}
+            plan = {'to_city': 'B', 'leg': {'profit': 120, 'restock': 3}}
+            with patch('module.resonance.caravan.save_trade_state',
+                       side_effect=lambda *a, **kw: save_trade_state(*a, path=state_path, **kw)):
+                buyer._finish_bought_leg('A', plan, state, 0, False, None, 'auto', 'TEST')
+
+            pending = load_trade_state(state_path)
+            self.assertEqual(pending['restock_used'], 1)
+            self.assertEqual(state['restock_used'], 1)
+
+            seller = ResonanceCaravan.__new__(ResonanceCaravan)
+            seller.config = SimpleNamespace(config_name='TEST')
+            seller.sell_all = Mock(return_value=True)
+            seller._last_sell_image = object()
+            with patch('module.resonance.caravan.read_sell_profit', side_effect=[120, None]):
+                self.assertTrue(seller._sell_and_record_profit('B', pending, raise_target=0))
+                self.assertTrue(seller._sell_and_record_profit('B', pending, raise_target=0))
+
+            self.assertEqual(self.mock_record_trade_profit.call_args_list, [
+                call('TEST', 120, from_city='A', to_city='B', estimated=False, restock_used=1),
+                call('TEST', 120, from_city='A', to_city='B', estimated=True, restock_used=1),
+            ])
+
+    def test_pending_checkpoint_distinguishes_legacy_unknown_from_zero_books(self):
+        from module.resonance.caravan import ResonanceCaravan
+
+        seller = ResonanceCaravan.__new__(ResonanceCaravan)
+        seller.config = SimpleNamespace(config_name='TEST')
+        seller.sell_all = Mock(return_value=True)
+        seller._last_sell_image = object()
+        legacy = {'bought_city': 'A', 'target_city': 'B', 'expected_profit': 120}
+        zero = dict(legacy, restock_used=0)
+
+        for state, expected in ((legacy, None), (zero, 0)):
+            with self.subTest(restock_used=expected):
+                self.mock_record_trade_profit.reset_mock()
+                with patch('module.resonance.caravan.read_sell_profit', return_value=None):
+                    self.assertTrue(seller._sell_and_record_profit('B', state, raise_target=0))
+                self.mock_record_trade_profit.assert_called_once_with(
+                    'TEST', 120, from_city='A', to_city='B', estimated=True, restock_used=expected,
+                )
+
     def test_caravan_recovers_fatigue_with_item_and_continues(self):
         from module.resonance.caravan import ResonanceCaravan
         from module.resonance.columba import PRESTIGE_CITIES
@@ -539,3 +589,638 @@ class TestResonanceCaravan(unittest.TestCase):
         c_ok.buy_plan.assert_called_once()
         self.assertEqual(c_ok.buy_plan.call_args[1]['reserve_fatigue'], 119)
         c_ok.travel_to.assert_called_once()
+
+    def _wilderness_leg_opts(self, data, route_mode='auto'):
+        return (
+            'profit', 20, 20, False, False, 'none', False, False, False, {}, route_mode, None, False,
+            ('all', False, 30), data,
+        )
+
+    def _wilderness_plan(self, origin='阿妮塔发射中心', target='岚心城', combinations=None):
+        return {
+            'from_city': origin, 'to_city': target,
+            'leg': {'fatigue': 71, 'profit': 120, 'restock': 2,
+                    'combinations': [{'name': 'test_good'}] if combinations is None else combinations},
+            'is_reposition': False, 'is_return': False,
+        }
+
+    def test_manual_crossing_stops_once_and_preserves_original_trade_state(self):
+        from module.resonance.caravan import ResonanceCaravan, _calc_fatigue, safe_negotiation_budget
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock(return_value=True)
+        caravan._last_restock_used = 1
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._check_market_gate = Mock(return_value=True)
+        caravan._plan_leg_for_mode = Mock(return_value=self._wilderness_plan())
+        caravan._garbage_cleaned_today = Mock(return_value=False)
+        caravan.recycle_wilderness_garbage = Mock(return_value=True)
+        caravan._mark_garbage_cleaned = Mock()
+        caravan.get_current_city = Mock(side_effect=['荒原站', '岚心城'])
+        caravan.travel_to = Mock(return_value=True)
+        caravan.ui_goto_main = Mock()
+        state = {}
+
+        with patch('module.resonance.caravan.save_trade_state') as save_state:
+            next_city, _ = caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, state,
+                                                    self._wilderness_leg_opts(data, route_mode='manual'))
+
+        self.assertEqual(next_city, '岚心城')
+        self.assertEqual(caravan.travel_to.call_args_list, [
+            call('荒原站', use_ramming=False, configure_assist=True),
+            call('岚心城', use_ramming=False, configure_assist=False),
+        ])
+        caravan.sell_all.assert_called_once_with(raise_target=0)  # only the initial dock sale
+        caravan.buy_plan.assert_called_once()
+        caravan.recycle_wilderness_garbage.assert_called_once_with()
+        caravan._mark_garbage_cleaned.assert_called_once_with('TEST')
+        split_drive = (_calc_fatigue('阿妮塔发射中心', '荒原站', {}, data)
+                       + _calc_fatigue('荒原站', '岚心城', {}, data))
+        self.assertEqual(caravan.buy_plan.call_args[1]['reserve_fatigue'],
+                         split_drive + safe_negotiation_budget(20) + 4)
+        self.assertEqual(state, {
+            'bought_city': '阿妮塔发射中心', 'target_city': '岚心城', 'negotiate_sell': True,
+            'expected_profit': 120, 'sell_raise_target': 20, 'restock_used': 1,
+            'via_wilderness': True, 'wilderness_done': True,
+        })
+        self.assertEqual(save_state.call_count, 2)  # post-buy checkpoint, then completed wilderness stop
+        self.assertTrue(save_state.call_args_list[-1][1]['wilderness_done'])
+
+    def test_wilderness_split_fatigue_blocks_before_buy_when_direct_leg_would_fit(self):
+        from module.resonance.caravan import ResonanceCaravan, _calc_fatigue
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        split_drive = (_calc_fatigue('阿妮塔发射中心', '荒原站', {}, data)
+                       + _calc_fatigue('荒原站', '岚心城', {}, data))
+        self.assertGreater(split_drive, 71)
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock(return_value=True)
+        caravan._read_current_fatigue = Mock(return_value=(737, 912))  # 175: direct needs 163, split needs 182
+        caravan._check_market_gate = Mock(return_value=True)
+        caravan._plan_leg_for_mode = Mock(return_value=self._wilderness_plan())
+        caravan._garbage_cleaned_today = Mock(return_value=False)
+        caravan._schedule_fatigue_wait = Mock()
+        caravan.travel_to = Mock()
+
+        with patch('module.resonance.caravan.save_trade_state'):
+            result = caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, {},
+                                              self._wilderness_leg_opts(data))
+
+        self.assertEqual(result, (None, False))
+        caravan.buy_plan.assert_not_called()
+        caravan.travel_to.assert_not_called()
+        self.assertEqual(caravan._schedule_fatigue_wait.call_args[0][2], split_drive + 44 + 44 + 4)
+
+    def test_switch_off_skips_cleanup_and_keeps_direct_travel(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=False,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock(return_value=False)
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._check_market_gate = Mock(return_value=True)
+        caravan._plan_leg_for_mode = Mock(return_value=self._wilderness_plan(combinations=[]))
+        caravan._garbage_cleaned_today = Mock()
+        caravan.recycle_wilderness_garbage = Mock()
+        caravan.get_current_city = Mock()
+        caravan.travel_to = Mock(return_value=True)
+        state = {}
+
+        with patch('module.resonance.caravan.save_trade_state') as save_state:
+            next_city, _ = caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, state,
+                                                    self._wilderness_leg_opts(data))
+
+        self.assertEqual(next_city, '岚心城')
+        caravan.travel_to.assert_called_once_with('岚心城', use_ramming=False, configure_assist=True)
+        caravan._garbage_cleaned_today.assert_not_called()
+        caravan.recycle_wilderness_garbage.assert_not_called()
+        caravan.get_current_city.assert_not_called()
+        self.assertEqual(state, {})
+        save_state.assert_not_called()
+
+    def test_already_docked_at_wilderness_cleans_before_empty_departure(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        events = []
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock()
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._check_market_gate = Mock(return_value=True)
+        caravan._plan_leg_for_mode = Mock(return_value=self._wilderness_plan('荒原站', '岚心城', combinations=[]))
+        caravan._garbage_cleaned_today = Mock(return_value=False)
+        caravan.recycle_wilderness_garbage = Mock(side_effect=lambda: events.append('clean') or True)
+        caravan._mark_garbage_cleaned = Mock()
+        caravan.get_current_city = Mock(return_value='荒原站')
+        caravan.travel_to = Mock(side_effect=lambda city, **kw: events.append(city) or True)
+        state = {}
+
+        with patch('module.resonance.caravan.save_trade_state') as save_state:
+            next_city, _ = caravan._execute_one_leg('荒原站', {}, {'roles': {}}, state,
+                                                    self._wilderness_leg_opts(data))
+
+        self.assertEqual(next_city, '岚心城')
+        self.assertEqual(events, ['clean', '岚心城'])
+        self.assertEqual(state, {})
+        self.assertEqual(save_state.call_count, 0)
+        caravan._mark_garbage_cleaned.assert_called_once_with('TEST')
+
+    def test_wilderness_cleanup_failure_retries_without_marking_or_losing_pending_state(self):
+        from module.exception import TaskFailed
+        from module.resonance.caravan import ResonanceCaravan, load_trade_state, save_trade_state
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, 'trade_state.json')
+            save_trade_state('阿妮塔发射中心', '岚心城', negotiate_sell=True, expected_profit=120,
+                             sell_raise_target=20, restock_used=2, path=state_path, via_wilderness=True)
+            pending = load_trade_state(state_path)
+            caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+            caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True, task_delay=Mock())
+            caravan._garbage_cleaned_today = Mock(return_value=False)
+            caravan.recycle_wilderness_garbage = Mock(return_value=False)
+            caravan._mark_garbage_cleaned = Mock()
+            caravan.get_current_city = Mock(return_value='荒原站')
+            caravan.ui_goto_main = Mock()
+
+            with patch('module.resonance.caravan.save_trade_state',
+                       side_effect=lambda *a, **kw: save_trade_state(*a, path=state_path, **kw)), \
+                    self.assertRaises(TaskFailed):
+                caravan._finish_wilderness_stop(pending, 'TEST')
+
+            self.assertEqual(caravan.recycle_wilderness_garbage.call_count, 2)
+            caravan._mark_garbage_cleaned.assert_not_called()
+            caravan.config.task_delay.assert_called_once_with(minute=10)
+            reloaded = load_trade_state(state_path)
+            self.assertTrue(reloaded['via_wilderness'])
+            self.assertFalse(reloaded['wilderness_done'])
+            self.assertEqual(reloaded['restock_used'], 2)
+            self.assertEqual(reloaded['target_city'], '岚心城')
+
+    def test_pending_empty_transit_resumes_from_wilderness_without_reselling_or_recleaning(self):
+        from module.resonance.caravan import ResonanceCaravan, load_trade_state, save_trade_state
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, 'trade_state.json')
+            save_trade_state('阿妮塔发射中心', '岚心城', path=state_path, via_wilderness=True)
+            pending = load_trade_state(state_path)
+            caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+            caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=False,
+                                             ResonanceTrade_RaisePercent=20, task_delay=Mock())
+            caravan._read_current_fatigue = Mock(return_value=(0, 912))
+            caravan.recycle_wilderness_garbage = Mock()
+            caravan._mark_garbage_cleaned = Mock()
+            caravan.get_current_city = Mock(side_effect=['荒原站', '岚心城'])
+            caravan.travel_to = Mock(return_value=True)
+            caravan.sell_all = Mock()
+            caravan.buy_plan = Mock()
+
+            with patch('module.resonance.caravan.save_trade_state',
+                       side_effect=lambda *a, **kw: save_trade_state(*a, path=state_path, **kw)):
+                result = caravan._resume_pending_transit('荒原站', pending, False, 'none', False, data)
+
+            self.assertEqual(result, ('岚心城', True))
+            caravan.travel_to.assert_called_once_with('岚心城', use_ramming=False, configure_assist=True)
+            caravan.sell_all.assert_not_called()
+            caravan.buy_plan.assert_not_called()
+            caravan.recycle_wilderness_garbage.assert_not_called()
+            reloaded = load_trade_state(state_path)
+            self.assertTrue(reloaded['wilderness_done'])
+            self.assertEqual(reloaded['target_city'], '岚心城')
+
+            caravan.recycle_wilderness_garbage.reset_mock()
+            caravan.travel_to.reset_mock()
+            caravan.get_current_city.reset_mock(side_effect=True)
+            caravan.get_current_city.side_effect = ['岚心城']
+            caravan._resume_pending_transit('荒原站', reloaded, False, 'none', False, data)
+            caravan.recycle_wilderness_garbage.assert_not_called()
+            caravan.travel_to.assert_called_once_with('岚心城', use_ramming=False, configure_assist=True)
+
+            legacy_direct = dict(reloaded, via_wilderness=False, wilderness_done=False)
+            caravan.travel_to.reset_mock()
+            caravan.get_current_city.reset_mock()
+            with patch('module.resonance.caravan.save_trade_state') as save_state:
+                self.assertEqual(caravan._resume_pending_transit('荒原站', legacy_direct, False, 'none', False, data),
+                                 ('荒原站', False))
+            caravan.sell_all.assert_not_called()
+            caravan.travel_to.assert_not_called()
+            caravan.get_current_city.assert_not_called()
+            save_state.assert_not_called()
+
+            wilderness_target = dict(reloaded, target_city='荒原站', via_wilderness=False, wilderness_done=False)
+            with patch('module.resonance.caravan.save_trade_state') as save_state:
+                self.assertEqual(caravan._resume_pending_transit('荒原站', wilderness_target, False, 'none', False, data),
+                                 ('荒原站', False))
+            caravan.travel_to.assert_not_called()
+            caravan.get_current_city.assert_not_called()
+            save_state.assert_not_called()
+
+    def test_pending_committed_transit_keeps_wilderness_after_switch_off(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+        from module.resonance.route import _calc_fatigue
+        from module.resonance.smart_state import DRIVE_FATIGUE_BUFFER, safe_negotiation_budget
+
+        data = load_columba_data()
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=False,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._ensure_fatigue_for_leg = Mock(return_value=True)
+        caravan.get_current_city = Mock(side_effect=['荒原站', '岚心城'])
+        caravan.travel_to = Mock(return_value=True)
+        caravan.sell_all = Mock()
+        caravan.buy_plan = Mock()
+        caravan.recycle_wilderness_garbage = Mock()
+        caravan._garbage_cleaned_today = Mock()
+        state = {'bought_city': '阿妮塔发射中心', 'target_city': '岚心城', 'negotiate_sell': True,
+                 'expected_profit': 120, 'sell_raise_target': 20, 'restock_used': 2,
+                 'via_wilderness': True, 'wilderness_done': False}
+
+        with patch('module.resonance.caravan.save_trade_state') as save_state:
+            result = caravan._resume_pending_transit('阿妮塔发射中心', state, True, 'none', False, data)
+
+        self.assertEqual(result, ('岚心城', True))
+        self.assertEqual(caravan.travel_to.call_args_list, [
+            call('荒原站', use_ramming=True, configure_assist=True),
+            call('岚心城', use_ramming=True, configure_assist=False),
+        ])
+        split_drive = (_calc_fatigue('阿妮塔发射中心', '荒原站', {}, data)
+                       + _calc_fatigue('荒原站', '岚心城', {}, data))
+        self.assertEqual(caravan._ensure_fatigue_for_leg.call_args_list[0], call(
+            0, 912, split_drive + safe_negotiation_budget(20) + DRIVE_FATIGUE_BUFFER, 'none', False))
+        self.assertEqual(caravan._ensure_fatigue_for_leg.call_count, 2)
+        caravan.sell_all.assert_not_called()
+        caravan.buy_plan.assert_not_called()
+        caravan.recycle_wilderness_garbage.assert_not_called()
+        caravan._garbage_cleaned_today.assert_not_called()
+        self.assertEqual(state['target_city'], '岚心城')
+        self.assertEqual(state['restock_used'], 2)
+        self.assertTrue(save_state.call_args[1]['via_wilderness'])
+        self.assertTrue(save_state.call_args[1]['wilderness_done'])
+
+    def test_pending_direct_legacy_resume_keeps_old_gate_without_arrival_ocr_or_state_write(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+        from module.resonance.route import _calc_fatigue
+        from module.resonance.smart_state import DRIVE_FATIGUE_BUFFER
+
+        data = load_columba_data()
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=False,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._ensure_fatigue_for_leg = Mock(return_value=True)
+        caravan.get_current_city = Mock()
+        caravan.travel_to = Mock(return_value=True)
+        state = {'bought_city': '阿妮塔发射中心', 'target_city': '岚心城', 'negotiate_sell': True,
+                 'expected_profit': 120, 'sell_raise_target': 20, 'restock_used': 2,
+                 'via_wilderness': False, 'wilderness_done': False}
+
+        with patch('module.resonance.caravan.save_trade_state') as save_state:
+            result = caravan._resume_pending_transit('阿妮塔发射中心', state, True, 'none', False, data,
+                                                     player_cfg={'roles': {}})
+
+        self.assertEqual(result, ('岚心城', True))
+        caravan.travel_to.assert_called_once_with('岚心城', use_ramming=True, configure_assist=True)
+        caravan._ensure_fatigue_for_leg.assert_called_once_with(
+            0, 912, _calc_fatigue('阿妮塔发射中心', '岚心城', {}, data) + DRIVE_FATIGUE_BUFFER,
+            'none', False)
+        caravan.get_current_city.assert_not_called()
+        save_state.assert_not_called()
+        self.assertEqual(state['restock_used'], 2)
+        self.assertFalse(state['via_wilderness'])
+
+    def test_pending_cargo_at_unexpected_city_is_not_sold(self):
+        from module.exception import TaskFailed
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', task_delay=Mock())
+        caravan.ui_goto_main = Mock()
+        caravan.sell_all = Mock()
+        state = {'bought_city': '阿妮塔发射中心', 'target_city': '岚心城', 'expected_profit': 120}
+        with self.assertRaises(TaskFailed):
+            caravan._execute_one_leg('曼德矿场', {}, {'roles': {}}, state,
+                                     self._wilderness_leg_opts(load_columba_data()))
+        caravan.sell_all.assert_not_called()
+        caravan.config.task_delay.assert_called_once_with(minute=10)
+        self.assertEqual(state['target_city'], '岚心城')
+
+    def test_wilderness_as_real_destination_cleans_before_selling(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        events = []
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan._garbage_cleaned_today = Mock(return_value=False)
+        caravan.recycle_wilderness_garbage = Mock(side_effect=lambda: events.append('clean') or True)
+        caravan._mark_garbage_cleaned = Mock()
+        caravan.get_current_city = Mock(return_value='荒原站')
+        caravan.sell_all = Mock(side_effect=lambda **kw: events.append('sell') or True)
+        caravan._last_sell_image = object()
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._check_market_gate = Mock(return_value=False)
+        caravan.buy_plan = Mock()
+        caravan.travel_to = Mock()
+        state = {'bought_city': '阿妮塔发射中心', 'target_city': '荒原站', 'negotiate_sell': True,
+                 'expected_profit': 120, 'sell_raise_target': 20, 'restock_used': 2}
+
+        with patch('module.resonance.caravan.read_sell_profit', return_value=120), \
+                patch('module.resonance.caravan.clear_trade_state'):
+            result = caravan._execute_one_leg('荒原站', {}, {'roles': {}}, state,
+                                              self._wilderness_leg_opts(data))
+
+        self.assertEqual(result, (None, False))
+        self.assertEqual(events, ['clean', 'sell'])
+        caravan.sell_all.assert_called_once_with(raise_target=20)
+        caravan.buy_plan.assert_not_called()
+        caravan.travel_to.assert_not_called()
+        self.assertEqual(state, {})
+
+    def test_smart_endgame_rechecks_crossing_and_uses_split_fatigue_budget(self):
+        from module.resonance.caravan import ResonanceCaravan, _calc_fatigue, leg_atomic_fatigue_budget
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        initial = self._wilderness_plan('阿妮塔发射中心', '曼德矿场')
+        initial.update({'is_smart_cycle': True, 'bargain_target': 0, 'raise_target': 0,
+                        'atomic_fatigue': leg_atomic_fatigue_budget(71, 0, 0),
+                        'cycle': {'book_weight': 30, 'neg_fatigue': None}})
+        endgame = self._wilderness_plan()
+        endgame.update({'is_smart_cycle': True, 'bargain_target': 20, 'raise_target': 20,
+                        'expected_neg_fatigue': 1, 'atomic_fatigue': leg_atomic_fatigue_budget(71, 20, 20),
+                        'cycle': {'book_weight': 30, 'neg_fatigue': None}})
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock(return_value=True)
+        caravan._last_restock_used = 1
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._check_market_gate = Mock(return_value=True)
+        caravan._plan_leg_for_mode = Mock(return_value=initial)
+        caravan._garbage_cleaned_today = Mock(return_value=False)
+        caravan.recycle_wilderness_garbage = Mock(return_value=True)
+        caravan._mark_garbage_cleaned = Mock()
+        caravan.get_current_city = Mock(side_effect=['荒原站', '岚心城'])
+        caravan.travel_to = Mock(return_value=True)
+        caravan._has_or_recover_fatigue = Mock(side_effect=[False, True, True])
+        state = {}
+
+        with patch('module.resonance.caravan.plan_smart_endgame_leg', return_value=endgame), \
+                patch('module.resonance.caravan.save_trade_state'):
+            next_city, _ = caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, state,
+                                                    self._wilderness_leg_opts(data, route_mode='smart_cycle'))
+
+        self.assertEqual(next_city, '岚心城')
+        split_drive = (_calc_fatigue('阿妮塔发射中心', '荒原站', {}, data)
+                       + _calc_fatigue('荒原站', '岚心城', {}, data))
+        self.assertEqual(caravan._has_or_recover_fatigue.call_args_list[1][0][2],
+                         leg_atomic_fatigue_budget(split_drive, 20, 20))
+        self.assertTrue(state['via_wilderness'])
+        self.assertEqual([c[0][0] for c in caravan.travel_to.call_args_list], ['荒原站', '岚心城'])
+
+    def _wilderness_caravan(self):
+        from module.resonance.caravan import ResonanceCaravan
+
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                                         ResonanceTrade_RaisePercent=20, task_delay=Mock())
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock(return_value=True)
+        caravan._last_restock_used = 1
+        caravan._read_current_fatigue = Mock(return_value=(0, 912))
+        caravan._check_market_gate = Mock(return_value=True)
+        caravan._plan_leg_for_mode = Mock(return_value=self._wilderness_plan())
+        caravan._garbage_cleaned_today = Mock(return_value=False)
+        caravan.recycle_wilderness_garbage = Mock(return_value=True)
+        caravan._mark_garbage_cleaned = Mock()
+        caravan.get_current_city = Mock(side_effect=['荒原站', '岚心城'])
+        caravan.travel_to = Mock(return_value=True)
+        caravan.ui_goto_main = Mock()
+        return caravan
+
+    def test_run_cleans_initial_wilderness_before_rest_area_departure(self):
+        from module.exception import TaskFailed
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import PRESTIGE_CITIES, load_columba_data
+        from module.resonance.fatigue import nearest_rest_area_city
+
+        data = load_columba_data()
+        profile = {'maxLot': 994, 'prestige': {c: 20 for c in PRESTIGE_CITIES}, 'roles': {}}
+        rest_city = nearest_rest_area_city('荒原站', {}, data)[0]
+
+        for cleanup_ok in (True, False):
+            with self.subTest(cleanup_ok=cleanup_ok):
+                events = []
+                caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+                caravan.config = SimpleNamespace(
+                    config_name='TEST', ResonanceTrade_RecycleAtWilderness=True,
+                    ResonanceTrade_UseRestArea=True, ResonanceTrade_UseFatigueItem='none',
+                    ResonanceTrade_UseBento=False, ResonanceTrade_RefreshProfile=False,
+                    ResonanceTrade_MarketFilter='all', ResonanceTrade_MarketOverflowProtect=False,
+                    ResonanceTrade_MarketWaitMinutes=30, ResonanceTrade_RaisePercent=20, task_delay=Mock(),
+                )
+                caravan.ui_ensure = Mock()
+                caravan.wait_until_docked = Mock()
+                caravan.ensure_profile = Mock(return_value=profile)
+                caravan.get_current_city = Mock(return_value='荒原站')
+                caravan._garbage_cleaned_today = Mock(return_value=False)
+                caravan.recycle_wilderness_garbage = Mock(side_effect=lambda: events.append('clean') or cleanup_ok)
+                caravan._mark_garbage_cleaned = Mock()
+                caravan._read_current_fatigue = Mock(side_effect=[(350, 912), (350, 912)])
+                caravan.sell_all = Mock(return_value=False)
+                caravan.travel_to = Mock(side_effect=lambda city, **kw: events.append(city) or True)
+                caravan.drink_rest_area_soda = Mock(return_value=(6, False, (50, 912)))
+                caravan._check_market_gate = Mock(return_value=False)
+                caravan.ui_goto_main = Mock()
+
+                with patch('module.resonance.caravan.load_trade_state', return_value={}), \
+                        patch('module.resonance.caravan.clear_trade_state'), \
+                        patch('module.resonance.caravan.fetch_prices', return_value=_sample_prices()), \
+                        patch('module.resonance.caravan.is_rest_area_done_today', side_effect=[False, True]), \
+                        patch('module.resonance.caravan.mark_rest_area_done'):
+                    if cleanup_ok:
+                        caravan.run()
+                        self.assertEqual(events, ['clean', rest_city])
+                        caravan._mark_garbage_cleaned.assert_called_once_with('TEST')
+                        caravan.drink_rest_area_soda.assert_called_once_with(max_drinks=6)
+                    else:
+                        with self.assertRaises(TaskFailed):
+                            caravan.run()
+                        self.assertEqual(events, ['clean', 'clean'])
+                        caravan._mark_garbage_cleaned.assert_not_called()
+                        caravan.travel_to.assert_not_called()
+                        caravan.drink_rest_area_soda.assert_not_called()
+                        caravan.config.task_delay.assert_called_once_with(minute=10)
+
+    def test_run_pending_via_wrong_city_never_sells_during_rest_area_recovery(self):
+        from module.exception import TaskFailed
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import PRESTIGE_CITIES, load_columba_data
+
+        profile = {'maxLot': 994, 'prestige': {c: 20 for c in PRESTIGE_CITIES}, 'roles': {}}
+        pending = {'bought_city': '阿妮塔发射中心', 'target_city': '岚心城', 'negotiate_sell': True,
+                   'expected_profit': 120, 'restock_used': 1, 'via_wilderness': True,
+                   'wilderness_done': True}
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.config = SimpleNamespace(
+            config_name='TEST', ResonanceTrade_RecycleAtWilderness=False,
+            ResonanceTrade_UseRestArea=True, ResonanceTrade_UseFatigueItem='none',
+            ResonanceTrade_UseBento=False, ResonanceTrade_RefreshProfile=False, task_delay=Mock(),
+        )
+        caravan.ui_ensure = Mock()
+        caravan.wait_until_docked = Mock()
+        caravan.ensure_profile = Mock(return_value=profile)
+        caravan.get_current_city = Mock(return_value='曼德矿场')
+        caravan._maybe_drink_rest_area = Mock()
+        caravan.travel_to = Mock()
+        caravan.sell_all = Mock()
+        caravan.ui_goto_main = Mock()
+
+        with patch('module.resonance.caravan.load_trade_state', return_value=dict(pending)), \
+                patch('module.resonance.caravan.clear_trade_state') as clear_state, \
+                patch('module.resonance.caravan.fetch_prices', return_value=_sample_prices()), \
+                self.assertRaises(TaskFailed):
+            caravan.run()
+
+        caravan._maybe_drink_rest_area.assert_not_called()
+        caravan.travel_to.assert_not_called()
+        caravan.sell_all.assert_not_called()
+        clear_state.assert_not_called()
+        caravan.config.task_delay.assert_called_once_with(minute=10)
+        self.assertEqual(pending['target_city'], '岚心城')
+        self.assertEqual(pending['restock_used'], 1)
+        self.assertTrue(pending['via_wilderness'])
+
+    def test_smart_atomic_budget_priority_and_crossing_extra_drive(self):
+        from module.resonance.caravan import ResonanceCaravan, _calc_fatigue
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        caravan = self._wilderness_caravan()
+        plan = self._wilderness_plan()
+        plan.update({'is_smart_cycle': True, 'bargain_target': 20, 'raise_target': 20, 'atomic_fatigue': 321})
+        split_drive = (_calc_fatigue('阿妮塔发射中心', '荒原站', {}, data)
+                       + _calc_fatigue('荒原站', '岚心城', {}, data))
+
+        self.assertEqual(caravan._plan_needed_fatigue(plan, {'roles': {}}, data, False, 20, 20, False), 321)
+        self.assertEqual(caravan._plan_needed_fatigue(plan, {'roles': {}}, data, True, 20, 20, False),
+                         321 + split_drive - 71)
+
+    def test_crossing_wrong_arrival_never_sells_and_preserves_pending_state(self):
+        from module.exception import TaskFailed
+        from module.resonance.caravan import load_trade_state, save_trade_state
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        with tempfile.TemporaryDirectory() as tmp:
+            state_path = os.path.join(tmp, 'trade_state.json')
+            caravan = self._wilderness_caravan()
+            caravan.get_current_city = Mock(side_effect=['荒原站', '曼德矿场'])
+
+            with patch('module.resonance.caravan.clear_trade_state') as clear_state, \
+                    patch('module.resonance.caravan.save_trade_state',
+                          side_effect=lambda *a, **kw: save_trade_state(*a, path=state_path, **kw)), \
+                    self.assertRaises(TaskFailed):
+                caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, {},
+                                         self._wilderness_leg_opts(data))
+
+            self.assertEqual([c[0][0] for c in caravan.travel_to.call_args_list], ['荒原站', '岚心城'])
+            self.assertEqual(caravan.get_current_city.call_args_list, [call(), call()])
+            caravan.sell_all.assert_called_once_with(raise_target=0)
+            caravan.buy_plan.assert_called_once()
+            clear_state.assert_called_once_with()
+            caravan.config.task_delay.assert_called_once_with(minute=10)
+            reloaded = load_trade_state(state_path)
+            self.assertEqual(reloaded['target_city'], '岚心城')
+            self.assertEqual(reloaded['restock_used'], 1)
+            self.assertTrue(reloaded['negotiate_sell'])
+            self.assertTrue(reloaded['via_wilderness'])
+            self.assertTrue(reloaded['wilderness_done'])
+
+    def test_crossing_wilderness_exit_rechecks_unreadable_or_exhausted_fatigue(self):
+        from module.resonance.caravan import load_trade_state, save_trade_state
+        from module.resonance.columba import load_columba_data
+        from module.resonance.route import _calc_fatigue
+        from module.resonance.smart_state import DRIVE_FATIGUE_BUFFER, safe_negotiation_budget
+
+        data = load_columba_data()
+        for exit_fatigue in (None, (900, 912)):
+            with self.subTest(exit_fatigue=exit_fatigue), tempfile.TemporaryDirectory() as tmp:
+                state_path = os.path.join(tmp, 'trade_state.json')
+                caravan = self._wilderness_caravan()
+                caravan._read_current_fatigue = Mock(side_effect=[(0, 912), exit_fatigue])
+                caravan._ensure_fatigue_for_leg = Mock(wraps=caravan._ensure_fatigue_for_leg)
+                caravan.get_current_city = Mock(return_value='荒原站')
+
+                with patch('module.resonance.caravan.clear_trade_state'), \
+                        patch('module.resonance.caravan.save_trade_state',
+                              side_effect=lambda *a, **kw: save_trade_state(*a, path=state_path, **kw)):
+                    result = caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, {},
+                                                      self._wilderness_leg_opts(data))
+
+                self.assertEqual(result, (None, False))
+                caravan.travel_to.assert_called_once_with('荒原站', use_ramming=False, configure_assist=True)
+                caravan.sell_all.assert_called_once_with(raise_target=0)
+                caravan.buy_plan.assert_called_once()
+                self.assertEqual(caravan._read_current_fatigue.call_count, 2)
+                if exit_fatigue is not None:
+                    self.assertEqual(caravan._ensure_fatigue_for_leg.call_count, 1)
+                    self.assertEqual(
+                        caravan._ensure_fatigue_for_leg.call_args_list[0][0][2],
+                        _calc_fatigue('荒原站', '岚心城', {}, data)
+                        + safe_negotiation_budget(20) + DRIVE_FATIGUE_BUFFER,
+                    )
+                caravan.config.task_delay.assert_called_once()
+                self.assertGreater(caravan.config.task_delay.call_args[1]['minute'], 0)
+                reloaded = load_trade_state(state_path)
+                self.assertEqual(reloaded['target_city'], '岚心城')
+                self.assertEqual(reloaded['restock_used'], 1)
+                self.assertTrue(reloaded['via_wilderness'])
+                self.assertTrue(reloaded['wilderness_done'])
+
+    def test_crossing_empty_leg_persists_only_confirmed_transit_checkpoint(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import load_columba_data
+
+        data = load_columba_data()
+        caravan = self._wilderness_caravan()
+        caravan._plan_leg_for_mode = Mock(return_value=self._wilderness_plan(combinations=[]))
+        state = {}
+
+        with patch('module.resonance.caravan.clear_trade_state'), \
+                patch('module.resonance.caravan.save_trade_state') as save_state:
+            next_city, ok = caravan._execute_one_leg('阿妮塔发射中心', {}, {'roles': {}}, state,
+                                                     self._wilderness_leg_opts(data))
+
+        self.assertEqual((next_city, ok), ('岚心城', True))
+        caravan.buy_plan.assert_not_called()
+        self.assertEqual(save_state.call_count, 2)
+        self.assertTrue(save_state.call_args_list[0][1]['via_wilderness'])
+        self.assertEqual(save_state.call_args_list[0][1]['expected_profit'], 0)
+        self.assertEqual(state, {'bought_city': '阿妮塔发射中心', 'target_city': '岚心城',
+                                 'expected_profit': 0, 'via_wilderness': True, 'wilderness_done': True})

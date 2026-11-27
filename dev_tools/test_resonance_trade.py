@@ -261,7 +261,7 @@ class TestResonanceTrade(unittest.TestCase):
             self.assertEqual(task_zero.use_restock_books(2), 0)
         self.assertEqual(task_zero.device.click.call_args_list, [call(assets.TRADE_RESTOCK_CANCEL)])
 
-    def test_buy_plan_stages_full_items_before_tail_and_confirms(self):
+    def test_buy_plan_tracks_confirmed_books_and_resets_for_zero_book_leg(self):
         from module.resonance import assets
         from module.resonance.trade import ResonanceTrade
 
@@ -281,11 +281,11 @@ class TestResonanceTrade(unittest.TestCase):
 
         staged_order = []
         task._select_buy_targets = Mock(side_effect=lambda names: staged_order.append(set(names)))
-        frames = iter([buy_report, buy_base])
+        frames = iter([buy_report, buy_base, buy_report, buy_base])
         task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', next(frames))
 
         leg = {
-            'restock': 1,
+            'restock': 3,
             'combinations': [
                 {'name': '明前龙井', 'buy_lot': 9, 'available_lot': 9},
                 {'name': '叫化童鸡', 'buy_lot': 104, 'available_lot': 120},
@@ -293,14 +293,22 @@ class TestResonanceTrade(unittest.TestCase):
         }
         with patch('module.base.timer.time', side_effect=count(100, 3)):
             result = task.buy_plan(leg, bargain_target=15)
+            self.assertIs(result, True)
+            self.assertEqual(task._last_restock_used, 1)
+            zero_leg = dict(leg, restock=0)
+            task.device.image = buy_staged
+            self.assertIs(task.buy_plan(zero_leg, bargain_target=15), True)
+            self.assertEqual(task._last_restock_used, 0)
 
-        self.assertTrue(result)
-        task.use_restock_books.assert_called_once_with(1)
-        self.assertEqual(staged_order, [{'明前龙井'}, {'叫化童鸡'}])
-        task.negotiate.assert_called_once_with(is_buy=True, target_pct=15, max_fatigue_ratio=0.95)
+        task.use_restock_books.assert_called_once_with(3)
+        self.assertEqual(staged_order, [{'明前龙井'}, {'叫化童鸡'}, {'明前龙井'}, {'叫化童鸡'}])
+        self.assertEqual(task.negotiate.call_args_list, [
+            call(is_buy=True, target_pct=15, max_fatigue_ratio=0.95),
+            call(is_buy=True, target_pct=15, max_fatigue_ratio=0.95),
+        ])
         self.assertEqual(task.device.click.call_args_list, [
-            call(assets.TRADE_BUY_CONFIRM),
-            call(assets.TRADE_BUY_REPORT),
+            call(assets.TRADE_BUY_CONFIRM), call(assets.TRADE_BUY_REPORT),
+            call(assets.TRADE_BUY_CONFIRM), call(assets.TRADE_BUY_REPORT),
         ])
 
     def test_settlement_report_dismiss_lands_on_trade_hub_and_handles_reward(self):

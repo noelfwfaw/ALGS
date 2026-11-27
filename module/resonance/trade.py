@@ -459,11 +459,12 @@ class ResonanceTrade(ResonanceMapNav):
         if restock_books is None and isinstance(plan_or_items, dict):
             restock_books = plan_or_items.get('restock', 0)
         restock_books = restock_books or 0
+        self._last_restock_used = 0
 
         self.enter_exchange(page_resonance_trade_buy)
         self.ensure_max_mode(page_resonance_trade_buy)
         if restock_books > 0:
-            self.use_restock_books(restock_books)
+            self._last_restock_used = self.use_restock_books(restock_books)
         self._select_buy_targets(set(full_names))
         if tail_name and self.cargo_remaining() != 0:
             self._select_buy_targets({tail_name})

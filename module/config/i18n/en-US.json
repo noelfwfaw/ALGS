@@ -2055,10 +2055,6 @@
       "name": "ResonanceIsland._info.name",
       "help": "ResonanceIsland._info.help"
     },
-    "CleanTrainGarbage": {
-      "name": "ResonanceIsland.CleanTrainGarbage.name",
-      "help": "ResonanceIsland.CleanTrainGarbage.help"
-    },
     "PromotionType": {
       "name": "ResonanceIsland.PromotionType.name",
       "help": "ResonanceIsland.PromotionType.help",
@@ -2295,6 +2291,10 @@
     "RefreshProfile": {
       "name": "ResonanceTrade.RefreshProfile.name",
       "help": "ResonanceTrade.RefreshProfile.help"
+    },
+    "RecycleAtWilderness": {
+      "name": "Recycle garbage at Wasteland Station on the way",
+      "help": "When on, a trade route that passes 荒原站 stops there and recycles the train garbage for free, and Island Diary skips the paid train-car cleanup. When off, trading makes no extra stop and Island Diary always runs the original paid train-car cleanup. The two modes are exclusive; each config cleans at most once a day (reset at 05:00)."
     }
   },
   "Storage": {

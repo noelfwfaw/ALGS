@@ -740,7 +740,6 @@ ResonancePreparation:
     option: [ none, lollipop, lollipop_gum, all ]
 
 ResonanceIsland:
-  CleanTrainGarbage: true
   PromotionType:
     type: select
     value: promotion
@@ -848,3 +847,4 @@ ResonanceTrade:
     value: '武林源'
     valuetype: str
   RefreshProfile: false
+  RecycleAtWilderness: false

@@ -28,6 +28,26 @@ class TestResonanceMap(unittest.TestCase):
         self.addCleanup(server.set_server, server.server)
         server.set_server('resonance')
 
+    def test_wilderness_partition_requires_confirmed_crossing_only(self):
+        from module.resonance.map_nav import (
+            MAP_COORDS_05X, WILDERNESS_CITY, WILDERNESS_EAST_CITIES, route_passes_wilderness,
+        )
+
+        west = '阿妮塔发射中心'
+        self.assertEqual(WILDERNESS_EAST_CITIES, {'云岫桥基地', '栖羽站', '岚心城'})
+        self.assertTrue(WILDERNESS_EAST_CITIES <= set(MAP_COORDS_05X))
+        for east in WILDERNESS_EAST_CITIES:
+            with self.subTest(east=east):
+                self.assertTrue(route_passes_wilderness(west, east))
+                self.assertTrue(route_passes_wilderness(east, west))
+                self.assertFalse(route_passes_wilderness(east, east))
+                self.assertFalse(route_passes_wilderness(WILDERNESS_CITY, east))
+                self.assertFalse(route_passes_wilderness(west, WILDERNESS_CITY))
+        self.assertFalse(route_passes_wilderness('修格里城', '曼德矿场'))
+        self.assertFalse(route_passes_wilderness('云岫桥基地', '岚心城'))
+        self.assertFalse(route_passes_wilderness(west, '未知站'))
+        self.assertFalse(route_passes_wilderness('', east))
+
     def test_constellation_localization_and_aliases(self):
         from module.resonance.map_nav import (
             ASSIST_TOGGLES, MAP_COORDS_05X, canonical_city_name, get_zoom_thumb_y,

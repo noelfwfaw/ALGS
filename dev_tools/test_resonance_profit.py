@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import os
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import numpy as np
 
@@ -75,6 +75,78 @@ class TestResonanceProfit(unittest.TestCase):
             self.assertEqual(rows[2]['delta_text'], '—')
             self.assertEqual(summary['today_trades'][0]['from'], '曼德矿场')
 
+    def test_restock_usage_summary_respects_windows_and_missing_values(self):
+        from module.resonance.profit_log import (
+            load_profit_days, record_trade_profit, summarize_profit_history, summarize_restock_usage,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'profit_log.json')
+            now = datetime(2026, 11, 26, 10, 0)
+            record_trade_profit('TEST', 100, path=path, now=now - timedelta(days=30), restock_used=99)
+            record_trade_profit('TEST', 100, path=path, now=now - timedelta(days=2), restock_used=7)
+            record_trade_profit('TEST', 100, path=path, now=now - timedelta(days=1))
+            record_trade_profit('TEST', 100, path=path, now=now - timedelta(days=29), restock_used=5)
+            record_trade_profit('TEST', 100, path=path, now=datetime(2026, 11, 26, 4, 59), restock_used=2)
+            record_trade_profit('TEST', 100, path=path, now=now, restock_used=3)
+            record_trade_profit('TEST', 100, path=path, now=now, restock_used=0)
+            record_trade_profit('TEST', 100, path=path, now=now)
+
+            summary = summarize_profit_history('TEST', path=path, now=now)
+            self.assertEqual(summary['today_restock'], {
+                'total': 3, 'text': '3（仅已记录，缺 1 笔）', 'known_count': 2, 'unknown_count': 1,
+            })
+            self.assertEqual(summary['restock_30d'], {
+                'total': 17, 'text': '17（仅已记录，缺 2 笔）', 'known_count': 5, 'unknown_count': 2,
+            })
+            self.assertNotIn('restock_used', summary['today_trades'][0])
+            self.assertEqual(summary['today_trades'][1]['restock_used'], 0)
+            self.assertNotIn((now - timedelta(days=30)).strftime('%Y-%m-%d'), load_profit_days('TEST', path=path))
+
+        self.assertEqual(summarize_restock_usage([])['text'], '0')
+        self.assertEqual(summarize_restock_usage([{'restock_used': 0}])['text'], '0')
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'profit_log.json')
+            now = datetime(2026, 11, 26, 10, 0)
+            record_trade_profit('TEST', 100, path=path, now=now)
+            record_trade_profit('TEST', 100, path=path, now=now - timedelta(days=1))
+            summary = summarize_profit_history('TEST', path=path, now=now)
+            self.assertEqual(summary['today_restock'], {
+                'total': None, 'text': '—', 'known_count': 0, 'unknown_count': 1,
+            })
+            self.assertEqual(summary['restock_30d'], {
+                'total': None, 'text': '—', 'known_count': 0, 'unknown_count': 2,
+            })
+
+    def test_profit_panel_renders_book_column_zero_unknown_and_totals(self):
+        from module.resonance.profit_log import record_trade_profit, summarize_profit_history
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'profit_log.json')
+            now = datetime(2026, 11, 26, 10, 0)
+            record_trade_profit('TEST', 100, path=path, now=now, restock_used=0)
+            record_trade_profit('TEST', 200, path=path, now=now)
+            summary = summarize_profit_history('TEST', path=path, now=now)
+
+            from module.webui import app as webui_app
+            gui = webui_app.AlasGUI.__new__(webui_app.AlasGUI)
+            with patch.object(webui_app, 'clear'), \
+                    patch.object(webui_app, 'use_scope'), \
+                    patch.object(webui_app, 'put_html'), \
+                    patch.object(webui_app, 'put_text') as put_text, \
+                    patch.object(webui_app, 'put_collapse'), \
+                    patch.object(webui_app, 'put_table') as put_table:
+                gui._render_resonance_profit_body(summary)
+
+            rows, = put_table.call_args_list[0][0]
+            self.assertEqual([row[3] for row in rows], ['—', '0'])
+            self.assertEqual(put_table.call_args_list[0][1]['header'], ['时间', '路线', '单次利润', '进货书用量'])
+            self.assertIn(
+                call('今日进货书：0（仅已记录，缺 1 笔） ｜ 近30天进货书：0（仅已记录，缺 1 笔）'),
+                put_text.call_args_list,
+            )
+
     def test_read_sell_profit_and_caravan_recording(self):
         from module.resonance.caravan import PROFIT_OCR, ResonanceCaravan, read_sell_profit
 
@@ -100,7 +172,7 @@ class TestResonanceProfit(unittest.TestCase):
             with patch.object(PROFIT_OCR, 'ocr', return_value=['+1693807']):
                 self.assertTrue(caravan._sell_and_record_profit('曼德矿场', state, raise_target=20))
             rec.assert_called_once_with(
-                'TEST', 1693807, from_city='阿妮塔发射中心', to_city='曼德矿场', estimated=False,
+                'TEST', 1693807, from_city='阿妮塔发射中心', to_city='曼德矿场', estimated=False, restock_used=None,
             )
             rec.reset_mock()
 
@@ -109,7 +181,7 @@ class TestResonanceProfit(unittest.TestCase):
             with patch.object(PROFIT_OCR, 'ocr', return_value=['']):
                 self.assertTrue(caravan._sell_and_record_profit('曼德矿场', state, raise_target=0))
             rec.assert_called_once_with(
-                'TEST', 1500000, from_city='阿妮塔发射中心', to_city='曼德矿场', estimated=True,
+                'TEST', 1500000, from_city='阿妮塔发射中心', to_city='曼德矿场', estimated=True, restock_used=None,
             )
             rec.reset_mock()
 

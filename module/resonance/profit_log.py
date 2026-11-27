@@ -68,7 +68,7 @@ def _prune_old_days(days_dict, keep_days=PROFIT_RETENTION_DAYS, now=None):
 
 
 def record_trade_profit(config_name, profit, from_city='', to_city='', estimated=False,
-                        path=PROFIT_LOG_PATH, now=None):
+                        path=PROFIT_LOG_PATH, now=None, restock_used=None):
     """Append one completed sell profit to `config_name`'s rolling 30-day ledger."""
     cur = now or datetime.now()
     key = str(config_name or 'default')
@@ -82,13 +82,16 @@ def record_trade_profit(config_name, profit, from_city='', to_city='', estimated
     if not isinstance(day_entry, dict):
         day_entry = {'total': 0, 'count': 0, 'trades': []}
     trades = list(day_entry.get('trades') or [])
-    trades.append({
+    trade = {
         'time': cur.strftime('%H:%M:%S'),
         'from': str(from_city or ''),
         'to': str(to_city or ''),
         'profit': val,
         'estimated': bool(estimated),
-    })
+    }
+    if restock_used is not None:
+        trade['restock_used'] = int(restock_used)
+    trades.append(trade)
     updated = {
         'total': int(day_entry.get('total', 0)) + val,
         'count': int(day_entry.get('count', 0)) + 1,
@@ -124,6 +127,27 @@ def format_profit_delta(delta, pct):
 def format_delta_html(text, color):
     """Wrap formatted delta string in a colored bold inline HTML span."""
     return f'<span style="color: {color}; font-weight: 600;">{html.escape(text)}</span>'
+
+
+def summarize_restock_usage(trades):
+    """Summarize known actual restock-book usage without treating missing values as zero."""
+    total = 0
+    known = 0
+    missing = 0
+    for trade in trades:
+        if not isinstance(trade, dict):
+            continue
+        used = trade.get('restock_used')
+        if used is None:
+            missing += 1
+        else:
+            total += int(used)
+            known += 1
+    text = '—' if missing and not known else f'{total:,}'
+    if missing and known:
+        text += f'（仅已记录，缺 {missing} 笔）'
+    return {'total': total if known or not missing else None, 'text': text,
+            'known_count': known, 'unknown_count': missing}
 
 
 def _compute_daily_rows(days):
@@ -178,6 +202,7 @@ def summarize_profit_history(config_name, path=PROFIT_LOG_PATH, now=None, days_l
     active_days = len(daily_rows)
     avg_day_30d = round(total_30d / active_days) if active_days > 0 else 0
     best_row = max(daily_rows, key=lambda r: r['total'], default=None)
+    trades_30d = [trade for day in days.values() if isinstance(day, dict) for trade in (day.get('trades') or [])]
 
     overview_line = ''
     if today_count > 0:
@@ -199,6 +224,8 @@ def summarize_profit_history(config_name, path=PROFIT_LOG_PATH, now=None, days_l
         'active_days': active_days,
         'avg_day_30d': avg_day_30d,
         'best_day': (best_row['date'], best_row['total']) if best_row else None,
+        'today_restock': summarize_restock_usage(today_trades),
+        'restock_30d': summarize_restock_usage(trades_30d),
         'daily_rows': daily_rows,
         'overview_line': overview_line,
     }

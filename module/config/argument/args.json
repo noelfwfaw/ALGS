@@ -5121,10 +5121,6 @@
       }
     },
     "ResonanceIsland": {
-      "CleanTrainGarbage": {
-        "type": "checkbox",
-        "value": true
-      },
       "PromotionType": {
         "type": "select",
         "value": "promotion",
@@ -5559,6 +5555,10 @@
         "valuetype": "str"
       },
       "RefreshProfile": {
+        "type": "checkbox",
+        "value": false
+      },
+      "RecycleAtWilderness": {
         "type": "checkbox",
         "value": false
       }

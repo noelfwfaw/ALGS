@@ -1266,18 +1266,23 @@ class AlasGUI(Frame):
                 f"近30天累计：{summary['total_30d']:,}（{summary['active_days']} 天 / "
                 f"{summary['count_30d']} 笔，日均 {summary['avg_day_30d']:,}）{best_part}"
             ).style("--arg-help--")
+            put_text(
+                f"今日进货书：{summary['today_restock']['text']}"
+                f" ｜ 近30天进货书：{summary['restock_30d']['text']}"
+            ).style("--arg-help--")
             if summary["today_trades"]:
                 trade_rows = [
                     [
                         tr.get("time", ""),
                         f"{tr.get('from') or '?'} -> {tr.get('to') or '?'}",
                         f"{tr.get('profit', 0):+,}" + (" (预估)" if tr.get("estimated") else ""),
+                        '—' if tr.get("restock_used") is None else f"{tr['restock_used']:,}",
                     ]
                     for tr in summary["today_trades"]
                 ]
                 put_collapse(
                     f"今日交易明细（{summary['today_count']} 笔）",
-                    [put_table(trade_rows, header=["时间", "路线", "单次利润"])],
+                    [put_table(trade_rows, header=["时间", "路线", "单次利润", "进货书用量"])],
                     open=False,
                 )
             daily_rows = [

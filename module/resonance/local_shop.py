@@ -213,9 +213,9 @@ class ResonanceLocalShop(ResonanceProfile):
                 logger.info('本站无沿途 0 书买入计划')
                 return True
             target, leg = plan
-            # Save the destination before the order in case its receipt is interrupted.
+            # Save the destination and known zero usage in case the receipt is interrupted.
             if not held:
-                state['cargo'] = {'bought_city': stops[0], 'target_city': target}
+                state['cargo'] = {'bought_city': stops[0], 'target_city': target, 'restock_used': 0}
                 _write_json_dict(state, path)
             if self.buy_plan(leg, restock_books=0, bargain_target=0):
                 logger.info('扫货沿途 0 书买入：%s → %s（预计利润 %s）', stops[0], target, leg['profit'])
@@ -243,7 +243,8 @@ class ResonanceLocalShop(ResonanceProfile):
             if not self.sell_all(raise_target=0, approve=approve):
                 logger.warning('%s 无法确认沿途货物可盈利卖出，保留货物稍后重试（利润 %s）', city, profit)
                 return False
-            record_trade_profit(self.config.config_name, profit, from_city=state['cargo']['bought_city'], to_city=city)
+            record_trade_profit(self.config.config_name, profit, from_city=state['cargo']['bought_city'], to_city=city,
+                                restock_used=state['cargo'].get('restock_used'))
             logger.info('扫货沿途卖出利润：+%s（%s）', profit, city)
         state.pop('cargo')
         _write_json_dict(state, path)
