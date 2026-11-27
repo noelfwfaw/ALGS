@@ -282,6 +282,9 @@ dev_tools/link_*_skills.bat
 .screenshots/
 
 # IDE / agent 交接与生成说明：不进版本库
+/AGENTS.md
+/AGENT_STATE.md
+/.agents/
 CODEBUDDY.md
 HANDOVER-*.md
 
