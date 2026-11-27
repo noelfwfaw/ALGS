@@ -72,10 +72,12 @@ import numpy as np
 
 from module.base.button import Button
 from module.base.timer import Timer
-from module.browndust.assets import (EVENT_TAB_TRACKER, WB_CLEARED, WB_CONFIRM_DIALOG,
-                                     WB_EDIT_TEAM, WB_RECOMMEND, WB_RECOMMEND_TITLE,
-                                     WB_RESULT_BACK, WB_VICTORY)
-from module.browndust.browndust_ui import page_event
+from module.browndust.assets import (EVENT_TAB_TRACKER, WB_BATTLE_START,
+                                     WB_CLEARED, WB_CONFIRM_DIALOG,
+                                     WB_EDIT_TEAM, WB_RECOMMEND,
+                                     WB_RECOMMEND_TITLE, WB_RESULT_BACK,
+                                     WB_TEAM_HEADER, WB_VICTORY)
+from module.browndust.page import TEAM_BACK, page_event
 from module.logger import logger
 from module.ocr.ocr import Ocr
 
@@ -117,9 +119,14 @@ CONFIRM_OK = Button(area=(645, 414, 770, 449), color=(0, 0, 0),  # alas-lint: al
 # 确认框的标题那一行，用来等淡入画完（标题是整块一起淡进来的）。
 CONFIRM_DIALOG_AREA = (560, 270, 720, 320)
 
-# 编辑队伍页左上角的返回箭头。跟其它页的返回键同一个位置（游戏统一的左上角胶囊）。
-TEAM_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
-                   button=(124, 24, 152, 56), name='TEAM_BACK')
+# 编辑队伍页左侧竖排三个页签（角色队伍 / 装备管理 / 管理阵形）。
+# 游戏偶发默认进到「恢复 / 取消 / 确认」编辑态，点「管理阵形」切一下即可刷出「推荐部署」。
+TEAM_TAB_EDIT = Button(area=(124, 105, 163, 138), color=(0, 0, 0),  # alas-lint: allow - plain tab icon on team page, never passed to appear()
+                       button=(143, 121, 143, 121), name='WB_TEAM_TAB_EDIT')
+TEAM_TAB_GEAR = Button(area=(121, 185, 151, 214), color=(0, 0, 0),  # alas-lint: allow - plain tab icon on team page, never passed to appear()
+                       button=(136, 199, 136, 199), name='WB_TEAM_TAB_GEAR')
+TEAM_TAB_FORMATION = Button(area=(126, 262, 153, 290), color=(0, 0, 0),  # alas-lint: allow - plain tab icon on team page, never passed to appear()
+                            button=(139, 275, 139, 275), name='WB_TEAM_TAB_FORMATION')
 
 # 魔兽页底部那枚「去战斗」。它左边是「编辑队伍」，两颗都是米白胶囊 + 黑字，
 # 单独抠其中一颗都会跟另一颗串（同色同形同高），所以只借位置，判据用上面的页面检查点。
@@ -127,10 +134,20 @@ FIGHT = Button(area=(941, 633, 1148, 679), color=(0, 0, 0),  # alas-lint: allow 
                button=(1043, 655, 1043, 655), name='WB_FIGHT')
 
 # 战斗界面右上角那排圆钮里的自动战斗开关，以及它亮起来时的蓝光范围。
+# 实测自动战斗开启时 (1001,26)-(1033,58) 内 B-R>35 像素占比为 0.49~0.55；
+# 关着且背后是蓝棚顶等蓝色背景时可达 0.240，故阈值取 0.38 区分。
 AUTO_BATTLE = Button(area=(995, 20, 1040, 64), color=(0, 0, 0),  # alas-lint: allow - the icon has two states told apart by colour, read before every tap
                      button=(1017, 42, 1017, 42), name='WB_AUTO_BATTLE')
 AUTO_GLOW = (1001, 26, 1033, 58)
-AUTO_GLOW_RATIO = 0.10
+AUTO_GLOW_RATIO = 0.38
+AUTO_BATTLE_STALL_CHECKS = 2
+
+
+def _auto_glow_ratio(image):
+    """Blue-glow pixel ratio in `AUTO_GLOW` (ON: 0.49~0.55; OFF over blue tent: 0.240; OFF normal: 0.000)."""
+    x0, y0, x1, y1 = AUTO_GLOW
+    patch = np.array(image)[y0:y1, x0:x1].astype(int)
+    return float(((patch[:, :, 2] - patch[:, :, 0]) > 35).mean())
 
 # 结算页右下角的「返回」（素材 `WB_RESULT_BACK`）。**不要写死坐标**：VICTORY 页是
 # [返回][挑战下一个难度]，BATTLE END 页是 [重新挑战][返回]，两边的返回差着 97 像素、
@@ -320,6 +337,37 @@ class EventWorldBoss:
         logger.warning('[World boss] cannot open 魔兽追踪者')
         return False
 
+    def _wait_team_page_open(self, timeout=10):
+        """Wait until either 「推荐部署」 or the team page header appears."""
+        for _ in self.loop(timeout=timeout):
+            if self.appear(WB_RECOMMEND, offset=(20, 20)):
+                return True
+            if self.appear(WB_TEAM_HEADER, offset=(20, 20)):
+                return True
+        return False
+
+    def _reveal_recommend_button(self):
+        """
+        Ensure 「推荐部署」 is visible on the team edit page.
+
+        Pages:
+            in: page_world_boss_team
+            out: page_world_boss_team
+        """
+        if self.appear(WB_RECOMMEND, offset=(20, 20)):
+            return True
+        logger.info('[World boss] 推荐部署 is hidden on the team page, switching left tabs to reveal it')
+        self.device.click(TEAM_TAB_FORMATION)  # alas-lint: allow - team page header was matched right above
+        if self.wait_until_appear(WB_RECOMMEND, offset=(20, 20), timeout=4):
+            return True
+        self.device.click(TEAM_TAB_GEAR)  # alas-lint: allow - team page header was matched right above
+        self.device.sleep(0.8)
+        self.device.click(TEAM_TAB_FORMATION)  # alas-lint: allow - team page header was matched right above
+        if self.wait_until_appear(WB_RECOMMEND, offset=(20, 20), timeout=4):
+            return True
+        self.device.click(TEAM_TAB_EDIT)  # alas-lint: allow - team page header was matched right above
+        return self.wait_until_appear(WB_RECOMMEND, offset=(20, 20), timeout=3)
+
     def ensure_team(self):
         """
         编辑队伍 → 推荐部署 → 用第一条 → 确认替换 → 返回。
@@ -340,8 +388,13 @@ class EventWorldBoss:
             logger.warning('[World boss] not on the boss page, cannot edit the team')
             return False
         self.device.click(WB_EDIT_TEAM)  # alas-lint: allow - matched right above
-        if not self.wait_until_appear(WB_RECOMMEND, offset=(20, 20), timeout=10):
+        if not self._wait_team_page_open(timeout=10):
             logger.warning('[World boss] the team page did not open')
+            self.team_back()
+            return False
+        if not self._reveal_recommend_button():
+            logger.warning('[World boss] 推荐部署 did not appear after switching left tabs')
+            self.team_back()
             return False
 
         self.device.click(WB_RECOMMEND)  # alas-lint: allow - matched right above
@@ -529,8 +582,10 @@ class EventWorldBoss:
             self.device.save_screenshot(genre='world_boss_no_fight')
             return None, 0
 
-        # 加载完之后血条还在画，等这块稳住再点自动战斗，否则会点在加载画面上。
-        self.wait_until_still(BATTLE_HUD_AREA, timeout=BATTLE_ENTER_TIMEOUT)
+        # 加载黑屏过渡帧是完全静止的，先等战斗 UI（BATTLE 胶囊或自动环或结算页）真正画出来，
+        # 再等短稳定后点自动战斗，避免黑屏加载阶段就把切换按钮点掉或误判。
+        self._wait_battle_ready(timeout=BATTLE_ENTER_TIMEOUT)
+        self.wait_until_still(BATTLE_HUD_AREA, timeout=5)
 
         self.auto_battle_on()
         if not self.wb_wait_end():
@@ -544,6 +599,19 @@ class EventWorldBoss:
         logger.attr(f'{name} result', ('VICTORY' if victory else 'BATTLE END') + f', {damage} damage')
         self.wb_battle_back()
         return victory, damage
+
+    def _wait_battle_ready(self, timeout=BATTLE_ENTER_TIMEOUT):
+        """Wait until battle HUD (`WB_BATTLE_START`, active auto glow, or result) actually renders."""
+        for _ in self.loop(timeout=timeout):
+            self.device.stuck_record_clear()
+            if self.appear(WB_BATTLE_START, offset=(20, 20)):
+                return True
+            if self.appear(WB_RESULT_BACK, offset=RESULT_BACK_OFFSET):
+                return True
+            if _auto_glow_ratio(self.device.image) > AUTO_GLOW_RATIO:
+                return True
+        logger.warning('[World boss] battle HUD did not appear before timeout')
+        return False
 
     def auto_battle_on(self):
         """
@@ -601,10 +669,7 @@ class EventWorldBoss:
         """
         for _ in range(3 if stable else 1):
             self.device.screenshot()
-            x0, y0, x1, y1 = AUTO_GLOW
-            patch = np.array(self.device.image)[y0:y1, x0:x1].astype(int)
-            ratio = ((patch[:, :, 2] - patch[:, :, 0]) > 35).mean()
-            if ratio <= AUTO_GLOW_RATIO:
+            if _auto_glow_ratio(self.device.image) <= AUTO_GLOW_RATIO:
                 return False
         return True
 
@@ -619,12 +684,14 @@ class EventWorldBoss:
         换成模板匹配既便宜又不会误判。
 
         等待期间每 5 秒回头看一眼自动战斗 —— 它会莫名其妙掉回手动（实测队伍交接
-        的时候掉过一次），掉了就重新打开，否则这一场会一直停在当前回合。
+        的时候掉过一次），掉了就重新打开，否则这一场会一直停在当前回合。若因纯蓝
+        背景导致颜色判据失效且连续多次卡在 `BATTLE` 待命画面，也强制补点一次开关。
 
         Returns:
             bool: 有没有等到。
         """
-        timer = Timer(5)
+        timer = Timer(5).start()
+        battle_stall = 0
         for _ in self.loop(timeout=BATTLE_TIMEOUT):
             # 一场仗要打好几分钟，这期间一个点击都没有，框架的卡死计时器（60 帧没有
             # 一次点击就判卡死，硬约束 13）会把它当成卡死。这里明说"我在盯着屏幕"，
@@ -642,8 +709,17 @@ class EventWorldBoss:
             if timer.reached():
                 timer.reset()
                 if not self.auto_battle_running(stable=True):
+                    battle_stall = 0
                     logger.info('[World boss] auto battle went off, turn it on again')
                     self.auto_battle_on()
+                elif self.appear(WB_BATTLE_START, offset=(20, 20)):
+                    battle_stall += 1
+                    if battle_stall >= AUTO_BATTLE_STALL_CHECKS:
+                        battle_stall = 0
+                        logger.info('[World boss] BATTLE button stayed on screen, force-tap auto battle')
+                        self.device.click(AUTO_BATTLE)  # alas-lint: allow - guarded by appear(WB_BATTLE_START) stall watchdog
+                else:
+                    battle_stall = 0
         return False
 
     def wb_battle_back(self):

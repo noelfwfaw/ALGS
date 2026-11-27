@@ -51,7 +51,7 @@ from module.browndust.assets import (BATTLE_PANEL, EVENT_ENTRY, EVENT_MISSION_CL
                                      MAP_HOME_BTN, PASS_ENTRY, PASS_TITLE,
                                      SHOP_TITLE, STORY_TITLE, SUMMON_BANNER,
                                      SUMMON_ENTRY, TASK_CLAIM_ALL, TASK_ENTRY,
-                                     WB_EDIT_TEAM)
+                                     WB_EDIT_TEAM, WB_TEAM_HEADER)
 from module.ui.page import Page
 
 page_map = Page(MAP_HOME_BTN)
@@ -222,6 +222,13 @@ BOSS_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow
 # 活动页底部第四块木牌进、魔兽页左上角箭头出。
 page_event.link(button=EVENT_TAB_TRACKER, destination=page_world_boss)
 page_world_boss.link(button=BOSS_BACK, destination=page_event)
+
+# 编辑队伍页。左上角头像图标在三个页签（编辑队伍 / 装备管理 / 管理阵形）上保持不变，
+# 用作页面检查点；左上角返回箭头退回魔兽页。
+page_world_boss_team = Page(WB_TEAM_HEADER)
+TEAM_BACK = Button(area=(124, 24, 152, 56), color=(0, 0, 0),  # alas-lint: allow - a click point on the back arrow, there is no image to match
+                   button=(124, 24, 152, 56), name='TEAM_BACK')
+page_world_boss_team.link(button=TEAM_BACK, destination=page_world_boss)
 
 # ---- 活动任务（助力任务）--------------------------------------------------
 #
