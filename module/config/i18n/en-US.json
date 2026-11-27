@@ -366,6 +366,10 @@
       "name": "Resonance: B.C.R.L. Exchange",
       "help": "Exchange only listed items, up to the quantity allowed in one order for each item."
     },
+    "ResonanceLocalShop": {
+      "name": "Resonance Local Night Chains Stores",
+      "help": "Each week, shop along the lowest estimated driving-fatigue route from your current city and trade profitable goods using zero restock books."
+    },
     "ResonanceTrade": {
       "name": "Task.ResonanceTrade.name",
       "help": "Task.ResonanceTrade.help"
@@ -2145,6 +2149,16 @@
     "Include": {
       "name": "Exchange filter",
       "help": "Enter exact in-game item names separated by commas or newlines. Append to the two default names, or clear the list to skip."
+    }
+  },
+  "ResonanceLocalShop": {
+    "_info": {
+      "name": "Shopping Settings",
+      "help": "Progress is saved per city and resets Monday at 05:00 China time."
+    },
+    "Rescan": {
+      "name": "Rescan This Week",
+      "help": "Enable this and clear the next run time to rescan immediately. The task resets this week's progress and turns this switch off when it starts."
     }
   },
   "ResonanceTrade": {

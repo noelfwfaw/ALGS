@@ -453,6 +453,10 @@ class AlGS(GameScheduler):
         from module.resonance.exchange import ResonanceExchange
         ResonanceExchange(config=self.config, device=self.device).run()
 
+    def resonance_local_shop(self):
+        from module.resonance.local_shop import ResonanceLocalShop
+        ResonanceLocalShop(config=self.config, device=self.device).run()
+
     def resonance_trade(self):
         from module.resonance.caravan import ResonanceCaravan
         ResonanceCaravan(config=self.config, device=self.device).run()

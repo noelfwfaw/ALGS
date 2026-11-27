@@ -1337,6 +1337,22 @@
       "Storage": {}
     }
   },
+  "ResonanceLocalShop": {
+    "Scheduler": {
+      "Enable": false,
+      "NextRun": "2020-01-01 00:00:00",
+      "Command": "ResonanceLocalShop",
+      "SuccessInterval": 0,
+      "FailureInterval": 120,
+      "ServerUpdate": "05:00"
+    },
+    "ResonanceLocalShop": {
+      "Rescan": false
+    },
+    "Storage": {
+      "Storage": {}
+    }
+  },
   "ResonanceTrade": {
     "Scheduler": {
       "Enable": false,

@@ -429,3 +429,113 @@ class TestResonanceCaravan(unittest.TestCase):
         self.assertEqual(bought_names, [safe_good])
         self.assertNotIn(neg_only_good, bought_names)
         self.assertLess(repo['leg']['combinations'][0]['single_profit'], 600)
+
+    def test_unreadable_fatigue_delays_without_overflow_bypass_or_buying(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import PRESTIGE_CITIES
+
+        prices = _sample_prices()
+        profile = {'maxLot': 994, 'prestige': {c: 20 for c in PRESTIGE_CITIES}, 'roles': {}}
+
+        probe = ResonanceCaravan.__new__(ResonanceCaravan)
+        probe.device = Mock()
+        probe.enter_exchange = Mock()
+        probe.read_fatigue = Mock(return_value=None)
+        self.assertIsNone(probe._read_current_fatigue({}))
+        probe.enter_exchange.assert_called_once()
+        self.assertEqual(probe.read_fatigue.call_count, 4)
+        self.assertEqual(probe.device.screenshot.call_count, 2)
+
+        caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+        caravan.device = Mock()
+        caravan.config = SimpleNamespace(
+            ResonanceTrade_SortBy='profit',
+            ResonanceTrade_RoundTrip=False,
+            ResonanceTrade_RestockBooks=0,
+            ResonanceTrade_BargainPercent=0,
+            ResonanceTrade_RaisePercent=0,
+            ResonanceTrade_UseRamming=False,
+            ResonanceTrade_UseFatigueItem='none',
+            ResonanceTrade_UseBento=False,
+            ResonanceTrade_ExcludedCities='武林源',
+            ResonanceTrade_RefreshProfile=False,
+            ResonanceTrade_MarketFilter='good',
+            ResonanceTrade_MarketOverflowProtect=True,
+            ResonanceTrade_MarketWaitMinutes=30,
+            task_delay=Mock(),
+        )
+        caravan.ui_ensure = Mock()
+        caravan.wait_until_docked = Mock()
+        caravan.ensure_profile = Mock(return_value=profile)
+        caravan.get_current_city = Mock(return_value='阿妮塔发射中心')
+        caravan.sell_all = Mock(return_value=False)
+        caravan.buy_plan = Mock()
+        caravan.travel_to = Mock()
+        caravan.ui_goto_main = Mock()
+        caravan._read_current_fatigue = Mock(return_value=None)
+
+        with patch('module.resonance.caravan.load_trade_state', return_value={}), \
+                patch('module.resonance.caravan.clear_trade_state'), \
+                patch('module.resonance.caravan.fetch_prices', return_value=prices):
+            caravan.run()
+
+        caravan.buy_plan.assert_not_called()
+        caravan.travel_to.assert_not_called()
+        caravan.ui_goto_main.assert_called_once()
+        caravan.config.task_delay.assert_called_once_with(minute=10)
+
+    def test_atomic_fatigue_gate_blocks_before_buying_and_reserves_drive_plus_sell(self):
+        from module.resonance.caravan import ResonanceCaravan
+        from module.resonance.columba import PRESTIGE_CITIES
+
+        prices = _sample_prices()
+        profile = {'maxLot': 994, 'prestige': {c: 20 for c in PRESTIGE_CITIES}, 'roles': {}}
+
+        def make_caravan(fatigue_seq):
+            caravan = ResonanceCaravan.__new__(ResonanceCaravan)
+            caravan.device = Mock()
+            caravan.config = SimpleNamespace(
+                ResonanceTrade_SortBy='profit',
+                ResonanceTrade_RoundTrip=False,
+                ResonanceTrade_RestockBooks=2,
+                ResonanceTrade_BargainPercent=20,
+                ResonanceTrade_RaisePercent=20,
+                ResonanceTrade_ReturnBargain=False,
+                ResonanceTrade_UseRamming=False,
+                ResonanceTrade_UseFatigueItem='none',
+                ResonanceTrade_UseBento=False,
+                ResonanceTrade_ExcludedCities='武林源',
+                ResonanceTrade_RefreshProfile=False,
+                task_delay=Mock(),
+            )
+            caravan.ui_ensure = Mock()
+            caravan.wait_until_docked = Mock()
+            caravan.ensure_profile = Mock(return_value=profile)
+            caravan.get_current_city = Mock(return_value='阿妮塔发射中心')
+            caravan.sell_all = Mock(return_value=False)
+            caravan.buy_plan = Mock(return_value=True)
+            caravan.travel_to = Mock(return_value=True)
+            caravan.ui_goto_main = Mock()
+            caravan._read_current_fatigue = Mock(side_effect=fatigue_seq)
+            return caravan
+
+        # remaining=100 (< atomic 71+44+44+4=163) must stop BEFORE buying or using restock books
+        c_low = make_caravan([(812, 912)])
+        with patch('module.resonance.caravan.load_trade_state', return_value={}), \
+                patch('module.resonance.caravan.clear_trade_state'), \
+                patch('module.resonance.caravan.fetch_prices', return_value=prices):
+            c_low.run()
+        c_low.buy_plan.assert_not_called()
+        c_low.travel_to.assert_not_called()
+        c_low.config.task_delay.assert_called_once()
+
+        # remaining=200 (>= 163) runs leg and passes reserve_fatigue = drive(71) + sell(44) + buf(4) = 119
+        c_ok = make_caravan([(712, 912), (890, 912)])
+        with patch('module.resonance.caravan.load_trade_state', return_value={}), \
+                patch('module.resonance.caravan.save_trade_state'), \
+                patch('module.resonance.caravan.clear_trade_state'), \
+                patch('module.resonance.caravan.fetch_prices', return_value=prices):
+            c_ok.run()
+        c_ok.buy_plan.assert_called_once()
+        self.assertEqual(c_ok.buy_plan.call_args[1]['reserve_fatigue'], 119)
+        c_ok.travel_to.assert_called_once()

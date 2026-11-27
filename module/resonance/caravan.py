@@ -25,8 +25,9 @@ from module.resonance.profit_log import parse_sell_profit_text, record_trade_pro
 from module.resonance.route import _calc_fatigue, recommend_routes
 from module.resonance.shop import filter_names
 from module.resonance.smart_cycle import (
-    format_cycle_summary, load_smart_state, plan_smart_cycle_leg, plan_smart_endgame_leg,
-    record_negotiation_fatigue, record_zero_book_buy, update_smart_books,
+    DRIVE_FATIGUE_BUFFER, format_cycle_summary, leg_atomic_fatigue_budget, load_smart_state, plan_smart_cycle_leg,
+    plan_smart_endgame_leg, record_negotiation_fatigue, record_zero_book_buy, safe_negotiation_budget,
+    update_smart_books,
 )
 
 TRADE_STATE_PATH = os.path.join('config', 'state', 'resonance_trade_state.json')
@@ -199,30 +200,23 @@ class ResonanceCaravan(ResonanceInvest):
         if profit is not None:
             from_city = state.get('bought_city') or ''
             config_name = getattr(self.config, 'config_name', '') or 'default'
-            record_trade_profit(
-                config_name, profit, from_city=from_city, to_city=current_city, estimated=estimated,
-            )
+            record_trade_profit(config_name, profit, from_city=from_city, to_city=current_city, estimated=estimated)
             tag = ' (预估)' if estimated else ''
             logger.info('跑商卖出利润: %+d (%s -> %s%s)', profit, from_city or '未知', current_city, tag)
         return True
 
     @staticmethod
     def _estimate_leg_fatigue(leg, bargain_pct, raise_pct, is_reposition, is_return=False, return_bargain=False):
-        """Estimate total fatigue needed for buying, negotiating, and driving one leg."""
+        """Estimate conservative atomic fatigue needed for buy-neg, driving, and sell-neg."""
         allow_neg = (not is_reposition) and (not is_return or return_bargain) and bool(leg.get('combinations'))
-        if not allow_neg:
-            return int(leg.get('fatigue', 0))
-        negotiate_cap = (8 if bargain_pct > 0 else 0) + (8 if raise_pct > 0 else 0)
-        return int(leg.get('fatigue', 0)) + negotiate_cap
+        bp, rp = (bargain_pct, raise_pct) if allow_neg else (0, 0)
+        return leg_atomic_fatigue_budget(leg.get('fatigue', 0), bp, rp)
 
     def _schedule_fatigue_wait(self, cur_fatigue, max_fatigue, needed_fatigue):
         """Return to main screen and schedule NextRun based on 6 min/fatigue recovery."""
         wait_min = max(6, compute_fatigue_recovery_minutes(cur_fatigue, max_fatigue, needed_fatigue))
         remaining = max(0, max_fatigue - cur_fatigue)
-        logger.info(
-            '琐呐跑商疲劳不足 (剩余 %d, 本趟预计需要 %d), 已排期 %d 分钟后继续',
-            remaining, needed_fatigue, wait_min,
-        )
+        logger.info('琐呐跑商疲劳不足 (剩余 %d, 本趟预计需要 %d), 已排期 %d 分钟后继续', remaining, needed_fatigue, wait_min)
         self.ui_goto_main()
         self.config.task_delay(minute=wait_min)
 
@@ -240,13 +234,25 @@ class ResonanceCaravan(ResonanceInvest):
         return False
 
     def _read_current_fatigue(self, profile):
-        """Read live (cur, max) fatigue from top bar or world map, falling back to cache."""
+        """Read live (cur, max) fatigue from the top bar, retrying briefly before returning None."""
         fatigue = self.read_fatigue()
         if fatigue is not None:
             return fatigue
         self.enter_exchange(page_resonance_trade_buy)
-        fatigue = self.read_fatigue()
-        return fatigue if fatigue is not None else (0, 900)
+        for attempt in range(3):
+            if attempt > 0:
+                self.device.screenshot()
+            fatigue = self.read_fatigue()
+            if fatigue is not None:
+                return fatigue
+        logger.warning('当前疲劳值 OCR 多次失败，无法确认剩余疲劳')
+        return None
+
+    def _delay_unreadable_fatigue(self):
+        """Return to main screen and retry later when live fatigue cannot be read."""
+        logger.warning('无法读取当前疲劳值，暂不跑商，10 分钟后重试')
+        self.ui_goto_main()
+        self.config.task_delay(minute=10)
 
     def _resume_pending_transit(self, current_city, state, use_ramming, item_mode, use_bento, data):
         """Depart directly if crash happened after buying cargo in `current_city`."""
@@ -256,8 +262,12 @@ class ResonanceCaravan(ResonanceInvest):
             return current_city, False
 
         logger.info('检测到上次在 %s 购入货物尚未出发，跳过卖出并直接前往 %s', bought, target)
-        cur_f, max_f = self._read_current_fatigue({})
-        needed = _calc_fatigue(current_city, target, {}, data)
+        fatigue = self._read_current_fatigue({})
+        if fatigue is None:
+            self._delay_unreadable_fatigue()
+            return None, False
+        cur_f, max_f = fatigue
+        needed = _calc_fatigue(current_city, target, {}, data) + DRIVE_FATIGUE_BUFFER
         if not self._ensure_fatigue_for_leg(cur_f, max_f, needed, item_mode, use_bento):
             return None, False
         self.travel_to(target, use_ramming=use_ramming, configure_assist=True)
@@ -267,14 +277,17 @@ class ResonanceCaravan(ResonanceInvest):
         """Visit nearest rest area to drink sodas when fatigue >= 300 and daily quota remains."""
         if is_rest_area_done_today() or state.get('bought_city') == current_city:
             return current_city, assist_done
-        cur_f, max_f = self._read_current_fatigue(player_cfg)
+        fatigue = self._read_current_fatigue(player_cfg)
+        if fatigue is None:
+            return current_city, assist_done
+        cur_f, max_f = fatigue
         if cur_f < REST_AREA_MIN_FATIGUE:
             logger.info('当前疲劳 %d 低于 %d，暂不去休息区喝汽水', cur_f, REST_AREA_MIN_FATIGUE)
             return current_city, assist_done
 
         rest_city, travel_f = nearest_rest_area_city(current_city, player_cfg['roles'], data)
         if rest_city != current_city:
-            if max_f - cur_f < travel_f:
+            if max_f - cur_f < travel_f + DRIVE_FATIGUE_BUFFER:
                 return current_city, assist_done
             logger.info('当前疲劳 %d >= %d，前往最近休息区 %s 喝汽水', cur_f, REST_AREA_MIN_FATIGUE, rest_city)
             self._sell_and_record_profit(current_city, state, raise_target=0)
@@ -342,16 +355,15 @@ class ResonanceCaravan(ResonanceInvest):
             clear_trade_state()
             state.clear()
             if use_rest_area:
-                current_city, assist_done = self._maybe_drink_rest_area(
-                    current_city, player_cfg, state, use_ramming, assist_done, data,
-                )
+                current_city, assist_done = self._maybe_drink_rest_area(current_city, player_cfg, state, use_ramming, assist_done, data)
         if auto_invest and invest_state.get('city') != current_city and state.get('bought_city') != current_city:
             self.invest_current_city()
             invest_state['city'] = current_city
         fatigue = self._read_current_fatigue(player_cfg)
-        if state.get('bought_city') != current_city and not self._check_market_gate(
-            prices, player_cfg, sort_by, manual_cities, fatigue[0], market_filter, overflow_protect, wait_min, data, route_mode=route_mode,
-        ):
+        if fatigue is None:
+            self._delay_unreadable_fatigue()
+            return None, assist_done
+        if state.get('bought_city') != current_city and not self._check_market_gate(prices, player_cfg, sort_by, manual_cities, fatigue[0], market_filter, overflow_protect, wait_min, data, route_mode=route_mode):
             return None, assist_done
         plan = self._plan_leg_for_mode(current_city, prices, player_cfg, sort_by, manual_cities, route_mode, config_name, data)
         if plan is None:
@@ -359,15 +371,20 @@ class ResonanceCaravan(ResonanceInvest):
             self.ui_goto_main()
             self.config.task_delay(minute=30)
             return None, assist_done
-        needed = (int(plan['leg'].get('fatigue', 0)) + int(plan.get('expected_neg_fatigue', 0))
-                  if plan.get('is_smart_cycle') else self._estimate_leg_fatigue(
-                      plan['leg'], bargain_pct, raise_pct, plan['is_reposition'],
-                      is_return=plan['is_return'], return_bargain=return_bargain))
+        needed = (
+            int(plan.get('atomic_fatigue') or leg_atomic_fatigue_budget(
+                plan['leg'].get('fatigue', 0), plan.get('bargain_target', 0), plan.get('raise_target', 0),
+            ))
+            if plan.get('is_smart_cycle') else self._estimate_leg_fatigue(
+                plan['leg'], bargain_pct, raise_pct, plan['is_reposition'],
+                is_return=plan['is_return'], return_bargain=return_bargain,
+            )
+        )
         if not self._has_or_recover_fatigue(fatigue[0], fatigue[1], needed, item_mode, use_bento):
             endgame = None
             if plan.get('is_smart_cycle'):
                 if use_bento or item_mode != 'none':
-                    fatigue = self._read_current_fatigue(player_cfg)
+                    fatigue = self._read_current_fatigue(player_cfg) or fatigue
                 endgame = plan_smart_endgame_leg(
                     current_city, plan.get('_edges'), plan.get('cycle'),
                     max(0, fatigue[1] - fatigue[0]), book_weight=plan['cycle']['book_weight'],
@@ -377,29 +394,21 @@ class ResonanceCaravan(ResonanceInvest):
                 return None, assist_done
             plan = endgame
 
-        buy_bargain, next_negotiate_sell, next_sell_raise = self._log_planned_leg(
-            plan, bargain_pct, raise_pct, return_bargain,
-        )
+        buy_bargain, next_negotiate_sell, next_sell_raise = self._log_planned_leg(plan, bargain_pct, raise_pct, return_bargain)
         if plan['leg'].get('combinations'):
-            bought = self.buy_plan(plan['leg'], restock_books=plan['leg']['restock'], bargain_target=buy_bargain)
+            sell_r = next_sell_raise if next_sell_raise is not None else (raise_pct if next_negotiate_sell else 0)
+            buy_reserve = int(plan['leg'].get('fatigue', 0)) + safe_negotiation_budget(sell_r) + DRIVE_FATIGUE_BUFFER
+            bought = self.buy_plan(plan['leg'], restock_books=plan['leg']['restock'], bargain_target=buy_bargain, reserve_fatigue=buy_reserve)
             if bought:
-                self._finish_bought_leg(
-                    current_city, plan, state, buy_bargain, next_negotiate_sell, next_sell_raise, route_mode, config_name,
-                )
+                self._finish_bought_leg(current_city, plan, state, buy_bargain, next_negotiate_sell, next_sell_raise, route_mode, config_name)
         self.travel_to(plan['to_city'], use_ramming=use_ramming, configure_assist=not assist_done)
         return plan['to_city'], True
 
     def _finish_bought_leg(self, current_city, plan, state, buy_bargain, next_negotiate_sell, next_sell_raise, route_mode, config_name):
         """Persist post-buy checkpoint state and update smart-cycle telemetry."""
         exp_profit = plan['leg'].get('profit', 0)
-        save_trade_state(
-            current_city, plan['to_city'], negotiate_sell=next_negotiate_sell,
-            expected_profit=exp_profit, sell_raise_target=next_sell_raise,
-        )
-        state.update({
-            'bought_city': current_city, 'target_city': plan['to_city'],
-            'negotiate_sell': next_negotiate_sell, 'expected_profit': exp_profit,
-        })
+        save_trade_state(current_city, plan['to_city'], negotiate_sell=next_negotiate_sell, expected_profit=exp_profit, sell_raise_target=next_sell_raise)
+        state.update({'bought_city': current_city, 'target_city': plan['to_city'], 'negotiate_sell': next_negotiate_sell, 'expected_profit': exp_profit})
         if next_sell_raise is not None:
             state['sell_raise_target'] = next_sell_raise
         if route_mode != 'smart_cycle':
@@ -430,34 +439,39 @@ class ResonanceCaravan(ResonanceInvest):
         buy_bargain = bargain_pct if allow_neg else 0
         leg_kind = '接驳段(0本)' if plan['is_reposition'] else ('回程' if plan['is_return'] else '主路线')
         logger.info('琐呐跑商[%s]: %s -> %s (进货书=%d, 预计利润=%d, 路程疲劳=%d)',
-                    leg_kind, plan['from_city'], plan['to_city'],
-                    plan['leg'].get('restock', 0), plan['leg'].get('profit', 0), plan['leg'].get('fatigue', 0))
+                    leg_kind, plan['from_city'], plan['to_city'], plan['leg'].get('restock', 0), plan['leg'].get('profit', 0), plan['leg'].get('fatigue', 0))
         return buy_bargain, allow_neg and (raise_pct > 0), None
 
     def _collect_run_config(self):
         """Collect runtime ResonanceTrade options from config into a flat tuple."""
-        route_mode = getattr(self.config, 'ResonanceTrade_RouteMode', 'auto')
-        manual = (getattr(self.config, 'ResonanceTrade_ManualCityA', ''), getattr(self.config, 'ResonanceTrade_ManualCityB', '')) if route_mode == 'manual' else None
+        cfg = self.config
+        route_mode = getattr(cfg, 'ResonanceTrade_RouteMode', 'auto')
+        manual = (getattr(cfg, 'ResonanceTrade_ManualCityA', ''), getattr(cfg, 'ResonanceTrade_ManualCityB', '')) if route_mode == 'manual' else None
         market_opts = (
-            getattr(self.config, 'ResonanceTrade_MarketFilter', 'all'),
-            bool(getattr(self.config, 'ResonanceTrade_MarketOverflowProtect', True)),
-            max(5, int(getattr(self.config, 'ResonanceTrade_MarketWaitMinutes', 30) or 30)),
+            getattr(cfg, 'ResonanceTrade_MarketFilter', 'all'),
+            bool(getattr(cfg, 'ResonanceTrade_MarketOverflowProtect', True)),
+            max(5, int(getattr(cfg, 'ResonanceTrade_MarketWaitMinutes', 30) or 30)),
         )
         return (
-            getattr(self.config, 'ResonanceTrade_SortBy', 'profit_per_fatigue'),
-            int(getattr(self.config, 'ResonanceTrade_BargainPercent', 20) or 0),
-            int(getattr(self.config, 'ResonanceTrade_RaisePercent', 20) or 0),
-            bool(getattr(self.config, 'ResonanceTrade_ReturnBargain', False)),
-            bool(getattr(self.config, 'ResonanceTrade_UseRamming', False)),
-            normalize_fatigue_item_mode(getattr(self.config, 'ResonanceTrade_UseFatigueItem', 'none')),
-            bool(getattr(self.config, 'ResonanceTrade_UseBento', False)),
-            bool(getattr(self.config, 'ResonanceTrade_UseRestArea', False)),
-            bool(getattr(self.config, 'ResonanceTrade_AutoInvest', False)),
-            route_mode, manual, market_opts,
+            getattr(cfg, 'ResonanceTrade_SortBy', 'profit_per_fatigue'),
+            int(getattr(cfg, 'ResonanceTrade_BargainPercent', 20) or 0), int(getattr(cfg, 'ResonanceTrade_RaisePercent', 20) or 0),
+            bool(getattr(cfg, 'ResonanceTrade_ReturnBargain', False)), bool(getattr(cfg, 'ResonanceTrade_UseRamming', False)),
+            normalize_fatigue_item_mode(getattr(cfg, 'ResonanceTrade_UseFatigueItem', 'none')),
+            bool(getattr(cfg, 'ResonanceTrade_UseBento', False)), bool(getattr(cfg, 'ResonanceTrade_UseRestArea', False)),
+            bool(getattr(cfg, 'ResonanceTrade_AutoInvest', False)), route_mode, manual, market_opts,
         )
 
     def run(self):
         """Run automated trading legs until fatigue runs out and schedule next run."""
+        from module.resonance.local_shop import local_shop_state_path
+        from module.resonance.smart_state import _read_json_dict
+
+        cross_get = getattr(self.config, 'cross_get', None)
+        if (cross_get and cross_get('ResonanceLocalShop.Scheduler.Enable', False)
+                and _read_json_dict(local_shop_state_path(self.config.config_name)).get('cargo')):
+            logger.info('扫货任务有沿途货物待售，本次常规跑商延后')
+            self.config.task_delay(minute=15)
+            return
         data = load_columba_data()
         self.ui_ensure(page_main, skip_first_screenshot=False)
         self.wait_until_docked()

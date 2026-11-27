@@ -18,7 +18,7 @@ from module.resonance.page import (
 )
 from module.resonance.profile import ResonanceProfile
 from module.resonance.route import _calc_fatigue
-from module.resonance.trade import parse_fraction_text
+from module.resonance.trade import parse_fatigue_text, parse_fraction_text
 
 OFFSET = (5, 5)
 FATIGUE_RECOVERY_MIN_PER_POINT = 6
@@ -190,11 +190,17 @@ class ResonanceFatigue(ResonanceProfile):
         rgb = np.stack((up, up, up), axis=2)
         raw = BENTO_FATIGUE_OCR.ocr([rgb], direct_ocr=True)
         text = raw[0] if isinstance(raw, list) and raw else str(raw or '')
-        return parse_fraction_text(text)
+        fatigue = parse_fatigue_text(text, known_max=getattr(self, '_last_max_fatigue', None))
+        if fatigue is not None:
+            self._last_max_fatigue = fatigue[1]
+        return fatigue
 
     def read_rest_drink_fatigue(self):
         """Read (cur, max) fatigue from the rest-area drink selection bar."""
-        return parse_fraction_text(REST_DRINK_FATIGUE_OCR.ocr(self.device.image))
+        fatigue = parse_fatigue_text(REST_DRINK_FATIGUE_OCR.ocr(self.device.image), known_max=getattr(self, '_last_max_fatigue', None))
+        if fatigue is not None:
+            self._last_max_fatigue = fatigue[1]
+        return fatigue
 
     def use_bento_cabinet(self):
         """Navigate to bento cabinet, use all available bentos, and return latest fatigue."""
@@ -203,7 +209,7 @@ class ResonanceFatigue(ResonanceProfile):
         latest = before
         clicks = 0
         ready = Timer(1.5).start()
-        self.interval_clear((assets.BENTO_USE_ALL, assets.GARBAGE_CONFIRM_OK))
+        self.interval_clear((assets.BENTO_USE_ALL, assets.GARBAGE_CONFIRM_OK, assets.BENTO_RESULT_MODAL))
         for _ in self.loop(skip_first=False, timeout=15):
             if self.handle_reward_popup():
                 continue

@@ -785,6 +785,10 @@ ResonanceExchange:
     value: '进货采买书, 追加注资申请书'
     valuetype: str
 
+ResonanceLocalShop:
+  Rescan:
+    value: false
+
 ResonanceTrade:
   RouteMode:
     type: select

@@ -133,6 +133,7 @@
       "ResonancePass",
       "ResonanceShop",
       "ResonanceExchange",
+      "ResonanceLocalShop",
       "ResonanceTrade"
     ]
   }

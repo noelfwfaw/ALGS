@@ -304,6 +304,9 @@ class GeneratedConfig:
     # Group `ResonanceExchange`
     ResonanceExchange_Include = '进货采买书, 追加注资申请书'
 
+    # Group `ResonanceLocalShop`
+    ResonanceLocalShop_Rescan = False
+
     # Group `ResonanceTrade`
     ResonanceTrade_RouteMode = 'auto'  # auto, smart_cycle, manual
     ResonanceTrade_ManualCityA = '阿妮塔发射中心'  # 修格里城, 澄明数据中心, 七号自由港, 曼德矿场, 阿妮塔发射中心, 云岫桥基地, 铁盟哨站, 阿妮塔战备工厂, 黑月游乐城, 淘金乐园, 阿妮塔能源研究所, 荒原站, 栖羽站, 岚心城, 远星大桥, 贡露城, 维蒂林场, 塔图站, 海角城, 汇流塔

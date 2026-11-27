@@ -1,8 +1,5 @@
 """Exchange buying and selling for 雷索纳斯 (Resonance Solstice)."""
 
-from difflib import SequenceMatcher
-import re
-
 import cv2
 import numpy as np
 
@@ -15,8 +12,12 @@ from module.resonance import assets
 from module.resonance.map_nav import ResonanceMapNav
 from module.resonance.page import page_resonance_city, page_resonance_trade_buy, page_resonance_trade_hub, page_resonance_trade_sell
 from module.resonance.shop import normalize_name
+from module.resonance.trade_parse import (
+    match_buy_target, parse_cargo_text, parse_fatigue_text, parse_fraction_text, parse_pct_text, split_buy_targets,
+)
 
 OFFSET = (5, 5)
+NEG_CLICK_MAX_FATIGUE = 12
 GOODS_LIST = (480, 135, 860, 695)
 LEFT_BAR_X = (482, 498)
 LEFT_BAR_Y = (135, 695)
@@ -37,62 +38,6 @@ BARGAIN_PCT_OCR = Ocr((980, 445, 1058, 480), lang='cnocr', threshold=128, alphab
 RESTOCK_QTY_OCR = Ocr((575, 355, 705, 390), lang='cnocr', threshold=128, alphabet='0123456789/', name='Restock quantity')
 RESTOCK_OWN_OCR = Ocr((585, 305, 695, 335), lang='cnocr', threshold=128, alphabet='0123456789', name='Restock owned')
 GOODS_NAME_OCR = Ocr([], lang='cnocr', threshold=128, name='Trade goods')
-
-
-def parse_cargo_text(text):
-    """Parse cargo indicator like '108+226/994' or '3-3/994' into (loaded, delta, capacity)."""
-    match = re.fullmatch(r'(\d+)([+-]\d+)?/(\d+)', normalize_name(text or ''))
-    if not match:
-        return None
-    loaded = int(match.group(1))
-    delta = int(match.group(2)) if match.group(2) else 0
-    return loaded, delta, int(match.group(3))
-
-
-def parse_fraction_text(text):
-    """Parse 'cur/total' OCR output into (cur, total)."""
-    match = re.fullmatch(r'(\d+)/(\d+)', normalize_name(text or ''))
-    return (int(match.group(1)), int(match.group(2))) if match else None
-
-
-def parse_pct_text(text):
-    """Parse percentage string like '13.0%' into float."""
-    match = re.fullmatch(r'(\d+(?:\.\d+)?)%', normalize_name(text or ''))
-    return float(match.group(1)) if match else None
-
-
-def split_buy_targets(plan_or_items):
-    """Split a route leg dict or name sequence into (full_names_set, partial_tail_name)."""
-    if isinstance(plan_or_items, dict):
-        full_names = set()
-        tail_name = None
-        for item in plan_or_items.get('combinations', ()):
-            name = normalize_name(item.get('name', ''))
-            if not name:
-                continue
-            buy_lot = item.get('buy_lot', 0)
-            avail_lot = item.get('available_lot', buy_lot)
-            if buy_lot < avail_lot:
-                tail_name = name
-            else:
-                full_names.add(name)
-        return full_names, tail_name
-
-    full_names = {normalize_name(name) for name in (plan_or_items or ()) if normalize_name(name)}
-    return full_names, None
-
-
-def match_buy_target(ocr_name, target_names):
-    """Match an OCR commodity name to `target_names` (exact first, then fuzzy >= 0.75)."""
-    if ocr_name in target_names:
-        return ocr_name
-    if len(ocr_name) < 3:
-        return None
-    score, tgt = max(
-        ((SequenceMatcher(None, ocr_name, t).ratio(), t) for t in target_names),
-        default=(0.0, None),
-    )
-    return tgt if score >= 0.75 else None
 
 
 def find_cyan_card_runs(image):
@@ -134,7 +79,11 @@ class ResonanceTrade(ResonanceMapNav):
 
     def read_fatigue(self):
         """Read (current, capacity) fatigue from the top bar."""
-        return parse_fraction_text(FATIGUE_OCR.ocr(self.device.image))
+        known_max = getattr(self, '_last_max_fatigue', None)
+        fatigue = parse_fatigue_text(FATIGUE_OCR.ocr(self.device.image), known_max=known_max)
+        if fatigue is not None:
+            self._last_max_fatigue = fatigue[1]
+        return fatigue
 
     def read_cargo(self):
         """Read (loaded, delta, capacity) from the cargo indicator using smooth max-channel."""
@@ -309,18 +258,33 @@ class ResonanceTrade(ResonanceMapNav):
             remaining -= used
         return used_total
 
+    def _dismiss_fatigue_modal(self, page_check):
+        """Close an unexpected FATIGUE POINT recovery modal back to the trade page."""
+        self.interval_clear(assets.OP_BACK)
+        for _ in self.loop(timeout=8):
+            if self.appear(page_check, offset=OFFSET):
+                return
+            if self.appear(assets.FATIGUE_MODAL_CHECK, offset=OFFSET):
+                self.appear_then_click(assets.OP_BACK, offset=OFFSET, interval=1.5)
+        raise GameStuckError('Resonance fatigue modal did not close back to trade page')
+
     def _wait_negotiate_settle(self, page_check, pips_before, pct_before):
-        """Wait for bargain/raise animation to finish and UI state to update."""
+        """Wait for bargain/raise animation to finish; return False if fatigue modal popped."""
         for _ in self.loop(timeout=10):
+            if self.appear(assets.FATIGUE_MODAL_CHECK, offset=OFFSET):
+                logger.info('Resonance negotiation triggered fatigue recovery modal, stopping')
+                self._dismiss_fatigue_modal(page_check)
+                return False
             if self.appear(page_check, offset=OFFSET):
                 pips_now = self.count_bargain_pips()
                 pct_now = self.read_bargain_pct()
                 if pips_now < pips_before or (pct_now is not None and pct_before is not None and pct_now > pct_before):
-                    return
+                    return True
         logger.warning('Resonance negotiation state did not visibly change before timeout')
+        return True
 
-    def negotiate(self, is_buy, target_pct, max_fatigue_ratio=0.95):
-        """Click bargain or raise until target_pct, pips exhausted, or fatigue cap reached."""
+    def negotiate(self, is_buy, target_pct, max_fatigue_ratio=0.95, reserve_fatigue=0):
+        """Click bargain or raise until target_pct, pips exhausted, or reserved fatigue cap reached."""
         self._last_negotiate_fatigue = None
         if target_pct <= 0:
             return
@@ -335,15 +299,27 @@ class ResonanceTrade(ResonanceMapNav):
                 break
             pips = self.count_bargain_pips()
             fatigue = self.read_fatigue()
-            if start_f is None and fatigue is not None:
+            if fatigue is None:
+                self.device.screenshot()
+                fatigue = self.read_fatigue()
+            if fatigue is None:
+                logger.info('Resonance negotiation stopped because live fatigue could not be read')
+                break
+            if start_f is None:
                 start_f = fatigue[0]
-            if fatigue is not None and fatigue[0] + 8 > int(fatigue[1] * max_fatigue_ratio):
-                logger.info('Resonance negotiation stopped by fatigue cap: %s/%s' % fatigue)
+            cap = fatigue[1] - int(reserve_fatigue) if reserve_fatigue > 0 else int(fatigue[1] * max_fatigue_ratio)
+            cap = min(cap, fatigue[1])
+            if fatigue[0] + NEG_CLICK_MAX_FATIGUE > cap:
+                logger.info(
+                    'Resonance negotiation stopped by fatigue cap: %d/%d (reserve=%d, cap=%d)',
+                    fatigue[0], fatigue[1], int(reserve_fatigue), cap,
+                )
                 break
             if self.appear(btn, offset=OFFSET):
                 self.device.click(btn)
                 clicked = True
-                self._wait_negotiate_settle(page_check, pips, pct)
+                if not self._wait_negotiate_settle(page_check, pips, pct):
+                    break
             else:
                 break
         if clicked and start_f is not None:
@@ -389,7 +365,7 @@ class ResonanceTrade(ResonanceMapNav):
             return False
         return True
 
-    def sell_all(self, raise_target=0, max_fatigue_ratio=0.95, min_raise_total=300000):
+    def sell_all(self, raise_target=0, max_fatigue_ratio=1.0, min_raise_total=300000, approve=None):
         """Enter exchange sell tab, stage all cargo, optionally raise price, and sell."""
         self._last_sell_image = None
         self.enter_exchange(page_resonance_trade_sell)
@@ -411,10 +387,15 @@ class ResonanceTrade(ResonanceMapNav):
         else:
             raise GameStuckError('Resonance sell_all did not stage cargo')
 
-        self.wait_until_still(SELL_SUMMARY_AREA, timeout=2.5, threshold=0.25, skip_first_screenshot=False)
+        stable = self.wait_until_still(SELL_SUMMARY_AREA, timeout=2.5, threshold=0.25, skip_first_screenshot=False)
         if raise_target > 0 and self._should_raise_sell(min_raise_total=min_raise_total):
             self.negotiate(is_buy=False, target_pct=raise_target, max_fatigue_ratio=max_fatigue_ratio)
-            self.wait_until_still(SELL_SUMMARY_AREA, timeout=2.0, threshold=0.25, skip_first_screenshot=False)
+            stable = self.wait_until_still(SELL_SUMMARY_AREA, timeout=2.0, threshold=0.25, skip_first_screenshot=False)
+        if approve is not None and (not stable or not approve(self.device.image)):
+            self.interval_clear(assets.TRADE_CANCEL_ALL)
+            self.appear_then_click(assets.TRADE_CANCEL_ALL, offset=OFFSET, interval=2)
+            self.wait_until_disappear(assets.TRADE_CANCEL_ALL, offset=OFFSET, timeout=4)
+            return False
         self._last_sell_image = self.device.image
         self._confirm_and_dismiss_report(assets.TRADE_SELL_CHECK, assets.TRADE_SELL_CONFIRM, assets.TRADE_SELL_REPORT)
         return True
@@ -472,7 +453,7 @@ class ResonanceTrade(ResonanceMapNav):
             if not self.scroll_buy_list(-1):
                 return
 
-    def buy_plan(self, plan_or_items, restock_books=None, bargain_target=0, max_fatigue_ratio=0.95):
+    def buy_plan(self, plan_or_items, restock_books=None, bargain_target=0, max_fatigue_ratio=0.95, reserve_fatigue=0):
         """Enter exchange buy tab, restock if needed, stage plan items, bargain, and buy."""
         full_names, tail_name = split_buy_targets(plan_or_items)
         if restock_books is None and isinstance(plan_or_items, dict):
@@ -488,7 +469,10 @@ class ResonanceTrade(ResonanceMapNav):
             self._select_buy_targets({tail_name})
         if self.appear(assets.TRADE_CANCEL_ALL, offset=OFFSET):
             if bargain_target > 0:
-                self.negotiate(is_buy=True, target_pct=bargain_target, max_fatigue_ratio=max_fatigue_ratio)
+                neg_kwargs = {'is_buy': True, 'target_pct': bargain_target, 'max_fatigue_ratio': max_fatigue_ratio}
+                if reserve_fatigue > 0:
+                    neg_kwargs['reserve_fatigue'] = int(reserve_fatigue)
+                self.negotiate(**neg_kwargs)
             self._confirm_and_dismiss_report(assets.TRADE_BUY_CHECK, assets.TRADE_BUY_CONFIRM, assets.TRADE_BUY_REPORT)
             return True
         logger.warning('Resonance buy staged no items for plan')

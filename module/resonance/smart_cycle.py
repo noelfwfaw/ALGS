@@ -8,9 +8,9 @@ from module.resonance.route import (
     _calc_fatigue, _event_modifier, _pack_leg, _role_buy_more, _role_tax_cut, js_round,
 )
 from module.resonance.smart_state import (
-    DEFAULT_BOOK_WEIGHT, DEFAULT_MAX_BOOKS_PER_LEG, DEFAULT_NEG_FATIGUE, SMART_STATE_PATH,
-    ZERO_BOOK_COOLDOWN_SECONDS, compute_book_weight, get_active_cooldowns, load_smart_state,
-    neg_fatigue_cost, normalize_neg_fatigue, record_negotiation_fatigue, record_zero_book_buy,
+    DEFAULT_BOOK_WEIGHT, DEFAULT_MAX_BOOKS_PER_LEG, DEFAULT_NEG_FATIGUE, DRIVE_FATIGUE_BUFFER, SMART_STATE_PATH,
+    ZERO_BOOK_COOLDOWN_SECONDS, compute_book_weight, get_active_cooldowns, leg_atomic_fatigue_budget, load_smart_state,
+    neg_fatigue_cost, normalize_neg_fatigue, record_negotiation_fatigue, record_zero_book_buy, safe_negotiation_budget,
     update_smart_books,
 )
 
@@ -320,7 +320,7 @@ def solve_optimal_cycle(edges, cities, book_weight=DEFAULT_BOOK_WEIGHT,
     }
 
 
-def _wrap_leg_plan(chosen, cycle, is_entry, edges):
+def _wrap_leg_plan(chosen, cycle, is_entry, edges, neg_fatigue=None):
     """Wrap one selected edge option into the caravan leg-plan structure."""
     is_repo = (
         is_entry
@@ -338,6 +338,7 @@ def _wrap_leg_plan(chosen, cycle, is_entry, edges):
         'bargain_target': chosen['bargain_pct'],
         'raise_target': chosen['raise_pct'],
         'expected_neg_fatigue': int(round(chosen['neg_fatigue'])),
+        'atomic_fatigue': leg_atomic_fatigue_budget(chosen['drive_fatigue'], chosen['bargain_pct'], chosen['raise_pct'], neg_fatigue),
         'cycle': cycle,
         '_edges': edges,
         'best_route': None,
@@ -350,20 +351,21 @@ def plan_smart_cycle_leg(current_city, prices, player_config, data, smart_state=
     state = smart_state if isinstance(smart_state, dict) else {}
     owned = state.get('owned_books')
     book_weight, max_books = compute_book_weight(owned)
-    neg_fatigue = state.get('neg_fatigue')
+    nf = normalize_neg_fatigue(state.get('neg_fatigue'))
     cooled = get_active_cooldowns(state, now_ts=now_ts)
 
     cfg = normalize_player_config(player_config, data=data)
     active_cities, edges = build_edge_options(
-        prices, cfg, data, max_books=max_books, neg_fatigue=neg_fatigue, cooled_cities=cooled,
+        prices, cfg, data, max_books=max_books, neg_fatigue=nf, cooled_cities=cooled,
     )
     cycle = solve_optimal_cycle(edges, active_cities, book_weight=book_weight, max_len=max_len, hop_penalty=hop_penalty)
     if cycle is None:
         return None
+    cycle['neg_fatigue'] = nf
 
     for leg_opt in cycle['legs']:
         if leg_opt['from_city'] == current_city:
-            return _wrap_leg_plan(leg_opt, cycle, is_entry=False, edges=edges)
+            return _wrap_leg_plan(leg_opt, cycle, is_entry=False, edges=edges, neg_fatigue=nf)
 
     ring_cities = cycle['cities'][:-1]
     if current_city not in active_cities:
@@ -376,7 +378,7 @@ def plan_smart_cycle_leg(current_city, prices, player_config, data, smart_state=
             pair_items = _static_pair_products(current_city, v, prices, cfg, data)
             edges[(current_city, v)] = _build_edge_options_for_pair(
                 current_city, v, df, pair_items, int(cfg.get('maxLot', 500) or 500),
-                max_books, normalize_neg_fatigue(neg_fatigue), float(cooled.get(current_city, 1.0)),
+                max_books, nf, float(cooled.get(current_city, 1.0)),
             )
 
     lam = cycle['total_eff_profit'] / cycle['total_cost']
@@ -389,15 +391,16 @@ def plan_smart_cycle_leg(current_city, prices, player_config, data, smart_state=
             if val > best_val:
                 best_val = val
                 best_entry = o
-    return _wrap_leg_plan(best_entry, cycle, is_entry=True, edges=edges) if best_entry else None
+    return _wrap_leg_plan(best_entry, cycle, is_entry=True, edges=edges, neg_fatigue=nf) if best_entry else None
 
 
 def plan_smart_endgame_leg(current_city, edges, cycle, remaining_fatigue,
                            book_weight=DEFAULT_BOOK_WEIGHT, hop_penalty=HOP_FATIGUE_PENALTY):
-    """Pick highest-profit leg fitting within `remaining_fatigue` when >= 85% as efficient as `cycle`."""
+    """Pick highest-profit leg fitting atomically within `remaining_fatigue` at >= 85% cycle efficiency."""
     if not cycle or not edges or remaining_fatigue <= 0:
         return None
     min_ratio = 0.85 * (cycle['total_eff_profit'] / cycle['total_cost'])
+    nf = cycle.get('neg_fatigue')
     best_opt = None
     for (u, _v), opts in edges.items():
         if u != current_city:
@@ -405,15 +408,16 @@ def plan_smart_endgame_leg(current_city, edges, cycle, remaining_fatigue,
         for o in opts:
             if o['eff_profit'] <= 0:
                 continue
-            f_need = o['drive_fatigue'] + o['neg_fatigue']
-            if f_need > remaining_fatigue:
+            f_safe = leg_atomic_fatigue_budget(o['drive_fatigue'], o['bargain_pct'], o['raise_pct'], nf)
+            if f_safe > remaining_fatigue:
                 continue
+            f_need = o['drive_fatigue'] + o['neg_fatigue']
             cost = float(f_need + hop_penalty + book_weight * o['restock'])
             if cost <= 0 or (o['eff_profit'] / cost) < min_ratio:
                 continue
             if best_opt is None or o['eff_profit'] > best_opt['eff_profit']:
                 best_opt = o
-    return _wrap_leg_plan(best_opt, cycle, is_entry=True, edges=edges) if best_opt else None
+    return _wrap_leg_plan(best_opt, cycle, is_entry=True, edges=edges, neg_fatigue=nf) if best_opt else None
 
 
 def format_cycle_short(cycle):

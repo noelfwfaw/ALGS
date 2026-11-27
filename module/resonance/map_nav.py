@@ -46,7 +46,7 @@ MAP_COORDS_05X = {
     '海角城': ('gold', -433, 550),
     '汇流塔': ('cyan', -550, 549),
 }
-CITY_ALIASES = {'7号自由港': '七号自由港'}
+CITY_ALIASES = {'7号自由港': '七号自由港', '甘露城': '贡露城'}
 _MATCH_CANDIDATES = sorted(
     list(MAP_COORDS_05X.keys()) + list(CITY_ALIASES.keys()),
     key=len,

@@ -197,6 +197,37 @@ class TestResonanceProfile(unittest.TestCase):
             self.assertTrue(assets.BENTO_CONFIRM_MODAL.match(im, offset=(60, 10)))
             self.assertTrue(assets.GARBAGE_CONFIRM_OK.match(im, offset=(5, 5)))
 
+        # Bento result overlay ('905 >> 869 / 疲劳值已消除36点') -> dismissed via BENTO_RESULT_MODAL
+        bento_result = load_image(assets.BENTO_RESULT_MODAL.file)
+        fat_r = ResonanceFatigue.__new__(ResonanceFatigue)
+        fat_r.device = Mock()
+        fat_r.interval_timer = {}
+        fat_r.ui_ensure = Mock()
+        fat_r.device.image = bento_ready
+        fat_r.read_bento_fatigue = Mock(side_effect=[(905, 912), (905, 912), (869, 912)])
+        br_frames = iter([bento_ready, bento_confirm, bento_result, bento_done])
+        fat_r.device.screenshot.side_effect = lambda: setattr(fat_r.device, 'image', next(br_frames))
+        with patch('module.base.timer.time', side_effect=count(100, 2.0)):
+            self.assertTrue(fat_r.recover_fatigue(905, 912, 40, item_mode='none', use_bento=True))
+        self.assertEqual(
+            fat_r.device.click.call_args_list,
+            [
+                unittest.mock.call(assets.BENTO_USE_ALL),
+                unittest.mock.call(assets.GARBAGE_CONFIRM_OK),
+                unittest.mock.call(assets.BENTO_RESULT_MODAL),
+            ],
+        )
+
+        stray_result_ui = ResonanceFatigue.__new__(ResonanceFatigue)
+        stray_result_ui.device = Mock()
+        stray_result_ui.interval_timer = {}
+        stray_result_ui.device.image = bento_result
+        self.assertTrue(stray_result_ui.ui_additional())
+        self.assertEqual(
+            stray_result_ui.device.click.call_args_list,
+            [unittest.mock.call(assets.BENTO_RESULT_MODAL)],
+        )
+
         # Rest area drink flow: buy -> SKIP -> skip modal (ticks checkbox + confirm) -> fatigue -50 -> exhausted
         drink_page = load_image(assets.REST_AREA_DRINK_BUY.file)
         skip_page = load_image(assets.REST_AREA_SKIP.file)

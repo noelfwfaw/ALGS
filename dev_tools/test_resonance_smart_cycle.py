@@ -309,3 +309,29 @@ class TestResonanceSmartCycle(unittest.TestCase):
             check=False,
         )
         self.assertEqual(proc.returncode, 0)
+
+    def test_atomic_fatigue_budget_and_endgame_reservation(self):
+        from module.resonance.smart_cycle import plan_smart_cycle_leg, plan_smart_endgame_leg
+        from module.resonance.smart_state import leg_atomic_fatigue_budget
+
+        self.assertEqual(leg_atomic_fatigue_budget(71, 20, 20), 71 + 44 + 44 + 4)
+
+        data = _cycle_graph_data()
+        prices = {
+            '甲货': {'buy': {'甲城': {'price': 1000}}, 'sell': {'乙城': {'price': 3000}, '丁城': {'price': 3200}}},
+            '乙货': {'buy': {'乙城': {'price': 1000}}, 'sell': {'丙城': {'price': 3000}}},
+            '丙货': {'buy': {'丙城': {'price': 1000}}, 'sell': {'甲城': {'price': 2800}}},
+            '丁货': {'buy': {'丁城': {'price': 1000}}, 'sell': {'甲城': {'price': 1600}}},
+        }
+        data['fatigue_map'][frozenset(('甲城', '丁城'))] = 15
+        cfg = {'maxLot': 60, 'prestige': {c: 20 for c in data['cities']}, 'excludedCities': []}
+        plan_a = plan_smart_cycle_leg('甲城', prices, cfg, data, smart_state={'owned_books': 100, 'zero_book_buys': {}})
+
+        # remaining=30 allows drive(15)+avg_neg(10)=25 in old logic, but atomic 10%-neg budget is 15+24+4=43 > 30;
+        # endgame must pick a 0/0 leg whose atomic budget (15+4=19) fits cleanly inside 30.
+        endgame = plan_smart_endgame_leg(
+            '甲城', plan_a['_edges'], plan_a['cycle'], remaining_fatigue=30, book_weight=plan_a['cycle']['book_weight'],
+        )
+        self.assertIsNotNone(endgame)
+        self.assertEqual((endgame['bargain_target'], endgame['raise_target']), (0, 0))
+        self.assertLessEqual(endgame['atomic_fatigue'], 30)

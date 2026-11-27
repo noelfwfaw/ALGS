@@ -9,7 +9,8 @@ from module.resonance.assets import (
     BENTO_CHECK, CITY_CHECK, CREW_ROSTER_CHECK, DAILY_CHECK, DAILY_ENTRY, DAILY_HOME, DISPATCH_CHECK,
     EXCHANGE_HQ_TAB, EXCHANGE_HUB, FATIGUE_BENTO_ENTRY, FATIGUE_MODAL_CHECK, FATIGUE_REST_AREA_ENTRY, GARBAGE_CHECK,
     INVEST_CHECK, ISLAND_BEACH_CHECK, ISLAND_FRIEND_CHECK, ISLAND_HUB_CHECK, ISLAND_HUB_ENTER, ISLAND_HUB_PROMO,
-    ISLAND_INCOME_ENTRY, ISLAND_PROMO_CHECK, ISLAND_REVENUE_CHECK, MAIL_CHECK, MAIN_CHECK, MAIN_CREW_ENTRY,
+    ISLAND_INCOME_ENTRY, ISLAND_PROMO_CHECK, ISLAND_REVENUE_CHECK, LOCAL_SHOP_CHECK, LOCAL_SHOP_REST_ENTRY,
+    MAIL_CHECK, MAIN_CHECK, MAIN_CREW_ENTRY,
     MAIN_START_ENGINE, MAIN_TERMINAL, MAIN_TRAIN_PREP, MAIN_VISIT_CITY, MAP_EXCHANGE, MAP_FATIGUE_PLUS, MAP_ZOOM_PLUS,
     OP_BACK, OP_DETAIL, OP_HUB, OP_TAB, OP_TEAM, PASS_ENTRY, PASS_REWARDS_SELECTED, PASS_TASKS_SELECTED, PREP_CHECK,
     PREP_SURVEY_ENTRY, PREP_TAB, REST_AREA_DRINK_BUY, REST_AREA_DRINK_ENTRY, SHOP_ENTRY, SHOP_HQ, SHOP_HQ_TAB,
@@ -43,6 +44,7 @@ page_resonance_fatigue = Page(FATIGUE_MODAL_CHECK)
 page_resonance_bento = Page(BENTO_CHECK)
 page_resonance_rest_area = Page(REST_AREA_DRINK_ENTRY)
 page_resonance_rest_drink = Page(REST_AREA_DRINK_BUY)
+page_resonance_local_shop = Page(LOCAL_SHOP_CHECK)
 page_resonance_trade_hub = Page(TRADE_HUB_CHECK)
 page_resonance_trade_invest = Page(INVEST_CHECK)
 page_resonance_trade_buy = Page(TRADE_BUY_CHECK)
@@ -82,9 +84,11 @@ page_resonance_fatigue.link(FATIGUE_REST_AREA_ENTRY, page_resonance_rest_area)
 page_resonance_bento.link(OP_BACK, page_resonance_fatigue)
 page_resonance_bento.link(DAILY_HOME, page_main)
 page_resonance_rest_area.link(REST_AREA_DRINK_ENTRY, page_resonance_rest_drink)
+page_resonance_rest_area.link(LOCAL_SHOP_REST_ENTRY, page_resonance_local_shop)
 page_resonance_rest_area.link(DAILY_HOME, page_main)
 page_resonance_rest_drink.link(OP_BACK, page_resonance_rest_area)
 page_resonance_rest_drink.link(DAILY_HOME, page_main)
+page_resonance_local_shop.link(DAILY_HOME, page_main)
 page_resonance_map_station.link(DAILY_HOME, page_main)
 page_resonance_map_station.link(OP_BACK, page_resonance_world_map)
 page_resonance_map_station.link(MAP_EXCHANGE, page_resonance_trade_hub)

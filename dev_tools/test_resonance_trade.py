@@ -38,7 +38,8 @@ class TestResonanceTrade(unittest.TestCase):
     def test_parsers_and_target_splitting(self):
         from module.resonance.trade import (
             BARGAIN_PIP_XS, BARGAIN_PIP_Y, _make_card_button, count_bargain_pips_in_image, find_cyan_card_runs,
-            match_buy_target, parse_cargo_text, parse_fraction_text, parse_pct_text, split_buy_targets,
+            match_buy_target, parse_cargo_text, parse_fatigue_text, parse_fraction_text, parse_pct_text,
+            split_buy_targets,
         )
 
         self.assertEqual(match_buy_target('窑防热烧蚀材料', {'蜂窝防热烧蚀材料', '航天半导体'}), '蜂窝防热烧蚀材料')
@@ -63,6 +64,33 @@ class TestResonanceTrade(unittest.TestCase):
 
         self.assertEqual(parse_fraction_text('8/912'), (8, 912))
         self.assertIsNone(parse_fraction_text('bad'))
+
+        for raw, expected in (
+            ('894/912', (894, 912)),
+            ('894912', (894, 912)),
+            ('902912', (902, 912)),
+            ('907912', (907, 912)),
+            ('864912', (864, 912)),
+            ('45912', (45, 912)),
+            ('8912', (8, 912)),
+            ('0912', (0, 912)),
+            ('451912', (451, 912)),
+            ('8941912', (894, 912)),
+            ('10201050', (1020, 1050)),
+            ('102011050', (1020, 1050)),
+            ('912', None),
+            ('950912', None),
+            ('9120', None),
+            ('', None),
+        ):
+            self.assertEqual(parse_fatigue_text(raw), expected, msg=raw)
+        self.assertEqual(parse_fatigue_text('894912', known_max=912), (894, 912))
+
+        from module.resonance.trade import FATIGUE_OCR
+        with patch.object(FATIGUE_OCR, 'ocr', side_effect=['8/912', '894912']):
+            self.assertEqual(t_cargo.read_fatigue(), (8, 912))
+            self.assertEqual(t_cargo._last_max_fatigue, 912)
+            self.assertEqual(t_cargo.read_fatigue(), (894, 912))
 
         self.assertEqual(parse_pct_text('13.0%'), 13.0)
         self.assertEqual(parse_pct_text('0%'), 0.0)
@@ -364,3 +392,104 @@ class TestResonanceTrade(unittest.TestCase):
 
         self.assertIsNotNone(task._last_sell_image)
         self.assertTrue(np.array_equal(task._last_sell_image[y1:y2, x1:x2], settled[y1:y2, x1:x2]))
+
+    def test_negotiate_dismisses_fatigue_modal_and_stops_cleanly(self):
+        from module.resonance import assets
+        from module.resonance.trade import ResonanceTrade
+
+        buy_staged = load_image(assets.TRADE_BUY_CHECK.file) + load_image(assets.TRADE_BARGAIN.file)
+        fatigue_modal = load_image(assets.FATIGUE_MODAL_CHECK.file) + load_image(assets.OP_BACK.file)
+
+        task = ResonanceTrade.__new__(ResonanceTrade)
+        task.device = Mock()
+        task.device.image = buy_staged
+        task.interval_timer = {}
+        task.count_bargain_pips = Mock(return_value=8)
+        task.read_bargain_pct = Mock(return_value=0.0)
+        task.read_fatigue = Mock(return_value=(850, 912))
+
+        frames = iter([buy_staged, fatigue_modal, buy_staged])
+        task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', next(frames))
+        with patch('module.base.timer.time', side_effect=count(100, 0.5)):
+            task.negotiate(is_buy=True, target_pct=20)
+
+        self.assertEqual(task.device.click.call_args_list, [
+            call(assets.TRADE_BARGAIN),
+            call(assets.OP_BACK),
+        ])
+
+    def test_negotiate_respects_reserve_fatigue_and_stops_on_unreadable_fatigue(self):
+        from module.resonance import assets
+        from module.resonance.trade import ResonanceTrade
+
+        buy_staged = load_image(assets.TRADE_BUY_CHECK.file) + load_image(assets.TRADE_BARGAIN.file)
+
+        # reserve_fatigue=100 at 802/912 leaves cap=812 -> 802 + 12 > 812 stops before clicking
+        t_res = ResonanceTrade.__new__(ResonanceTrade)
+        t_res.device = Mock()
+        t_res.device.image = buy_staged
+        t_res.interval_timer = {}
+        t_res.count_bargain_pips = Mock(return_value=8)
+        t_res.read_bargain_pct = Mock(return_value=0.0)
+        t_res.read_fatigue = Mock(return_value=(802, 912))
+        frames_res = iter([buy_staged])
+        t_res.device.screenshot.side_effect = lambda: setattr(t_res.device, 'image', next(frames_res))
+        with patch('module.base.timer.time', side_effect=count(100, 0.5)):
+            t_res.negotiate(is_buy=True, target_pct=20, reserve_fatigue=100)
+        t_res.device.click.assert_not_called()
+
+        # Unreadable fatigue stops cleanly without clicking after 1 retry screenshot
+        t_none = ResonanceTrade.__new__(ResonanceTrade)
+        t_none.device = Mock()
+        t_none.device.image = buy_staged
+        t_none.interval_timer = {}
+        t_none.count_bargain_pips = Mock(return_value=8)
+        t_none.read_bargain_pct = Mock(return_value=0.0)
+        t_none.read_fatigue = Mock(return_value=None)
+        frames_none = iter([buy_staged, buy_staged])
+        t_none.device.screenshot.side_effect = lambda: setattr(t_none.device, 'image', next(frames_none))
+        with patch('module.base.timer.time', side_effect=count(100, 0.5)):
+            t_none.negotiate(is_buy=True, target_pct=20)
+        t_none.device.click.assert_not_called()
+
+        # buy_plan forwards reserve_fatigue to negotiate when provided
+        t_bp = ResonanceTrade.__new__(ResonanceTrade)
+        t_bp.device = Mock()
+        t_bp.device.image = buy_staged + load_image(assets.TRADE_CANCEL_ALL.file) + load_image(assets.TRADE_BUY_CONFIRM.file)
+        t_bp.interval_timer = {}
+        t_bp.enter_exchange = Mock()
+        t_bp.ensure_max_mode = Mock()
+        t_bp.cargo_remaining = Mock(return_value=50)
+        t_bp._select_buy_targets = Mock()
+        t_bp.negotiate = Mock()
+        t_bp._confirm_and_dismiss_report = Mock()
+        t_bp.buy_plan({'restock': 0, 'combinations': [{'name': '明前龙井', 'buy_lot': 9, 'available_lot': 9}]}, bargain_target=20, reserve_fatigue=98)
+        t_bp.negotiate.assert_called_once_with(is_buy=True, target_pct=20, max_fatigue_ratio=0.95, reserve_fatigue=98)
+
+        # sell_all defaults to max_fatigue_ratio=1.0 so reserved sell fatigue is usable up to 900/912, stopping at 902/912
+        sell_base = load_image(assets.TRADE_SELL_CHECK.file)
+        sell_stocked = sell_base + load_image(assets.TRADE_SELL_ALL.file)
+        sell_stocked[200:320, 484:494] = (230, 180, 40)
+        sell_staged = sell_base + load_image(assets.TRADE_CANCEL_ALL.file) + load_image(assets.TRADE_RAISE.file) + load_image(assets.TRADE_SELL_CONFIRM.file)
+        sell_report = load_image(assets.TRADE_SELL_REPORT.file)
+
+        t_sell = ResonanceTrade.__new__(ResonanceTrade)
+        t_sell.device = Mock()
+        t_sell.device.image = sell_stocked
+        t_sell.interval_timer = {}
+        t_sell.enter_exchange = Mock()
+        t_sell.ensure_max_mode = Mock()
+        t_sell.read_sell_total = Mock(return_value=1500000)
+        t_sell.read_fatigue = Mock(side_effect=[(870, 912), (902, 912), (902, 912)])
+        t_sell.count_bargain_pips = Mock(side_effect=[8, 8, 7, 7, 7])
+        t_sell.read_bargain_pct = Mock(side_effect=[0.0, 11.0, 11.0])
+        sell_frames = iter([sell_staged] * 9 + [sell_report, sell_stocked])
+        t_sell.device.screenshot.side_effect = lambda: setattr(t_sell.device, 'image', next(sell_frames))
+        with patch('module.base.timer.time', side_effect=count(100, 0.5)):
+            self.assertTrue(t_sell.sell_all(raise_target=20))
+        self.assertEqual(t_sell.device.click.call_args_list, [
+            call(assets.TRADE_SELL_ALL),
+            call(assets.TRADE_RAISE),
+            call(assets.TRADE_SELL_CONFIRM),
+            call(assets.TRADE_SELL_REPORT),
+        ])

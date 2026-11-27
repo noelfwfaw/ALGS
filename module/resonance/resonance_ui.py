@@ -3,7 +3,7 @@
 from module.base.button import Button
 from module.exception import GameStuckError
 from module.resonance.assets import (
-    BENTO_CONFIRM_MODAL, DAILY_HOME, DISPATCH_REPORT, EXCHANGE_MODAL_ARROW, FATIGUE_CONFIRM_CANCEL,
+    BENTO_CONFIRM_MODAL, BENTO_RESULT_MODAL, DAILY_HOME, DISPATCH_REPORT, EXCHANGE_MODAL_ARROW, FATIGUE_CONFIRM_CANCEL,
     FATIGUE_CONFIRM_MODAL, LOGIN_DAILY_CHECK_IN, LOGIN_ENTER, LOGIN_REWARD, LOGIN_START, MAP_ASSIST_PANEL,
     MAP_DRIVE_ASSIST, OP_NEXT, OP_WIN, PRESTIGE_MODAL_CHECK, PRESTIGE_MODAL_CONFIRM, PREP_REWARD_MODAL, SHOP_CANCEL,
     SHOP_MAX, SHOP_MODAL_PRICE, TRADE_BUY_REPORT, TRADE_ITEMS_MODAL, TRADE_RESTOCK_CANCEL, TRADE_RESTOCK_MODAL,
@@ -13,7 +13,7 @@ from module.resonance.page import (
     page_daily, page_main, page_resonance_bento, page_resonance_city, page_resonance_crew,
     page_resonance_dispatch, page_resonance_exchange, page_resonance_fatigue, page_resonance_garbage,
     page_resonance_island_beach, page_resonance_island_friend, page_resonance_island_hub,
-    page_resonance_island_promo, page_resonance_island_revenue, page_resonance_mail,
+    page_resonance_island_promo, page_resonance_island_revenue, page_resonance_local_shop, page_resonance_mail,
     page_resonance_map_station, page_resonance_operation_detail, page_resonance_operation_team,
     page_resonance_operations, page_resonance_pass, page_resonance_prep, page_resonance_rest_area,
     page_resonance_rest_drink, page_resonance_shop, page_resonance_survey, page_resonance_terminal,
@@ -33,7 +33,8 @@ class ResonanceUI(UI):
     pages = (
         page_daily, page_resonance_terminal, page_resonance_dispatch,
         page_resonance_prep, page_resonance_survey, page_resonance_operations, page_resonance_operation_detail,
-        page_resonance_operation_team, page_resonance_pass, page_resonance_shop, page_resonance_exchange,
+        page_resonance_operation_team, page_resonance_pass, page_resonance_local_shop, page_resonance_shop,
+        page_resonance_exchange,
         page_resonance_crew, page_resonance_mail, page_resonance_world_map, page_resonance_map_station,
         page_resonance_fatigue, page_resonance_bento, page_resonance_rest_area, page_resonance_rest_drink,
         page_resonance_trade_hub, page_resonance_trade_invest, page_resonance_trade_buy, page_resonance_trade_sell,
@@ -66,6 +67,9 @@ class ResonanceUI(UI):
             return True
         if self.appear(LOGIN_REWARD, offset=(30, 140), similarity=0.78, interval=2):
             self.device.click(self._reward_close_btn)
+            return True
+        if self.appear(BENTO_RESULT_MODAL, offset=(10, 10), similarity=0.75, interval=2):
+            self.device.click(BENTO_RESULT_MODAL)
             return True
         return False
 

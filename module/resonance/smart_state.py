@@ -1,6 +1,7 @@
 """Adaptive telemetry state and book-weight calibration for Resonance smart-cycle trading."""
 
 import json
+import math
 import os
 import time
 
@@ -8,6 +9,8 @@ SMART_STATE_PATH = os.path.join('config', 'state', 'resonance_smart_state.json')
 DEFAULT_BOOK_WEIGHT = 33.0
 DEFAULT_MAX_BOOKS_PER_LEG = 5
 ZERO_BOOK_COOLDOWN_SECONDS = 1200
+DRIVE_FATIGUE_BUFFER = 4
+NEG_CLICK_MAX_FATIGUE = 12
 DEFAULT_NEG_FATIGUE = {
     'buy': {'0': 0.0, '10': 10.0, '20': 22.0},
     'sell': {'0': 0.0, '10': 10.0, '20': 22.0},
@@ -162,3 +165,21 @@ def neg_fatigue_cost(bargain_pct, raise_pct, neg_fatigue=None):
     b_key = '0' if bargain_pct <= 0 else ('10' if bargain_pct <= 15 else '20')
     s_key = '0' if raise_pct <= 0 else ('10' if raise_pct <= 15 else '20')
     return nf['buy'][b_key] + nf['sell'][s_key]
+
+
+def safe_negotiation_budget(target_pct, expected=None):
+    """Return conservative worst-case fatigue budget for one bargain/raise side."""
+    if not target_pct or target_pct <= 0:
+        return 0
+    base = 24 if float(target_pct) <= 15.0 else 44
+    if expected is not None and expected > 0:
+        return max(base, int(math.ceil(float(expected) * 1.5)))
+    return base
+
+
+def leg_atomic_fatigue_budget(drive_fatigue, bargain_pct, raise_pct, neg_fatigue=None):
+    """Return conservative total fatigue needed to complete buy-neg + drive + sell-neg atomically."""
+    nf = normalize_neg_fatigue(neg_fatigue) if neg_fatigue is not None else None
+    buy_exp = neg_fatigue_cost(bargain_pct, 0, nf) if (nf is not None and bargain_pct > 0) else None
+    sell_exp = neg_fatigue_cost(0, raise_pct, nf) if (nf is not None and raise_pct > 0) else None
+    return int(drive_fatigue) + safe_negotiation_budget(bargain_pct, buy_exp) + safe_negotiation_budget(raise_pct, sell_exp) + DRIVE_FATIGUE_BUFFER

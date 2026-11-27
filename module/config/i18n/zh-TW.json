@@ -366,6 +366,10 @@
       "name": "瑣吶赴命商店",
       "help": "只兌換篩選器中的道具，每種按單筆可兌上限兌換。"
     },
+    "ResonanceLocalShop": {
+      "name": "瑣吶本地黑月商店",
+      "help": "每週從目前城市出發，按預計行車疲勞最低的路線掃貨，並順路用 0 書買賣盈利商品。"
+    },
     "ResonanceTrade": {
       "name": "Task.ResonanceTrade.name",
       "help": "Task.ResonanceTrade.help"
@@ -2145,6 +2149,16 @@
     "Include": {
       "name": "兌換篩選器",
       "help": "填遊戲內道具全名，用逗號、頓號或換行分隔。可附加至預設兩件，留空略過。"
+    }
+  },
+  "ResonanceLocalShop": {
+    "_info": {
+      "name": "掃貨設定",
+      "help": "逐城儲存進度，週一 05:00 重置。"
+    },
+    "Rescan": {
+      "name": "本週手動重掃",
+      "help": "開啟後清空下次執行時間可立即重掃。任務開始時會重置本週紀錄並自動關閉此開關。"
     }
   },
   "ResonanceTrade": {
