@@ -2,10 +2,11 @@
 
 Layout measured on 1280x720 screenshots:
 - Top tab bar: 「交易所」 pill sits at (615, 83, 710, 119); cream when active.
-- Left sidebar (92 px vertical pitch from top):
-  消耗品 (80, 160, 240, 205), 突袭 (80, 252, 240, 297),
-  公会 (80, 344, 240, 389), 竞技场 (80, 436, 240, 481),
-  灵魂 (80, 528, 240, 573), and an optional timed Event coin tab at the bottom.
+- Left sidebar (92 px vertical pitch, 84 px cream pill when selected, above 「批量购买」):
+  Top-scrolled: 消耗品 (cy=184), 突袭 (cy=276), 世界领主 (cy=368), 公会 (cy=460),
+  竞技场 (cy=552).
+  Bottom-scrolled: 灵魂 plus one or more timed Event currency tabs (e.g. 驯鹿币,
+  南瓜币) with an expiry date line `~ YY.MM.DD` below the label.
 - Two-row card shelf (columns 275 px wide, 296 px pitch):
   Row 0 name (156..188), price strip (378..412), tap y = 285
   Row 1 name (444..476), price strip (666..700), tap y = 573
@@ -33,18 +34,21 @@ from module.lostsword.exchange_filter import (EXCHANGE_BLUE_DIALOG_MIN,
 from module.lostsword.page import page_shop
 from module.ocr.ocr import Ocr
 
-# Fixed left-sidebar sub-tabs when scrolled to the top of the sidebar.
+# Default left-sidebar sub-tab positions when scrolled to top (`世界领主` sits at cy=368).
 EXCHANGE_SUBTABS = {
     'consumable': ('消耗品', (80, 160, 240, 205), 'ConsumableFilter'),
     'raid': ('突袭', (80, 252, 240, 297), 'RaidFilter'),
-    'guild': ('公会', (80, 344, 240, 389), 'GuildFilter'),
-    'arena': ('竞技场', (80, 436, 240, 481), 'ArenaFilter'),
+    'guild': ('公会', (80, 436, 240, 481), 'GuildFilter'),
+    'arena': ('竞技场', (80, 528, 240, 573), 'ArenaFilter'),
 }
 EXCHANGE_SIDEBAR_AREA = (60, 140, 260, 640)
-EXCHANGE_EVENT_UNSELECTED = (80, 602, 240, 642)
-EXCHANGE_EVENT_SELECTED = (80, 600, 240, 635)
-EXCHANGE_EVENT_SCROLLED_SELECTED = (80, 560, 240, 615)
+EXCHANGE_TOP_CENTERS = (184, 276, 368, 460, 552)
+EXCHANGE_BOTTOM_CENTERS = (225, 317, 409, 501, 593)
+# Timed event currency tabs show `~ YY.MM.DD` below the label (std 22~29 vs <=3.2 on permanent tabs).
+EXCHANGE_EVENT_DATE_STD = 10.0
+EXCHANGE_PERMANENT_KEYWORDS = ('消耗', '突袭', '领主', '公会', '竞技', '灵魂')
 EXCHANGE_TAB_SELECTED_MEAN = 150
+EXCHANGE_OCR_DARK_LETTER = (70, 62, 54)
 
 # Card grid geometry (1280x720).
 EXCHANGE_ROWS = (
@@ -121,81 +125,95 @@ class LostswordExchange:
             if self.appear(SHOP_TITLE, offset=30, interval=1.5):
                 self.device.click(SHOP_TAB_EXCHANGE)
 
+    def _scroll_sidebar(self, start, end, stop_check=None):
+        """Drag the left sidebar until `stop_check` holds or the list stops moving."""
+        for _ in range(3):
+            if stop_check is not None and stop_check():
+                return
+            before = self.image_crop(EXCHANGE_SIDEBAR_AREA, copy=True).astype(np.int16)
+            self.device.swipe(start, end, name='EXCHANGE_SIDEBAR_SCROLL')
+            self.wait_until_still(EXCHANGE_SIDEBAR_AREA, timeout=1.5, skip_first_screenshot=False)
+            self.device.screenshot()
+            after = self.image_crop(EXCHANGE_SIDEBAR_AREA, copy=True).astype(np.int16)
+            if float(np.abs(after - before).mean()) <= EXCHANGE_MOVED_DIFF:
+                return
+
     def exchange_sidebar_top(self):
         """Ensure fixed sidebar tabs sit at their top-aligned positions."""
-        area = EXCHANGE_SUBTABS['consumable'][1]
-        if self.exchange_area_bright(area):
-            return
-        text = self.exchange_ocr_single(self.device.image, (75, 160, 245, 205))
-        if '消耗' in text:
-            return
-        self.device.swipe((160, 220), (160, 520), name='EXCHANGE_SIDEBAR_TOP')
-        self.wait_until_still(EXCHANGE_SIDEBAR_AREA, timeout=1.5, skip_first_screenshot=False)
+        top_area = EXCHANGE_SUBTABS['consumable'][1]
+        self._scroll_sidebar(
+            (160, 220),
+            (160, 580),
+            stop_check=lambda: (
+                self.exchange_area_bright(top_area)
+                or '消耗' in self.exchange_ocr_tab(self.device.image, EXCHANGE_TOP_CENTERS[0])
+            ),
+        )
 
-    def exchange_select_fixed(self, label, area, timeout=8):
-        """Select a top-aligned sub-tab (`消耗品` / `突袭` / `公会` / `竞技场`)."""
-        self.exchange_sidebar_top()
+    def exchange_sidebar_bottom(self):
+        """Scroll the left sidebar all the way down to reveal timed event coin tabs."""
+        self._scroll_sidebar((160, 560), (160, 200))
+
+    def exchange_select_slot(self, label, area, timeout=8):
+        """Click a sidebar slot area and wait until its cream highlight becomes active."""
         btn = exchange_area_button(area, name=f'EXCHANGE_TAB_{label}')
-        timeout = Timer(timeout).start()
+        timer = Timer(timeout).start()
         for _ in self.loop():
             if self.exchange_area_bright(area):
                 return True
-            if timeout.reached():
+            if timer.reached():
                 logger.warning(f'[Exchange] {label} tab did not become active')
                 return False
             if self.appear(SHOP_TITLE, offset=30, interval=1.5):
                 self.device.click(btn)
 
-    def exchange_event_selected(self):
-        """Whether the timed event sub-tab is highlighted (in-place or scrolled)."""
-        return (self.exchange_area_bright(EXCHANGE_EVENT_SELECTED)
-                or self.exchange_area_bright(EXCHANGE_EVENT_SCROLLED_SELECTED))
-
-    def exchange_select_event(self, timeout=8):
-        """
-        Detect and open the bottom timed event currency sub-tab (e.g. `南瓜币`).
-
-        Returns:
-            bool: False when no event tab is present in the sidebar.
-        """
-        if self.exchange_event_selected():
-            return True
-
-        btn = exchange_area_button(EXCHANGE_EVENT_UNSELECTED, name='EXCHANGE_TAB_EVENT')
-        text = self.exchange_ocr_single(self.device.image, (75, 598, 245, 642))
-        if len(exchange_norm(text)) < 2:
-            self.device.swipe((160, 520), (160, 220), name='EXCHANGE_SIDEBAR_BOTTOM')
-            self.wait_until_still(EXCHANGE_SIDEBAR_AREA, timeout=1.5, skip_first_screenshot=False)
-            self.device.screenshot()
-            if self.exchange_event_selected():
-                return True
-            text = self.exchange_ocr_single(self.device.image, (75, 558, 245, 635))
-            if len(exchange_norm(text)) < 2 or '灵魂' in text:
-                logger.info('[Exchange] no active event currency tab')
-                return False
-            btn = exchange_area_button(EXCHANGE_EVENT_SCROLLED_SELECTED, name='EXCHANGE_TAB_EVENT')
-
-        logger.info(f'[Exchange] open event sub-tab ({text})')
-        timer = Timer(timeout).start()
-        for _ in self.loop():
-            if self.exchange_event_selected():
-                return True
-            if timer.reached():
-                logger.warning('[Exchange] event tab did not become active')
-                return False
-            if self.appear(SHOP_TITLE, offset=30, interval=1.5):
-                self.device.click(btn)
+    def exchange_select_fixed(self, label, area, timeout=8):
+        """Select a top-aligned sub-tab (`消耗品` / `突袭` / `公会` / `竞技场`)."""
+        self.exchange_sidebar_top()
+        target_area = self.exchange_locate_fixed_tab(self.device.image, label, area)
+        return self.exchange_select_slot(label, target_area, timeout=timeout)
 
     def exchange_area_bright(self, area):
         color = get_color(self.device.image, area)
         return sum(color) / 3 > EXCHANGE_TAB_SELECTED_MEAN
 
     @staticmethod
-    def exchange_ocr_single(image, area):
-        ocr = Ocr([], lang='cnocr', letter=EXCHANGE_OCR_LETTER, threshold=EXCHANGE_OCR_THRESHOLD)
+    def exchange_ocr_single(image, area, dark=False):
+        letter = EXCHANGE_OCR_DARK_LETTER if dark else EXCHANGE_OCR_LETTER
+        ocr = Ocr([], lang='cnocr', letter=letter, threshold=EXCHANGE_OCR_THRESHOLD)
         ocr.SHOW_LOG = False
         res = ocr.ocr([crop(image, np.array(area))], direct_ocr=True)
         return res[0] if res else ''
+
+    @classmethod
+    def exchange_ocr_tab(cls, image, cy, upper=False):
+        """OCR one left-sidebar slot centered at `cy`, choosing ink polarity by pill highlight."""
+        bright = sum(get_color(image, (80, cy - 22, 240, cy + 22))) / 3 > EXCHANGE_TAB_SELECTED_MEAN
+        area = (75, cy - 34, 245, cy + 2) if upper else (75, cy - 20, 245, cy + 20)
+        return cls.exchange_ocr_single(image, area, dark=bright)
+
+    @classmethod
+    def exchange_locate_fixed_tab(cls, image, label, default_area):
+        """Locate a fixed permanent sub-tab dynamically in top-scrolled slots."""
+        key = label[:2]
+        for cy in EXCHANGE_TOP_CENTERS:
+            if key in cls.exchange_ocr_tab(image, cy):
+                return (80, cy - 22, 240, cy + 22)
+        return default_area
+
+    @classmethod
+    def exchange_find_event_tabs(cls, image):
+        """Return active timed event currency tabs `[(name, area), ...]` from bottom slots."""
+        found = []
+        for cy in EXCHANGE_BOTTOM_CENTERS:
+            lo_std = float(crop(image, np.array((95, cy + 12, 225, cy + 32))).mean(axis=2).std())
+            if lo_std < EXCHANGE_EVENT_DATE_STD:
+                continue
+            name = cls.exchange_ocr_tab(image, cy, upper=True).strip() or '活动币'
+            if any(k in name for k in EXCHANGE_PERMANENT_KEYWORDS):
+                continue
+            found.append((name, (80, cy - 22, 240, cy + 22)))
+        return found
 
     # ---- shelf reading & scrolling -----------------------------------------
 
@@ -306,10 +324,18 @@ class LostswordExchange:
         if not includes:
             logger.info('[Exchange] 活动: skipped (disabled by filter)')
             return 0
-        if not self.exchange_select_event():
+        self.exchange_sidebar_bottom()
+        tabs = self.exchange_find_event_tabs(self.device.image)
+        if not tabs:
+            logger.info('[Exchange] no active event currency tab')
             return 0
-        logger.hr('Exchange · 活动', level=2)
-        return self.exchange_sweep('活动', includes, excludes)
+        total = 0
+        for name, area in tabs:
+            logger.hr(f'Exchange · 活动 ({name})', level=2)
+            if not self.exchange_select_slot(name, area):
+                continue
+            total += self.exchange_sweep(f'活动·{name}', includes, excludes)
+        return total
 
     def exchange_collect_all(self, includes, excludes, skipped=None):
         """Scroll left-to-right across pages and collect matching non-paid items."""
