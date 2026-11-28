@@ -1,11 +1,12 @@
 import ctypes
+import json
 import re
 import subprocess
 
 import psutil
 
 from deploy.Windows.utils import DataProcessInfo
-from module.base.decorator import run_once
+from module.base.decorator import del_cached_property, run_once
 from module.base.timer import Timer
 from module.device.connection import AdbDeviceWithStatus
 from module.device.platform.platform_base import PlatformBase
@@ -80,6 +81,58 @@ class PlatformWindows(PlatformBase, EmulatorManager):
 
         return count
 
+    @classmethod
+    def _parse_mumu_api_output(cls, stdout: bytes):
+        """Read the last MuMuManager JSON envelope containing an error code."""
+        text = stdout.decode('utf-8', errors='ignore')
+        for line in reversed(text.splitlines()):
+            line = line.strip()
+            if not line.startswith('{') or not line.endswith('}'):
+                continue
+            try:
+                data = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(data, dict) and 'errcode' in data:
+                return data
+        return None
+
+    @classmethod
+    def _mumu_manager_api(cls, console: str, instance_id: int, action: str, timeout: int = 20) -> bool:
+        """Run one MuMuManager command synchronously and validate its response."""
+        command = [console, 'api', '-v', str(instance_id), action]
+        logger.info(f'Execute: {" ".join(command)}')
+        try:
+            result = subprocess.run(command, capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            logger.warning(f'MuMuManager {action} timeout after {timeout}s')
+            return False
+
+        stdout = result.stdout or b''
+        output = stdout.decode('utf-8', errors='ignore').strip()
+        if output:
+            logger.info(f'MuMuManager {action}: {output}')
+
+        data = cls._parse_mumu_api_output(stdout)
+        if data is not None:
+            if data.get('errcode') == 0:
+                return True
+            errmsg = str(data.get('errmsg', data.get('message', '')))
+            if action == 'shutdown_player' and 'player not running' in errmsg.lower():
+                logger.info(f'MuMuPlayer is already stopped: {data}')
+                return True
+            logger.warning(f'MuMuManager {action} failed: {data}')
+            return False
+
+        # Some MuMu builds report an already stopped instance as plain text.
+        if action == 'shutdown_player' and any(line.strip().lower() == 'player not running'
+                                                for line in output.splitlines()):
+            return True
+        if result.returncode != 0:
+            logger.warning(f'MuMuManager {action} failed, returncode {result.returncode}')
+            return False
+        return True
+
     def _emulator_start(self, instance: EmulatorInstance):
         """
         Start a emulator without error handling
@@ -99,7 +152,10 @@ class PlatformWindows(PlatformBase, EmulatorManager):
             # and gets silently dropped, while MuMuManager queues requests in backend service.
             if instance.MuMuPlayer12_id is None:
                 logger.warning(f'Cannot get MuMu instance index from name {instance.name}')
-            self.execute(f'"{Emulator.single_to_console(exe)}" api -v {instance.MuMuPlayer12_id} launch_player')
+                return False
+            return self._mumu_manager_api(
+                Emulator.single_to_console(exe), instance.MuMuPlayer12_id, 'launch_player'
+            )
         elif instance == Emulator.LDPlayer14 or instance == Emulator.LDPlayer9:
             # ldconsole.exe launch --index 0 --mini
             # LDPlayer above 9 has `--mini` to start as minimized window, `--hide` to start with no frontend window
@@ -159,7 +215,10 @@ class PlatformWindows(PlatformBase, EmulatorManager):
             # MuMuManager.exe api -v 1 shutdown_player
             if instance.MuMuPlayer12_id is None:
                 logger.warning(f'Cannot get MuMu instance index from name {instance.name}')
-            self.execute(f'"{Emulator.single_to_console(exe)}" api -v {instance.MuMuPlayer12_id} shutdown_player')
+                return False
+            return self._mumu_manager_api(
+                Emulator.single_to_console(exe), instance.MuMuPlayer12_id, 'shutdown_player'
+            )
         elif instance == Emulator.LDPlayerFamily:
             # ldconsole.exe quit --index 0
             self.execute(f'"{Emulator.single_to_console(exe)}" quit --index {instance.LDPlayer_id}')
@@ -193,8 +252,7 @@ class PlatformWindows(PlatformBase, EmulatorManager):
             bool: If success
         """
         try:
-            func(self.emulator_instance)
-            return True
+            result = func(self.emulator_instance)
         except OSError as e:
             msg = str(e)
             # OSError: [WinError 740] 请求的操作需要提升。
@@ -204,6 +262,10 @@ class PlatformWindows(PlatformBase, EmulatorManager):
             logger.error(e)
         except Exception as e:
             logger.exception(e)
+        else:
+            # Legacy emulator branches return None; MuMuManager returns a bool.
+            if result is not False:
+                return True
 
         logger.error(f'Emulator function {func.__name__}() failed')
         return False
@@ -216,7 +278,9 @@ class PlatformWindows(PlatformBase, EmulatorManager):
         """
         logger.hr('Emulator start', level=2)
         current_window = get_focused_window()
-        serial = self.emulator_instance.serial
+        instance = self.emulator_instance
+        serial = instance.serial
+        mumu12 = instance == Emulator.MuMuPlayer12
         logger.info(f'Current window: {current_window}')
 
         def adb_connect():
@@ -246,6 +310,7 @@ class PlatformWindows(PlatformBase, EmulatorManager):
 
         interval = Timer(0.5).start()
         timeout = Timer(180).start()
+        serial_timer = Timer(5).start()
         new_window = 0
         while 1:
             interval.wait()
@@ -266,6 +331,18 @@ class PlatformWindows(PlatformBase, EmulatorManager):
 
             # Check device connection
             devices = self.list_device().select(serial=serial)
+            if mumu12 and not devices.select(status='device') and serial_timer.reached():
+                serial_timer.reset()
+                # MuMu can change the forwarded port while starting this VM.
+                candidate = next((item for item in instance.emulator.iter_instances()
+                                  if item.name == instance.name and item.serial), None)
+                if candidate is not None and candidate.serial != serial:
+                    logger.info(f'Emulator serial changed: {serial} -> {candidate.serial}')
+                    serial = self.serial = self.config.Emulator_Serial = candidate.serial
+                    self.emulator_instance = candidate
+                    del_cached_property(self, 'adb')
+                    adb_connect()
+                    continue
             # logger.info(devices)
             if devices:
                 device: AdbDeviceWithStatus = devices.first_or_none()
@@ -285,6 +362,8 @@ class PlatformWindows(PlatformBase, EmulatorManager):
             # Check command availability
             try:
                 pong = self.adb_shell(['echo', 'pong'])
+                if mumu12 and self.adb_shell(['getprop', 'sys.boot_completed']).strip() != '1':
+                    continue
             except Exception as e:
                 logger.info(e)
                 continue

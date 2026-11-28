@@ -9,6 +9,7 @@ from module.base.utils import crop
 
 EXCHANGE_BLUE_CARD_MIN = 40
 EXCHANGE_BLUE_DIALOG_MIN = 30
+EXCHANGE_GOLD_CARD_MIN = 30
 
 
 def exchange_norm(text):
@@ -38,6 +39,8 @@ def exchange_keyword_hit(rule, title):
     if not w or not n:
         return False
     if w == n:
+        return True
+    if w == '票券' and n.endswith('票券'):
         return True
     if re.findall(r'\d+', w) != re.findall(r'\d+', n):
         return False
@@ -111,6 +114,24 @@ def exchange_has_blue_diamond(image, area, min_pixels=EXCHANGE_BLUE_CARD_MIN):
     r, g, b = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
     blue_px = int(((b - r > 40) & (g - r > 15) & (b > 140)).sum())
     return blue_px >= min_pixels
+
+
+def exchange_has_gold_coin(image, area, min_pixels=EXCHANGE_GOLD_CARD_MIN):
+    """Detect gold coin currency icons inside `area` on an RGB screenshot."""
+    patch = crop(image, np.array(area)).astype(int)
+    if patch.size == 0:
+        return False
+    r, g, b = patch[:, :, 0], patch[:, :, 1], patch[:, :, 2]
+    gold_px = int(((r > 180) & (g > 130) & (b < 80) & (r - b > 110) & (g - b > 60)).sum())
+    return gold_px >= min_pixels
+
+
+def exchange_is_event_ticket(card):
+    """Whether an event-tab card is the gold-priced sweep ticket (e.g. `驯鹿票券`)."""
+    if card.get('gold'):
+        return True
+    norm = card.get('norm') or exchange_norm(card.get('title', ''))
+    return norm.endswith('票券')
 
 
 def exchange_area_button(area, name='EXCHANGE_AREA'):

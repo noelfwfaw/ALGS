@@ -146,10 +146,10 @@ def is_friend_sort_active(image, sort_tab):
     return int(((p[:, :, 0] > 160) & (p[:, :, 0].astype(np.int16) - p[:, :, 1].astype(np.int16) > 15)).sum()) >= 15
 
 
-def find_friend_list_clean_row(image, skip_current=False):
+def find_friend_list_clean_row(image, skip_current=False, skip_rows=()):
     """Return first visible row (`0..3`) with both a friend card and broom icon, or None."""
     for row in range(FRIEND_VISIBLE_ROWS):
-        if not has_friend_list_row(image, row):
+        if row in skip_rows or not has_friend_list_row(image, row):
             continue
         if skip_current and is_friend_list_row_current(image, row):
             continue
@@ -158,12 +158,14 @@ def find_friend_list_clean_row(image, skip_current=False):
     return None
 
 
-def _open_friend_and_visit_first(ui, sort_tab, require_clean=False, skip_current=False):
+def _open_friend_and_visit_first(ui, sort_tab, require_clean=False, skip_current=False,
+                                 skip_rows=(), return_row=False):
     """Open friend drawer, sort by `sort_tab`, and enter top matching friend island."""
     sorted_done = False
     sort_settled = False
     closing = False
     visited = False
+    selected_row = None
     sort_settle = Timer(0.6)
     visit_timer = Timer(2.0)
     empty_timer = Timer(3.0).start()
@@ -193,7 +195,9 @@ def _open_friend_and_visit_first(ui, sort_tab, require_clean=False, skip_current
                     continue
                 sort_settled = True
             if require_clean:
-                row = find_friend_list_clean_row(ui.device.image, skip_current=skip_current)
+                row = find_friend_list_clean_row(
+                    ui.device.image, skip_current=skip_current, skip_rows=skip_rows,
+                )
                 if row is None:
                     ui.device.click(drawer_close)
                     visit_timer.reset()
@@ -207,6 +211,7 @@ def _open_friend_and_visit_first(ui, sort_tab, require_clean=False, skip_current
                     visit_timer.reset()
                     closing = True
                 continue
+            selected_row = row
             if visit_timer.reached():
                 box = friend_row_visit_box(row)
                 target = drawer_close if is_friend_list_row_current(ui.device.image, row) else _box_button(box, f'ISLAND_FRIEND_VISIT_{row}')
@@ -216,7 +221,7 @@ def _open_friend_and_visit_first(ui, sort_tab, require_clean=False, skip_current
                 empty_timer.reset()
             continue
         if sorted_done and ui.appear(assets.ISLAND_FRIEND_CHECK, offset=OFFSET):
-            return True
+            return selected_row if return_row else True
         if not visited and ui.appear_then_click(assets.ISLAND_FRIEND_TAB, offset=OFFSET, interval=2):
             continue
         if not visited and ui.appear_then_click(assets.ISLAND_FRIEND_TAB_VISIT, offset=OFFSET, interval=2):
@@ -339,11 +344,12 @@ def _click_and_fight_monster(ui, target, arrest=False):
 
 
 def _clean_current_friend(ui):
-    """Click 清扫 once on current friend, dismiss result popup, and stop on cooldown."""
+    """Click 清扫 once and require positive evidence before reporting it cleaned."""
     if has_friend_clean_cooldown(ui.device.image):
         return 'cooldown'
     if not has_friend_clean_coin(ui.device.image):
         return 'none'
+    before_remaining = read_friend_clean_remaining(ui.device.image)
     clicked = False
     reward_seen = False
     settle = Timer(0.8).start()
@@ -351,21 +357,37 @@ def _clean_current_friend(ui):
         if is_garbage_full_toast(ui.device.image):
             logger.warning('火车垃圾箱暂存区已满，停止好友清扫')
             return 'garbage_full'
-        if _dismiss_clean_popup(ui):
+        if clicked and ui.appear(assets.ISLAND_FRIEND_CLEAN_RESULT, offset=OFFSET):
             reward_seen = True
+        if ui.appear_then_click(assets.ISLAND_FRIEND_CLEAN_RESULT, offset=OFFSET, interval=1.5):
             settle.reset()
             continue
-        if ui.appear(assets.ISLAND_FRIEND_CHECK, offset=OFFSET) and (
-            reward_seen or has_friend_clean_cooldown(ui.device.image) or not has_friend_clean_coin(ui.device.image)
-        ):
-            return 'cleaned' if (reward_seen or clicked) else 'cooldown'
-        if not reward_seen and ui.appear_then_click(assets.ISLAND_FRIEND_CLEAN, offset=OFFSET, interval=2):
-            clicked = True
+        if ui.handle_reward_popup():
+            if clicked:
+                reward_seen = True
             settle.reset()
             continue
-        if ui.appear(assets.ISLAND_FRIEND_CHECK, offset=OFFSET) and settle.reached():
-            break
-    return 'cleaned' if reward_seen else ('cooldown' if has_friend_clean_cooldown(ui.device.image) else 'none')
+        if ui.appear_then_click(assets.TAP_BLANK_EXIT, offset=(40, 100), similarity=0.80, interval=1.5):
+            settle.reset()
+            continue
+        if ui.appear(assets.ISLAND_FRIEND_CHECK, offset=OFFSET):
+            remaining = read_friend_clean_remaining(ui.device.image) if clicked else None
+            if has_friend_clean_cooldown(ui.device.image):
+                return 'cooldown'
+            if clicked and (
+                reward_seen
+                or (before_remaining is not None and remaining is not None and remaining < before_remaining)
+            ):
+                return 'cleaned'
+            if not clicked and ui.appear_then_click(assets.ISLAND_FRIEND_CLEAN, offset=OFFSET, interval=2):
+                clicked = True
+                settle.reset()
+                continue
+            if settle.reached():
+                break
+    if has_friend_clean_cooldown(ui.device.image):
+        return 'cooldown'
+    return 'unknown' if clicked else 'none'
 
 
 def _advance_next_friend(ui):
@@ -448,27 +470,22 @@ def _run_friend_fight_phase(ui, allow_clean, arrest=False):
 
 
 def _run_friend_clean_phase(ui):
-    """Visit friends marked with the broom icon in the 清扫-sorted list and clean garbage."""
-    skip_current = False
-    cooldown_streak = 0
+    """Visit each broom-marked friend once until a clean is positively confirmed."""
+    attempted_rows = set()
     for _ in range(30):
-        if not _open_friend_and_visit_first(
-            ui, assets.ISLAND_FRIEND_SORT_CLEAN, require_clean=True, skip_current=skip_current,
-        ):
-            logger.info('好友列表无可清扫垃圾，结束好友清扫')
+        row = _open_friend_and_visit_first(
+            ui, assets.ISLAND_FRIEND_SORT_CLEAN, require_clean=True,
+            skip_rows=attempted_rows, return_row=True,
+        )
+        if row is False or row is None:
+            logger.info('好友列表无更多可清扫候选，结束好友清扫')
             break
+        attempted_rows.add(row)
         res = _clean_current_friend(ui)
         if res == 'garbage_full':
             break
-        if res == 'cleaned':
-            cooldown_streak = 0
-            skip_current = False
-        else:
-            cooldown_streak += 1
-            skip_current = True
-            if cooldown_streak >= 2:
-                logger.info('可清扫好友均处于冷却中，结束好友清扫')
-                break
+        if res == 'cleaned' and has_friend_clean_coin(ui.device.image) and not has_friend_clean_cooldown(ui.device.image):
+            attempted_rows.discard(row)
 
 
 def _exit_friend_island(ui):

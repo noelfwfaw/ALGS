@@ -14,7 +14,7 @@ Rules:
 """
 
 # All asset namespaces = all supported games.
-VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior', 'trickcal', 'resonance']
+VALID_SERVER = ['hazeworld', 'lostsword', 'browndust', 'chaoszero', 'crosscore', 'starsavior', 'trickcal', 'resonance', 'promilia']
 
 # Current namespace. Default to the first one to avoid errors in dev_tools.
 server = VALID_SERVER[0]
@@ -43,6 +43,8 @@ VALID_PACKAGE = {
     'com.bilibili.trickcalcn': 'trickcal',
     # 雷索纳斯 (Resonance Solstice)
     'com.hermes.goda.bilibili': 'resonance',
+    # 蓝色星原：旅谣 (Promilia), Bilibili. Verified on device.
+    'com.manjuu.promilia.bilibili': 'promilia',
 }
 
 # Channel packages that share a namespace: package -> (namespace, channel name)
@@ -58,6 +60,7 @@ VALID_SERVER_LIST = {
     'starsavior': ['default'],
     'trickcal': ['default'],
     'resonance': ['default'],
+    'promilia': ['default'],
 }
 
 # Package name -> launch activity. Leave empty unless a game needs an explicit

@@ -13,6 +13,7 @@ _ = get_distribution
 from module.base.timer import Timer
 from module.device.app_control import AppControl
 from module.device.control import Control
+from module.device.method.utils import get_serial_pair
 from module.device.screenshot import Screenshot
 from module.exception import (EmulatorNotRunningError, GameNotRunningError, GameStuckError, GameTooManyClickError,
                               RequestHumanTakeover)
@@ -67,12 +68,14 @@ class Device(Screenshot, Control, AppControl):
     stuck_timer_long = Timer(180, count=180).start()
     stuck_long_wait_list = ['BATTLE_STATUS_S', 'PAUSE', 'LOGIN_CHECK', 'TEMPLATE_MANJUU']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, start_emulator=True, **kwargs):
         for trial in range(4):
             try:
                 super().__init__(*args, **kwargs)
                 break
             except EmulatorNotRunningError:
+                if not start_emulator:
+                    raise
                 if trial >= 3:
                     logger.critical('Failed to start emulator after 3 trial')
                     raise RequestHumanTakeover
@@ -103,6 +106,54 @@ class Device(Screenshot, Control, AppControl):
                 self.early_maatouch_init()
             if self.config.Emulator_ControlMethod == 'minitouch':
                 self.early_minitouch_init()
+
+    def emulator_stop_and_wait(self, deadline=None, timeout=60):
+        """
+        Stop the matching local emulator and wait for its ADB serial to go away.
+
+        Args:
+            deadline (datetime): Stop waiting when this scheduler deadline is reached.
+            timeout (int): Maximum seconds to wait for the emulator to stop.
+
+        Returns:
+            bool: Whether the emulator was confirmed stopped.
+        """
+        if not IS_WINDOWS or self.is_over_http or not self.is_emulator:
+            return False
+
+        from module.device.platform.emulator_windows import Emulator
+        instance = self.emulator_instance
+        port_serial, _ = get_serial_pair(self.serial)
+        if instance is None or instance.serial not in (self.serial, port_serial):
+            logger.warning(f'No emulator instance matching serial "{self.serial}" found')
+            return False
+        # These legacy stop branches kill shared emulator processes.
+        if instance == Emulator.MuMuPlayer or instance == Emulator.MuMuPlayerX:
+            logger.warning('Stopping MuMu6/MuMuX is disabled because it may affect other instances')
+            return False
+
+        if deadline is not None and datetime.now() >= deadline:
+            return False
+        if not self._emulator_function_wrapper(self._emulator_stop):
+            return False
+
+        timer = Timer(timeout).start()
+        interval = Timer(1).start()
+        while 1:
+            if deadline is not None and datetime.now() >= deadline:
+                logger.info('Deadline reached while waiting emulator stop, continue')
+                return False
+
+            interval.wait()
+            interval.reset()
+            devices = self.list_device()
+            if not any(devices.select(serial=serial, status='device')
+                       for serial in {self.serial, instance.serial}):
+                logger.info('Emulator stopped')
+                return True
+            if timer.reached():
+                logger.warning(f'Emulator still in adb device list after {timeout}s')
+                return False
 
     def run_simple_screenshot_benchmark(self):
         """

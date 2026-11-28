@@ -65,8 +65,12 @@ OCR_CRAFT_COUNT = (1015, 195, 1115, 280)
 # page's number under the cube is the recipe output (always 1), not the stock
 # (2026-11-08 真机), so the count is read before leaving the library.
 OCR_BLACKBOX_OWN = (128, 380, 158, 410)
-OCR_PIEZO_HELD = (533, 640, 582, 668)
-OCR_FUSED_HELD = (648, 640, 712, 668)
+# Numerator only: the old windows were shifted and included `/40`, turning
+# the real 460/40 and 38/40 HUD values into 0 or impossible stock jumps.
+OCR_PIEZO_HELD = (530, 630, 585, 660)
+# Three-digit numerator ends at x=730; `/40` starts at x=734.
+# shortcut: no archived true three-digit fused stock; verify if the UI scale changes.
+OCR_FUSED_HELD = (692, 630, 732, 660)
 
 # Order-card geometry, relative to the top-left of `ORDER_BUILD`'s template
 # (which is the order card's reward icon, padded by 6 px). Measured on
@@ -814,8 +818,10 @@ class CrosscoreBase(CrosscoreUI):
         if missing <= 0:
             return 'ok' if self.craft_back() else 'abort'
 
-        piezo = self.read_short_number(OCR_PIEZO_HELD, 'PIEZO')
-        fused = self.read_short_number(OCR_FUSED_HELD, 'FUSED')
+        piezo = self.read_craft_stock(OCR_PIEZO_HELD, 'PIEZO', baseline=None)
+        fused = self.read_craft_stock(OCR_FUSED_HELD, 'FUSED', baseline=None)
+        if piezo is None or fused is None:
+            return 'short' if self.craft_back() else 'abort'
         piezo_need = missing * PIEZO_PER_BLACKBOX
         fused_need = missing * FUSED_PER_BLACKBOX
         logger.info(f'Piezo {piezo}/{piezo_need}, fused {fused}/{fused_need}')
@@ -847,6 +853,47 @@ class CrosscoreBase(CrosscoreUI):
             return 'short'
         return 'ok'
 
+    def read_craft_stock(self, area, name, baseline=None, max_gain=CRAFT_MAX_PER_BATCH):
+        """
+        Read a craft stock value, rejecting single-frame OCR jumps.
+
+        Args:
+            area (tuple): OCR area on the 制作素材 page.
+            name (str): Detector name for the log.
+            baseline (int | None): Last trusted stock, when one exists.
+            max_gain (int): Largest credible increase since `baseline`. A
+                successful batch is at most 99, so a 99 -> 1984 jump is not
+                evidence that the order is complete.
+
+        Returns:
+            int | None: A repeated or bounded reading, None when the frames
+                disagree too much to safely drive another batch.
+        """
+        values = []
+        for _ in self.loop(timeout=3):
+            values.append(self.read_short_number(area, name))
+            if len(values) >= 3:
+                break
+        if baseline is None:
+            for value in set(values):
+                if values.count(value) >= 2:
+                    return value
+        else:
+            plausible = [value for value in values
+                         if baseline <= value <= baseline + max_gain]
+            if len(plausible) >= 2:
+                for value in set(plausible):
+                    if plausible.count(value) >= 2:
+                        return value
+                # One stale frame and one fresh frame can differ while both
+                # remain inside the batch bound. Trust the larger value only
+                # when it is also the latest frame, never a lone high outlier.
+                if values[-1] in plausible and values[-1] == max(plausible):
+                    return values[-1]
+        logger.warning(f'{name} stock readings {values}, baseline {baseline}, '
+                       f'max gain {max_gain}, OCR unreliable')
+        return None
+
     def craft_item(self, entry, count, stock=None):
         """
         Craft `count` of one item, splitting into batches of at most 99.
@@ -863,13 +910,10 @@ class CrosscoreBase(CrosscoreUI):
         ❗游戏一次最多合成 99 份（`CRAFT_MAX_PER_BATCH`）。一张订单缺 10 个黑匣
           时要补 10 × 40 = 400 个压电/熔融材料，直接连点 399 次「+」又慢又卡在
           99。拆批后每批走完整的「设数量 → 确认 → 结算 → 关框」。
-        ❗对话框里的份数读回值**不能拿来驱动拆批**：2026-11-10 真机 `99` 被
-          读成 `39`、`80` 被读成 `30`，一个 353 的缺口按「每批 39」开了九批
-          99 份，实际合成 800+，用户看到熔融数量早就超了。有 `stock` 时每批
-          回到制作素材页重读持有量，达标即停；读回值只用来确认数量非 0，
-          不再作为产量记账。
-        ❗`left` 只减不增：持有量 OCR 失败返回 0 时也不会把订单放大（R11）。
-          持有量连续两轮不增长就停，防止合成没生效还一直点空按钮。
+        ❗对话框里的份数读回值**不能拿来驱动材料拆批**（hard rule 165）：有
+          `stock` 时每批回到制作素材页复读持有量，达标即停；读回值只用于确认
+          本次提交的份数合理，不把中间材料产量记在数量框 OCR 上。
+        ❗库存跳变或回读 0 只安全停止，绝不把缺口放大（R11）。
         """
         if count <= 0:
             return True
@@ -877,6 +921,7 @@ class CrosscoreBase(CrosscoreUI):
         left = count
         batch_index = 0
         last_held = None
+        last_batch = 0
         while left > 0:
             batch_index += 1
             # 材料见底时游戏每批只肯做一点，别无限循环点空按钮。
@@ -891,13 +936,10 @@ class CrosscoreBase(CrosscoreUI):
                 if not self.wait_until_appear(entry, offset=(20, 20), timeout=5):
                     logger.warning(f'{entry.name} is not on the craft page, stop')
                     return False
-                held = self.read_short_number(area, name)
-                # Crafting this material only ADDS to its stock. A reading
-                # below the baseline is an OCR failure, not a bigger gap;
-                # without this guard a 0 turned a 353 gap into 720 (R11).
-                if held < baseline:
-                    logger.warning(f'{name} stock read {held} < initial {baseline}, '
-                                   f'OCR unreliable, stop')
+                held = self.read_craft_stock(
+                    area, name, baseline=baseline if last_held is None else last_held,
+                    max_gain=0 if last_held is None else last_batch)
+                if held is None:
                     return False
                 if held >= need:
                     logger.info(f'{name} stock {held}/{need}, stop crafting')
@@ -913,10 +955,16 @@ class CrosscoreBase(CrosscoreUI):
             crafted = self._craft_item_once(entry, target)
             if crafted <= 0:
                 logger.warning(f'Craft batch {batch_index} made nothing, stop ({left} left)')
-                return batch_index > 1
+                return False
+            last_batch = target
             if stock is None:
                 left -= min(crafted, target)
         return True
+
+    def craft_confirm_enabled(self):
+        """Whether the craft confirm button is present and in its lit state."""
+        return (self.appear(CRAFT_CONFIRM, offset=(20, 20))
+                and CRAFT_CONFIRM.appear_on(self.device.image, threshold=30))
 
     def _craft_item_once(self, entry, count):
         """
@@ -953,9 +1001,21 @@ class CrosscoreBase(CrosscoreUI):
             logger.warning('The craft dialog did not open')
             return 0
 
+        reset = False
         for _ in self.loop(timeout=3):
             if self.read_number(OCR_CRAFT_COUNT, (255, 255, 255), 180, 'CRAFT_COUNT') == 1:
+                reset = True
                 break
+        if not reset:
+            logger.warning('Craft amount did not reset to one, close without confirming')
+            self.craft_dialog_close()
+            return 0
+        # A dark confirm at one means there is not enough material for even a
+        # partial batch. Do not spend clicks on + or MAX in that state.
+        if not self.craft_confirm_enabled():
+            logger.warning('Craft confirm is disabled, close without crafting')
+            self.craft_dialog_close()
+            return 0
 
         if count >= CRAFT_MAX_PER_BATCH and self.appear(CRAFT_MAX, offset=(10, 10)):
             # 「>|」一次到游戏允许的最大份数（材料不够就只给到能做的数）。
@@ -967,8 +1027,7 @@ class CrosscoreBase(CrosscoreUI):
         # Wait for the amount to settle on a non-initial value. `>|` and the
         # `+` presses are drawn over a few frames, so confirming on the first
         # frame that still shows 1 would craft a single piece. The exact value
-        # is NOT used to drive batching (see craft_item), so it does not have
-        # to reach `count` before we confirm.
+        # is NOT used to drive material batching (see craft_item).
         current = 0
         previous = -1
         for _ in self.loop(timeout=2):
@@ -981,12 +1040,32 @@ class CrosscoreBase(CrosscoreUI):
             logger.warning('Craft amount unreadable, close the dialog without confirming')
             self.craft_dialog_close()
             return 0
+        if current > count:
+            logger.warning(f'Craft amount {current} exceeds requested {count}, '
+                           f'close without confirming')
+            self.craft_dialog_close()
+            return 0
         if current != count:
             logger.info(f'Craft amount read as {current} (asked {count}), '
-                        f'not used to drive batches')
+                        f'not used to drive material batches')
 
-        if self.appear(CRAFT_CONFIRM, offset=(20, 20), interval=2):
+        # If only one piece fits, + can leave the amount at one while dimming
+        # confirm. Reset once more and still allow that normal partial batch.
+        if current == 1 and count > 1 and not self.craft_confirm_enabled():
+            if self.appear(CRAFT_MIN, offset=(20, 20)):
+                self.device.click(CRAFT_MIN)
+                for _ in self.loop(timeout=3):
+                    if self.read_number(OCR_CRAFT_COUNT, (255, 255, 255), 180, 'CRAFT_COUNT') == 1:
+                        current = 1
+                        break
+        if (self.appear(CRAFT_CONFIRM, offset=(20, 20))
+                and CRAFT_CONFIRM.appear_on(self.device.image, threshold=30)):
             self.device.click(CRAFT_CONFIRM)
+        else:
+            logger.warning('Craft confirm is disabled, close without confirming')
+            self.craft_dialog_close()
+            return 0
+
         rewarded = False
         for _ in self.loop(timeout=8):
             if self.appear(CRAFT_RESULT, offset=(20, 20)):
@@ -1004,13 +1083,14 @@ class CrosscoreBase(CrosscoreUI):
                 break
         if not rewarded:
             logger.warning('No reward popup after crafting')
+            self.craft_dialog_close()
+            return 0
 
-        # ❗对话框没关掉**不等于这批没合成**。2026-11-10 真机：卡顿让返回键
-        #   只点一次被吞，`wait_until_disappear(CRAFT_PLUS)` 5 秒超时就把整批
-        #   判失败、直接 `Craft batch 3/8 failed, stop`，后面的材料全没做，
-        #   还连累 craft_back() 白等 15 秒。现在关框自己重试，且已经确认过
-        #   合成就按实际数量记账。
-        self.craft_dialog_close()
+        # A result proves the batch happened, but only a positive return to the
+        # craft page lets the caller safely read stock or open another recipe.
+        if not self.craft_dialog_close():
+            logger.warning('Craft dialog did not close after a result, stop')
+            return 0
         return current
 
     def craft_dialog_close(self):
@@ -1030,12 +1110,18 @@ class CrosscoreBase(CrosscoreUI):
             return False
         self.device.click_record_clear()
         for _ in self.loop(timeout=12):
-            if self.appear(CRAFT_BACK, offset=(20, 20), interval=1.5):
-                self.device.click(CRAFT_BACK)
+            if self.appear(CRAFT_PLUS, offset=(20, 20)):
+                if self.appear(CRAFT_BACK, offset=(20, 20), interval=1.5):
+                    self.device.click(CRAFT_BACK)
+                continue
             # ❗用框架原语等消失，不要裸写 `not appear(CRAFT_PLUS)`：合成结算页
             #   淡出的过渡帧什么都匹配不上，那样会误判「对话框已关」（R5）。
-            if self.wait_until_disappear(CRAFT_PLUS, offset=(20, 20), timeout=2):
-                return True
+            if self.wait_until_disappear(CRAFT_PLUS, offset=(20, 20), timeout=2, settle=2):
+                # Positive exit: the dialog is gone for two frames and the
+                # craft page's back control is drawable again. A swallowed
+                # close click keeps the loop alive instead of losing the page.
+                if self.wait_until_appear(CRAFT_BACK, offset=(20, 20), timeout=2):
+                    return True
         logger.warning('The craft dialog did not close')
         return False
 

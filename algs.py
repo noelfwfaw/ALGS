@@ -32,6 +32,7 @@ class AlGS(GameScheduler):
         'starsavior': ('module.starsavior.starsavior_ui', 'StarsaviorUI'),
         'trickcal': ('module.trickcal.trickcal_ui', 'TrickcalUI'),
         'resonance': ('module.resonance.resonance_ui', 'ResonanceUI'),
+        'promilia': ('module.promilia.promilia_ui', 'PromiliaUI'),
     }
 
     @property
@@ -460,6 +461,12 @@ class AlGS(GameScheduler):
     def resonance_trade(self):
         from module.resonance.caravan import ResonanceCaravan
         ResonanceCaravan(config=self.config, device=self.device).run()
+
+    # ==================== Promilia (蓝色星原：旅谣) ====================
+
+    def promilia_activity(self):
+        from module.promilia.activity import PromiliaActivity
+        PromiliaActivity(config=self.config, device=self.device).run()
 
 
 if __name__ == '__main__':

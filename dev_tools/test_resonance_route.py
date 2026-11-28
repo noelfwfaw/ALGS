@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
+from module.config import server
 from module.resonance import route
 
 
@@ -380,7 +381,51 @@ class TestResonanceRoute(unittest.TestCase):
         self.assertGreater(corridor['index'], 40.0)
         self.assertIn('->', corridor['route'])
 
+    def test_scheduler_precheck_missing_profile_waits_then_passes(self):
+        import os
+        import tempfile
+        from datetime import datetime
+        from types import SimpleNamespace
+        from module.resonance.market import load_market_status, precheck_resonance_market
+
+        data = _sample_data()
+        parity = {'高利特产': {
+            'buy': {'修格里城': {'price': 1000, 'variation': 100}},
+            'sell': {'七号自由港': {'price': 2000, 'variation': 100}},
+        }}
+        good = {'高利特产': {
+            'buy': {'修格里城': {'price': 800, 'variation': 80}},
+            'sell': {'七号自由港': {'price': 2400, 'variation': 120}},
+        }}
+        config = SimpleNamespace(
+            config_name='TEST', ResonanceTrade_MarketFilter='good',
+            ResonanceTrade_MarketWaitMinutes=30, ResonanceTrade_RefreshProfile=False,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            profile_path = os.path.join(tmp, 'missing-profile.json')
+            status_path = os.path.join(tmp, 'market-status.json')
+            with patch('module.resonance.market.load_columba_data', return_value=data), \
+                    patch('module.resonance.market.fetch_prices', side_effect=[parity, good]) as fetch, \
+                    patch('module.resonance.market.datetime') as clock:
+                clock.now.return_value = datetime(2026, 11, 28, 12)
+                next_check = precheck_resonance_market(
+                    config, profile_path=profile_path, status_path=status_path,
+                )
+                waited = load_market_status('TEST', path=status_path)
+                passed = precheck_resonance_market(
+                    config, profile_path=profile_path, status_path=status_path,
+                )
+
+        self.assertEqual(datetime(2026, 11, 28, 12, 30), next_check)
+        self.assertIsNone(passed)
+        self.assertEqual(2, fetch.call_count)
+        fetch.assert_called_with(ttl=180, data=data)
+        self.assertEqual('wait', waited['status'])
+        self.assertEqual('2026-11-28 12:30:00', waited['next_check'])
+
     def test_market_status_persistence_webui_refresh_and_formatting(self):
+        self.addCleanup(server.set_server, server.server)
+        server.set_server('resonance')
         import os
         import tempfile
         from module.resonance.map_nav import MAP_COORDS_05X

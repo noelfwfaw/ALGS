@@ -285,6 +285,7 @@ dev_tools/link_*_skills.bat
 /AGENTS.md
 /AGENT_STATE.md
 /.agents/
+/.t3-collab/
 CODEBUDDY.md
 HANDOVER-*.md
 

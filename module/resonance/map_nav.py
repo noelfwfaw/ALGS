@@ -447,7 +447,8 @@ class ResonanceMapNav(ResonanceUI):
         for _ in self.loop(skip_first=False, timeout=timeout):
             self.device.stuck_record_clear()
             handled, skip_clicks = self._handle_depart_confirm(skip_timer, skip_clicks)
-            if handled or self.handle_reward_popup() or self.handle_operation_victory():
+            if (handled or self.handle_reward_popup() or self.handle_operation_victory()
+                    or self.handle_transit_recovery()):
                 settled = 0
                 continue
             if self.ui_page_appear(page_main, offset=OFFSET) and self.appear(assets.MAIN_VISIT_CITY, offset=OFFSET):

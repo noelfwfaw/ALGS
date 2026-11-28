@@ -708,7 +708,7 @@ class TestResonanceIsland(unittest.TestCase):
             ],
         )
 
-        # Case 3: post-clean return to cooldown stops without retrying; 2 cooldown friends stop phase cleanly
+        # Case 3: confirmed cooldown friends are skipped once each, then the phase exits
         f_coin_cd = f_coin.copy()
         f_coin_cd[68:84, 1035:1075] = (235, 130, 155)
         flist_2clean = _blank_with(assets.ISLAND_FRIEND_LIST)
@@ -724,9 +724,8 @@ class TestResonanceIsland(unittest.TestCase):
         task3.device.image = beach
         frames3 = iter([
             beach, flist_2clean, f_coin, clean_res, f_coin_cd,
-            f_coin_cd, flist_2clean, f_coin_cd,
             f_coin_cd, flist_2clean_next, f_coin_cd,
-            beach,
+            f_coin_cd, flist_2clean_next, beach,
         ])
         task3.device.screenshot.side_effect = lambda: setattr(task3.device, 'image', next(frames3))
         with patch('module.base.timer.time', side_effect=count(100, 1.5)):
@@ -740,12 +739,58 @@ class TestResonanceIsland(unittest.TestCase):
                 'ISLAND_FRIEND_CLEAN',
                 'ISLAND_FRIEND_CLEAN_RESULT',
                 'ISLAND_FRIEND_TAB_VISIT',
-                'ISLAND_FRIEND_VISIT_0',
-                'ISLAND_FRIEND_TAB_VISIT',
                 'ISLAND_FRIEND_VISIT_1',
-                'OP_BACK',
+                'ISLAND_FRIEND_TAB_VISIT',
+                'FRIEND_DRAWER_CLOSE',
             ],
         )
+
+    def test_friend_clean_requires_confirmation(self):
+        from module.resonance.island_friends import (
+            _clean_current_friend, has_friend_clean_coin, has_friend_clean_cooldown,
+            is_friend_next_enabled, read_friend_clean_remaining,
+        )
+
+        f_coin = _make_friend_island(with_coin=True)
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                            'screenshots', 'resonance', 'island_cleanup_skipped_20261128.png')
+        if os.path.exists(path):
+            original = np.array(Image.open(path).convert('RGB'))
+            self.assertEqual(read_friend_clean_remaining(original), 3)
+            self.assertTrue(has_friend_clean_coin(original))
+            self.assertFalse(has_friend_clean_cooldown(original))
+            self.assertTrue(is_friend_next_enabled(original))
+            cases = [(original, 3, 'unknown')]
+        else:
+            cases = []
+        cases += [(f_coin, 3, 'unknown'), (f_coin, 2, 'cleaned')]
+        for image, remaining, expected in cases:
+            task = _new_island_task()
+            task.device.image = image
+            task.device.screenshot.side_effect = lambda: setattr(task.device, 'image', image)
+            with patch('module.resonance.island_friends.read_friend_clean_remaining',
+                       side_effect=[3, remaining]), \
+                 patch('module.base.timer.time', side_effect=count(100, 1.5)):
+                self.assertEqual(_clean_current_friend(task), expected)
+            self.assertEqual([c[0][0].name for c in task.device.click.call_args_list], ['ISLAND_FRIEND_CLEAN'])
+
+    def test_friend_clean_unknown_moves_to_later_candidate(self):
+        from module.resonance.island_friends import _run_friend_clean_phase
+
+        task = _new_island_task()
+        task.device.image = _make_friend_island()
+        seen_rows = []
+
+        def open_friend(*args, **kwargs):
+            seen_rows.append(set(kwargs['skip_rows']))
+            return [1, 3, False][len(seen_rows) - 1]
+
+        with patch('module.resonance.island_friends._open_friend_and_visit_first',
+                   side_effect=open_friend), \
+             patch('module.resonance.island_friends._clean_current_friend',
+                   side_effect=['unknown', 'cleaned']):
+            _run_friend_clean_phase(task)
+        self.assertEqual(seen_rows, [set(), {1}, {1, 3}])
 
     def test_friend_fight_arrest_flow_and_fallbacks(self):
         from module.resonance import assets

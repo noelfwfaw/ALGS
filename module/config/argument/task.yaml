@@ -289,3 +289,12 @@ Resonance:
     ResonanceTrade:
       - Scheduler
       - ResonanceTrade
+
+# ==================== Promilia (蓝色星原：旅谣) ====================
+
+Promilia:
+  menu: 'collapse'
+  page: 'setting'
+  tasks:
+    PromiliaActivity:
+      - Scheduler

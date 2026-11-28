@@ -35,6 +35,10 @@
     "Resonance": {
       "name": "雷索納斯",
       "help": "每日活躍、行動彙總、通行證和商店"
+    },
+    "Promilia": {
+      "name": "藍色星原：旅謠",
+      "help": "藍色星原：旅謠的每日活躍獎勵領取"
     }
   },
   "Task": {
@@ -373,6 +377,10 @@
     "ResonanceTrade": {
       "name": "Task.ResonanceTrade.name",
       "help": "Task.ResonanceTrade.help"
+    },
+    "PromiliaActivity": {
+      "name": "每日活躍獎勵",
+      "help": "進入日常活躍頁面，領取已完成任務點數與一個可領取的里程碑獎勵箱，然後返回主畫面。"
     }
   },
   "Scheduler": {
@@ -427,7 +435,8 @@
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
       "com.bilibili.trickcalcn": "TRICKCAL",
-      "com.hermes.goda.bilibili": "RESONANCE"
+      "com.hermes.goda.bilibili": "RESONANCE",
+      "com.manjuu.promilia.bilibili": "藍色星原：旅謠（嗶哩嗶哩）"
     },
     "ServerName": {
       "name": "遊戲內伺服器",
@@ -440,7 +449,8 @@
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
       "trickcal-0": "[TRICKCAL] default",
-      "resonance-0": "[RESONANCE] default"
+      "resonance-0": "[RESONANCE] default",
+      "promilia-0": "[PROMILIA] default"
     },
     "ScreenshotMethod": {
       "name": "模擬器截圖方案",
@@ -548,10 +558,11 @@
     },
     "WhenTaskQueueEmpty": {
       "name": "當任務隊列清空後",
-      "help": "無任務時關閉遊戲，能在收菜期間降低 CPU 佔用",
+      "help": "設定任務隊列清空後的操作。選擇「關閉模擬器」時，僅對可確認的 Windows 本機模擬器生效；隊列空閒且距離下一任務至少 180 秒時關閉，否則繼續待機，下一任務到點自動啟動。",
       "stay_there": "停在原處",
       "goto_main": "前往主界面",
-      "close_game": "關閉遊戲"
+      "close_game": "關閉遊戲",
+      "close_emulator": "關閉模擬器"
     }
   },
   "DropRecord": {

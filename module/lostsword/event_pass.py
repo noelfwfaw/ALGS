@@ -1,6 +1,6 @@
-"""关掉活动期的签到通行证弹窗（「万圣节签到通行证」那版）。
+"""关掉活动期的签到通行证弹窗（万圣节 / 黑色星期五两版）。
 
-活动期（2026.10.29~11.12）每天登录，游戏把通行证面板弹在大厅前面。关它是一套
+活动期每天登录，游戏把通行证面板弹在大厅前面。万圣节那版关它是一套
 舞步（2026-11-04 实测）：点 ✕ → 游戏把当天的签到奖励发了，「已获得道具」弹出来
 → 点掉它 → 面板带着勾弹回来 → 再点一次 ✕ → 回大厅。面板「领奖前」和「领完弹
 回来」两个状态都会挡住大厅，boot 循环不认识它们，300 秒 BOOT_TIMEOUT 直接
@@ -16,19 +16,23 @@
 `handle_app_boot()` 和 `ui_additional()` 各挂一次，前者管冷启动撞上，
 后者管跑到一半撞上。
 
-换活动（同款版式、标题换了）时：重抓一张弹窗整屏存成 `EVENT_PASS_POPUP.png`
-（整屏，硬约束 105；button_extract 按整屏 bbox 生成 area，幂等），改
-`EVENT_PASS_TITLE_AREA` 的判据坐标，再从新截图裁一枚右上角 ✕ 存成
-`EVENT_PASS_CLOSE.png`，处理逻辑不动。
+换活动（同款版式、标题或 ✕ 位置变了）时：重抓一张弹窗整屏，按原坐标裁出
+整屏标题模板和右上角 ✕ 模板（硬约束 105），在 `EVENT_PASS_VARIANTS` 追加一对；
+标题和对应的 ✕ 必须同帧同时命中，处理逻辑不动。
 """
 import cv2
 
 from module.base.timer import Timer
 from module.base.utils import crop
 from module.logger import logger
-from module.lostsword.assets import EVENT_PASS_CLOSE, EVENT_PASS_POPUP
+from module.lostsword.assets import (
+    EVENT_PASS_BLACK_FRIDAY_CLOSE,
+    EVENT_PASS_BLACK_FRIDAY_POPUP,
+    EVENT_PASS_CLOSE,
+    EVENT_PASS_POPUP,
+)
 
-# 判据：面板标题「万圣节签到通行证」+ 日期行。领奖前后这一块一个像素都不变
+# 判据：两期面板同一坐标的标题 + 日期行。万圣节领奖前后这一块一个像素都不变
 # （变的是奖品格子的高亮和勾），所以领完弹回来的那一版也认得 —— 判据必须选
 # 不变的元素（硬约束 103 同款思路），整屏对比会认不出第二版。
 # 实测（2026-11-04，模板 = 整屏 PNG 按 `EVENT_PASS_TITLE_AREA` 裁 418x50）：
@@ -40,6 +44,10 @@ from module.lostsword.assets import EVENT_PASS_CLOSE, EVENT_PASS_POPUP
 # 0.85 两边余量都大。
 EVENT_PASS_TITLE_AREA = (150, 128, 568, 178)
 EVENT_PASS_SIMILARITY = 0.85
+EVENT_PASS_VARIANTS = (
+    (EVENT_PASS_POPUP, EVENT_PASS_CLOSE),
+    (EVENT_PASS_BLACK_FRIDAY_POPUP, EVENT_PASS_BLACK_FRIDAY_CLOSE),
+)
 
 
 class EventPassPopup:
@@ -54,7 +62,7 @@ class EventPassPopup:
     EVENT_PASS_BACK = Timer(2)
 
     @staticmethod
-    def _event_pass_score(image):
+    def _event_pass_score(image, popup):
         """
         标题块在屏上的匹配分。
 
@@ -64,12 +72,13 @@ class EventPassPopup:
 
         Args:
             image (np.ndarray): Screenshot.
+            popup (Button): Full-screen popup template.
 
         Returns:
             float: 0~1。
         """
-        EVENT_PASS_POPUP.ensure_template()
-        template = crop(EVENT_PASS_POPUP.image, EVENT_PASS_TITLE_AREA)
+        popup.ensure_template()
+        template = crop(popup.image, EVENT_PASS_TITLE_AREA)
         x1, y1, x2, y2 = EVENT_PASS_TITLE_AREA
         patch = image[y1:y2, x1:x2]
         if patch.shape[0] < template.shape[0] or patch.shape[1] < template.shape[1]:
@@ -77,14 +86,23 @@ class EventPassPopup:
         res = cv2.matchTemplate(patch, template, cv2.TM_CCOEFF_NORMED)
         return float(cv2.minMaxLoc(res)[1])
 
+    def _event_pass_close_button(self, image):
+        """Return the close button only when its title and X share this frame."""
+        for popup, close in EVENT_PASS_VARIANTS:
+            if self._event_pass_score(image, popup) <= EVENT_PASS_SIMILARITY:
+                continue
+            if close.match(image, offset=20):
+                return close
+        return None
+
     def event_pass_popup_appear(self):
         """
-        签到通行证面板（领奖前后两个状态都算）是否在屏幕上。
+        签到通行证面板（两期、领奖前后状态都算）是否在屏幕上。
 
         Returns:
-            bool: 面板是否在。
+            bool: 标题和对应的 ✕ 是否同帧都在。
         """
-        return self._event_pass_score(self.device.image) > EVENT_PASS_SIMILARITY
+        return self._event_pass_close_button(self.device.image) is not None
 
     def handle_event_pass(self):
         """
@@ -95,15 +113,16 @@ class EventPassPopup:
         同款的节流与消失判断。
 
         Returns:
-            bool: If the popup was on screen (and its close key was pressed).
+            bool: If a matching title and close button were on screen.
         """
         # "看不到" 就是这一支要问的问题：看不到才轮到别的分支，看得到就关掉它。
-        if not self.event_pass_popup_appear():  # alas-lint: allow - the absence is the answer, the caller continues on False
+        close = self._event_pass_close_button(self.device.image)
+        if close is None:  # alas-lint: allow - the absence is the answer, the caller continues on False
             return False
 
         if self.EVENT_PASS_BACK.reached_and_reset():
             logger.info('Event pass popup, close it')
             # 这枚 ✕ 实测 adb 一点一个准；tap_asset 走 adb（硬约束 60），
             # 对不对由调用方下一轮的判据回答。
-            self.tap_asset(EVENT_PASS_CLOSE)
+            self.tap_asset(close)
         return True

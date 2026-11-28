@@ -19,8 +19,8 @@ class GeneratedConfig:
 
     # Group `Emulator`
     Emulator_Serial = 'auto'
-    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl, com.neowizgames.game.browndust2, com.smilegate.chaoszero.stove.google, com.megagame.crosscore, com.studiobside.starMain, com.bilibili.trickcalcn, com.hermes.goda.bilibili
-    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0, browndust-0, chaoszero-0, crosscore-0, starsavior-0, trickcal-0, resonance-0
+    Emulator_PackageName = 'auto'  # auto, com.feimo.hazeworld.bilibili, com.wemadeconnect.aos.lostdgl, com.neowizgames.game.browndust2, com.smilegate.chaoszero.stove.google, com.megagame.crosscore, com.studiobside.starMain, com.bilibili.trickcalcn, com.hermes.goda.bilibili, com.manjuu.promilia.bilibili
+    Emulator_ServerName = 'disabled'  # disabled, hazeworld-0, lostsword-0, browndust-0, chaoszero-0, crosscore-0, starsavior-0, trickcal-0, resonance-0, promilia-0
     Emulator_ScreenshotMethod = 'auto'  # auto, ADB, ADB_nc, uiautomator2, aScreenCap, aScreenCap_nc, DroidCast, DroidCast_raw, nemu_ipc, ldopengl
     Emulator_ControlMethod = 'MaaTouch'  # ADB, uiautomator2, minitouch, Hermit, MaaTouch
     Emulator_ScreenshotDedithering = False
@@ -41,7 +41,7 @@ class GeneratedConfig:
     Optimization_ScreenshotInterval = 0.3
     Optimization_CombatScreenshotInterval = 1.0
     Optimization_TaskHoardingDuration = 0
-    Optimization_WhenTaskQueueEmpty = 'close_game'  # stay_there, goto_main, close_game
+    Optimization_WhenTaskQueueEmpty = 'close_game'  # stay_there, goto_main, close_game, close_emulator
 
     # Group `DropRecord`
     DropRecord_SaveFolder = './screenshots'

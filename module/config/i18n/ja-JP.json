@@ -35,6 +35,10 @@
     "Resonance": {
       "name": "レゾナンス",
       "help": "デイリー活躍度、作戦まとめ、パス報酬、ショップ"
+    },
+    "Promilia": {
+      "name": "アズールプロミリア",
+      "help": "アズールプロミリアのデイリー活躍報酬を受け取ります"
     }
   },
   "Task": {
@@ -373,6 +377,10 @@
     "ResonanceTrade": {
       "name": "Task.ResonanceTrade.name",
       "help": "Task.ResonanceTrade.help"
+    },
+    "PromiliaActivity": {
+      "name": "デイリー活躍報酬",
+      "help": "デイリー活躍ページを開き、完了したタスクのポイントと受け取れるマイルストーン報酬箱を1つ受け取り、ロビーに戻ります。"
     }
   },
   "Scheduler": {
@@ -427,7 +435,8 @@
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
       "com.bilibili.trickcalcn": "TRICKCAL",
-      "com.hermes.goda.bilibili": "RESONANCE"
+      "com.hermes.goda.bilibili": "RESONANCE",
+      "com.manjuu.promilia.bilibili": "Azur Promilia (Bilibili)"
     },
     "ServerName": {
       "name": "ゲーム内サーバー",
@@ -440,7 +449,8 @@
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
       "trickcal-0": "[TRICKCAL] default",
-      "resonance-0": "[RESONANCE] default"
+      "resonance-0": "[RESONANCE] default",
+      "promilia-0": "[PROMILIA] default"
     },
     "ScreenshotMethod": {
       "name": "スクリーンショット方式",
@@ -548,10 +558,11 @@
     },
     "WhenTaskQueueEmpty": {
       "name": "タスクキューが空になったら",
-      "help": "実行待ちのタスクがないときにゲームを閉じます。CPU 負荷を下げられます",
+      "help": "タスクキューが空になったときの動作を選択します。「エミュレータを終了」は、確認できる Windows ローカルエミュレータでのみ有効です。キューが空で、次のタスクまで180秒以上ある場合のみ終了し、未満の場合は待機します。次のタスクの時刻になると自動的に起動します。",
       "stay_there": "そのまま",
       "goto_main": "メイン画面へ",
-      "close_game": "ゲームを閉じる"
+      "close_game": "ゲームを閉じる",
+      "close_emulator": "エミュレータを終了"
     }
   },
   "DropRecord": {

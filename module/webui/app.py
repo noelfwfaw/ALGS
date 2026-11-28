@@ -1077,6 +1077,8 @@ class AlasGUI(Frame):
                     f"Save config {filepath_config(config_name)}, {dict_to_kv(modified)}"
                 )
                 config_updater.write_file(config_name, config)
+                if config_name == self.alas_name and self.page == "Overview":
+                    self.alas_update_overview_task()
         except Exception as e:
             logger.exception(e)
 

@@ -35,6 +35,10 @@
     "Resonance": {
       "name": "Resonance Solstice",
       "help": "Daily activity, operations, pass rewards, and shops"
+    },
+    "Promilia": {
+      "name": "Azur Promilia",
+      "help": "Claim daily activity rewards in Azur Promilia"
     }
   },
   "Task": {
@@ -373,6 +377,10 @@
     "ResonanceTrade": {
       "name": "Task.ResonanceTrade.name",
       "help": "Task.ResonanceTrade.help"
+    },
+    "PromiliaActivity": {
+      "name": "Daily Activity Rewards",
+      "help": "Open the daily activity page, claim completed task points and one available milestone reward box, then return to the lobby."
     }
   },
   "Scheduler": {
@@ -427,7 +435,8 @@
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
       "com.bilibili.trickcalcn": "TRICKCAL",
-      "com.hermes.goda.bilibili": "RESONANCE"
+      "com.hermes.goda.bilibili": "RESONANCE",
+      "com.manjuu.promilia.bilibili": "Azur Promilia (Bilibili)"
     },
     "ServerName": {
       "name": "Server in Game Client",
@@ -440,7 +449,8 @@
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
       "trickcal-0": "[TRICKCAL] default",
-      "resonance-0": "[RESONANCE] default"
+      "resonance-0": "[RESONANCE] default",
+      "promilia-0": "[PROMILIA] default"
     },
     "ScreenshotMethod": {
       "name": "Screenshot Method",
@@ -548,10 +558,11 @@
     },
     "WhenTaskQueueEmpty": {
       "name": "When Task Queue is Empty",
-      "help": "Close AL when there are no pending tasks, can help reduce CPU",
+      "help": "Choose what to do when the task queue is empty. Close Emulator only applies to identifiable local Windows emulators: it shuts down when the queue is idle and the next task is at least 180 seconds away, otherwise it keeps waiting. The next task starts the emulator automatically when due.",
       "stay_there": "Stay There",
       "goto_main": "Goto Main Page",
-      "close_game": "Close Game"
+      "close_game": "Close Game",
+      "close_emulator": "Close Emulator"
     }
   },
   "DropRecord": {

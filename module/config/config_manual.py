@@ -74,6 +74,7 @@ class ManualConfig:
     > CrosscoreMain > CrosscoreRedeem > CrosscoreMail > CrosscoreExplore > CrosscoreChip > CrosscoreExercise > CrosscoreWeekly > CrosscoreBase > CrosscoreTask > CrosscorePass
     > TrickcalLogin > TrickcalMail > TrickcalFriend > TrickcalOrder > TrickcalDoll > TrickcalEvent > TrickcalDungeon > TrickcalClass > TrickcalPvp > TrickcalTask > TrickcalShop > TrickcalNormalShop > TrickcalPass
     > ResonanceMail > ResonanceDispatch > ResonanceOperations > ResonancePreparation > ResonanceIsland > ResonanceDaily > ResonancePass > ResonanceShop > ResonanceExchange > ResonanceLocalShop > ResonanceTrade
+    > PromiliaActivity
     """
 
     # 工具页（`task.yaml` 里 `page: 'tool'`）能**单独启动**的任务。

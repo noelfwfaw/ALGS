@@ -35,6 +35,10 @@
     "Resonance": {
       "name": "雷索纳斯",
       "help": "每日活跃、行动汇总、通行证和商店"
+    },
+    "Promilia": {
+      "name": "蓝色星原：旅谣",
+      "help": "蓝色星原：旅谣的每日活跃奖励领取"
     }
   },
   "Task": {
@@ -373,6 +377,10 @@
     "ResonanceTrade": {
       "name": "琐呐跑商",
       "help": "自动读取货舱、城市声望与乘员共振，结合实时物价规划最优跑商与接驳路线，按疲劳恢复时间（6分钟/点）调度。"
+    },
+    "PromiliaActivity": {
+      "name": "每日活跃奖励",
+      "help": "进入日常活跃页面，领取已完成任务点数与一个可领取的里程碑奖励箱，然后返回主界面。"
     }
   },
   "Scheduler": {
@@ -427,7 +435,8 @@
       "com.megagame.crosscore": "CROSSCORE",
       "com.studiobside.starMain": "STARSAVIOR",
       "com.bilibili.trickcalcn": "TRICKCAL",
-      "com.hermes.goda.bilibili": "RESONANCE"
+      "com.hermes.goda.bilibili": "RESONANCE",
+      "com.manjuu.promilia.bilibili": "蓝色星原：旅谣（哔哩哔哩）"
     },
     "ServerName": {
       "name": "游戏内服务器",
@@ -440,7 +449,8 @@
       "crosscore-0": "[CROSSCORE] default",
       "starsavior-0": "[STARSAVIOR] default",
       "trickcal-0": "[TRICKCAL] default",
-      "resonance-0": "[RESONANCE] default"
+      "resonance-0": "[RESONANCE] default",
+      "promilia-0": "[PROMILIA] default"
     },
     "ScreenshotMethod": {
       "name": "模拟器截图方案",
@@ -548,10 +558,11 @@
     },
     "WhenTaskQueueEmpty": {
       "name": "当任务队列清空后",
-      "help": "无任务时关闭游戏，能在收菜期间降低 CPU 占用",
+      "help": "设置任务队列清空后的操作。选择「关闭模拟器」时，仅对可确认的 Windows 本地模拟器生效；队列空闲且距下一任务至少 180 秒时关闭，否则继续待机，下一任务到点自动启动。",
       "stay_there": "停在原处",
       "goto_main": "前往主界面",
-      "close_game": "关闭游戏"
+      "close_game": "关闭游戏",
+      "close_emulator": "关闭模拟器"
     }
   },
   "DropRecord": {

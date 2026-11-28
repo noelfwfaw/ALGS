@@ -21,6 +21,9 @@ from module.logger import logger
 # nothing; a real session gap is hours.
 SESSION_CLAIM_INTERVAL = 10 * 60
 
+# Closing the emulator is not worth its boot time for a short queue gap.
+EMULATOR_CLOSE_MIN_WAIT = 180
+
 
 class GameScheduler:
     """
@@ -516,7 +519,7 @@ class GameScheduler:
         Stopping the old game is part of switching, and it is *not* the same
         thing as `Optimization_WhenTaskQueueEmpty`: that option decides whether
         the game is left open while the queue is empty and waiting for the next
-        task (`stay_there` / `goto_main`) or closed (`close_game`). Once a task
+        task (`stay_there` / `goto_main`) or closed (`close_game` / `close_emulator`). Once a task
         of another game is due, the old game has to go either way, so this never
         assumes the previous stop happened and never asks whether the game is in
         the foreground.
@@ -622,12 +625,14 @@ class GameScheduler:
         """
         self.game_ui().ui_goto_main()
 
-    def wait_until(self, target):
+    def wait_until(self, target, baseline_ready=False):
         """
         Wait until the given datetime.
 
         Args:
             target (datetime.datetime):
+            baseline_ready (bool): Reuse a watch baseline collected before a
+                blocking operation instead of starting a new one here.
 
         Returns:
             bool: True if the wait finished, False if the config was reloaded.
@@ -638,19 +643,20 @@ class GameScheduler:
         # Baseline for should_reload(). Without it the config written by the
         # previous task looks newer than the baseline forever, should_reload()
         # returns True on every wake up and the scheduler spins in this loop.
-        self.config.start_watching()
+        if not baseline_ready:
+            self.config.start_watching()
 
         while 1:
-            if datetime.now() > target:
-                return True
             if self.stop_event is not None:
                 if self.stop_event.is_set():
                     logger.info('Update event detected')
                     logger.info(f'[{self.config_name}] exited. Reason: Update')
                     exit(0)
-            time.sleep(5)
             if self.config.should_reload():
                 return False
+            if datetime.now() > target:
+                return True
+            time.sleep(5)
 
     def get_next_task(self):
         """
@@ -669,13 +675,93 @@ class GameScheduler:
             if task.next_run > datetime.now():
                 logger.info(f'Wait until {task.next_run} for task `{task.command}`')
                 self.is_first_task = False
+                method = self.config.Optimization_WhenTaskQueueEmpty
+                market_wait_only = False
+                if task.command == 'ResonanceTrade':
+                    from module.resonance.market import resonance_market_wait_required
+                    market_wait_only = resonance_market_wait_required(self.config)
+                if market_wait_only and not has_cached_property(self, 'device'):
+                    # A market check must not wake the emulator. Without a
+                    # connected device every idle action below would start
+                    # one, so wait the market out instead. With a device the
+                    # regular idle policy still applies.
+                    self.config.start_watching()
+                    if not self.wait_until(task.next_run, baseline_ready=True):
+                        del_cached_property(self, 'config')
+                        continue
+                    break
                 # Nothing is queued any more: this is the end of the session for
                 # the game that is on screen. The session wide claims (mission
                 # list, battle pass) are taken here rather than at launch, so
                 # they never sit in front of the tasks the user queued up.
-                self.session_claim()
-                method = self.config.Optimization_WhenTaskQueueEmpty
-                if method == 'close_game':
+                if method != 'close_emulator':
+                    self.session_claim()
+                if method == 'close_emulator':
+                    # Capture GUI changes during claims and emulator shutdown.
+                    self.config.start_watching()
+                    has_device = has_cached_property(self, 'device')
+                    if has_device:
+                        if getattr(self.device.config, 'Emulator_Serial', None) != getattr(
+                                self.config, 'Emulator_Serial', None):
+                            logger.info('Emulator target changed, discard stale device')
+                            del_cached_property(self, 'device')
+                            self.game = None
+                            self.game_in_foreground = False
+                            has_device = False
+                        else:
+                            self.device.config = self.config
+                    if has_device:
+                        self.session_claim()
+                    # Claiming may itself take time; decide from what is left.
+                    wait_seconds = (task.next_run - datetime.now()).total_seconds()
+                    if wait_seconds < EMULATOR_CLOSE_MIN_WAIT:
+                        logger.info(
+                            f'Wait only {int(wait_seconds)}s, skip closing emulator '
+                            f'(threshold {EMULATOR_CLOSE_MIN_WAIT}s)'
+                        )
+                        release_resources()
+                        if has_device:
+                            self.device.release_during_wait()
+                        if not self.wait_until(task.next_run, baseline_ready=True):
+                            del_cached_property(self, 'config')
+                            continue
+                    else:
+                        stop_device = self.device if has_device else None
+                        if stop_device is None:
+                            from module.device.device import Device
+                            try:
+                                stop_device = Device(config=self.config, start_emulator=False)
+                            except EmulatorNotRunningError:
+                                logger.info('Emulator is not running, wait without starting it')
+                            except RequestHumanTakeover as e:
+                                logger.warning(f'No device available for idle shutdown: {e}')
+                        if (stop_device is not None and not self.config.should_reload()
+                                and (task.next_run - datetime.now()).total_seconds() >= EMULATOR_CLOSE_MIN_WAIT
+                                and (self.stop_event is None or not self.stop_event.is_set())):
+                            logger.info('Close emulator during wait')
+                            try:
+                                stop_device.app_stop()
+                            except Exception as e:
+                                logger.warning(f'App stop failed, still try stopping emulator: {e}')
+                            release_resources()
+                            stop_device.release_during_wait()
+                            try:
+                                stopped = stop_device.emulator_stop_and_wait(deadline=task.next_run)
+                                if not stopped:
+                                    logger.warning('Failed to stop emulator, fallback to closed-game wait')
+                            except Exception as e:
+                                logger.warning(f'Failed to stop emulator, fallback to closed-game wait: {e}')
+                            finally:
+                                # The stop request makes this handle stale even if
+                                # shutdown was not confirmed. _loop lazily reconnects.
+                                if has_device:
+                                    del_cached_property(self, 'device')
+                                self.game = None
+                                self.game_in_foreground = False
+                        if not self.wait_until(task.next_run, baseline_ready=True):
+                            del_cached_property(self, 'config')
+                            continue
+                elif method == 'close_game':
                     logger.info('Close game during wait')
                     self.device.app_stop()
                     release_resources()
@@ -683,7 +769,9 @@ class GameScheduler:
                     if not self.wait_until(task.next_run):
                         del_cached_property(self, 'config')
                         continue
-                    if task.command != 'Restart':
+                    if task.command != 'Restart' and not market_wait_only:
+                        # A market-only task must not queue a restart for
+                        # itself: the recheck happens on the next wake up.
                         self.config.task_call('Restart')
                         del_cached_property(self, 'config')
                         continue
@@ -787,6 +875,14 @@ class GameScheduler:
             self.boot_declined = False
             # Get task
             task = self.get_next_task()
+            if task == 'ResonanceTrade':
+                from module.resonance.market import precheck_resonance_market
+                next_check = precheck_resonance_market(self.config)
+                if next_check is not None:
+                    logger.info(f'Resonance market precheck: wait until {next_check}')
+                    self.config.task_delay(target=next_check)
+                    del_cached_property(self, 'config')
+                    continue
             # Init device and change server
             _ = self.device
             self.device.config = self.config

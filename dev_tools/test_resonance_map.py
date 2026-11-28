@@ -1,3 +1,4 @@
+import os
 import unittest
 from itertools import count
 from unittest.mock import Mock, call, patch
@@ -6,6 +7,132 @@ import numpy as np
 
 from module.base.utils import load_image
 from module.config import server
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ARCHIVE_DIR = os.path.join(_REPO_ROOT, 'screenshots', 'resonance')
+
+# Regions of the live 雷索纳斯 transit screens (1280x720), measured on the
+# archived frames. The 「D」 region is deliberately narrow: the live gear cluster
+# puts the red 「B」 badge at x 1187-1198 / y 629-647, so a wide selector also
+# accepted a press on 「B」 as a press on 「D」.
+GUARD_REGION = (880, 180, 1150, 320)   # the 「护卫队迎击」 wedge of the encounter wheel
+WHEEL_REGION = (815, 186, 1206, 576)   # the whole encounter wheel
+DRIVE_REGION = (1228, 597, 1265, 635)  # the 「D」 glyph only (live glyph: x 1243-1251, y 608-623)
+B_REGION = (1180, 622, 1206, 655)      # the red 「B」 badge (live glyph: x 1187-1198, y 629-647)
+RETURN_REGION = (550, 100, 730, 160)   # 「立即返航」
+DECOY_REGION = (880, 440, 1140, 580)   # 「诱饵气球」
+LEGACY_DRIVE_REGION = (1150, 570, 1280, 680)  # the earlier too-wide selector, kept as evidence
+
+
+def _archived(name):
+    """Return the archived resonance screenshot, or None when it is not archived here."""
+    path = os.path.join(_ARCHIVE_DIR, name)
+    if not os.path.exists(path):
+        return None
+    return load_image(path)
+
+
+def _blank_with(*buttons):
+    canvas = np.zeros((720, 1280, 3), dtype=np.uint8)
+    for btn in buttons:
+        x1, y1, x2, y2 = btn.area
+        canvas[y1:y2, x1:x2] = load_image(btn.file, btn.area)
+    return canvas
+
+
+def _click_center(target):
+    """Return the click centre of a Button / bbox target, or None."""
+    bbox = getattr(target, 'button', None)
+    if bbox is None and isinstance(target, (tuple, list)) and len(target) >= 4:
+        bbox = tuple(target[:4])
+    if not isinstance(bbox, (tuple, list)) or len(bbox) < 4:
+        return None
+    x1, y1, x2, y2 = bbox[:4]
+    return ((x1 + x2) // 2, (y1 + y2) // 2)
+
+
+def _dark_glyph_boxes(image, region, min_area=8):
+    """Return the boxes of the small dark glyph components inside `region`."""
+    import cv2
+
+    x1, y1, x2, y2 = region
+    gray = image[y1:y2, x1:x2].max(axis=2)
+    mask = (gray < 120).astype(np.uint8)
+    count, _, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+    boxes = []
+    for index in range(1, count):
+        x, y, width, height, area = stats[index]
+        if area < min_area or width > 30 or height > 40:
+            continue
+        boxes.append((int(x + x1), int(y + y1), int(x + x1 + width), int(y + y1 + height)))
+    return boxes
+
+
+def _box_inside(box, region):
+    return (region[0] <= box[0] and region[1] <= box[1]
+            and box[2] <= region[2] and box[3] <= region[3])
+
+
+def _box_overlaps(box, region):
+    return not (box[2] <= region[0] or region[2] <= box[0]
+                or box[3] <= region[1] or region[3] <= box[1])
+
+
+def _inside(center, box):
+    if center is None:
+        return False
+    return box[0] <= center[0] <= box[2] and box[1] <= center[1] <= box[3]
+
+
+def _click_kind(target):
+    """Classify a click as a known transit action."""
+    name = getattr(target, 'name', None)
+    if name in ('OP_NEXT', 'OP_BACK', 'LOGIN_REWARD', 'MAP_DEPART'):
+        return name
+    center = _click_center(target)
+    if center is None:
+        return None
+    if _inside(center, DRIVE_REGION):
+        return 'D'
+    if _inside(center, B_REGION):
+        return 'B'
+    if _inside(center, GUARD_REGION):
+        return 'GUARD'
+    return None
+
+
+class _TransitFeed:
+    """Scripted transit screen feed.
+
+    A state advances when the script clicks one of the state's triggers (an asset
+    name such as 'OP_NEXT' or a screen region such as 'GUARD' / 'D'), or when the
+    state was shown more than `hold` times without a reaction.
+    """
+
+    def __init__(self, states):
+        self.states = list(states)
+        self.index = 0
+        self.shown = 0
+        self.clicks = []
+
+    @property
+    def frame(self):
+        return self.states[self.index]['frame']
+
+    def screenshot(self):
+        self.shown += 1
+        if self.shown > self.states[self.index].get('hold', 6):
+            self.shown = 1
+            self.index = min(self.index + 1, len(self.states) - 1)
+        return self.frame
+
+    def click(self, target):
+        self.clicks.append(_click_center(target))
+        kind = _click_kind(target)
+        triggers = self.states[self.index].get('advance_on') or ()
+        if kind is not None and kind in triggers:
+            self.shown = 0
+            self.index = min(self.index + 1, len(self.states) - 1)
 
 
 def _assist_frame(assets, states):
@@ -290,3 +417,239 @@ class TestResonanceMap(unittest.TestCase):
             with patch('module.base.timer.time', side_effect=count(100, 1.5)):
                 prof.wait_until_docked(timeout=30)
             self.assertIs(prof.ui_current, page_main)
+
+    def _run_transit(self, feed, first_frame, timeout=60):
+        """Drive the public wait_until_docked entry against a scripted screen feed."""
+        from module.resonance.profile import ResonanceProfile
+
+        prof = ResonanceProfile.__new__(ResonanceProfile)
+        prof.device = Mock()
+        prof.device.image = first_frame
+        prof.interval_timer = {}
+
+        def _screenshot():
+            prof.device.image = feed.screenshot()
+            return prof.device.image
+
+        def _click(target):
+            feed.click(target)
+            prof.device.image = feed.frame
+
+        prof.device.screenshot.side_effect = _screenshot
+        prof.device.click.side_effect = _click
+        with patch('module.base.timer.time', side_effect=count(100, 1.5)):
+            prof.wait_until_docked(timeout=timeout)
+        return prof
+
+    def test_guard_encounter_then_parked_state_resumes_drive(self):
+        """Restart lands on a transit guard encounter: counter it, then resume the drive at the stop."""
+        from module.resonance import assets
+        from module.resonance.page import page_main
+
+        encounter = _archived('transit_guard_encounter_20261128.png')
+        parked = _archived('transit_parked_20261128.png')
+        if encounter is None or parked is None:
+            self.skipTest('archived resonance screenshots are not available in this worktree')
+
+        driving = np.zeros((720, 1280, 3), dtype=np.uint8)
+        battle = _blank_with(assets.OP_PAUSE, assets.OP_AUTO_ON)
+        victory = _blank_with(assets.OP_WIN, assets.OP_NEXT)
+        reward = _blank_with(assets.LOGIN_REWARD)
+        main = load_image(assets.MAIN_CHECK.file) + load_image(assets.MAIN_VISIT_CITY.file)
+
+        feed = _TransitFeed([
+            {'frame': encounter, 'hold': 8, 'advance_on': ('GUARD',)},
+            {'frame': battle, 'hold': 3},
+            {'frame': victory, 'hold': 6, 'advance_on': ('OP_NEXT',)},
+            {'frame': reward, 'hold': 4, 'advance_on': ('LOGIN_REWARD',)},
+            {'frame': parked, 'hold': 10, 'advance_on': ('D',)},
+            {'frame': driving, 'hold': 3},
+            {'frame': main, 'hold': 99},
+        ])
+
+        prof = self._run_transit(feed, encounter)
+
+        self.assertIs(prof.ui_current, page_main)
+        guard_clicks = [c for c in feed.clicks if _inside(c, WHEEL_REGION)]
+        self.assertEqual(len(guard_clicks), 1, 'the guard encounter option must be selected exactly once')
+        self.assertTrue(_inside(guard_clicks[0], GUARD_REGION), 'the 「护卫队迎击」 option must be selected')
+        drive_clicks = [c for c in feed.clicks if _inside(c, DRIVE_REGION)]
+        self.assertEqual(len(drive_clicks), 1, 'the 「D」 must be clicked exactly once, clicks=%r' % (feed.clicks,))
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, B_REGION)],
+            'the red 「B」 badge must never be pressed, clicks=%r' % (feed.clicks,),
+        )
+        self.assertLess(
+            feed.clicks.index(guard_clicks[0]), feed.clicks.index(drive_clicks[0]),
+            'the D may only be clicked after the counterattack',
+        )
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, RETURN_REGION)],
+            '「立即返航」 must never be clicked',
+        )
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, DECOY_REGION)],
+            'the 「诱饵气球」 option must not be selected',
+        )
+
+    def test_travel_to_resumes_drive_after_guard_encounter(self):
+        """The journey entry must survive a guard encounter and resume the drive at the stop."""
+        from module.resonance import assets
+        from module.resonance.map_nav import ResonanceMapNav
+
+        encounter = _archived('transit_guard_encounter_20261128.png')
+        parked = _archived('transit_parked_20261128.png')
+        if encounter is None or parked is None:
+            self.skipTest('archived resonance screenshots are not available in this worktree')
+
+        station = load_image(assets.MAP_DEPART.file)
+        battle = _blank_with(assets.OP_PAUSE, assets.OP_AUTO_ON)
+        victory = _blank_with(assets.OP_WIN, assets.OP_NEXT)
+        reward = _blank_with(assets.LOGIN_REWARD)
+        driving = np.zeros((720, 1280, 3), dtype=np.uint8)
+        main = load_image(assets.MAIN_CHECK.file) + load_image(assets.MAIN_VISIT_CITY.file)
+
+        feed = _TransitFeed([
+            {'frame': station, 'hold': 4, 'advance_on': ('MAP_DEPART',)},
+            {'frame': encounter, 'hold': 8, 'advance_on': ('GUARD',)},
+            {'frame': battle, 'hold': 3},
+            {'frame': victory, 'hold': 6, 'advance_on': ('OP_NEXT',)},
+            {'frame': reward, 'hold': 4, 'advance_on': ('LOGIN_REWARD',)},
+            {'frame': parked, 'hold': 10, 'advance_on': ('D',)},
+            {'frame': driving, 'hold': 3},
+            {'frame': main, 'hold': 99},
+        ])
+
+        nav = ResonanceMapNav.__new__(ResonanceMapNav)
+        nav.device = Mock()
+        nav.device.image = station
+        nav.interval_timer = {}
+        nav.ui_ensure = Mock()
+        nav.select_city_on_map = Mock()
+        nav.configure_drive_assist = Mock()
+
+        def _screenshot():
+            nav.device.image = feed.screenshot()
+            return nav.device.image
+
+        def _click(target):
+            feed.click(target)
+            nav.device.image = feed.frame
+
+        nav.device.screenshot.side_effect = _screenshot
+        nav.device.click.side_effect = _click
+
+        with patch('module.base.timer.time', side_effect=count(100, 0.6)):
+            arrived = nav.travel_to('岚心城', use_ramming=False)
+
+        self.assertTrue(arrived)
+        guard_clicks = [c for c in feed.clicks if _inside(c, WHEEL_REGION)]
+        self.assertEqual(len(guard_clicks), 1, 'the guard encounter option must be selected exactly once')
+        self.assertTrue(_inside(guard_clicks[0], GUARD_REGION), 'the 「护卫队迎击」 option must be selected')
+        drive_clicks = [c for c in feed.clicks if _inside(c, DRIVE_REGION)]
+        self.assertEqual(len(drive_clicks), 1, 'the 「D」 must be clicked exactly once, clicks=%r' % (feed.clicks,))
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, B_REGION)],
+            'the red 「B」 badge must never be pressed, clicks=%r' % (feed.clicks,),
+        )
+        self.assertLess(
+            feed.clicks.index(guard_clicks[0]), feed.clicks.index(drive_clicks[0]),
+            'the D may only be clicked after the counterattack',
+        )
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, RETURN_REGION)],
+            '「立即返航」 must never be clicked',
+        )
+
+    def test_arrival_screen_never_clicks_guard_or_drive(self):
+        """On the arrival screen nothing may be clicked, neither the wheel nor the drive selector."""
+        from module.resonance import assets
+        from module.resonance.page import page_main
+
+        main = load_image(assets.MAIN_CHECK.file) + load_image(assets.MAIN_VISIT_CITY.file)
+        feed = _TransitFeed([{'frame': main, 'hold': 99}])
+
+        prof = self._run_transit(feed, main)
+
+        self.assertIs(prof.ui_current, page_main)
+        self.assertEqual(feed.clicks, [], 'nothing may be clicked on the arrival screen')
+
+    def test_transit_without_encounter_never_clicks_guard_or_drive(self):
+        """A plain transit run without an encounter must not pick an option nor press the D."""
+        from module.resonance import assets
+        from module.resonance.page import page_main
+
+        driving = np.zeros((720, 1280, 3), dtype=np.uint8)
+        main = load_image(assets.MAIN_CHECK.file) + load_image(assets.MAIN_VISIT_CITY.file)
+
+        feed = _TransitFeed([
+            {'frame': driving, 'hold': 4},
+            {'frame': main, 'hold': 99},
+        ])
+
+        prof = self._run_transit(feed, driving)
+
+        self.assertIs(prof.ui_current, page_main)
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, WHEEL_REGION)],
+            'no encounter option may be selected without an encounter',
+        )
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, DRIVE_REGION)],
+            'the D must not be clicked while the transit is still running',
+        )
+
+    def test_archived_gear_cluster_keeps_the_d_apart_from_the_red_b(self):
+        """The live gear cluster must place the 「D」 where the narrow selector expects it.
+
+        The wide selector used by the first version of this file also covered the
+        red 「B」 badge, so a press on 「B」 could pass as a press on 「D」.
+        """
+        parked = _archived('transit_parked_20261128.png')
+        if parked is None:
+            self.skipTest('archived resonance screenshots are not available in this worktree')
+
+        boxes = _dark_glyph_boxes(parked, (1150, 560, 1280, 720))
+        d_boxes = [box for box in boxes if _box_inside(box, DRIVE_REGION)]
+        self.assertEqual(len(d_boxes), 1, 'the live 「D」 glyph must sit inside the D region, boxes=%r' % (boxes,))
+        b_boxes = [box for box in boxes if _box_inside(box, B_REGION)]
+        self.assertEqual(len(b_boxes), 1, 'the live red 「B」 badge must sit inside the B region, boxes=%r' % (boxes,))
+        for box in b_boxes:
+            self.assertFalse(
+                _box_overlaps(box, DRIVE_REGION),
+                'the 「B」 badge must not overlap the 「D」 region, box=%r' % (box,),
+            )
+            self.assertTrue(
+                _box_inside(box, LEGACY_DRIVE_REGION),
+                'the previous wide region used to swallow the 「B」 badge, box=%r' % (box,),
+            )
+
+    def test_parked_frame_without_destination_never_presses_the_d(self):
+        """A stopped cab whose destination line is gone must not be resumed."""
+        from module.resonance import assets
+        from module.resonance.page import page_main
+
+        parked = _archived('transit_parked_20261128.png')
+        if parked is None:
+            self.skipTest('archived resonance screenshots are not available in this worktree')
+
+        no_destination = parked.copy()
+        no_destination[24:52, 590:720] = 0
+        main = load_image(assets.MAIN_CHECK.file) + load_image(assets.MAIN_VISIT_CITY.file)
+
+        feed = _TransitFeed([
+            {'frame': no_destination, 'hold': 12},
+            {'frame': main, 'hold': 99},
+        ])
+
+        prof = self._run_transit(feed, no_destination)
+
+        self.assertIs(prof.ui_current, page_main)
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, DRIVE_REGION)],
+            'the 「D」 must not be pressed while the destination is unknown, clicks=%r' % (feed.clicks,),
+        )
+        self.assertFalse(
+            [c for c in feed.clicks if _inside(c, B_REGION)],
+            'the red 「B」 badge must never be pressed, clicks=%r' % (feed.clicks,),
+        )

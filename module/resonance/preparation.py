@@ -29,12 +29,22 @@ TREE_ROWS = (
 BIRCH_ROI = (84, 535, 219, 577)
 WEEKLY_BADGE_ROI = (588, 620, 618, 650)
 MILESTONE_TRACK_ROI = (420, 215, 1255, 505)
+# Legacy fixed grid; only kept for the old layout fixture, never used as a click fallback.
 DEFAULT_MILESTONE_BOXES = (
     (539, 226, 648, 334),
     (735, 386, 844, 494),
     (931, 226, 1040, 334),
     (1127, 386, 1236, 494),
 )
+# Each 凭证置换 node is ~110px tall/wide; smaller vivid-blue blobs are labels or track dots.
+MILESTONE_MIN_SIZE = 70
+MILESTONE_MAX_SIZE = 160
+CLAIM_ROUND_LIMIT = 10
+# Keep the earlier sweep budget: each swipe is cheap and a reward node can sit far off-screen.
+CLAIM_SCROLL_LIMIT = 6
+CLAIM_STALL_LIMIT = 2
+# A failed click is remembered by coarse position so a dead node is never re-tapped in place.
+CLAIM_FAIL_KEY = 10
 
 CLARITY_OCR = Ocr(
     (1120, 18, 1225, 55),
@@ -103,22 +113,40 @@ def has_weekly_reward_badge(image):
     return int(np.count_nonzero((r > 180) & (g < 60) & (b < 60))) >= 20
 
 
+def _claimable_mask(roi):
+    """Return the vivid cyan-blue frame mask used only by claimable milestone cards."""
+    r = roi[:, :, 0].astype(np.int16)
+    g = roi[:, :, 1].astype(np.int16)
+    b = roi[:, :, 2].astype(np.int16)
+    # Claimable frames are bright blue (61,120,236); claimed/locked frames are dim navy.
+    mask = ((b > 200) & (g > 95) & (g < 180) & (r < 120)).astype(np.uint8)
+    return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+
+
+def is_claimable_milestone_box(image, box):
+    """Return True if the given frame still carries the claimable-card highlight."""
+    x1, y1, x2, y2 = box
+    if x2 <= x1 or y2 <= y1:
+        return False
+    return int(_claimable_mask(image[y1:y2, x1:x2]).sum()) >= 120
+
+
 def find_weekly_milestone_buttons(image):
-    """Detect visible milestone reward item boxes inside the 凭证置换 timeline."""
+    """Detect claimable milestone cards inside the 凭证置换 timeline.
+
+    Only the highlighted (vivid blue) card is returned; claimed cards with a check
+    mark and locked cards with a lock icon must never become click targets.
+    """
     x1, y1, x2, y2 = MILESTONE_TRACK_ROI
     roi = image[y1:y2, x1:x2]
-    r = roi[:, :, 0].astype(np.int16)
-    b = roi[:, :, 2].astype(np.int16)
-    blue_mask = ((b > 170) & (b - r > 70)).astype(np.uint8)
-    count, _, stats, _ = cv2.connectedComponentsWithStats(blue_mask)
+    count, _, stats, _ = cv2.connectedComponentsWithStats(_claimable_mask(roi))
     boxes = []
     for idx in range(1, count):
         bx, by, bw, bh, _ = stats[idx]
-        if bw > 80 and bh > 80:
+        if (MILESTONE_MIN_SIZE <= bw <= MILESTONE_MAX_SIZE
+                and MILESTONE_MIN_SIZE <= bh <= MILESTONE_MAX_SIZE):
             boxes.append((int(x1 + bx), int(y1 + by), int(x1 + bx + bw), int(y1 + by + bh)))
     boxes.sort()
-    if not boxes:
-        boxes = list(DEFAULT_MILESTONE_BOXES)
     return [_box_button(box, f'PREP_MILESTONE_{i}') for i, box in enumerate(boxes)]
 
 
@@ -305,12 +333,12 @@ class ResonancePreparation(ResonanceUI):
         raise GameStuckError('Resonance weekly reward modal did not open')
 
     def _click_milestone_and_wait(self, btn):
-        """Click one milestone node on 凭证置换 and return True if LOGIN_REWARD pops up."""
+        """Click one currently highlighted milestone node and dismiss its reward popup."""
         clicked = False
         got_reward = False
         wait = Timer(1.8)
         settle = Timer(1.5)
-        for _ in self.loop(timeout=8):
+        for _ in self.loop(timeout=10):
             if self.handle_reward_popup():
                 got_reward = True
                 settle.reset()
@@ -321,6 +349,9 @@ class ResonancePreparation(ResonanceUI):
                 continue
             if self.appear(assets.PREP_REWARD_MODAL, offset=OFFSET):
                 if not clicked:
+                    # Re-verify on this frame so a shifted panel never clicks an old coordinate.
+                    if not is_claimable_milestone_box(self.device.image, btn.button):
+                        return False
                     self.device.click(btn)
                     clicked = True
                     wait.reset()
@@ -339,32 +370,73 @@ class ResonancePreparation(ResonanceUI):
             self.appear_then_click(assets.PREP_REWARD_MODAL, offset=OFFSET, interval=2)
         raise GameStuckError('Resonance weekly reward modal did not close')
 
-    def _scan_visible_milestones(self):
-        """Try visible milestone nodes on the current 凭证置换 view; return True if rewards claimed."""
-        for btn in find_weekly_milestone_buttons(self.device.image):
-            if self._click_milestone_and_wait(btn):
-                return True
-        return False
-
     def claim_weekly_rewards(self):
-        """Open 查看本周奖励, tap one unclaimed node to claim all rewards, then close modal."""
+        """Open 查看本周奖励 and claim every claimable node, re-scanning after each panel shift."""
         if not self._open_weekly_reward_modal():
             return False
-        claimed = False
+        claimed, scrolls, stalls, missing = 0, 0, 0, 0
+        failed = set()
         previous = None
-        for _ in range(6):
-            if self._scan_visible_milestones():
-                claimed = True
-                break
-            track = self.image_crop(MILESTONE_TRACK_ROI)
-            if previous is not None and cv2.absdiff(previous, track).mean() < 1:
-                break
-            previous = track
+        unfinished = False
+        for _ in self.loop(timeout=120):
+            if self.handle_reward_popup():
+                missing = 0
+                continue
             if self.appear(assets.PREP_REWARD_MODAL, offset=OFFSET):
+                missing = 0
+                # Each iteration reads the fresh frame, so a shifted panel never reuses old coordinates.
+                buttons = find_weekly_milestone_buttons(self.device.image)
+                if buttons and claimed >= CLAIM_ROUND_LIMIT:
+                    unfinished = True
+                    break
+                # A node that just failed stays blacklisted for this scroll position only.
+                candidates = [b for b in buttons
+                              if tuple(v // CLAIM_FAIL_KEY for v in b.button) not in failed]
+                if candidates:
+                    btn = candidates[0]
+                    if self._click_milestone_and_wait(btn):
+                        claimed += 1
+                        # Never re-tap the node we just took while its card is still fading out.
+                        failed.add(tuple(v // CLAIM_FAIL_KEY for v in btn.button))
+                        stalls, previous = 0, None
+                        continue
+                    # Clicking did nothing; skip this node but keep trying the rest of the view.
+                    failed.add(tuple(v // CLAIM_FAIL_KEY for v in btn.button))
+                    stalls += 1
+                    continue
+                track = self.image_crop(MILESTONE_TRACK_ROI)
+                if previous is not None and cv2.absdiff(previous, track).mean() < 1:
+                    stalls += 1
+                else:
+                    stalls = 0
+                previous = track
+                if stalls < CLAIM_STALL_LIMIT:
+                    continue
+                if scrolls >= CLAIM_SCROLL_LIMIT:
+                    # Budget is gone; only report success when this view really has no node left.
+                    unfinished = bool(buttons)
+                    break
+                before = track
                 self.device.swipe((1150, 360), (480, 360), duration=0.55, name='PREP_REWARD_SWIPE')
+                scrolls += 1
                 self.wait_until_still(MILESTONE_TRACK_ROI, timeout=6, skip_first_screenshot=False)
+                after = self.image_crop(MILESTONE_TRACK_ROI)
+                if cv2.absdiff(before, after).mean() < 1:
+                    # The track did not move: retrying the same frame would only re-tap dead nodes.
+                    unfinished = bool(find_weekly_milestone_buttons(self.device.image))
+                    break
+                stalls, failed, previous = 0, set(), None
+                continue
+            if self.ui_page_appear(page_resonance_prep, offset=OFFSET):
+                break
+            missing += 1
+            if missing >= 6:
+                break
         self._close_weekly_reward_modal()
-        return claimed
+        if unfinished:
+            raise GameStuckError(
+                f'Resonance weekly reward has claimable milestones left after {claimed} claims')
+        return claimed > 0
 
     def run(self):
         """Execute 全域整备 -> 构析勘探 auto-crusade, claim weekly rewards, return to main, and delay."""

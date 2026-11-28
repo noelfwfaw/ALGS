@@ -186,7 +186,8 @@ class ResonanceProfile(ResonanceTrade):
         settled = 0
         for _ in self.loop(skip_first=False, timeout=timeout):
             self.device.stuck_record_clear()
-            if self.handle_reward_popup() or self.handle_operation_victory():
+            if (self.handle_reward_popup() or self.handle_operation_victory()
+                    or self.handle_transit_recovery()):
                 settled = 0
                 continue
             if self.ui_page_appear(page_main, offset=OFFSET) and self.appear(assets.MAIN_VISIT_CITY, offset=OFFSET):

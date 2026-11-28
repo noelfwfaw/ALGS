@@ -1,11 +1,12 @@
 """Config-adaptive market quality evaluation and WebUI status reporting for 雷索纳斯 trading."""
 
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 import re
 
+from module.logger import logger
 from module.resonance.columba import fetch_prices, load_columba_data, normalize_player_config
 from module.resonance.route import SORT_ALIASES, js_round, recommend_routes
 from module.resonance.smart_cycle import (
@@ -331,6 +332,80 @@ def refresh_market_status_for_webui(
     record = build_market_status_record(mq, status, market_filter, source='manual')
     save_market_status(config_name, record, path=status_path)
     return record
+
+
+def resonance_market_wait_required(config):
+    """Return whether ResonanceTrade has to wait for a market check before it boots.
+
+    The cached transport checkpoint is not a permit: the global trade state may
+    belong to an earlier run or to another instance, so it never opens the
+    gate. The only exception is the user asking for a profile rescan, which
+    needs the game running anyway. `MarketFilter` set to "all" means no market
+    limit at all, so there is nothing to wait for.
+    """
+    market_filter = getattr(config, 'ResonanceTrade_MarketFilter', 'all')
+    if MARKET_FILTER_THRESHOLDS.get(market_filter) is None:
+        return False
+    if getattr(config, 'ResonanceTrade_RefreshProfile', False) is True:
+        return False
+    return True
+
+
+def precheck_resonance_market(config, profile_path=PROFILE_CACHE_PATH, status_path=MARKET_STATUS_PATH):
+    """Return the next market check time, or None when trading may boot.
+
+    The cached profile is an estimate, not a permit: a missing or partial
+    profile still runs the real market check, with the same defaults the WebUI
+    estimates with. Only an unreadable price list or an undecidable index
+    defers the trade.
+    """
+    if not resonance_market_wait_required(config):
+        return None
+    wait_minutes = max(5, int(getattr(config, 'ResonanceTrade_MarketWaitMinutes', 30) or 30))
+    next_check = (datetime.now() + timedelta(minutes=wait_minutes)).replace(microsecond=0)
+    profile = _read_json_dict(profile_path)
+    if not profile.get('prestige'):
+        logger.info('Resonance profile cache is incomplete, estimating the market with the default profile')
+    defaults = {
+        'ExcludedCities': '武林源', 'BargainPercent': 20, 'RaisePercent': 20,
+        'ReturnBargain': False, 'RestockBooks': 2, 'RoundTrip': False,
+        'SortBy': 'profit_per_fatigue', 'MarketFilter': 'all', 'RouteMode': 'auto',
+        'ManualCityA': '', 'ManualCityB': '',
+    }
+    trade_cfg = {
+        key: getattr(config, 'ResonanceTrade_' + key, default)
+        for key, default in defaults.items()
+    }
+    try:
+        data = load_columba_data()
+        player_cfg = _build_webui_player_config(profile, trade_cfg, data)
+        route_mode = trade_cfg['RouteMode']
+        manual_cities = (
+            (trade_cfg['ManualCityA'], trade_cfg['ManualCityB'])
+            if route_mode == 'manual' else None
+        )
+        smart_state = load_smart_state(config.config_name) if route_mode == 'smart_cycle' else None
+        prices = fetch_prices(ttl=180, data=data)
+        mq = evaluate_market_quality(
+            prices, player_cfg, trade_cfg['SortBy'], data,
+            manual_cities=manual_cities, route_mode=route_mode, smart_state=smart_state,
+        )
+        if mq is None:
+            return next_check
+    except Exception:
+        # Missing HTTP/cache data is an indeterminate market, not a scheduler failure.
+        return next_check
+
+    threshold = MARKET_FILTER_THRESHOLDS[trade_cfg['MarketFilter']]
+    if mq['index'] >= threshold:
+        record = build_market_status_record(mq, 'pass', trade_cfg['MarketFilter'], source='scheduler')
+    else:
+        record = build_market_status_record(
+            mq, 'wait', trade_cfg['MarketFilter'],
+            next_check=next_check.strftime('%Y-%m-%d %H:%M:%S'), source='scheduler',
+        )
+    save_market_status(config.config_name, record, path=status_path)
+    return None if record['status'] == 'pass' else next_check
 
 
 def format_market_summary(record):
